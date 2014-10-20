@@ -1,0 +1,5 @@
+build/*
+.testrepository
+.tox/
+nova_powervm.egg-info/
+*.pyc
