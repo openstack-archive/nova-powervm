@@ -1,0 +1,5 @@
+/build/
+.testrepository
+.tox/
+ceilometer_powervm.egg-info/
+*.pyc
