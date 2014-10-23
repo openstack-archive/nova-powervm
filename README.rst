@@ -38,8 +38,8 @@ This new driver must meet the following:
 The use cases should be the following:
 
 * As a deployer, all of the standard lifecycle operations (start, stop,
-reboot, migrate, destroy, etc...) should be supported on a PowerVM based
-instance.
+  reboot, migrate, destroy, etc...) should be supported on a PowerVM based
+  instance.
 
 * As a deployer, I should be able to capture an instance to an image.
 
@@ -147,7 +147,7 @@ However, the driver is likely to need some PowerVM specific options.
 
 In this case, we plan to keep the PowerVM specifics contained within the
 configuration file (and driver code).  Any new configuration options will have
-the prefix "powervm_".
+the prefix "powervm\_".
 
 There should be no impact to customers upgrading their cloud stack as this is
 a genesis driver and should not have database impacts.
@@ -311,8 +311,7 @@ Documentation will be contributed which identifies how to configure the
 driver.  This will include configuring the dependencies specified above.
 
 Documentation will be done on wiki, specifically at a minimum to the following
-page: http://docs.openstack.org/trunk/config-reference/content/
-      section_compute-hypervisors.html
+page: http://docs.openstack.org/trunk/config-reference/content/section_compute-hypervisors.html
 
 Interlock will be done with the OpenStack documentation team.
 
