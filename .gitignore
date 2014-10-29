@@ -3,3 +3,6 @@ build/*
 .tox/
 nova_powervm.egg-info/
 *.pyc
+/.idea/
+.coverage
+/cover/

@@ -33,3 +33,10 @@ class TestPowerVMDriver(test.TestCase):
         """
         test_drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         self.assertIsNotNone(test_drv)
+
+    def test_driver_init(self):
+        """Validates the PowerVM driver can be initialized for the host."""
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv.init_host('FakeHost')
+        # Nothing to really check here specific to the host.
+        self.assertIsNotNone(drv)
