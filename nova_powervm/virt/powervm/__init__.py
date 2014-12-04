@@ -13,3 +13,26 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
+from oslo.config import cfg
+
+hmc_opts = [
+    # TODO(kyleh) Temporary - Only needed since we're using an HMC
+    cfg.StrOpt('hmc_host_id',
+               default='',
+               help='TEMP - the unique id of the host to manage'),
+    cfg.StrOpt('hmc_ip',
+               default='',
+               help='TEMP - the HMC IP.'),
+    cfg.StrOpt('hmc_user',
+               default='',
+               help='TEMP - the HMC user.'),
+    cfg.StrOpt('hmc_pass',
+               default='',
+               help='TEMP - the HMC password.')
+]
+
+
+CONF = cfg.CONF
+CONF.register_opts(hmc_opts)
+CONF.import_opt('host', 'nova.netconf')

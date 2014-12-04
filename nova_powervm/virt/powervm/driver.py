@@ -15,11 +15,22 @@
 #    under the License.
 
 
+from nova.i18n import _LI
 from nova.openstack.common import log as logging
 from nova.virt import driver
 from nova.virt import fake  # TODO(IBM): Remove this in the future
 
+from oslo.config import cfg
+
+from pypowervm import adapter as pvm_apt
+from pypowervm.helpers import log_helper as log_hlp
+from pypowervm.wrappers import constants as pvm_consts
+from pypowervm.wrappers import managed_system as msentry_wrapper
+
+from nova_powervm.virt.powervm import host as pvm_host
+
 LOG = logging.getLogger(__name__)
+CONF = cfg.CONF
 
 
 class PowerVMDriver(driver.ComputeDriver):
@@ -30,14 +41,39 @@ class PowerVMDriver(driver.ComputeDriver):
         super(PowerVMDriver, self).__init__(virtapi)
 
         # Use the fake driver for scaffolding for now
-        fake.set_nodes(['fake-PowerVM'])
+        # fake.set_nodes(['fake-PowerVM'])
         self._fake = fake.FakeDriver(virtapi)
 
     def init_host(self, host):
         """Initialize anything that is necessary for the driver to function,
         including catching up with currently running VM's on the given host.
         """
-        pass
+
+        # Get an adapter
+        self._get_adapter()
+        # First need to resolve the managed host UUID
+        self._get_host_uuid()
+        LOG.info(_LI("The compute driver has been initialized."))
+
+    def _get_adapter(self):
+        # Decode the password
+        password = CONF.hmc_pass.decode('base64', 'strict')
+        # TODO(IBM): set cert path
+        self.session = pvm_apt.Session(CONF.hmc_ip, CONF.hmc_user, password,
+                                       certpath=None)
+        self.adapter = pvm_apt.Adapter(self.session,
+                                       helpers=log_hlp.log_helper)
+
+    def _get_host_uuid(self):
+        # Need to get a list of the hosts, then find the matching one
+        resp = self.adapter.read(pvm_consts.MGT_SYS)
+        host_entry = pvm_host.find_entry_by_mtm_serial(resp, CONF.hmc_host_id)
+        if not host_entry:
+            raise Exception("Host %s not found" % CONF.hmc_host_id)
+
+        self.host_wrapper = msentry_wrapper.ManagedSystem(host_entry)
+        self.host_uuid = self.host_wrapper.get_uuid()
+        LOG.info(_LI("Host UUID is:%s") % self.host_uuid)
 
     def get_info(self, instance):
         """Get the current status of an instance, by name (not ID!)
@@ -149,7 +185,10 @@ class PowerVMDriver(driver.ComputeDriver):
         :returns: Dictionary describing resources
         """
 
-        data = self._fake.get_available_resource(nodename)
+        resp = self.adapter.read(pvm_consts.MGT_SYS, rootId=self.host_uuid)
+        if resp:
+            self.host_wrapper = msentry_wrapper.ManagedSystem(resp.entry)
+        data = pvm_host.build_host_resource_from_entry(self.host_wrapper)
         return data
 
     def get_host_uptime(self, host):
@@ -163,12 +202,6 @@ class PowerVMDriver(driver.ComputeDriver):
     def unplug_vifs(self, instance, network_info):
         """Unplug VIFs from networks."""
         pass
-
-    def get_host_stats(self, refresh=False):
-        """Return currently known host stats."""
-
-        data = self._fake.get_host_stats(refresh)
-        return data
 
     def get_available_nodes(self):
         """Returns nodenames of all nodes managed by the compute service.
