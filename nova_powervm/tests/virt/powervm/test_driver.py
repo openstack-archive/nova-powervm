@@ -25,16 +25,19 @@ from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import constants as wpr_consts
 import pypowervm.wrappers.managed_system as msentry_wrapper
 
-
 from nova_powervm.virt.powervm import driver
 from nova_powervm.virt.powervm import host as pvm_host
 
 MS_HTTPRESP_FILE = "managedsystem.txt"
-MC_HTTPRESP_FILE = "managementconsole.txt"
 MS_NAME = 'HV4'
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
+
+
+class FakeInstance(object):
+    def __init__(self):
+        self.name = 'fake_instance'
 
 
 class TestPowerVMDriver(test.TestCase):
@@ -72,6 +75,30 @@ class TestPowerVMDriver(test.TestCase):
         drv.init_host('FakeHost')
         # Nothing to really check here specific to the host.
         self.assertIsNotNone(drv)
+
+    @mock.patch('pypowervm.adapter.Session')
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
+    def test_driver_ops(self, mock_uuidcache, mock_find, mock_apt, mock_sess):
+        """Validates the PowerVM driver operations."""
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv.init_host('FakeHost')
+
+        # get_info()
+        inst = FakeInstance()
+        mock_uuidcache.lookup.return_value = '1234'
+        drv.pvm_uuids = mock_uuidcache
+        info = drv.get_info(inst)
+        self.assertEqual(info.id, '1234')
+
+        # list_instances()
+        tgt_mock = 'nova_powervm.virt.powervm.vm.get_lpar_list'
+        with mock.patch(tgt_mock) as mock_get_list:
+            fake_lpar_list = ['1', '2']
+            mock_get_list.return_value = fake_lpar_list
+            inst_list = drv.list_instances()
+            self.assertEqual(fake_lpar_list, inst_list)
 
     def test_host_resources(self):
         stats = pvm_host.build_host_resource_from_entry(self.wrapper)

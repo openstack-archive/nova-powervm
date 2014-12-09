@@ -28,6 +28,7 @@ from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import managed_system as msentry_wrapper
 
 from nova_powervm.virt.powervm import host as pvm_host
+from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -53,6 +54,8 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_adapter()
         # First need to resolve the managed host UUID
         self._get_host_uuid()
+        # Initialize the UUID Cache. Lets not prime it at this time.
+        self.pvm_uuids = vm.UUIDCache(self.adapter)
         LOG.info(_LI("The compute driver has been initialized."))
 
     def _get_adapter(self):
@@ -87,15 +90,20 @@ class PowerVMDriver(driver.ComputeDriver):
         :cpu_time:        (int) the CPU time used in nanoseconds
         """
 
-        info = self._fake.get_info(instance)
-
+        # For now, weed out the fake instances
+        if instance.name in self._fake.list_instances():
+            info = self._fake.get_info(instance)
+        else:
+            info = vm.InstanceInfo(self.adapter, instance.name,
+                                   self.pvm_uuids.lookup(instance.name))
         return info
 
     def list_instances(self):
         """Return the names of all the instances known to the virtualization
         layer, as a list.
         """
-        return self._fake.list_instances()
+        lpar_list = vm.get_lpar_list(self.adapter, self.host_uuid)
+        return lpar_list + self._fake.list_instances()
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None,
