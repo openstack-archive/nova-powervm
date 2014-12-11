@@ -175,6 +175,21 @@ def get_lpar_list(adapter, host_uuid):
     return lpar_list
 
 
+def get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid):
+    """Get the LogicalPartition wrapper for a given Nova instance.
+
+    :param adapter: The adapter for the pypowervm API
+    :param instance: The nova instance.
+    :param pvm_uuids: The PowerVM UUID map (from the UUIDCache)
+    :param host_uuid: (TEMPORARY) The host UUID
+    :returns: The pypowervm logical_partition wrapper.
+    """
+    pvm_inst_uuid = pvm_uuids.lookup(instance.name)
+    entry = adapter.read(pvm_consts.MGT_SYS, host_uuid,
+                         pvm_consts.LPAR, pvm_inst_uuid)
+    return pvm_lpar.LogicalPartition(entry)
+
+
 class UUIDCache(object):
     """Cache of instance names to PVM UUID value
 

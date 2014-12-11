@@ -24,6 +24,7 @@ from oslo.config import cfg
 
 from pypowervm import adapter as pvm_apt
 from pypowervm.helpers import log_helper as log_hlp
+from pypowervm.jobs import power
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import managed_system as msentry_wrapper
 
@@ -175,11 +176,21 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def power_off(self, instance):
         """Power off the specified instance."""
-        raise NotImplementedError()
+        power.power_off(self.adapter,
+                        vm.get_instance_wrapper(self.adapter,
+                                                instance,
+                                                self.pvm_uuids,
+                                                self._get_host_uuid()),
+                        self.host_uuid)
 
     def power_on(self, instance):
         """Power on the specified instance."""
-        raise NotImplementedError()
+        power.power_on(self.adapter,
+                       vm.get_instance_wrapper(self.adapter,
+                                               instance,
+                                               self.pvm_uuids,
+                                               self._get_host_uuid()),
+                       self.host_uuid)
 
     def get_available_resource(self, nodename):
         """Retrieve resource information.
