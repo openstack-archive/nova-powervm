@@ -1,4 +1,4 @@
-# Copyright 2014 IBM Corp.
+# Copyright 2014, 2015 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -15,7 +15,9 @@
 #    under the License.
 
 
+from nova import context as ctx
 from nova.i18n import _LI
+from nova.objects import flavor as flavor_obj
 from nova.openstack.common import log as logging
 from nova.virt import driver
 from nova.virt import fake  # TODO(IBM): Remove this in the future
@@ -108,7 +110,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None,
-              instance_type=None):
+              flavor=None):
         """Create a new instance/VM/domain on the virtualization platform.
 
         Once this successfully completes, the instance should be
@@ -130,11 +132,17 @@ class PowerVMDriver(driver.ComputeDriver):
            :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
         :param block_device_info: Information about block devices to be
                                   attached to the instance.
-        :param instance_type: The instance_type for the instance to be spawned.
+        :param flavor: The flavor for the instance to be spawned.
         """
-        return self._fake.spawn(context, instance, image_meta, injected_files,
-                                admin_password, network_info,
-                                block_device_info)
+
+        if not flavor:
+            admin_ctx = ctx.get_admin_context(read_deleted='yes')
+            flavor = (
+                flavor_obj.Flavor.get_by_id(admin_ctx,
+                                            instance.instance_type_id))
+
+        # Create the lpar on the host
+        vm.crt_lpar(self.adapter, self.host_uuid, instance, flavor)
 
     def destroy(self, instance, network_info, block_device_info=None,
                 destroy_disks=True):
@@ -180,7 +188,7 @@ class PowerVMDriver(driver.ComputeDriver):
                         vm.get_instance_wrapper(self.adapter,
                                                 instance,
                                                 self.pvm_uuids,
-                                                self._get_host_uuid()),
+                                                self.host_uuid),
                         self.host_uuid)
 
     def power_on(self, instance):
@@ -189,7 +197,7 @@ class PowerVMDriver(driver.ComputeDriver):
                        vm.get_instance_wrapper(self.adapter,
                                                instance,
                                                self.pvm_uuids,
-                                               self._get_host_uuid()),
+                                               self.host_uuid),
                        self.host_uuid)
 
     def get_available_resource(self, nodename):

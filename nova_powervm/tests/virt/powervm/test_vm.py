@@ -1,4 +1,4 @@
-# Copyright 2014 IBM Corp.
+# Copyright 2014, 2015 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -41,6 +41,18 @@ logging.basicConfig()
 class FakeAdapterResponse(object):
     def __init__(self, status):
         self.status = status
+
+
+class FakeInstance(object):
+    def __init__(self):
+        self.name = 'fake_instance'
+
+
+class FakeFlavor(object):
+    def __init__(self):
+        self.name = 'fake_flavor'
+        self.memory_mb = 256
+        self.vcpus = 1
 
 
 class TestVM(test.TestCase):
@@ -148,3 +160,10 @@ class TestVM(test.TestCase):
         # Check the first one in the feed and the length of the feed
         self.assertEqual(lpar_list[0], 'nova-z3-9-5-126-127-00000001')
         self.assertEqual(len(lpar_list), 21)
+
+    @mock.patch('pypowervm.adapter.Adapter')
+    def test_crt_lpar(self, mock_adr):
+        instance = FakeInstance()
+        flavor = FakeFlavor()
+        vm.crt_lpar(mock_adr, 'host_uuid', instance, flavor)
+        self.assertTrue(mock_adr.create.called)

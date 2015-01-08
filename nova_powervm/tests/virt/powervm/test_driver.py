@@ -1,4 +1,4 @@
-# Copyright 2014 IBM Corp.
+# Copyright 2014, 2015 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -38,6 +38,14 @@ logging.basicConfig()
 class FakeInstance(object):
     def __init__(self):
         self.name = 'fake_instance'
+        self.instance_type_id = 'instance_type_id'
+
+
+class FakeFlavor(object):
+    def __init__(self):
+        self.name = 'fake_flavor'
+        self.memory_mb = 256
+        self.vcpus = 1
 
 
 class TestPowerVMDriver(test.TestCase):
@@ -80,10 +88,15 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
     @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
-    def test_driver_ops(self, mock_uuidcache, mock_find, mock_apt, mock_sess):
+    @mock.patch('nova.context.get_admin_context')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    def test_driver_ops(self, mock_get_flv, mock_get_ctx,
+                        mock_uuidcache, mock_find,
+                        mock_apt, mock_sess):
         """Validates the PowerVM driver operations."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         drv.init_host('FakeHost')
+        drv.adapter = mock_apt
 
         # get_info()
         inst = FakeInstance()
@@ -99,6 +112,15 @@ class TestPowerVMDriver(test.TestCase):
             mock_get_list.return_value = fake_lpar_list
             inst_list = drv.list_instances()
             self.assertEqual(fake_lpar_list, inst_list)
+
+        # spawn()
+        with mock.patch('nova_powervm.virt.powervm.vm.crt_lpar') as mock_crt:
+            my_flavor = FakeFlavor()
+            mock_get_flv.return_value = my_flavor
+            drv.spawn('context', inst, 'image_meta',
+                      'injected_files', 'admin_password')
+            mock_crt.assert_called_with(mock_apt, drv.host_uuid,
+                                        inst, my_flavor)
 
     def test_host_resources(self):
         stats = pvm_host.build_host_resource_from_entry(self.wrapper)

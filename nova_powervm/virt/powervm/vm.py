@@ -1,4 +1,4 @@
-# Copyright 2014 IBM Corp.
+# Copyright 2014, 2015 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo.config import cfg
+
 from nova.compute import power_state
 from nova import exception
 from nova.openstack.common import log as logging
@@ -23,7 +25,7 @@ from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
 LOG = logging.getLogger(__name__)
-
+CONF = cfg.CONF
 
 POWERVM_TO_NOVA_STATE = {
     "migrating running": power_state.RUNNING,
@@ -188,6 +190,36 @@ def get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid):
     entry = adapter.read(pvm_consts.MGT_SYS, host_uuid,
                          pvm_consts.LPAR, pvm_inst_uuid)
     return pvm_lpar.LogicalPartition(entry)
+
+
+def calc_proc_units(vcpu):
+    return (vcpu * CONF.proc_units_factor)
+
+
+def crt_lpar(adapter, host_uuid, instance, flavor):
+    """Create an LPAR based on the host based on the instance
+
+    :param adapter: The adapter for the pypowervm API
+    :param host_uuid: (TEMPORARY) The host UUID
+    :param instance: The nova instance.
+    :param flavor: The nova flavor.
+    """
+
+    mem = str(flavor.memory_mb)
+    vcpus = str(flavor.vcpus)
+    proc_units = '%.2f' % calc_proc_units(flavor.vcpus)
+
+    sprocs = pvm_lpar.crt_shared_procs(proc_units, vcpus)
+    lpar_elem = pvm_lpar.crt_lpar(instance.name,
+                                  pvm_lpar.LPAR_TYPE_AIXLINUX,
+                                  sprocs,
+                                  mem,
+                                  min_mem=mem,
+                                  max_mem=mem,
+                                  max_io_slots='64')
+
+    adapter.create(lpar_elem, pvm_consts.MGT_SYS,
+                   rootId=host_uuid, childType=pvm_lpar.LPAR)
 
 
 class UUIDCache(object):

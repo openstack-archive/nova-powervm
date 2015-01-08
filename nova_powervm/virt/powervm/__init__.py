@@ -1,4 +1,4 @@
-# Copyright 2014 IBM Corp.
+# Copyright 2014, 2015 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -17,6 +17,10 @@
 from oslo.config import cfg
 
 hmc_opts = [
+    cfg.FloatOpt('proc_units_factor',
+                 default=0.1,
+                 help='Factor used to calculate the processor units per vcpu.'
+                 ' Valid values are: 0.05 - 1.0'),
     # TODO(kyleh) Temporary - Only needed since we're using an HMC
     cfg.StrOpt('hmc_host_id',
                default='',
