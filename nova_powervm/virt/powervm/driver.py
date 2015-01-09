@@ -144,7 +144,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # Create the lpar on the host
         vm.crt_lpar(self.adapter, self.host_uuid, instance, flavor)
 
-    def destroy(self, instance, network_info, block_device_info=None,
+    def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True):
         """Destroy (shutdown and delete) the specified instance.
 
@@ -152,6 +152,7 @@ class PowerVMDriver(driver.ComputeDriver):
         function should still succeed.  It's probably a good idea to log a
         warning in that case.
 
+        :param context: security context
         :param instance: Instance object as returned by DB layer.
         :param network_info:
            :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
@@ -160,8 +161,14 @@ class PowerVMDriver(driver.ComputeDriver):
         :param destroy_disks: Indicates if disks should be destroyed
 
         """
-        return self._fake.destroy(instance, network_info, block_device_info,
-                                  destroy_disks)
+
+        # For now, weed out the fake instances
+        if instance.name in self._fake.list_instances():
+            self._fake.destroy(instance, network_info,
+                               block_device_info, destroy_disks)
+        else:
+            vm.dlt_lpar(self.adapter, self.pvm_uuids.lookup(instance.name))
+        return
 
     def attach_volume(self, connection_info, instance, mountpoint):
         """Attach the disk to the instance at mountpoint using info."""
@@ -182,7 +189,15 @@ class PowerVMDriver(driver.ComputeDriver):
         raise self._fake.snapshot(context, instance, image_id,
                                   update_task_state)
 
-    def power_off(self, instance):
+    def power_off(self, instance, timeout=0, retry_interval=0):
+        """Power off the specified instance.
+
+        :param instance: nova.objects.instance.Instance
+        :param timeout: time to wait for GuestOS to shutdown
+        :param retry_interval: How often to signal guest while
+                               waiting for it to shutdown
+        """
+
         """Power off the specified instance."""
         power.power_off(self.adapter,
                         vm.get_instance_wrapper(self.adapter,
@@ -191,8 +206,12 @@ class PowerVMDriver(driver.ComputeDriver):
                                                 self.host_uuid),
                         self.host_uuid)
 
-    def power_on(self, instance):
-        """Power on the specified instance."""
+    def power_on(self, context, instance, network_info,
+                 block_device_info=None):
+        """Power on the specified instance.
+
+        :param instance: nova.objects.instance.Instance
+        """
         power.power_on(self.adapter,
                        vm.get_instance_wrapper(self.adapter,
                                                instance,

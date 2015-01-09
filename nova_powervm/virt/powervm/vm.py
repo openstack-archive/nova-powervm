@@ -187,9 +187,9 @@ def get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid):
     :returns: The pypowervm logical_partition wrapper.
     """
     pvm_inst_uuid = pvm_uuids.lookup(instance.name)
-    entry = adapter.read(pvm_consts.MGT_SYS, host_uuid,
-                         pvm_consts.LPAR, pvm_inst_uuid)
-    return pvm_lpar.LogicalPartition(entry)
+    resp = adapter.read(pvm_consts.MGT_SYS, host_uuid,
+                        pvm_consts.LPAR, pvm_inst_uuid)
+    return pvm_lpar.LogicalPartition(resp.entry)
 
 
 def calc_proc_units(vcpu):
@@ -220,6 +220,16 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
 
     adapter.create(lpar_elem, pvm_consts.MGT_SYS,
                    rootId=host_uuid, childType=pvm_lpar.LPAR)
+
+
+def dlt_lpar(adapter, lpar_uuid):
+    """Delete an LPAR
+
+    :param adapter: The adapter for the pypowervm API
+    :param lpar_uuid: The lpar to delete
+    """
+    resp = adapter.delete(pvm_consts.LPAR, rootId=lpar_uuid)
+    return resp
 
 
 class UUIDCache(object):
@@ -262,7 +272,7 @@ class UUIDCache(object):
 
     def add(self, name, uuid):
         # Add the name mapping to the cache
-        self._cache[name] = uuid.lower()
+        self._cache[name] = uuid.upper()
 
     def remove(self, name):
         # Remove the name mapping, if it exists

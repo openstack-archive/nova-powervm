@@ -82,7 +82,7 @@ class TestVM(test.TestCase):
 
         cache.load_from_feed(self.resp.feed)
         for lpar in LPAR_MAPPING:
-            self.assertEqual(cache.lookup(lpar), LPAR_MAPPING[lpar])
+            self.assertEqual(cache.lookup(lpar), LPAR_MAPPING[lpar].upper())
 
         # Test fetching. Start with a fresh cache and try to look it up
         cache = vm.UUIDCache(mock_adr)
@@ -92,7 +92,7 @@ class TestVM(test.TestCase):
 
         mock_adr.read.side_effect = return_response
         self.assertEqual(cache.lookup('nova-z3-9-5-126-127-00000001'),
-                         '089ffb20-5d19-4a8c-bb80-13650627d985')
+                         '089ffb20-5d19-4a8c-bb80-13650627d985'.upper())
         # Test it returns None even when we try to look it up
         self.assertEqual(cache.lookup('NoneExistant'), None)
 

@@ -95,7 +95,7 @@ class FakePowerVMDriver(driver.ComputeDriver):
                                 admin_password, network_info,
                                 block_device_info)
 
-    def destroy(self, instance, network_info, block_device_info=None,
+    def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True):
         """Destroy (shutdown and delete) the specified instance.
 
@@ -103,6 +103,7 @@ class FakePowerVMDriver(driver.ComputeDriver):
         function should still succeed.  It's probably a good idea to log a
         warning in that case.
 
+        :param context: security context
         :param instance: Instance object as returned by DB layer.
         :param network_info:
            :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
@@ -133,12 +134,22 @@ class FakePowerVMDriver(driver.ComputeDriver):
         raise self._fake.snapshot(context, instance, image_id,
                                   update_task_state)
 
-    def power_off(self, instance):
-        """Power off the specified instance."""
+    def power_off(self, instance, timeout=0, retry_interval=0):
+        """Power off the specified instance.
+
+        :param instance: nova.objects.instance.Instance
+        :param timeout: time to wait for GuestOS to shutdown
+        :param retry_interval: How often to signal guest while
+                               waiting for it to shutdown
+        """
         raise NotImplementedError()
 
-    def power_on(self, instance):
-        """Power on the specified instance."""
+    def power_on(self, context, instance, network_info,
+                 block_device_info=None):
+        """Power on the specified instance.
+
+        :param instance: nova.objects.instance.Instance
+        """
         raise NotImplementedError()
 
     def get_available_resource(self, nodename):
