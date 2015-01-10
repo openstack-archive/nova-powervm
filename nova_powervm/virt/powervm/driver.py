@@ -258,7 +258,7 @@ class PowerVMDriver(driver.ComputeDriver):
         [hypervisor_hostname].
         """
 
-        return self._fake.get_available_nodes()
+        return [pvm_host.get_mtm_serial(self.host_wrapper)]
 
     def legacy_nwinfo(self):
         """Indicate if the driver requires the legacy network_info format.
