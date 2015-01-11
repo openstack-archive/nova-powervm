@@ -162,8 +162,41 @@ class TestVM(test.TestCase):
         self.assertEqual(len(lpar_list), 21)
 
     @mock.patch('pypowervm.adapter.Adapter')
-    def test_crt_lpar(self, mock_adr):
+    @mock.patch('pypowervm.wrappers.logical_partition.crt_shared_procs')
+    @mock.patch('pypowervm.wrappers.logical_partition.crt_lpar')
+    def test_crt_lpar(self, mock_crt_lpar, mock_crt_sp, mock_adr):
         instance = FakeInstance()
+        instance.name = 'Fake'
+
         flavor = FakeFlavor()
+        flavor.memory_mb = 100
+
+        # Create a side effect that can validate the input into the create
+        # call.
+        def validate_of_create_sp(*kargs, **kwargs):
+            self.assertEqual(64, kwargs.get('uncapped_weight'))
+
+            proc_units = kargs[0]
+            self.assertEqual('0.10', proc_units)
+
+            vcpus = kargs[1]
+            self.assertEqual('1', vcpus)
+        mock_crt_sp.side_effect = validate_of_create_sp
+
+        def validate_of_create_lpar(*kargs, **kwargs):
+            instance_name = kargs[0]
+            self.assertEqual('Fake', instance_name)
+            _type = kargs[1]
+            self.assertEqual('AIX/Linux', _type)
+            # sprocs = kargs[2]
+            mem = kargs[3]
+            self.assertEqual('100', mem)
+
+            self.assertEqual('100', kwargs.get('min_mem'))
+            self.assertEqual('100', kwargs.get('max_mem'))
+            self.assertEqual('64', kwargs.get('max_io_slots'))
+        mock_crt_lpar.side_effect = validate_of_create_lpar
+
         vm.crt_lpar(mock_adr, 'host_uuid', instance, flavor)
         self.assertTrue(mock_adr.create.called)
+        self.assertTrue(mock_crt_sp.called)
