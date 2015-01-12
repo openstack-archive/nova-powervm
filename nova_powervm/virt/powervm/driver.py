@@ -81,6 +81,14 @@ class PowerVMDriver(driver.ComputeDriver):
         self.host_uuid = self.host_wrapper.get_uuid()
         LOG.info(_LI("Host UUID is:%s") % self.host_uuid)
 
+    def _log_operation(self, op, instance):
+        """Log entry point of driver operations
+        """
+        LOG.info(_LI('Operation: %(op)s. Virtual machine display name: '
+                     '%(display_name)s, name: %(name)s, UUID: %(uuid)s') %
+                 {'op': op, 'display_name': instance.display_name,
+                  'name': instance.name, 'uuid': instance.uuid})
+
     def get_info(self, instance):
         """Get the current status of an instance, by name (not ID!)
 
@@ -135,6 +143,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param flavor: The flavor for the instance to be spawned.
         """
 
+        self._log_operation('spawn', instance)
         if not flavor:
             admin_ctx = ctx.get_admin_context(read_deleted='yes')
             flavor = (
@@ -162,6 +171,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         """
 
+        self._log_operation('destroy', instance)
         # For now, weed out the fake instances
         if instance.name in self._fake.list_instances():
             self._fake.destroy(instance, network_info,
@@ -172,10 +182,12 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def attach_volume(self, connection_info, instance, mountpoint):
         """Attach the disk to the instance at mountpoint using info."""
+        self._log_operation('attach_volume', instance)
         return self._fake.attach_volume(connection_info, instance, mountpoint)
 
     def detach_volume(self, connection_info, instance, mountpoint):
         """Detach the disk attached to the instance."""
+        self._log_operation('detach_volume', instance)
         return self._fake.detach_volume(connection_info, instance, mountpoint)
 
     def snapshot(self, context, instance, image_id, update_task_state):
@@ -186,8 +198,9 @@ class PowerVMDriver(driver.ComputeDriver):
         :param image_id: Reference to a pre-created image that will
                          hold the snapshot.
         """
-        raise self._fake.snapshot(context, instance, image_id,
-                                  update_task_state)
+        self._log_operation('snapshot', instance)
+        return self._fake.snapshot(context, instance, image_id,
+                                   update_task_state)
 
     def power_off(self, instance, timeout=0, retry_interval=0):
         """Power off the specified instance.
@@ -198,6 +211,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                waiting for it to shutdown
         """
 
+        self._log_operation('power_off', instance)
         """Power off the specified instance."""
         power.power_off(self.adapter,
                         vm.get_instance_wrapper(self.adapter,
@@ -212,6 +226,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         :param instance: nova.objects.instance.Instance
         """
+        self._log_operation('power_on', instance)
         power.power_on(self.adapter,
                        vm.get_instance_wrapper(self.adapter,
                                                instance,
@@ -243,10 +258,12 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def plug_vifs(self, instance, network_info):
         """Plug VIFs into networks."""
+        self._log_operation('plug_vifs', instance)
         pass
 
     def unplug_vifs(self, instance, network_info):
         """Unplug VIFs from networks."""
+        self._log_operation('unplug_vifs', instance)
         pass
 
     def get_available_nodes(self):
@@ -335,6 +352,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :params block_migration: if true, migrate VM disk.
         :params migrate_data: implementation specific data dictionary.
         """
+        self._log_operation('live_migration', instance_ref)
         self._fake.live_migration(ctxt, instance_ref, dest,
                                   post_method, recover_method,
                                   migrate_data, block_migration=False)

@@ -38,7 +38,9 @@ logging.basicConfig()
 class FakeInstance(object):
     def __init__(self):
         self.name = 'fake_instance'
+        self.display_name = 'fake_display_name'
         self.instance_type_id = 'instance_type_id'
+        self.uuid = 'fake_uuid'
 
 
 class FakeFlavor(object):
@@ -121,6 +123,17 @@ class TestPowerVMDriver(test.TestCase):
                       'injected_files', 'admin_password')
             mock_crt.assert_called_with(mock_apt, drv.host_uuid,
                                         inst, my_flavor)
+
+    @mock.patch('nova_powervm.virt.powervm.driver.LOG')
+    def test_log_op(self, mock_log):
+        """Validates the log_operations."""
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        inst = FakeInstance()
+
+        drv._log_operation('fake_op', inst)
+        entry = ('Operation: fake_op. Virtual machine display name: '
+                 'fake_display_name, name: fake_instance, UUID: fake_uuid')
+        mock_log.info.assert_called_with(entry)
 
     def test_host_resources(self):
         stats = pvm_host.build_host_resource_from_entry(self.wrapper)

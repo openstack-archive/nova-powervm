@@ -131,8 +131,8 @@ class FakePowerVMDriver(driver.ComputeDriver):
         :param image_id: Reference to a pre-created image that will
                          hold the snapshot.
         """
-        raise self._fake.snapshot(context, instance, image_id,
-                                  update_task_state)
+        return self._fake.snapshot(context, instance, image_id,
+                                   update_task_state)
 
     def power_off(self, instance, timeout=0, retry_interval=0):
         """Power off the specified instance.
