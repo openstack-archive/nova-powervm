@@ -208,8 +208,10 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
     mem = str(flavor.memory_mb)
     vcpus = str(flavor.vcpus)
     proc_units = '%.2f' % calc_proc_units(flavor.vcpus)
+    proc_weight = CONF.uncapped_proc_weight
 
-    sprocs = pvm_lpar.crt_shared_procs(proc_units, vcpus)
+    sprocs = pvm_lpar.crt_shared_procs(proc_units, vcpus,
+                                       uncapped_weight=proc_weight)
     lpar_elem = pvm_lpar.crt_lpar(instance.name,
                                   pvm_lpar.LPAR_TYPE_AIXLINUX,
                                   sprocs,

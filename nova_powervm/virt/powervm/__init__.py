@@ -21,6 +21,12 @@ hmc_opts = [
                  default=0.1,
                  help='Factor used to calculate the processor units per vcpu.'
                  ' Valid values are: 0.05 - 1.0'),
+    cfg.IntOpt('uncapped_proc_weight',
+               default=64,
+               help='The processor weight to assign to newly created VMs.  '
+                    'Value should be between 1 and 255.  Represents how '
+                    'aggressively LPARs grab CPU when unused cycles are '
+                    'available.'),
     # TODO(kyleh) Temporary - Only needed since we're using an HMC
     cfg.StrOpt('hmc_host_id',
                default='',
