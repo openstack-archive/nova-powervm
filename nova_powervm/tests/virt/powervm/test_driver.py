@@ -79,7 +79,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
-    def test_driver_init(self, mock_find, mock_apt, mock_sess):
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    def test_driver_init(self, mock_disk, mock_find, mock_apt, mock_sess):
         """Validates the PowerVM driver can be initialized for the host."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         drv.init_host('FakeHost')
@@ -92,7 +93,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
     @mock.patch('nova.context.get_admin_context')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    def test_driver_ops(self, mock_get_flv, mock_get_ctx,
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    def test_driver_ops(self, mock_disk, mock_get_flv, mock_get_ctx,
                         mock_uuidcache, mock_find,
                         mock_apt, mock_sess):
         """Validates the PowerVM driver operations."""
@@ -115,14 +117,35 @@ class TestPowerVMDriver(test.TestCase):
             inst_list = drv.list_instances()
             self.assertEqual(fake_lpar_list, inst_list)
 
+    @mock.patch('pypowervm.adapter.Session')
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
+    @mock.patch('nova.context.get_admin_context')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    @mock.patch('pypowervm.jobs.power.power_on')
+    def test_spawn_ops(self, mock_pwron, mock_disk, mock_get_flv, mock_get_ctx,
+                       mock_uuidcache, mock_crt, mock_find, mock_apt,
+                       mock_sess):
+
+        """Validates the PowerVM driver operations."""
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv.init_host('FakeHost')
+        drv.adapter = mock_apt
+
         # spawn()
-        with mock.patch('nova_powervm.virt.powervm.vm.crt_lpar') as mock_crt:
-            my_flavor = FakeFlavor()
-            mock_get_flv.return_value = my_flavor
-            drv.spawn('context', inst, 'image_meta',
-                      'injected_files', 'admin_password')
-            mock_crt.assert_called_with(mock_apt, drv.host_uuid,
-                                        inst, my_flavor)
+        inst = FakeInstance()
+        my_flavor = FakeFlavor()
+        mock_get_flv.return_value = my_flavor
+        drv.spawn('context', inst, mock.Mock(),
+                  'injected_files', 'admin_password')
+        # Create LPAR was called
+        mock_crt.assert_called_with(mock_apt, drv.host_uuid,
+                                    inst, my_flavor)
+        # Power on was called
+        self.assertEqual(True, mock_pwron.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):

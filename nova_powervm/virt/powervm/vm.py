@@ -101,6 +101,7 @@ class InstanceInfo(hardware.InstanceInfo):
                 raise exception.InstanceNotFound(instance_id=self._name)
             else:
                 LOG.exception(e)
+                raise
 
         return resp.body.lstrip(' "').rstrip(' "')
 
@@ -261,8 +262,10 @@ class UUIDCache(object):
                     raise exception.InstanceNotFound(instance_id=name)
                 else:
                     LOG.exception(e)
+                    raise
             except Exception as e:
                 LOG.exception(e)
+                raise
 
             # Process the response
             if len(resp.feed.entries) == 0:

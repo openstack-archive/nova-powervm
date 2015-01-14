@@ -16,6 +16,7 @@
 
 
 from nova import context as ctx
+from nova import exception
 from nova.i18n import _LI
 from nova.objects import flavor as flavor_obj
 from nova.openstack.common import log as logging
@@ -31,6 +32,8 @@ from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import managed_system as msentry_wrapper
 
 from nova_powervm.virt.powervm import host as pvm_host
+from nova_powervm.virt.powervm import localdisk as blk_lcl
+from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -59,6 +62,9 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_host_uuid()
         # Initialize the UUID Cache. Lets not prime it at this time.
         self.pvm_uuids = vm.UUIDCache(self.adapter)
+        self._get_vios_uuid()
+        # Initialize the disk adapter
+        self._get_blockdev_driver()
         LOG.info(_LI("The compute driver has been initialized."))
 
     def _get_adapter(self):
@@ -69,6 +75,18 @@ class PowerVMDriver(driver.ComputeDriver):
                                        certpath=None)
         self.adapter = pvm_apt.Adapter(self.session,
                                        helpers=log_hlp.log_helper)
+
+    def _get_blockdev_driver(self):
+        # TODO(IBM): load driver from conf
+        conn_info = {'adapter': self.adapter,
+                     'host_uuid': self.host_uuid,
+                     'vios_name': CONF.vios_name,
+                     'vios_uuid': self.vios_uuid}
+        self.block_dvr = blk_lcl.LocalStorage(conn_info)
+
+    def _get_vios_uuid(self):
+        self.vios_uuid = vios.get_vios_uuid(self.adapter, CONF.vios_name)
+        LOG.info(_LI("VIOS UUID is:%s") % self.vios_uuid)
 
     def _get_host_uuid(self):
         # Need to get a list of the hosts, then find the matching one
@@ -151,7 +169,25 @@ class PowerVMDriver(driver.ComputeDriver):
                                             instance.instance_type_id))
 
         # Create the lpar on the host
+        LOG.info(_LI('Creating instance: %s') % instance.name)
         vm.crt_lpar(self.adapter, self.host_uuid, instance, flavor)
+        # Create the volume on the VIOS
+        LOG.info(_LI('Creating disk for instance: %s') % instance.name)
+        vol_info = self.block_dvr.create_volume_from_image(context, instance,
+                                                           image_meta)
+        # Attach the boot volume to the instance
+        LOG.info(_LI('Connecting boot disk to instance: %s') % instance.name)
+        self.block_dvr.connect_volume(context, instance, vol_info,
+                                      pvm_uuids=self.pvm_uuids)
+        LOG.info(_LI('Finished creating instance: %s') % instance.name)
+
+        # Now start the lpar
+        power.power_on(self.adapter,
+                       vm.get_instance_wrapper(self.adapter,
+                                               instance,
+                                               self.pvm_uuids,
+                                               self.host_uuid),
+                       self.host_uuid)
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True):
@@ -177,7 +213,12 @@ class PowerVMDriver(driver.ComputeDriver):
             self._fake.destroy(instance, network_info,
                                block_device_info, destroy_disks)
         else:
-            vm.dlt_lpar(self.adapter, self.pvm_uuids.lookup(instance.name))
+            try:
+                vm.dlt_lpar(self.adapter, self.pvm_uuids.lookup(instance.name))
+                # TODO(IBM): delete the disk and connections
+            except exception.InstanceNotFound:
+                # Don't worry if the instance wasn't found
+                pass
         return
 
     def attach_volume(self, connection_info, instance, mountpoint):
@@ -259,12 +300,12 @@ class PowerVMDriver(driver.ComputeDriver):
     def plug_vifs(self, instance, network_info):
         """Plug VIFs into networks."""
         self._log_operation('plug_vifs', instance)
-        pass
+        # TODO(IBM): Implement
 
     def unplug_vifs(self, instance, network_info):
         """Unplug VIFs from networks."""
         self._log_operation('unplug_vifs', instance)
-        pass
+        # TODO(IBM): Implement
 
     def get_available_nodes(self):
         """Returns nodenames of all nodes managed by the compute service.
