@@ -23,6 +23,8 @@ from nova.openstack.common import log as logging
 from nova.virt import driver
 
 from oslo.config import cfg
+import taskflow.engines
+from taskflow.patterns import linear_flow as lf
 
 from pypowervm import adapter as pvm_apt
 from pypowervm.helpers import log_helper as log_hlp
@@ -32,6 +34,7 @@ from pypowervm.wrappers import managed_system as msentry_wrapper
 
 from nova_powervm.virt.powervm import host as pvm_host
 from nova_powervm.virt.powervm import localdisk as blk_lcl
+from nova_powervm.virt.powervm.tasks import spawn as tf_spawn
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
@@ -159,26 +162,30 @@ class PowerVMDriver(driver.ComputeDriver):
                 flavor_obj.Flavor.get_by_id(admin_ctx,
                                             instance.instance_type_id))
 
-        # Create the lpar on the host
-        LOG.info(_LI('Creating instance: %s') % instance.name)
-        vm.crt_lpar(self.adapter, self.host_uuid, instance, flavor)
-        # Create the volume on the VIOS
-        LOG.info(_LI('Creating disk for instance: %s') % instance.name)
-        vol_info = self.block_dvr.create_volume_from_image(context, instance,
-                                                           image_meta)
-        # Attach the boot volume to the instance
-        LOG.info(_LI('Connecting boot disk to instance: %s') % instance.name)
-        self.block_dvr.connect_volume(context, instance, vol_info,
-                                      pvm_uuids=self.pvm_uuids)
-        LOG.info(_LI('Finished creating instance: %s') % instance.name)
+        # Define the flow
+        flow = lf.Flow("spawn")
 
-        # Now start the lpar
-        power.power_on(self.adapter,
-                       vm.get_instance_wrapper(self.adapter,
-                                               instance,
-                                               self.pvm_uuids,
-                                               self.host_uuid),
-                       self.host_uuid)
+        # Create the LPAR
+        flow.add(tf_spawn.tf_crt_lpar(self.adapter, self.host_uuid,
+                                      instance, flavor))
+
+        # Creates the boot image.
+        flow.add(tf_spawn.tf_crt_vol_from_img(self.block_dvr,
+                                              context,
+                                              instance,
+                                              image_meta))
+
+        # Connects up the volume to the LPAR
+        flow.add(tf_spawn.tf_connect_vol(self.block_dvr, context, instance))
+
+        # Last step is to power on the system.
+        # Note: If moving to a Graph Flow, will need to change to depend on
+        # the prior step.
+        flow.add(tf_spawn.tf_power_on(self.adapter, self.host_uuid, instance))
+
+        # Build the engine & run!
+        engine = taskflow.engines.load(flow)
+        engine.run()
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True):

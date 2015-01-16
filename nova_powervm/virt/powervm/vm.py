@@ -204,6 +204,7 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
     :param host_uuid: (TEMPORARY) The host UUID
     :param instance: The nova instance.
     :param flavor: The nova flavor.
+    :returns: The LPAR response from the API.
     """
 
     mem = str(flavor.memory_mb)
@@ -221,8 +222,8 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
                                   max_mem=mem,
                                   max_io_slots='64')
 
-    adapter.create(lpar_elem, pvm_consts.MGT_SYS,
-                   root_id=host_uuid, child_type=pvm_lpar.LPAR)
+    return adapter.create(lpar_elem, pvm_consts.MGT_SYS,
+                          root_id=host_uuid, child_type=pvm_lpar.LPAR)
 
 
 def dlt_lpar(adapter, lpar_uuid):

@@ -19,6 +19,7 @@ import logging
 
 import mock
 
+from nova import exception as exc
 from nova import test
 from nova.virt import fake
 from pypowervm.tests.wrappers.util import pvmhttp
@@ -135,17 +136,64 @@ class TestPowerVMDriver(test.TestCase):
         drv.init_host('FakeHost')
         drv.adapter = mock_apt
 
-        # spawn()
+        # Set up the mocks to the tasks.
         inst = FakeInstance()
         my_flavor = FakeFlavor()
         mock_get_flv.return_value = my_flavor
+        mock_crt.return_value = mock.MagicMock()
+
+        # Invoke the method.
         drv.spawn('context', inst, mock.Mock(),
                   'injected_files', 'admin_password')
+
         # Create LPAR was called
         mock_crt.assert_called_with(mock_apt, drv.host_uuid,
                                     inst, my_flavor)
         # Power on was called
-        self.assertEqual(True, mock_pwron.called)
+        self.assertTrue(mock_pwron.called)
+
+    @mock.patch('pypowervm.adapter.Session')
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
+    @mock.patch('nova.context.get_admin_context')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    @mock.patch('pypowervm.jobs.power.power_on')
+    @mock.patch('pypowervm.jobs.power.power_off')
+    def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_disk,
+                                mock_get_flv, mock_get_ctx, mock_uuidcache,
+                                mock_dlt, mock_crt, mock_find, mock_apt,
+                                mock_sess):
+        """Validates the PowerVM driver operations.  Will do a rollback."""
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv.init_host('FakeHost')
+        drv.adapter = mock_apt
+
+        # Set up the mocks to the tasks.
+        inst = FakeInstance()
+        my_flavor = FakeFlavor()
+        mock_get_flv.return_value = my_flavor
+        mock_crt.return_value = mock.MagicMock()
+
+        # Make sure power on fails.
+        mock_pwron.side_effect = exc.Forbidden()
+
+        # Invoke the method.
+        self.assertRaises(exc.Forbidden, drv.spawn, 'context', inst,
+                          mock.Mock(), 'injected_files', 'admin_password')
+
+        # Create LPAR was called
+        mock_crt.assert_called_with(mock_apt, drv.host_uuid,
+                                    inst, my_flavor)
+        # Power on was called
+        self.assertTrue(mock_pwron.called)
+
+        # Validate the rollbacks were called
+        self.assertTrue(mock_pwroff.called)
+        self.assertTrue(mock_dlt.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):

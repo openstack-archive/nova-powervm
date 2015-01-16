@@ -110,11 +110,8 @@ class LocalStorage(blockdev.StorageAdapter):
 
         return {'device_name': vol_name}
 
-    def connect_volume(self, context, instance, volume_info, **kwds):
-        # TODO(IBM): We need the pvm uuid until it's the same as OpenStack
-        pvm_uuids = kwds['pvm_uuids']
-        lpar_uuid = pvm_uuids.lookup(instance.name)
-
+    def connect_volume(self, context, instance, volume_info, lpar_uuid,
+                       **kwds):
         vol_name = volume_info['device_name']
         # Create the mapping structure
         scsi_map = pvm_vios.crt_scsi_map_to_vdisk(self.adapter, self.host_uuid,

@@ -48,5 +48,6 @@ class StorageAdapter(object):
         """
         pass
 
-    def connect_volume(self, context, instance, volume, **kwds):
+    def connect_volume(self, context, instance, volume_info, lpar_uuid,
+                       **kwds):
         pass
