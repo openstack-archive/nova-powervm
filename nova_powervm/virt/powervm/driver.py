@@ -21,7 +21,6 @@ from nova.i18n import _LI
 from nova.objects import flavor as flavor_obj
 from nova.openstack.common import log as logging
 from nova.virt import driver
-from nova.virt import fake  # TODO(IBM): Remove this in the future
 
 from oslo.config import cfg
 
@@ -46,10 +45,6 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def __init__(self, virtapi):
         super(PowerVMDriver, self).__init__(virtapi)
-
-        # Use the fake driver for scaffolding for now
-        # fake.set_nodes(['fake-PowerVM'])
-        self._fake = fake.FakeDriver(virtapi)
 
     def init_host(self, host):
         """Initialize anything that is necessary for the driver to function,
@@ -118,13 +113,8 @@ class PowerVMDriver(driver.ComputeDriver):
         :num_cpu:         (int) the number of virtual CPUs for the domain
         :cpu_time:        (int) the CPU time used in nanoseconds
         """
-
-        # For now, weed out the fake instances
-        if instance.name in self._fake.list_instances():
-            info = self._fake.get_info(instance)
-        else:
-            info = vm.InstanceInfo(self.adapter, instance.name,
-                                   self.pvm_uuids.lookup(instance.name))
+        info = vm.InstanceInfo(self.adapter, instance.name,
+                               self.pvm_uuids.lookup(instance.name))
         return info
 
     def list_instances(self):
@@ -132,7 +122,7 @@ class PowerVMDriver(driver.ComputeDriver):
         layer, as a list.
         """
         lpar_list = vm.get_lpar_list(self.adapter, self.host_uuid)
-        return lpar_list + self._fake.list_instances()
+        return lpar_list
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None,
@@ -208,28 +198,23 @@ class PowerVMDriver(driver.ComputeDriver):
         """
 
         self._log_operation('destroy', instance)
-        # For now, weed out the fake instances
-        if instance.name in self._fake.list_instances():
-            self._fake.destroy(instance, network_info,
-                               block_device_info, destroy_disks)
-        else:
-            try:
-                vm.dlt_lpar(self.adapter, self.pvm_uuids.lookup(instance.name))
-                # TODO(IBM): delete the disk and connections
-            except exception.InstanceNotFound:
-                # Don't worry if the instance wasn't found
-                pass
+        try:
+            vm.dlt_lpar(self.adapter, self.pvm_uuids.lookup(instance.name))
+            # TODO(IBM): delete the disk and connections
+        except exception.InstanceNotFound:
+            # Don't worry if the instance wasn't found
+            pass
         return
 
     def attach_volume(self, connection_info, instance, mountpoint):
         """Attach the disk to the instance at mountpoint using info."""
         self._log_operation('attach_volume', instance)
-        return self._fake.attach_volume(connection_info, instance, mountpoint)
+        # TODO(IBM): Implement attach volume
 
     def detach_volume(self, connection_info, instance, mountpoint):
         """Detach the disk attached to the instance."""
         self._log_operation('detach_volume', instance)
-        return self._fake.detach_volume(connection_info, instance, mountpoint)
+        # TODO(IBM): Implement detach volume
 
     def snapshot(self, context, instance, image_id, update_task_state):
         """Snapshots the specified instance.
@@ -240,8 +225,7 @@ class PowerVMDriver(driver.ComputeDriver):
                          hold the snapshot.
         """
         self._log_operation('snapshot', instance)
-        return self._fake.snapshot(context, instance, image_id,
-                                   update_task_state)
+        # TODO(IBM): Implement snapshot
 
     def power_off(self, instance, timeout=0, retry_interval=0):
         """Power off the specified instance.
@@ -338,11 +322,9 @@ class PowerVMDriver(driver.ComputeDriver):
         :param disk_over_commit: if true, allow disk over commit
         :returns dest_check_data: dictionary containing destination data
         """
-        dest_check_data = \
-            self._fake.check_can_live_migrate_destination(
-                ctxt, instance_ref, src_compute_info, dst_compute_info,
-                block_migration=False, disk_over_commit=False)
-        return dest_check_data
+        # dest_check_data = \
+        # TODO(IBM): Implement live migration check
+        pass
 
     def check_can_live_migrate_source(self, ctxt, instance_ref,
                                       dest_check_data):
@@ -355,11 +337,9 @@ class PowerVMDriver(driver.ComputeDriver):
         :returns migrate_data: dictionary containing source and
             destination data for migration
         """
-        migrate_data = \
-            self._fake.check_can_live_migrate_source(ctxt,
-                                                     instance_ref,
-                                                     dest_check_data)
-        return migrate_data
+        # migrate_data = \
+        # TODO(IBM): Implement live migration check
+        pass
 
     def pre_live_migration(self, context, instance,
                            block_device_info, network_info,
@@ -373,10 +353,8 @@ class PowerVMDriver(driver.ComputeDriver):
         :param network_info: instance network information
         :param migrate_data: implementation specific data dictionary
         """
-        self._fake.pre_live_migration(context, instance,
-                                      block_device_info,
-                                      network_info,
-                                      migrate_data)
+        # TODO(IBM): Implement migration prerequisites
+        pass
 
     def live_migration(self, ctxt, instance_ref, dest,
                        post_method, recover_method,
@@ -394,9 +372,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :params migrate_data: implementation specific data dictionary.
         """
         self._log_operation('live_migration', instance_ref)
-        self._fake.live_migration(ctxt, instance_ref, dest,
-                                  post_method, recover_method,
-                                  migrate_data, block_migration=False)
+        # TODO(IBM): Implement live migration
 
     def post_live_migration_at_destination(self, ctxt, instance_ref,
                                            network_info,
@@ -410,6 +386,5 @@ class PowerVMDriver(driver.ComputeDriver):
         :param network_info: dictionary of network info for instance
         :param block_migration: boolean for block migration
         """
-        self._fake.post_live_migration_at_destination(
-            ctxt, instance_ref, network_info,
-            block_migration=False, block_device_info=None)
+        # TODO(IBM): Implement post migration
+        pass
