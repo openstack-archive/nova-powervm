@@ -30,8 +30,8 @@ from nova_powervm.virt.powervm import vm
 LPAR_HTTPRESP_FILE = "lpar.txt"
 LPAR_MAPPING = (
     {
-        'nova-z3-9-5-126-127-00000001': '089ffb20-5d19-4a8c-bb80-13650627d985',
-        'nova-z3-9-5-126-208-000001f0': '668b0882-c24a-4ae9-91c8-297e95e3fe29'
+        'z3-9-5-126-127-00000001': '089ffb20-5d19-4a8c-bb80-13650627d985',
+        'z3-9-5-126-208-000001f0': '668b0882-c24a-4ae9-91c8-297e95e3fe29'
     })
 
 LOG = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class TestVM(test.TestCase):
             return self.resp
 
         mock_adr.read.side_effect = return_response
-        self.assertEqual(cache.lookup('nova-z3-9-5-126-127-00000001'),
+        self.assertEqual(cache.lookup('z3-9-5-126-127-00000001'),
                          '089ffb20-5d19-4a8c-bb80-13650627d985'.upper())
         # Test it returns None even when we try to look it up
         self.assertEqual(cache.lookup('NoneExistant'), None)
@@ -158,7 +158,7 @@ class TestVM(test.TestCase):
         mock_feed.return_value = self.resp.feed
         lpar_list = vm.get_lpar_list(mock_adr, 'host_uuid')
         # Check the first one in the feed and the length of the feed
-        self.assertEqual(lpar_list[0], 'nova-z3-9-5-126-127-00000001')
+        self.assertEqual(lpar_list[0], 'z3-9-5-126-127-00000001')
         self.assertEqual(len(lpar_list), 21)
 
     @mock.patch('pypowervm.adapter.Adapter')

@@ -53,8 +53,8 @@ def get_vios_uuid(adapter, name):
     searchstring = "(PartitionName=='%s')" % name
     try:
         resp = adapter.read(pvm_consts.VIOS,
-                            suffixType='search',
-                            suffixParm=searchstring)
+                            suffix_type='search',
+                            suffix_parm=searchstring)
     except pvm_exc.Error as e:
         if e.response.status == 404:
             raise VIOSNotFound(vios_name=name)
@@ -72,7 +72,7 @@ def get_vios_uuid(adapter, name):
 
 def get_vios_entry(adapter, vios_uuid, vios_name):
     try:
-        resp = adapter.read(pvm_consts.VIOS, rootId=vios_uuid)
+        resp = adapter.read(pvm_consts.VIOS, root_id=vios_uuid)
     except pvm_exc.Error as e:
         if e.response.status == 404:
             raise VIOSNotFound(vios_name=vios_name)

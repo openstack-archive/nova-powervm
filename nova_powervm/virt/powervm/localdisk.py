@@ -129,8 +129,8 @@ class LocalStorage(blockdev.StorageAdapter):
     def _get_vg_uuid(self, adapter, vios_uuid, name):
         try:
             resp = adapter.read(pvm_consts.VIOS,
-                                rootId=vios_uuid,
-                                childType=pvm_consts.VOL_GROUP)
+                                root_id=vios_uuid,
+                                child_type=pvm_consts.VOL_GROUP)
         except Exception as e:
             LOG.exception(e)
             raise e

@@ -94,8 +94,8 @@ class InstanceInfo(hardware.InstanceInfo):
 
     def _get_property(self, q_prop):
         try:
-            resp = self._adapter.read(pvm_consts.LPAR, rootId=self._uuid,
-                                      suffixType='quick', suffixParm=q_prop)
+            resp = self._adapter.read(pvm_consts.LPAR, root_id=self._uuid,
+                                      suffix_type='quick', suffix_parm=q_prop)
         except pvm_exc.Error as e:
             if e.response.status == 404:
                 raise exception.InstanceNotFound(instance_id=self._name)
@@ -158,8 +158,8 @@ def get_lpar_feed(adapter, host_uuid):
     feed = None
     try:
         resp = adapter.read(pvm_consts.MGT_SYS,
-                            rootId=host_uuid,
-                            childType=pvm_consts.LPAR)
+                            root_id=host_uuid,
+                            child_type=pvm_consts.LPAR)
         feed = resp.feed
     except pvm_exc.Error as e:
         LOG.exception(e)
@@ -188,8 +188,8 @@ def get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid):
     :returns: The pypowervm logical_partition wrapper.
     """
     pvm_inst_uuid = pvm_uuids.lookup(instance.name)
-    resp = adapter.read(pvm_consts.MGT_SYS, host_uuid,
-                        pvm_consts.LPAR, pvm_inst_uuid)
+    resp = adapter.read(pvm_consts.MGT_SYS, root_id=host_uuid,
+                        child_type=pvm_consts.LPAR, child_id=pvm_inst_uuid)
     return pvm_lpar.LogicalPartition(resp.entry)
 
 
@@ -222,7 +222,7 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
                                   max_io_slots='64')
 
     adapter.create(lpar_elem, pvm_consts.MGT_SYS,
-                   rootId=host_uuid, childType=pvm_lpar.LPAR)
+                   root_id=host_uuid, child_type=pvm_lpar.LPAR)
 
 
 def dlt_lpar(adapter, lpar_uuid):
@@ -231,7 +231,7 @@ def dlt_lpar(adapter, lpar_uuid):
     :param adapter: The adapter for the pypowervm API
     :param lpar_uuid: The lpar to delete
     """
-    resp = adapter.delete(pvm_consts.LPAR, rootId=lpar_uuid)
+    resp = adapter.delete(pvm_consts.LPAR, root_id=lpar_uuid)
     return resp
 
 
@@ -255,8 +255,8 @@ class UUIDCache(object):
             searchstring = "(PartitionName=='%s')" % name
             try:
                 resp = self._adapter.read(pvm_consts.LPAR,
-                                          suffixType='search',
-                                          suffixParm=searchstring)
+                                          suffix_type='search',
+                                          suffix_parm=searchstring)
             except pvm_exc.Error as e:
                 if e.response.status == 404:
                     raise exception.InstanceNotFound(instance_id=name)

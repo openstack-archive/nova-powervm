@@ -287,7 +287,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :returns: Dictionary describing resources
         """
 
-        resp = self.adapter.read(pvm_consts.MGT_SYS, rootId=self.host_uuid)
+        resp = self.adapter.read(pvm_consts.MGT_SYS, root_id=self.host_uuid)
         if resp:
             self.host_wrapper = msentry_wrapper.ManagedSystem(resp.entry)
         data = pvm_host.build_host_resource_from_entry(self.host_wrapper)
