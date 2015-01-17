@@ -64,10 +64,10 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def _get_adapter(self):
         # Decode the password
-        password = CONF.hmc_pass.decode('base64', 'strict')
+        password = CONF.pvm_pass.decode('base64', 'strict')
         # TODO(IBM): set cert path
-        self.session = pvm_apt.Session(CONF.hmc_ip, CONF.hmc_user, password,
-                                       certpath=None)
+        self.session = pvm_apt.Session(CONF.pvm_server_ip, CONF.pvm_user_id,
+                                       password, certpath=None)
         self.adapter = pvm_apt.Adapter(self.session,
                                        helpers=log_hlp.log_helper)
 
@@ -86,9 +86,10 @@ class PowerVMDriver(driver.ComputeDriver):
     def _get_host_uuid(self):
         # Need to get a list of the hosts, then find the matching one
         resp = self.adapter.read(pvm_consts.MGT_SYS)
-        host_entry = pvm_host.find_entry_by_mtm_serial(resp, CONF.hmc_host_id)
+        host_entry = pvm_host.find_entry_by_mtm_serial(resp,
+                                                       CONF.pvm_host_mtms)
         if not host_entry:
-            raise Exception("Host %s not found" % CONF.hmc_host_id)
+            raise Exception("Host %s not found" % CONF.pvm_host_mtms)
 
         self.host_wrapper = msentry_wrapper.ManagedSystem(host_entry)
         self.host_uuid = self.host_wrapper.get_uuid()

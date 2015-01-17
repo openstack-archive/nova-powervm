@@ -9,17 +9,16 @@ https://blueprints.launchpad.net/neutron/+spec/example
 The IBM PowerVM hypervisor provides virtualization on POWER hardware.  PowerVM
 admins can see benefits in their environments by making use of OpenStack.
 This driver (along with a Neutron ML2 compatible agent and Ceilometer agent)
-will provide capability for admins of PowerVM (which encapsulates PHYP and
-Virtual I/O Servers) to use OpenStack natively.
+will provide capability for admins of PowerVM to use OpenStack natively.
 
 
 Problem Description
 ===================
 
-As a new ecosystem evolves around the POWER platform, there is not an
-OpenStack driver that meets all of the needs for that ecosystem.  The work
-done here is to build a PowerVM driver in within the broader community.  This
-will sit alongside the existing libvirt driver utilized by PowerKVM
+As ecosystems continue to evolve around the POWER platform, a single OpenStack
+driver does not meet all of the needs for the varying hypervisors.  The work
+done here is to build a PowerVM driver within the broader community.  This
+will sit alongside the existing libvirt based driver utilized by PowerKVM
 environments.
 
 This new driver must meet the following:
@@ -73,13 +72,13 @@ The changes proposed are the following:
 The changes proposed will bring support for the PowerVM hypervisor into the
 OpenStack ecosystem, following the OpenStack development model.
 
-This development is planned to be done in StackForge in a project named
-‘powervm’.  The intent is that the completion of this work will provide the
-foundation to bring the PowerVM Nova driver (with supporting components) into
-Nova Core via a separate BluePrint in the L release of OpenStack.
+This development will be done in StackForge in a project named ‘nova-powervm’.
+The intent is that the completion of this work will provide the foundation to
+bring the PowerVM Nova driver (with supporting components) into Nova Core via
+a separate BluePrint in a future release of OpenStack.
 
-Until the subsequent BluePrint is proposed for the L release, this driver is
-to be considered experimental.
+Until a subsequent BluePrint is proposed and accepted, this driver is to be
+considered experimental.
 
 
 Data Model Impact
@@ -124,7 +123,7 @@ The administrator will notice new logging messages in the nova compute logs.
 Performance Impact
 ------------------
 
-It is a goal of the driver to deploy systems with the same speed and agility
+It is a goal of the driver to deploy systems with similar speed and agility
 as the libvirt driver within OpenStack.
 
 Since this process should match the OpenStack model, it is not planned to add
@@ -143,11 +142,11 @@ configure OpenStack for use with a PowerVM hypervisor.
 
 The existing configuration file attributes will be reused as much as possible.
 This reduces the number of PowerVM specific items that will be needed.
-However, the driver is likely to need some PowerVM specific options.
+However, the driver will require some PowerVM specific options.
 
 In this case, we plan to keep the PowerVM specifics contained within the
-configuration file (and driver code).  Any new configuration options will have
-the prefix "powervm\_".
+configuration file (and driver code).  These will be documented on the
+driver's wiki page.
 
 There should be no impact to customers upgrading their cloud stack as this is
 a genesis driver and should not have database impacts.
@@ -160,11 +159,10 @@ The code for this driver will be contained within a powervm StackForge
 project.  The driver will be contained within /nova/virt/powervm/.  The driver
 will extend nova.virt.driver.ComputeDriver.
 
-The code will interact with PowerVM through an Open Sourced python binding
-that is being defined.  This python binding is a wrapper to the PowerVM REST
-API.  All operations to the hypervisor will go through the PowerVM REST API
-via this binding.  The driver will be maintained to support future revisions
-of the PowerVM REST API as needed.
+The code will interact with PowerVM through the pypowervm library.  This python
+binding is a wrapper to the PowerVM REST API.  All hypervisor operations will
+interact with the PowerVM REST API via this binding.  The driver will be
+maintained to support future revisions of the PowerVM REST API as needed.
 
 For ephemeral disk support, either a Virtual I/O Server hosted local disk or a
 Shared Storage Pool (a PowerVM clustered file system) will be supported.  For
@@ -172,10 +170,9 @@ volume attachments, the driver will support Cinder based attachments via
 protocols supported by the hypervisor.
 
 For networking, a blueprint is being proposed for the Neutron project that
-will provide a Neutron ML2 Agent.  This too will be developed in StackForge,
-and a subsequent blueprint will be created to move to Neutron Core in the L
-release of OpenStack.  The Agent will provide the necessary configuration on
-the Virtual I/O Server.  The Nova driver code will have a
+will provide a Neutron ML2 Agent.  This project will be developed in
+StackForge alongside nova-powervm.  The Agent will provide the necessary
+configuration on the Virtual I/O Server.  The Nova driver code will have a
 /nova/virt/powervm/vif.py file that will configure the network adapter on the
 client VM.
 
@@ -187,7 +184,8 @@ provide a non-gating vote (+1 or -1).
 Developers should not be impacted by these changes unless they wish to try the
 driver.
 
-Until the driver is accepted into Nova core it will be considered experimental.
+Until a subsequent blueprint is proposed and accepted, unless otherwise noted,
+the driver will be considered experimental.
 
 
 Community Impact
@@ -196,9 +194,7 @@ Community Impact
 The intent of this blueprint is to bring another driver to OpenStack that
 aligns with the ideals and vision of the community.
 
-It will be discussed in the Nova IRC and mailing lists.  Representatives
-working on this driver will be at the design summit, though no sessions are
-planned on this topic.
+It will be discussed in the Nova IRC and mailing lists.
 
 
 Alternatives
@@ -266,8 +262,8 @@ Dependencies
   utilize future versions of this specification as it becomes available:
   http://ibm.co/1lThV9R
 
-* Will build on top of a new open source python binding to previously noted
-  PowerVM REST API.  This will be a prerequisite to utilizing the driver.
+* Will build on top of the pypowervm library.  This will be a prerequisite to
+  utilizing the driver and identified in the requirements.txt file.
 
 
 Testing
@@ -313,7 +309,7 @@ driver.  This will include configuring the dependencies specified above.
 Documentation will be done on wiki, specifically at a minimum to the following
 page: http://docs.openstack.org/trunk/config-reference/content/section_compute-hypervisors.html
 
-Interlock will be done with the OpenStack documentation team.
+Interlock is planned to be done with the OpenStack documentation team.
 
 
 Developer Documentation

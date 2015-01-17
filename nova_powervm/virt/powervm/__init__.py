@@ -16,7 +16,7 @@
 
 from oslo.config import cfg
 
-hmc_opts = [
+pvm_opts = [
     cfg.FloatOpt('proc_units_factor',
                  default=0.1,
                  help='Factor used to calculate the processor units per vcpu.'
@@ -27,22 +27,24 @@ hmc_opts = [
                     'Value should be between 1 and 255.  Represents how '
                     'aggressively LPARs grab CPU when unused cycles are '
                     'available.'),
-    # TODO(kyleh) Temporary - Only needed since we're using an HMC
-    cfg.StrOpt('hmc_host_id',
+    # TODO(kyleh) Re-evaluate these as the auth model evolves.
+    cfg.StrOpt('pvm_host_mtms',
                default='',
-               help='TEMP - the unique id of the host to manage'),
-    cfg.StrOpt('hmc_ip',
+               help='The Model Type/Serial Number of the host server to '
+                    'manage.  Format is MODELTYPE_SERIALNUM.  Example is '
+                    '828642A_1234ABC.'),
+    cfg.StrOpt('pvm_server_ip',
+               default='localhost',
+               help='The IP Address hosting the PowerVM REST API'),
+    cfg.StrOpt('pvm_user_id',
                default='',
-               help='TEMP - the HMC IP.'),
-    cfg.StrOpt('hmc_user',
+               help='The user id for authentication into the API.'),
+    cfg.StrOpt('pvm_pass',
                default='',
-               help='TEMP - the HMC user.'),
-    cfg.StrOpt('hmc_pass',
-               default='',
-               help='TEMP - the HMC password.')
+               help='The password for authentication into the API.')
 ]
 
 
 CONF = cfg.CONF
-CONF.register_opts(hmc_opts)
+CONF.register_opts(pvm_opts)
 CONF.import_opt('host', 'nova.netconf')
