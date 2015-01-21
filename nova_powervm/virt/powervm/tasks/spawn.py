@@ -22,6 +22,8 @@ from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from taskflow import task
 
+from nova_powervm.virt.powervm import media
+from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -126,6 +128,68 @@ def tf_connect_vol(block_dvr, context, instance):
         inject={'block_dvr': block_dvr, 'context': context,
                 'instance': instance},
         requires=['lpar_crt_resp', 'vol_dev_info'])
+
+
+def tf_cfg_drive(adapter, host_uuid, vios_uuid, instance, injected_files,
+                 network_info, admin_pass):
+    """Create the Task that creates the config drive.
+
+    Requires the 'lpar_crt_resp'.
+    Provides the 'cfg_drv_vscsi_map' which is an element to later map
+    the vscsi drive.
+
+    :param adapter: The adapter for the pypowervm API
+    :param host_uuid: The host UUID of the system.
+    :param vios_uuid: The VIOS UUID the drive should be put on.
+    :param instance: The nova instance
+    :param injected_files: A list of file paths that will be injected into
+                           the ISO.
+    :param network_info: The network_info from the nova spawn method.
+    :param admin_pass: Optional password to inject for the VM.
+    """
+
+    def _task(adapter, host_uuid, vios_uuid, instance, injected_files,
+              network_info, admin_pass, lpar_crt_resp):
+        LOG.info(_LI('Creating Config Drive for instance: %s') % instance.name)
+        lpar = pvm_lpar.LogicalPartition(lpar_crt_resp.entry)
+        media_builder = media.ConfigDrivePowerVM(adapter, host_uuid, vios_uuid)
+        vscsi_map = media_builder.create_cfg_drv_vopt(instance, injected_files,
+                                                      network_info, admin_pass,
+                                                      lpar.uuid)
+        return vscsi_map
+
+    # TODO(IBM) Need a revert here.
+    return task.FunctorTask(
+        _task, name='cfg_drive',
+        inject={'adapter': adapter, 'host_uuid': host_uuid,
+                'vios_uuid': vios_uuid, 'instance': instance,
+                'injected_files': injected_files,
+                'network_info': network_info, 'admin_pass': admin_pass},
+        requires=['lpar_crt_resp'],
+        provides='cfg_drv_vscsi_map')
+
+
+def tf_connect_cfg_drive(adapter, instance, vios_uuid, vios_name):
+    """Create the Task that connects the cfg drive to the instance.
+
+    Requires the 'cfg_drv_vscsi_map'.
+
+    :param adapter: The adapter for the pypowervm API
+    :param instance: The nova instance
+    :param vios_uuid: The VIOS UUID the drive should be put on.
+    :param vios_name: The name of the VIOS that this will be put on.
+    """
+    def _task(adapter, instance, vios_uuid, vios_name, cfg_drv_vscsi_map):
+        LOG.info(_LI('Attaching Config Drive to instance: %s') % instance.name)
+        vios.add_vscsi_mapping(adapter, vios_uuid, vios_name,
+                               cfg_drv_vscsi_map)
+
+    # TODO(IBM) Need a revert here.
+    return task.FunctorTask(
+        _task, name='cfg_drive_scsi_connect',
+        inject={'adapter': adapter, 'instance': instance,
+                'vios_uuid': vios_uuid, 'vios_name': vios_name},
+        requires=['cfg_drv_vscsi_map'])
 
 
 def tf_power_on(adapter, host_uuid, instance):

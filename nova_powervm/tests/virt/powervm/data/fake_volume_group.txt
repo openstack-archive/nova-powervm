@@ -1,0 +1,539 @@
+# Copyright 2015 IBM Corp.
+#
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+####################################################
+# THIS IS AN AUTOMATICALLY GENERATED FILE
+# DO NOT EDIT. ANY EDITS WILL BE LOST ON NEXT UPDATE
+#
+# To update file, run: create_httpresp.py -refresh fake_volume_group.txt
+#
+####################################################
+INFO{
+{'comment': 'Used for testing test_volume_group.', 'status': 200, 'pw': 'Passw0rd', 'reason': 'OK', 'host': '9.1.2.3', 'user': 'hscroot', 'path': 'VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup'}
+END OF SECTION}
+HEADERS{
+{'content-length': '2927', 'x-powered-by': 'Servlet/3.0', 'set-cookie': 'JSESSIONID=0000NDn35hM1wmiEggkwHYt86o5:375f7c5b-d5fc-4d80-91de-1d4d29170e01; Path=/; Secure; HttpOnly', 'x-hmc-schema-version': 'V1_1_0', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'last-modified': 'Thu, 18 Sep 2014 07:04:42 GMT', 'x-transaction-id': 'XT10023645', 'etag': '249747277', 'cache-control': 'no-transform, must-revalidate, proxy-revalidate, no-cache=set-cookie', 'date': 'Thu, 18 Sep 2014 07:04:42 GMT', 'content-type': 'application/atom+xml'}
+END OF SECTION}
+BODY{
+
+
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:ns2="http://a9.com/-/spec/opensearch/1.1/" xmlns:ns3="http://www.w3.org/1999/xhtml">
+    <id>8070198f-b358-3b26-a144-1b268cf6f8d4</id>
+    <updated>2015-01-22T04:15:33.346Z</updated>
+    <link rel="SELF" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup"/>
+    <link rel="MANAGEMENT_CONSOLE" href="https://9.1.2.3:12443/rest/api/uom/ManagementConsole/6c1b9d4a-afc1-3cef-ae54-1977d908fda4"/>
+    <generator>IBM Power Systems Management Console</generator>
+    <entry>
+        <id>1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f</id>
+        <title>VolumeGroup</title>
+        <published>2015-01-22T04:15:33.810Z</published>
+        <link rel="SELF" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f"/>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <etag:etag xmlns:etag="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/">-762288609</etag:etag>
+        <content type="application/vnd.ibm.powervm.uom+xml; type=VolumeGroup">
+            <VolumeGroup:VolumeGroup xmlns:VolumeGroup="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_2_0">
+    <Metadata>
+        <Atom>
+            <AtomID>1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f</AtomID>
+            <AtomCreated>1421883668662</AtomCreated>
+        </Atom>
+    </Metadata>
+    <AvailableSize kb="ROR" kxe="false">1033</AvailableSize>
+    <FreeSpace kxe="false" kb="ROR">1033</FreeSpace>
+    <GroupCapacity kb="CUR" kxe="false">1064</GroupCapacity>
+    <GroupName kb="CUR" kxe="false">rootvg</GroupName>
+    <GroupSerialID kb="ROR" kxe="false">00f8d6de00004b000000014a53505d2f</GroupSerialID>
+    <MaximumLogicalVolumes kb="ROR" kxe="false">256</MaximumLogicalVolumes>
+    <PhysicalVolumes kb="CUD" kxe="false" schemaVersion="V1_2_0">
+        <Metadata>
+            <Atom/>
+        </Metadata>
+        <PhysicalVolume schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <Description kb="CUD" kxe="false">SAS RAID 0 Disk Array</Description>
+            <LocationCode kb="ROR" kxe="false">U78C9.001.WZS0095-P1-C14-R1-L205D828300-L0</LocationCode>
+            <ReservePolicy kb="CUD" kxe="false">NoReserve</ReservePolicy>
+            <ReservePolicyAlgorithm kb="CUD" kxe="false">Failover</ReservePolicyAlgorithm>
+            <UniqueDeviceID kb="ROR" kxe="false">01MUlCTSAgICAgSVBSLTAgICA1RDgyODMwMDAwMDAwMDIw</UniqueDeviceID>
+            <AvailableForUsage kb="CUD" kxe="false">false</AvailableForUsage>
+            <VolumeCapacity kb="CUR" kxe="false">1089592</VolumeCapacity>
+            <VolumeName kb="CUR" kxe="false">hdisk0</VolumeName>
+            <VolumeState kb="ROR" kxe="false">active</VolumeState>
+            <VolumeUniqueID kb="ROR" kxe="false">391BIBMIPR-0   5D8283000000002010IPR-0   5D82830003IBMsas</VolumeUniqueID>
+            <IsFibreChannelBacked kb="ROR" kxe="false">false</IsFibreChannelBacked>
+        </PhysicalVolume>
+    </PhysicalVolumes>
+    <UniqueDeviceID kb="ROR" kxe="false">0400f8d6de00004b000000014a53505d2f</UniqueDeviceID>
+    <VirtualDisks kb="CUD" kxe="false" schemaVersion="V1_2_0">
+        <Metadata>
+            <Atom/>
+        </Metadata>
+    </VirtualDisks>
+</VolumeGroup:VolumeGroup>
+        </content>
+    </entry>
+    <entry>
+        <id>b6bdbf1f-eddf-3c81-8801-9859eb6fedcb</id>
+        <title>VolumeGroup</title>
+        <published>2015-01-22T04:15:33.816Z</published>
+        <link rel="SELF" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb"/>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <etag:etag xmlns:etag="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/">71932090</etag:etag>
+        <content type="application/vnd.ibm.powervm.uom+xml; type=VolumeGroup">
+            <VolumeGroup:VolumeGroup xmlns:VolumeGroup="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_2_0">
+    <Metadata>
+        <Atom>
+            <AtomID>b6bdbf1f-eddf-3c81-8801-9859eb6fedcb</AtomID>
+            <AtomCreated>1421883668662</AtomCreated>
+        </Atom>
+    </Metadata>
+    <AvailableSize kb="ROR" kxe="false">997</AvailableSize>
+    <FreeSpace kxe="false" kb="ROR">997</FreeSpace>
+    <GroupCapacity kb="CUR" kxe="false">1063</GroupCapacity>
+    <GroupName kb="CUR" kxe="false">image_pool</GroupName>
+    <GroupSerialID kb="ROR" kxe="false">00f8d6de00004b000000014a54555cd9</GroupSerialID>
+    <MaximumLogicalVolumes kb="ROR" kxe="false">1024</MaximumLogicalVolumes>
+    <MediaRepositories kb="CUD" kxe="false" schemaVersion="V1_2_0">
+        <Metadata>
+            <Atom/>
+        </Metadata>
+        <VirtualMediaRepository schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <OpticalMedia kb="CUD" kxe="false" schemaVersion="V1_2_0">
+                <Metadata>
+                    <Atom/>
+                </Metadata>
+                <VirtualOpticalMedia schemaVersion="V1_2_0">
+                    <Metadata>
+                        <Atom/>
+                    </Metadata>
+                    <MediaName kb="CUR" kxe="false">asdcv_3bc2b715_userID_config.iso</MediaName>
+                    <MediaUDID kb="ROR" kxe="false">0easdcv_3bc2b715_userID_config.iso</MediaUDID>
+                    <MountType kb="CUD" kxe="false">rw</MountType>
+                    <Size kb="CUR" kxe="false">0.000000</Size>
+                </VirtualOpticalMedia>
+                <VirtualOpticalMedia schemaVersion="V1_2_0">
+                    <Metadata>
+                        <Atom/>
+                    </Metadata>
+                    <MediaName kb="CUR" kxe="false">asdf_c3f7b1e7_userID_config.iso</MediaName>
+                    <MediaUDID kb="ROR" kxe="false">0easdf_c3f7b1e7_userID_config.iso</MediaUDID>
+                    <MountType kb="CUD" kxe="false">rw</MountType>
+                    <Size kb="CUR" kxe="false">0.000000</Size>
+                </VirtualOpticalMedia>
+                <VirtualOpticalMedia schemaVersion="V1_2_0">
+                    <Metadata>
+                        <Atom/>
+                    </Metadata>
+                    <MediaName kb="CUR" kxe="false">blank_media1</MediaName>
+                    <MediaUDID kb="ROR" kxe="false">0eblank_media1</MediaUDID>
+                    <MountType kb="CUD" kxe="false">rw</MountType>
+                    <Size kb="CUR" kxe="false">0.0977</Size>
+                </VirtualOpticalMedia>
+                <VirtualOpticalMedia schemaVersion="V1_2_0">
+                    <Metadata>
+                        <Atom/>
+                    </Metadata>
+                    <MediaName kb="CUR" kxe="false">blank_media_2</MediaName>
+                    <MediaUDID kb="ROR" kxe="false">0eblank_media_2</MediaUDID>
+                    <MountType kb="CUD" kxe="false">rw</MountType>
+                    <Size kb="CUR" kxe="false">0.0488</Size>
+                </VirtualOpticalMedia>
+                <VirtualOpticalMedia schemaVersion="V1_2_0">
+                    <Metadata>
+                        <Atom/>
+                    </Metadata>
+                    <MediaName kb="CUR" kxe="false">cirros_eea81ef4_userID_config.iso</MediaName>
+                    <MediaUDID kb="ROR" kxe="false">0ecirros_eea81ef4_userID_config.iso</MediaUDID>
+                    <MountType kb="CUD" kxe="false">rw</MountType>
+                    <Size kb="CUR" kxe="false">0.000000</Size>
+                </VirtualOpticalMedia>
+                <VirtualOpticalMedia schemaVersion="V1_2_0">
+                    <Metadata>
+                        <Atom/>
+                    </Metadata>
+                    <MediaName kb="CUR" kxe="false">test_aix_17cbd370_userID_config.iso</MediaName>
+                    <MediaUDID kb="ROR" kxe="false">0etest_aix_17cbd370_userID_config.iso</MediaUDID>
+                    <MountType kb="CUD" kxe="false">rw</MountType>
+                    <Size kb="CUR" kxe="false">0.000000</Size>
+                </VirtualOpticalMedia>
+            </OpticalMedia>
+            <RepositoryName kb="CUR" kxe="false">VMLibrary</RepositoryName>
+            <RepositorySize kb="CUR" kxe="false">11</RepositorySize>
+        </VirtualMediaRepository>
+    </MediaRepositories>
+    <PhysicalVolumes kb="CUD" kxe="false" schemaVersion="V1_2_0">
+        <Metadata>
+            <Atom/>
+        </Metadata>
+        <PhysicalVolume schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <Description kb="CUD" kxe="false">SAS RAID 0 Disk Array</Description>
+            <LocationCode kb="ROR" kxe="false">U78C9.001.WZS0095-P1-C14-R1-L405D828300-L0</LocationCode>
+            <ReservePolicy kb="CUD" kxe="false">NoReserve</ReservePolicy>
+            <ReservePolicyAlgorithm kb="CUD" kxe="false">Failover</ReservePolicyAlgorithm>
+            <UniqueDeviceID kb="ROR" kxe="false">01MUlCTSAgICAgSVBSLTAgICA1RDgyODMwMDAwMDAwMDQw</UniqueDeviceID>
+            <AvailableForUsage kb="CUD" kxe="false">false</AvailableForUsage>
+            <VolumeCapacity kb="CUR" kxe="false">1089592</VolumeCapacity>
+            <VolumeName kb="CUR" kxe="false">hdisk1</VolumeName>
+            <VolumeState kb="ROR" kxe="false">active</VolumeState>
+            <VolumeUniqueID kb="ROR" kxe="false">391BIBMIPR-0   5D8283000000004010IPR-0   5D82830003IBMsas</VolumeUniqueID>
+            <IsFibreChannelBacked kb="ROR" kxe="false">false</IsFibreChannelBacked>
+        </PhysicalVolume>
+    </PhysicalVolumes>
+    <UniqueDeviceID kb="ROR" kxe="false">0400f8d6de00004b000000014a54555cd9</UniqueDeviceID>
+    <VirtualDisks kb="CUD" kxe="false" schemaVersion="V1_2_0">
+        <Metadata>
+            <Atom/>
+        </Metadata>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_b853fd66</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.20</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_df4029a6</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.21</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_e0dd0297</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.22</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">5</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_17cbd370</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.23</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_d2d886e1</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.24</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_947a017f</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.25</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_810f7730</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.26</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_9f5befd2</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.27</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_9699a0f5</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.28</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_d50cd8e4</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.29</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_540240c8</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.30</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_16eea13e</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.31</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_37e3c8d3</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.32</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_f07b23e2</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.10</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_6ec6f2cd</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.33</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_9306783f</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.11</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">efried0.207216</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.12</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">asdf</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.1</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_925c5fa3</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.13</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_a919a184</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.3</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">10</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">aix_disk1</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.14</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">10</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">aix_disk2</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.15</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">2</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">asdf2</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.4</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_30a56789</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.5</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_26610873</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.16</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_42364069</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.6</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_c3f7b1e7</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.17</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_96654a43</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.7</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_1ecdfefc</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.18</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_b2460263</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.19</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_bef997cd</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.8</UniqueDeviceID>
+        </VirtualDisk>
+        <VirtualDisk schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <DiskCapacity kb="CUR" kxe="false">1</DiskCapacity>
+            <DiskLabel kb="CUR" kxe="false">None</DiskLabel>
+            <DiskName kb="CUR" kxe="false">boot_21e1de68</DiskName>
+            <VolumeGroup kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/VirtualIOServer/14B854F7-42CE-4FF0-BD57-1D117054E701/VolumeGroup/b6bdbf1f-eddf-3c81-8801-9859eb6fedcb" rel="related"/>
+            <UniqueDeviceID kb="ROR" kxe="false">0300f8d6de00004b000000014a54555cd9.9</UniqueDeviceID>
+        </VirtualDisk>
+    </VirtualDisks>
+</VolumeGroup:VolumeGroup>
+        </content>
+    </entry>
+</feed>
+
+
+END OF SECTION}

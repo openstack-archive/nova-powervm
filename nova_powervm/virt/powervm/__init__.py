@@ -27,6 +27,19 @@ pvm_opts = [
                     'Value should be between 1 and 255.  Represents how '
                     'aggressively LPARs grab CPU when unused cycles are '
                     'available.'),
+    cfg.StrOpt('vopt_media_volume_group',
+               default='rootvg',
+               help='The volume group on the system that should be used '
+                    'for the config drive metadata that will be attached '
+                    'to VMs.'),
+    cfg.IntOpt('vopt_media_rep_size',
+               default=1,
+               help='The size of the media repository in GB for the metadata '
+                    'for config drive.'),
+    cfg.StrOpt('image_meta_local_path',
+               default='/tmp/cfgdrv/',
+               help='The location where the config drive ISO files should be '
+                    'built.'),
     # TODO(kyleh) Re-evaluate these as the auth model evolves.
     cfg.StrOpt('pvm_host_mtms',
                default='',

@@ -20,6 +20,7 @@ from nova import exception
 from nova.i18n import _LI
 from nova.objects import flavor as flavor_obj
 from nova.openstack.common import log as logging
+from nova.virt import configdrive
 from nova.virt import driver
 
 from oslo.config import cfg
@@ -177,6 +178,16 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Connects up the volume to the LPAR
         flow.add(tf_spawn.tf_connect_vol(self.block_dvr, context, instance))
+
+        # If the config drive is needed, add those steps.
+        if configdrive.required_by(instance):
+            flow.add(tf_spawn.tf_cfg_drive(self.adapter, self.host_uuid,
+                                           self.vios_uuid, instance,
+                                           injected_files, network_info,
+                                           admin_password))
+            flow.add(tf_spawn.tf_connect_cfg_drive(self.adapter, instance,
+                                                   self.vios_uuid,
+                                                   CONF.vios_name))
 
         # Last step is to power on the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
