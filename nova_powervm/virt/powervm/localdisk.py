@@ -135,7 +135,7 @@ class LocalStorage(blockdev.StorageAdapter):
         # Search the feed for the volume group
         for entry in resp.feed.entries:
             wrapper = vol_grp.VolumeGroup(entry)
-            wrap_vg_name = wrapper.get_name()
+            wrap_vg_name = wrapper.name
             LOG.info(_LI('Volume group: %s') % wrap_vg_name)
             if name == wrap_vg_name:
                 uuid = entry.properties['id']

@@ -95,7 +95,7 @@ class PowerVMDriver(driver.ComputeDriver):
             raise Exception("Host %s not found" % CONF.pvm_host_mtms)
 
         self.host_wrapper = msentry_wrapper.ManagedSystem(host_entry)
-        self.host_uuid = self.host_wrapper.get_uuid()
+        self.host_uuid = self.host_wrapper.uuid
         LOG.info(_LI("Host UUID is:%s") % self.host_uuid)
 
     def _log_operation(self, op, instance):

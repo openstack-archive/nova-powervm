@@ -50,9 +50,9 @@ def parse_mtm(mtm_serial):
 
 
 def get_mtm_serial(msentry):
-    mt = msentry.get_type()
-    md = msentry.get_model()
-    ms = msentry.get_serial()
+    mt = msentry.machine_type
+    md = msentry.model
+    ms = msentry.serial
     return mt + md + '_' + ms
 
 
@@ -67,7 +67,7 @@ def find_entry_by_mtm_serial(resp, mtm_serial):
     # Confirm same model and type
     for entry in entries:
         wrapper = msentry_wrapper.ManagedSystem(entry)
-        if (wrapper.get_type() == mt and wrapper.get_model() == md):
+        if (wrapper.machine_type == mt and wrapper.model == md):
             return entry
 
     # No matching MTM Serial was found
@@ -85,15 +85,15 @@ def build_host_resource_from_entry(msentry):
     data = {}
 
     # Calculate the vcpus
-    proc_units = msentry.get_proc_units_configurable()
-    proc_units_avail = msentry.get_proc_units_avail()
+    proc_units = msentry.proc_units_configurable
+    proc_units_avail = msentry.proc_units_avail
     pu_used = float(proc_units) - float(proc_units_avail)
     data['vcpus'] = int(math.ceil(float(proc_units)))
     data['vcpus_used'] = int(math.ceil(pu_used))
 
-    data['memory_mb'] = msentry.get_memory_configurable()
-    data['memory_mb_used'] = (msentry.get_memory_configurable() -
-                              msentry.get_memory_free())
+    data['memory_mb'] = msentry.memory_configurable
+    data['memory_mb_used'] = (msentry.memory_configurable -
+                              msentry.memory_free)
 
     # TODO(IBM): make the local gb large for now
     data["local_gb"] = (1 << 21)

@@ -57,7 +57,7 @@ def tf_crt_lpar(adapter, host_uuid, instance, flavor):
 
         # Wrap to the actual delete.
         lpar = pvm_lpar.LogicalPartition(result.entry)
-        vm.dlt_lpar(adapter, lpar.get_uuid())
+        vm.dlt_lpar(adapter, lpar.uuid)
         LOG.info(_LI('Instance %s removed from system') % instance.name)
 
     return task.FunctorTask(
@@ -119,7 +119,7 @@ def tf_connect_vol(block_dvr, context, instance):
         LOG.info(_LI('Connecting boot disk to instance: %s') % instance.name)
         lpar = pvm_lpar.LogicalPartition(lpar_crt_resp.entry)
         block_dvr.connect_volume(context, instance, vol_dev_info,
-                                 lpar.get_uuid())
+                                 lpar.uuid)
 
     return task.FunctorTask(
         _task, name='connect_vol',

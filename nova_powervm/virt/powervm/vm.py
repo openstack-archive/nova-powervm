@@ -172,7 +172,7 @@ def get_lpar_list(adapter, host_uuid):
     feed = get_lpar_feed(adapter, host_uuid)
     if feed is not None:
         for entry in feed.entries:
-            name = pvm_lpar.LogicalPartition(entry).get_name()
+            name = pvm_lpar.LogicalPartition(entry).name
             lpar_list.append(name)
 
     return lpar_list
