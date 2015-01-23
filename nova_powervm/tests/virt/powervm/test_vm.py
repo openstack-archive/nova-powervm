@@ -21,10 +21,12 @@ import mock
 
 from nova.compute import power_state
 from nova import exception
+from nova import objects
 from nova import test
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tests.wrappers.util import pvmhttp
 
+from nova_powervm.tests.virt import powervm
 from nova_powervm.virt.powervm import vm
 
 LPAR_HTTPRESP_FILE = "lpar.txt"
@@ -41,18 +43,6 @@ logging.basicConfig()
 class FakeAdapterResponse(object):
     def __init__(self, status):
         self.status = status
-
-
-class FakeInstance(object):
-    def __init__(self):
-        self.name = 'fake_instance'
-
-
-class FakeFlavor(object):
-    def __init__(self):
-        self.name = 'fake_flavor'
-        self.memory_mb = 256
-        self.vcpus = 1
 
 
 class TestVM(test.TestCase):
@@ -165,11 +155,8 @@ class TestVM(test.TestCase):
     @mock.patch('pypowervm.wrappers.logical_partition.crt_shared_procs')
     @mock.patch('pypowervm.wrappers.logical_partition.crt_lpar')
     def test_crt_lpar(self, mock_crt_lpar, mock_crt_sp, mock_adr):
-        instance = FakeInstance()
-        instance.name = 'Fake'
-
-        flavor = FakeFlavor()
-        flavor.memory_mb = 100
+        instance = objects.Instance(**powervm.TEST_INSTANCE)
+        flavor = instance.get_flavor()
 
         # Create a side effect that can validate the input into the create
         # call.
@@ -185,15 +172,15 @@ class TestVM(test.TestCase):
 
         def validate_of_create_lpar(*kargs, **kwargs):
             instance_name = kargs[0]
-            self.assertEqual('Fake', instance_name)
+            self.assertEqual('instance-00000001', instance_name)
             _type = kargs[1]
             self.assertEqual('AIX/Linux', _type)
             # sprocs = kargs[2]
             mem = kargs[3]
-            self.assertEqual('100', mem)
+            self.assertEqual('2048', mem)
 
-            self.assertEqual('100', kwargs.get('min_mem'))
-            self.assertEqual('100', kwargs.get('max_mem'))
+            self.assertEqual('2048', kwargs.get('min_mem'))
+            self.assertEqual('2048', kwargs.get('max_mem'))
             self.assertEqual('64', kwargs.get('max_io_slots'))
         mock_crt_lpar.side_effect = validate_of_create_lpar
 

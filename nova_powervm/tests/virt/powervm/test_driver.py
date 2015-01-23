@@ -20,12 +20,15 @@ import logging
 import mock
 
 from nova import exception as exc
+from nova import objects
 from nova import test
+from nova.tests.unit import fake_instance
 from nova.virt import fake
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import constants as wpr_consts
 import pypowervm.wrappers.managed_system as msentry_wrapper
 
+from nova_powervm.tests.virt import powervm
 from nova_powervm.virt.powervm import driver
 from nova_powervm.virt.powervm import host as pvm_host
 
@@ -34,21 +37,6 @@ MS_NAME = 'HV4'
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
-
-
-class FakeInstance(object):
-    def __init__(self):
-        self.name = 'fake_instance'
-        self.display_name = 'fake_display_name'
-        self.instance_type_id = 'instance_type_id'
-        self.uuid = 'fake_uuid'
-
-
-class FakeFlavor(object):
-    def __init__(self):
-        self.name = 'fake_flavor'
-        self.memory_mb = 256
-        self.vcpus = 1
 
 
 class TestPowerVMDriver(test.TestCase):
@@ -104,7 +92,7 @@ class TestPowerVMDriver(test.TestCase):
         drv.adapter = mock_apt
 
         # get_info()
-        inst = FakeInstance()
+        inst = fake_instance.fake_instance_obj(mock.sentinel.ctx)
         mock_uuidcache.lookup.return_value = '1234'
         drv.pvm_uuids = mock_uuidcache
         info = drv.get_info(inst)
@@ -138,8 +126,8 @@ class TestPowerVMDriver(test.TestCase):
         drv.adapter = mock_apt
 
         # Set up the mocks to the tasks.
-        inst = FakeInstance()
-        my_flavor = FakeFlavor()
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_crt.return_value = mock.MagicMock()
         mock_cfg_drv.return_value = False
@@ -180,8 +168,8 @@ class TestPowerVMDriver(test.TestCase):
         drv.adapter = mock_apt
 
         # Set up the mocks to the tasks.
-        inst = FakeInstance()
-        my_flavor = FakeFlavor()
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_crt.return_value = mock.MagicMock()
         mock_cfg_drv.return_value = True
@@ -220,8 +208,8 @@ class TestPowerVMDriver(test.TestCase):
         drv.adapter = mock_apt
 
         # Set up the mocks to the tasks.
-        inst = FakeInstance()
-        my_flavor = FakeFlavor()
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_crt.return_value = mock.MagicMock()
         mock_cfg_drv.return_value = False
@@ -247,11 +235,12 @@ class TestPowerVMDriver(test.TestCase):
     def test_log_op(self, mock_log):
         """Validates the log_operations."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
-        inst = FakeInstance()
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         drv._log_operation('fake_op', inst)
-        entry = ('Operation: fake_op. Virtual machine display name: '
-                 'fake_display_name, name: fake_instance, UUID: fake_uuid')
+        entry = ('Operation: fake_op. Virtual machine display '
+                 'name: Fake Instance, name: instance-00000001, '
+                 'UUID: 49629a5c-f4c4-4721-9511-9725786ff2e5')
         mock_log.info.assert_called_with(entry)
 
     def test_host_resources(self):
