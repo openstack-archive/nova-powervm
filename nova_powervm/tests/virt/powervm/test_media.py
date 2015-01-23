@@ -24,6 +24,8 @@ from nova_powervm.virt.powervm import media as m
 
 VOL_GRP_DATA = 'fake_volume_group.txt'
 VOL_GRP_NOVG_DATA = 'fake_volume_group_no_vg.txt'
+VOL_GRP_SING_DATA = 'fake_single_vol_group.txt'
+FILE_FEED = 'fake_file_feed.txt'
 
 
 class TestConfigDrivePowerVM(test.TestCase):
@@ -43,6 +45,8 @@ class TestConfigDrivePowerVM(test.TestCase):
 
         self.vol_grp_resp = resp(VOL_GRP_DATA)
         self.vol_grp_novg_resp = resp(VOL_GRP_NOVG_DATA)
+        self.vol_grp_sing_resp = resp(VOL_GRP_SING_DATA)
+        self.file_feed_resp = resp(FILE_FEED)
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
@@ -89,6 +93,22 @@ class TestConfigDrivePowerVM(test.TestCase):
                                                   'fake_lpar')
         self.assertIsNotNone(resp)
         self.assertTrue(mock_upld.called)
+
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_validate_vopt_vg')
+    def test_dlt_cfg_drv_vopt(self, m_validate, m_adpt):
+        # Set up the data
+        file_to_del = 'asdcv_3bc2b715_userID_config.iso'
+        m_adpt.read.side_effect = [self.vol_grp_sing_resp, self.file_feed_resp]
+
+        # Run the deletes.
+        cfg_dr_builder = m.ConfigDrivePowerVM(m_adpt, 'fake_host', 'fake_vios')
+        cfg_dr_builder.dlt_cfg_drv_vopt(file_to_del)
+
+        # Make sure the update and delete were called only once.
+        self.assertEqual(1, m_adpt.update.call_count)
+        self.assertEqual(1, m_adpt.delete.call_count)
 
     @mock.patch('pypowervm.adapter.Adapter')
     def test_validate_opt_vg(self, mock_adpt):

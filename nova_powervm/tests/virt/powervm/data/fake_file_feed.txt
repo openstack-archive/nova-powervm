@@ -1,0 +1,1815 @@
+####################################################
+# THIS IS AN AUTOMATICALLY GENERATED FILE
+# DO NOT EDIT. ANY EDITS WILL BE LOST ON NEXT UPDATE
+#
+# To update file, run: create_httpresp.py -refresh fake_file_feed.txt
+#
+####################################################
+INFO{
+{'comment': 'A file get', 'status': 200, 'pw': 'abc123', 'reason': 'OK', 'host': '9.1.2.3', 'user': 'hscroot', 'path': 'File'}
+END OF SECTION}
+HEADERS{
+{'content-length': '31567', 'x-powered-by': 'Servlet/3.0', 'set-cookie': 'JSESSIONID=0000qnsHzMw-UAQPrFwtNaS5qcC:945f5b75-c329-4322-89cf-e90b74473dc9; Path=/; Secure; HttpOnly', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'last-modified': 'Wed, 05 Feb 2014 13:53:20 GMT', 'etag': '378412626', 'cache-control': 'no-transform, must-revalidate, proxy-revalidate, no-cache=set-cookie', 'date': 'Wed, 05 Feb 2014 13:53:19 GMT', 'content-type': 'application/atom+xml'}
+END OF SECTION}
+BODY{
+
+
+
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:ns2="http://a9.com/-/spec/opensearch/1.1/" xmlns:ns3="http://www.w3.org/1999/xhtml">
+    <id>f4597d89-8fca-3ece-b0a3-a6b96b0d053c</id>
+    <updated>2015-01-23T03:36:04.519Z</updated>
+    <generator>IBM Power Systems Management Console</generator>
+    <entry>
+        <id>5cd8e4b0-083e-4c71-bcff-2432807cfdcc</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.601Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>5cd8e4b0-083e-4c71-bcff-2432807cfdcc</AtomID>
+            <AtomCreated>1421979400892</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_9699a0f5</Filename>
+    <DateModified kb="ROR" kxe="false">1421736166276</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">5cd8e4b0-083e-4c71-bcff-2432807cfdcc</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/5cd8e4b0-083e-4c71-bcff-2432807cfdcc" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.28</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>25d43c02-bdca-4c9b-8cf4-c2a77b23b572</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.602Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>25d43c02-bdca-4c9b-8cf4-c2a77b23b572</AtomID>
+            <AtomCreated>1421979400892</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">dsafjfsakjdhf_b2460263_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421384689772</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">25d43c02-bdca-4c9b-8cf4-c2a77b23b572</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/25d43c02-bdca-4c9b-8cf4-c2a77b23b572" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>73ef5b08-000e-47b7-a88e-7156d67d8bbb</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.603Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>73ef5b08-000e-47b7-a88e-7156d67d8bbb</AtomID>
+            <AtomCreated>1421979400892</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_ddfd2151</Filename>
+    <DateModified kb="ROR" kxe="false">1421386380482</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">73ef5b08-000e-47b7-a88e-7156d67d8bbb</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/73ef5b08-000e-47b7-a88e-7156d67d8bbb" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.3</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>b65126b5-30b2-456d-89ed-91639ec439be</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.604Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>b65126b5-30b2-456d-89ed-91639ec439be</AtomID>
+            <AtomCreated>1421979400894</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">drew7_fa820cb6_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421379304562</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">b65126b5-30b2-456d-89ed-91639ec439be</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/b65126b5-30b2-456d-89ed-91639ec439be" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>8d57a726-21f9-403e-8f40-9063a142c1b5</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.605Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>8d57a726-21f9-403e-8f40-9063a142c1b5</AtomID>
+            <AtomCreated>1421979400894</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_9bba66ce</Filename>
+    <DateModified kb="ROR" kxe="false">1421225000083</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">8d57a726-21f9-403e-8f40-9063a142c1b5</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/8d57a726-21f9-403e-8f40-9063a142c1b5" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.16</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>3fda68d0-1ef1-4ce9-8ec9-01812160c327</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.606Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>3fda68d0-1ef1-4ce9-8ec9-01812160c327</AtomID>
+            <AtomCreated>1421979400896</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">test_aix_17cbd370_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421386579630</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">3fda68d0-1ef1-4ce9-8ec9-01812160c327</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/3fda68d0-1ef1-4ce9-8ec9-01812160c327" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>0e435870-4c11-4a87-aec1-fd8458653b94</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.606Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>0e435870-4c11-4a87-aec1-fd8458653b94</AtomID>
+            <AtomCreated>1421979400896</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_3bc2b715</Filename>
+    <DateModified kb="ROR" kxe="false">1421384488794</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">0e435870-4c11-4a87-aec1-fd8458653b94</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/0e435870-4c11-4a87-aec1-fd8458653b94" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">4550656</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">4550656</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.5</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>86f3bb66-4a3b-4aae-a8ae-022935f92ec5</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.607Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>86f3bb66-4a3b-4aae-a8ae-022935f92ec5</AtomID>
+            <AtomCreated>1421979400896</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_1ecdfefc</Filename>
+    <DateModified kb="ROR" kxe="false">1421727535528</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">86f3bb66-4a3b-4aae-a8ae-022935f92ec5</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/86f3bb66-4a3b-4aae-a8ae-022935f92ec5" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.18</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>3ebfeaa8-a83c-489a-97d2-85bc2ce1a4f9</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.608Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>3ebfeaa8-a83c-489a-97d2-85bc2ce1a4f9</AtomID>
+            <AtomCreated>1421979400896</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_b2460263</Filename>
+    <DateModified kb="ROR" kxe="false">1421384687327</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">3ebfeaa8-a83c-489a-97d2-85bc2ce1a4f9</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/3ebfeaa8-a83c-489a-97d2-85bc2ce1a4f9" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">4550656</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">4550656</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.19</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>099aa24b-f38d-4970-8640-dfdb63f82d5c</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.609Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>099aa24b-f38d-4970-8640-dfdb63f82d5c</AtomID>
+            <AtomCreated>1421979400896</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_17cbd370</Filename>
+    <DateModified kb="ROR" kxe="false">1421386460590</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">099aa24b-f38d-4970-8640-dfdb63f82d5c</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/099aa24b-f38d-4970-8640-dfdb63f82d5c" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">5032672768</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">5032672768</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.23</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>583896e6-5518-4c8c-8f84-359bbcceb6a3</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.610Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>583896e6-5518-4c8c-8f84-359bbcceb6a3</AtomID>
+            <AtomCreated>1421979400896</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_16eea13e</Filename>
+    <DateModified kb="ROR" kxe="false">1421796064783</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">583896e6-5518-4c8c-8f84-359bbcceb6a3</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/583896e6-5518-4c8c-8f84-359bbcceb6a3" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.31</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>8b971f7d-10d4-4a66-bc11-3265ff0d8d1b</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.611Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>8b971f7d-10d4-4a66-bc11-3265ff0d8d1b</AtomID>
+            <AtomCreated>1421979400897</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_9306783f</Filename>
+    <DateModified kb="ROR" kxe="false">1421719952384</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">8b971f7d-10d4-4a66-bc11-3265ff0d8d1b</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/8b971f7d-10d4-4a66-bc11-3265ff0d8d1b" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.11</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>795ad77b-8ea2-4681-9cce-16c24999a4cb</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.612Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>795ad77b-8ea2-4681-9cce-16c24999a4cb</AtomID>
+            <AtomCreated>1421979400897</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_df4029a6</Filename>
+    <DateModified kb="ROR" kxe="false">1421732459689</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">795ad77b-8ea2-4681-9cce-16c24999a4cb</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/795ad77b-8ea2-4681-9cce-16c24999a4cb" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.21</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>3e1b2206-17f6-42f9-970a-9c47c90185c0</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.612Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>3e1b2206-17f6-42f9-970a-9c47c90185c0</AtomID>
+            <AtomCreated>1421979400897</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_9f5befd2</Filename>
+    <DateModified kb="ROR" kxe="false">1421735790829</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">3e1b2206-17f6-42f9-970a-9c47c90185c0</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/3e1b2206-17f6-42f9-970a-9c47c90185c0" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.27</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>74085e13-0747-481f-b642-4680724f2761</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.613Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>74085e13-0747-481f-b642-4680724f2761</AtomID>
+            <AtomCreated>1421979400898</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_iso</Filename>
+    <DateModified kb="ROR" kxe="false">1420601133605</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">74085e13-0747-481f-b642-4680724f2761</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/74085e13-0747-481f-b642-4680724f2761" rel="related"/>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>10eb02fb-7e29-4ca9-a6f0-63ddcdbf5d28</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.614Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>10eb02fb-7e29-4ca9-a6f0-63ddcdbf5d28</AtomID>
+            <AtomCreated>1421979400899</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">drew5_4039c1b1_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421379078690</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">10eb02fb-7e29-4ca9-a6f0-63ddcdbf5d28</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/10eb02fb-7e29-4ca9-a6f0-63ddcdbf5d28" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>6233b070-31cc-4b57-99bd-37f80e845de9</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.615Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>6233b070-31cc-4b57-99bd-37f80e845de9</AtomID>
+            <AtomCreated>1421979400899</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_c3f7b1e7</Filename>
+    <DateModified kb="ROR" kxe="false">1421385016137</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">6233b070-31cc-4b57-99bd-37f80e845de9</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/6233b070-31cc-4b57-99bd-37f80e845de9" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">4550656</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">4550656</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.17</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>42974f49-c568-47fa-a2e7-d861e8908c78</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.616Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>42974f49-c568-47fa-a2e7-d861e8908c78</AtomID>
+            <AtomCreated>1421979400899</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_iso</Filename>
+    <DateModified kb="ROR" kxe="false">1420619818061</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">42974f49-c568-47fa-a2e7-d861e8908c78</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/42974f49-c568-47fa-a2e7-d861e8908c78" rel="related"/>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>50b9f7b8-ebd0-4a99-8246-6ea4a4b305cb</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.617Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>50b9f7b8-ebd0-4a99-8246-6ea4a4b305cb</AtomID>
+            <AtomCreated>1421979400899</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">aix_disk2</Filename>
+    <DateModified kb="ROR" kxe="false">1421190142865</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">50b9f7b8-ebd0-4a99-8246-6ea4a4b305cb</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/50b9f7b8-ebd0-4a99-8246-6ea4a4b305cb" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">10737418240</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">10737418240</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.15</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>d3fe7e72-1018-44e8-84b8-1bf829485b7a</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.618Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>d3fe7e72-1018-44e8-84b8-1bf829485b7a</AtomID>
+            <AtomCreated>1421979400899</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_30a56789</Filename>
+    <DateModified kb="ROR" kxe="false">1421399142877</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">d3fe7e72-1018-44e8-84b8-1bf829485b7a</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/d3fe7e72-1018-44e8-84b8-1bf829485b7a" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.5</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>652e0ba4-8e42-45ad-86ef-12868b1d8aae</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.618Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>652e0ba4-8e42-45ad-86ef-12868b1d8aae</AtomID>
+            <AtomCreated>1421979400900</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">asdcv_3bc2b715_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421384491215</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">652e0ba4-8e42-45ad-86ef-12868b1d8aae</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/652e0ba4-8e42-45ad-86ef-12868b1d8aae" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>4920dcd4-4faf-4acc-99ca-c1465989286a</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.619Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>4920dcd4-4faf-4acc-99ca-c1465989286a</AtomID>
+            <AtomCreated>1421979400900</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_a919a184</Filename>
+    <DateModified kb="ROR" kxe="false">1421395508606</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">4920dcd4-4faf-4acc-99ca-c1465989286a</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/4920dcd4-4faf-4acc-99ca-c1465989286a" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.3</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>b2088134-4298-4e8d-b6c5-ca7f78be6ffd</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.620Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>b2088134-4298-4e8d-b6c5-ca7f78be6ffd</AtomID>
+            <AtomCreated>1421979400900</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_bef997cd</Filename>
+    <DateModified kb="ROR" kxe="false">1421717486048</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">b2088134-4298-4e8d-b6c5-ca7f78be6ffd</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/b2088134-4298-4e8d-b6c5-ca7f78be6ffd" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.8</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>9ffc9073-92c2-4485-bccd-e57e9b0f3939</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.621Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>9ffc9073-92c2-4485-bccd-e57e9b0f3939</AtomID>
+            <AtomCreated>1421979400900</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_e0dd0297</Filename>
+    <DateModified kb="ROR" kxe="false">1421733136814</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">9ffc9073-92c2-4485-bccd-e57e9b0f3939</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/9ffc9073-92c2-4485-bccd-e57e9b0f3939" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.22</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>00ceab1a-cbe1-4259-bf94-bd2b5efedef3</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.622Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>00ceab1a-cbe1-4259-bf94-bd2b5efedef3</AtomID>
+            <AtomCreated>1421979400900</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_9123f6a2</Filename>
+    <DateModified kb="ROR" kxe="false">1421225617706</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">00ceab1a-cbe1-4259-bf94-bd2b5efedef3</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/00ceab1a-cbe1-4259-bf94-bd2b5efedef3" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.18</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>551c61d0-086d-4084-b013-0088f724e779</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.623Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>551c61d0-086d-4084-b013-0088f724e779</AtomID>
+            <AtomCreated>1421979400900</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_iso</Filename>
+    <DateModified kb="ROR" kxe="false">1420611259989</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">551c61d0-086d-4084-b013-0088f724e779</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/551c61d0-086d-4084-b013-0088f724e779" rel="related"/>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>ac1bfa47-516b-480e-a520-9008256f1f6a</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.624Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>ac1bfa47-516b-480e-a520-9008256f1f6a</AtomID>
+            <AtomCreated>1421979400901</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_e0d47c9a</Filename>
+    <DateModified kb="ROR" kxe="false">1421381901790</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">ac1bfa47-516b-480e-a520-9008256f1f6a</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/ac1bfa47-516b-480e-a520-9008256f1f6a" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">10737418240</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">10737418240</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.22</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>e791fe74-e266-4ff1-a052-24fb72eff3f4</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.624Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>e791fe74-e266-4ff1-a052-24fb72eff3f4</AtomID>
+            <AtomCreated>1421979400901</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">asdf_c3f7b1e7_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421385018365</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">e791fe74-e266-4ff1-a052-24fb72eff3f4</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/e791fe74-e266-4ff1-a052-24fb72eff3f4" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>c7ae02a9-dd68-4c54-82e7-195e54a2dac1</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.625Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>c7ae02a9-dd68-4c54-82e7-195e54a2dac1</AtomID>
+            <AtomCreated>1421979400901</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_1ea155fd</Filename>
+    <DateModified kb="ROR" kxe="false">1421375780753</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">c7ae02a9-dd68-4c54-82e7-195e54a2dac1</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/c7ae02a9-dd68-4c54-82e7-195e54a2dac1" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">10737418240</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">1255776256</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.20</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>bbb95d43-0544-4f25-a5f8-74391e637e3e</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.626Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>bbb95d43-0544-4f25-a5f8-74391e637e3e</AtomID>
+            <AtomCreated>1421979400901</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_6ec6f2cd</Filename>
+    <DateModified kb="ROR" kxe="false">1421895042163</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">bbb95d43-0544-4f25-a5f8-74391e637e3e</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/bbb95d43-0544-4f25-a5f8-74391e637e3e" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.33</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>3fe7d439-becf-41b4-b0d1-940e2bc45a9a</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.627Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>3fe7d439-becf-41b4-b0d1-940e2bc45a9a</AtomID>
+            <AtomCreated>1421979400901</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_disk5</Filename>
+    <DateModified kb="ROR" kxe="false">1421127777888</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">3fe7d439-becf-41b4-b0d1-940e2bc45a9a</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/3fe7d439-becf-41b4-b0d1-940e2bc45a9a" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">62</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">62</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.9</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>97e0ad9f-2c03-4d3d-811e-d95ed042a34b</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.628Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>97e0ad9f-2c03-4d3d-811e-d95ed042a34b</AtomID>
+            <AtomCreated>1421979400901</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">drew1_d87ebecb_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421378314697</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">97e0ad9f-2c03-4d3d-811e-d95ed042a34b</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/97e0ad9f-2c03-4d3d-811e-d95ed042a34b" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>dffb27c8-0071-467e-8f84-371e499951e9</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.629Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>dffb27c8-0071-467e-8f84-371e499951e9</AtomID>
+            <AtomCreated>1421979400902</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_34978ba4</Filename>
+    <DateModified kb="ROR" kxe="false">1421384606816</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">dffb27c8-0071-467e-8f84-371e499951e9</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/dffb27c8-0071-467e-8f84-371e499951e9" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.17</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>0a511bd2-77ab-4735-bc51-54beabda6048</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.629Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>0a511bd2-77ab-4735-bc51-54beabda6048</AtomID>
+            <AtomCreated>1421979400902</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_26610873</Filename>
+    <DateModified kb="ROR" kxe="false">1421727146534</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">0a511bd2-77ab-4735-bc51-54beabda6048</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/0a511bd2-77ab-4735-bc51-54beabda6048" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.16</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>3a546776-7b86-45fc-ab97-be91434f1b8a</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.630Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>3a546776-7b86-45fc-ab97-be91434f1b8a</AtomID>
+            <AtomCreated>1421979400902</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_b853fd66</Filename>
+    <DateModified kb="ROR" kxe="false">1421727813013</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">3a546776-7b86-45fc-ab97-be91434f1b8a</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/3a546776-7b86-45fc-ab97-be91434f1b8a" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.20</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>a4923f5e-0f0b-40c6-837a-8f515501d37c</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.631Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>a4923f5e-0f0b-40c6-837a-8f515501d37c</AtomID>
+            <AtomCreated>1421979400902</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_iso</Filename>
+    <DateModified kb="ROR" kxe="false">1420611104046</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">a4923f5e-0f0b-40c6-837a-8f515501d37c</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/a4923f5e-0f0b-40c6-837a-8f515501d37c" rel="related"/>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>294b2e8a-4b7d-469c-8555-1ba7628e2a37</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.632Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>294b2e8a-4b7d-469c-8555-1ba7628e2a37</AtomID>
+            <AtomCreated>1421979400902</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_96654a43</Filename>
+    <DateModified kb="ROR" kxe="false">1421444952203</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">294b2e8a-4b7d-469c-8555-1ba7628e2a37</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/294b2e8a-4b7d-469c-8555-1ba7628e2a37" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.7</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>b5dd98d8-c65f-40b9-911f-18c76629f91c</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.633Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>b5dd98d8-c65f-40b9-911f-18c76629f91c</AtomID>
+            <AtomCreated>1421979400902</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_540240c8</Filename>
+    <DateModified kb="ROR" kxe="false">1421737273729</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">b5dd98d8-c65f-40b9-911f-18c76629f91c</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/b5dd98d8-c65f-40b9-911f-18c76629f91c" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.30</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>18834581-309e-475b-919e-8767775673b5</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.634Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>18834581-309e-475b-919e-8767775673b5</AtomID>
+            <AtomCreated>1421979400903</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">drew6_1ff4d84e_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421379220465</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">18834581-309e-475b-919e-8767775673b5</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/18834581-309e-475b-919e-8767775673b5" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>aeb7bb6a-7b78-4b41-80f7-7d07630182b4</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.635Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>aeb7bb6a-7b78-4b41-80f7-7d07630182b4</AtomID>
+            <AtomCreated>1421979400903</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_eea81ef4</Filename>
+    <DateModified kb="ROR" kxe="false">1421384336941</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">aeb7bb6a-7b78-4b41-80f7-7d07630182b4</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/aeb7bb6a-7b78-4b41-80f7-7d07630182b4" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">4550656</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">4550656</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.3</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>acbf327d-1988-407b-9f28-6be40b7cbdd1</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.635Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>acbf327d-1988-407b-9f28-6be40b7cbdd1</AtomID>
+            <AtomCreated>1421979400903</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_e73c7a0c</Filename>
+    <DateModified kb="ROR" kxe="false">1421376955302</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">acbf327d-1988-407b-9f28-6be40b7cbdd1</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/acbf327d-1988-407b-9f28-6be40b7cbdd1" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">10737418240</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">106274816</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.21</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>13f72717-d35a-44bd-9ba2-ce444d7c71ca</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.636Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>13f72717-d35a-44bd-9ba2-ce444d7c71ca</AtomID>
+            <AtomCreated>1421979400903</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_d50cd8e4</Filename>
+    <DateModified kb="ROR" kxe="false">1421736650939</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">13f72717-d35a-44bd-9ba2-ce444d7c71ca</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/13f72717-d35a-44bd-9ba2-ce444d7c71ca" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.29</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>d55f5669-4e92-476c-95b1-be3fc6956cd9</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.637Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>d55f5669-4e92-476c-95b1-be3fc6956cd9</AtomID>
+            <AtomCreated>1421979400903</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_d2d886e1</Filename>
+    <DateModified kb="ROR" kxe="false">1421733685813</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">d55f5669-4e92-476c-95b1-be3fc6956cd9</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/d55f5669-4e92-476c-95b1-be3fc6956cd9" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.24</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>5f8795d0-f2e4-4c57-baf5-7527c6a6874c</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.638Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>5f8795d0-f2e4-4c57-baf5-7527c6a6874c</AtomID>
+            <AtomCreated>1421979400903</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_11bc8dc2</Filename>
+    <DateModified kb="ROR" kxe="false">1421272624717</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">5f8795d0-f2e4-4c57-baf5-7527c6a6874c</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/5f8795d0-f2e4-4c57-baf5-7527c6a6874c" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.19</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>e46ea7cf-7fdd-4272-a518-f5aaece9b455</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.639Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>e46ea7cf-7fdd-4272-a518-f5aaece9b455</AtomID>
+            <AtomCreated>1421979400903</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">efried0.182413</Filename>
+    <DateModified kb="ROR" kxe="false">1421131299390</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">e46ea7cf-7fdd-4272-a518-f5aaece9b455</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/e46ea7cf-7fdd-4272-a518-f5aaece9b455" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">1073741824</ExpectedFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.11</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>dd02e08b-4311-4ca7-91e9-cd4f9aee832f</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.640Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>dd02e08b-4311-4ca7-91e9-cd4f9aee832f</AtomID>
+            <AtomCreated>1421979400904</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_21e1de68</Filename>
+    <DateModified kb="ROR" kxe="false">1421718243764</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">dd02e08b-4311-4ca7-91e9-cd4f9aee832f</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/dd02e08b-4311-4ca7-91e9-cd4f9aee832f" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.9</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>7427a07e-d03f-41aa-81b8-d59c39ac8ea2</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.640Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>7427a07e-d03f-41aa-81b8-d59c39ac8ea2</AtomID>
+            <AtomCreated>1421979400904</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">efried0.207216</Filename>
+    <DateModified kb="ROR" kxe="false">1421131523206</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">7427a07e-d03f-41aa-81b8-d59c39ac8ea2</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/7427a07e-d03f-41aa-81b8-d59c39ac8ea2" rel="related"/>
+    <SHA256 kb="COD" kxe="false">50cd27e6b965858cecd3cdfb3022f288daaf3773053ba9c2a34d605bf1ce0cd8</SHA256>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">1073741824</ExpectedFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.12</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>a49a67f6-eb5c-41f7-bd2f-4531f4df0241</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.641Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>a49a67f6-eb5c-41f7-bd2f-4531f4df0241</AtomID>
+            <AtomCreated>1421979400904</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">drew3_b0eaf56b_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421378708273</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">a49a67f6-eb5c-41f7-bd2f-4531f4df0241</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/a49a67f6-eb5c-41f7-bd2f-4531f4df0241" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>abcf9fe9-c471-44e4-8ad7-af3080f5dd40</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.642Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>abcf9fe9-c471-44e4-8ad7-af3080f5dd40</AtomID>
+            <AtomCreated>1421979400904</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_iso</Filename>
+    <DateModified kb="ROR" kxe="false">1420619996288</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">abcf9fe9-c471-44e4-8ad7-af3080f5dd40</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/abcf9fe9-c471-44e4-8ad7-af3080f5dd40" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">49</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">49</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>071c69d5-41f2-4cfb-819a-8b463efb0ccb</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.643Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>071c69d5-41f2-4cfb-819a-8b463efb0ccb</AtomID>
+            <AtomCreated>1421979400904</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_42364069</Filename>
+    <DateModified kb="ROR" kxe="false">1421444429358</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">071c69d5-41f2-4cfb-819a-8b463efb0ccb</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/071c69d5-41f2-4cfb-819a-8b463efb0ccb" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.6</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>bb62f6c3-3a80-4044-9085-7a8a392903cf</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.644Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>bb62f6c3-3a80-4044-9085-7a8a392903cf</AtomID>
+            <AtomCreated>1421979400904</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">efried0.209018</Filename>
+    <DateModified kb="ROR" kxe="false">1421131239758</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">bb62f6c3-3a80-4044-9085-7a8a392903cf</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/bb62f6c3-3a80-4044-9085-7a8a392903cf" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">1073741824</ExpectedFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.10</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>2ca84235-88fa-4332-8d98-2e8682983e18</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.644Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>2ca84235-88fa-4332-8d98-2e8682983e18</AtomID>
+            <AtomCreated>1421979400905</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_f07b23e2</Filename>
+    <DateModified kb="ROR" kxe="false">1421718979743</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">2ca84235-88fa-4332-8d98-2e8682983e18</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/2ca84235-88fa-4332-8d98-2e8682983e18" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.10</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>b6dfebab-cd03-44ae-82b4-0576a0c5e68a</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.646Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>b6dfebab-cd03-44ae-82b4-0576a0c5e68a</AtomID>
+            <AtomCreated>1421979400905</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_disk3</Filename>
+    <DateModified kb="ROR" kxe="false">1420620920654</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">b6dfebab-cd03-44ae-82b4-0576a0c5e68a</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/b6dfebab-cd03-44ae-82b4-0576a0c5e68a" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">49</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">49</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.7</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>2db072ee-ecfc-48d1-9ce6-98827b740679</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.646Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>2db072ee-ecfc-48d1-9ce6-98827b740679</AtomID>
+            <AtomCreated>1421979400905</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_37e3c8d3</Filename>
+    <DateModified kb="ROR" kxe="false">1421894802205</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">2db072ee-ecfc-48d1-9ce6-98827b740679</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/2db072ee-ecfc-48d1-9ce6-98827b740679" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.32</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>e0c9eec7-a808-4ea3-a1c2-2564ac66d7f3</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.647Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>e0c9eec7-a808-4ea3-a1c2-2564ac66d7f3</AtomID>
+            <AtomCreated>1421979400905</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">drew4_3983ac1c_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421378800823</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">e0c9eec7-a808-4ea3-a1c2-2564ac66d7f3</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/e0c9eec7-a808-4ea3-a1c2-2564ac66d7f3" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>2223a0c1-0a3e-41b2-90f3-d8746ecf49f5</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.648Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>2223a0c1-0a3e-41b2-90f3-d8746ecf49f5</AtomID>
+            <AtomCreated>1421979400905</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_947a017f</Filename>
+    <DateModified kb="ROR" kxe="false">1421733872854</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">2223a0c1-0a3e-41b2-90f3-d8746ecf49f5</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/2223a0c1-0a3e-41b2-90f3-d8746ecf49f5" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.25</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>d12d0a1c-0187-49e7-8465-54ca40502de5</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.649Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>d12d0a1c-0187-49e7-8465-54ca40502de5</AtomID>
+            <AtomCreated>1421979400905</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_disk2</Filename>
+    <DateModified kb="ROR" kxe="false">1420620891034</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">d12d0a1c-0187-49e7-8465-54ca40502de5</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/d12d0a1c-0187-49e7-8465-54ca40502de5" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">49</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">49</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.6</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>8161f843-37ab-4ea5-8efc-d43c2240ce35</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.650Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>8161f843-37ab-4ea5-8efc-d43c2240ce35</AtomID>
+            <AtomCreated>1421979400906</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_925c5fa3</Filename>
+    <DateModified kb="ROR" kxe="false">1421726856027</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">8161f843-37ab-4ea5-8efc-d43c2240ce35</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/8161f843-37ab-4ea5-8efc-d43c2240ce35" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.13</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>f0254c0e-1791-4052-b95d-b1a26d2bc8a7</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.650Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>f0254c0e-1791-4052-b95d-b1a26d2bc8a7</AtomID>
+            <AtomCreated>1421979400906</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">drew2_895e8512_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421378543430</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">f0254c0e-1791-4052-b95d-b1a26d2bc8a7</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/f0254c0e-1791-4052-b95d-b1a26d2bc8a7" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>de46ecdc-ded2-4713-b3bf-fd6e62725048</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.651Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>de46ecdc-ded2-4713-b3bf-fd6e62725048</AtomID>
+            <AtomCreated>1421979400906</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">bob_disk</Filename>
+    <DateModified kb="ROR" kxe="false">1420620727947</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">de46ecdc-ded2-4713-b3bf-fd6e62725048</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/de46ecdc-ded2-4713-b3bf-fd6e62725048" rel="related"/>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.5</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>480809eb-09d1-4234-baa7-5416d8431a32</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.652Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>480809eb-09d1-4234-baa7-5416d8431a32</AtomID>
+            <AtomCreated>1421979400906</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">efried1.355194</Filename>
+    <DateModified kb="ROR" kxe="false">1421131633455</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">480809eb-09d1-4234-baa7-5416d8431a32</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/480809eb-09d1-4234-baa7-5416d8431a32" rel="related"/>
+    <SHA256 kb="COD" kxe="false">50cd27e6b965858cecd3cdfb3022f288daaf3773053ba9c2a34d605bf1ce0cd7</SHA256>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">1073741824</ExpectedFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.13</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>e6696a46-5ee2-462e-8ec9-b2919ba59f62</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.653Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>e6696a46-5ee2-462e-8ec9-b2919ba59f62</AtomID>
+            <AtomCreated>1421979400906</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">cirros_eea81ef4_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421384339441</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">e6696a46-5ee2-462e-8ec9-b2919ba59f62</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/e6696a46-5ee2-462e-8ec9-b2919ba59f62" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>f3bcf06c-7fd1-4a91-a2fc-bc6e4af4af1d</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.654Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>f3bcf06c-7fd1-4a91-a2fc-bc6e4af4af1d</AtomID>
+            <AtomCreated>1421979400906</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">drew_real_aix_e0d47c9a_userID_config.iso</Filename>
+    <DateModified kb="ROR" kxe="false">1421382072820</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">f3bcf06c-7fd1-4a91-a2fc-bc6e4af4af1d</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/f3bcf06c-7fd1-4a91-a2fc-bc6e4af4af1d" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">419840</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">419840</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_MEDIA_ISO</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>2585d460-1077-406e-b583-744092509226</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.656Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>2585d460-1077-406e-b583-744092509226</AtomID>
+            <AtomCreated>1421979400907</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_810f7730</Filename>
+    <DateModified kb="ROR" kxe="false">1421735515439</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">2585d460-1077-406e-b583-744092509226</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/2585d460-1077-406e-b583-744092509226" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.26</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+    <entry>
+        <id>6aac6131-caaa-4a10-868c-f64402c83994</id>
+        <title>File</title>
+        <published>2015-01-23T03:36:04.657Z</published>
+        <author>
+            <name>IBM Power Systems Management Console</name>
+        </author>
+        <content type="application/vnd.ibm.powervm.web+xml; type=File">
+            <File:File xmlns:File="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/web/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_0">
+    <Metadata>
+        <Atom>
+            <AtomID>6aac6131-caaa-4a10-868c-f64402c83994</AtomID>
+            <AtomCreated>1421979400907</AtomCreated>
+        </Atom>
+    </Metadata>
+    <Filename kb="COR" kxe="false">boot_8b816a22</Filename>
+    <DateModified kb="ROR" kxe="false">1421216010699</DateModified>
+    <InternetMediaType kb="COR" kxe="false">application/octet-stream</InternetMediaType>
+    <FileUUID kb="ROR" kxe="false">6aac6131-caaa-4a10-868c-f64402c83994</FileUUID>
+    <AssetLink kb="ROR" kxe="false" href="https://9.1.2.3:12443/rest/api/web/File/contents/6aac6131-caaa-4a10-868c-f64402c83994" rel="related"/>
+    <ExpectedFileSizeInBytes kb="COD" kxe="false">25165824</ExpectedFileSizeInBytes>
+    <CurrentFileSizeInBytes kb="ROR" kxe="false">25165824</CurrentFileSizeInBytes>
+    <FileEnumType kb="COR" kxe="false">BROKERED_DISK_IMAGE</FileEnumType>
+    <TargetVirtualIOServerUUID kb="COR" kxe="false">14B854F7-42CE-4FF0-BD57-1D117054E701</TargetVirtualIOServerUUID>
+    <TargetDeviceUniqueDeviceID kxe="false" kb="COR">0300f8d6de00004b000000014a54555cd9.17</TargetDeviceUniqueDeviceID>
+</File:File>
+        </content>
+    </entry>
+</feed>
+
+
+END OF SECTION}
