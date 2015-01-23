@@ -1,4 +1,4 @@
 [gerrit]
-host=***REMOVED***
+host=review.openstack.org
 port=29418
-project=ceilometer-powervm.git
+project=stackforge/ceilometer-powervm.git
