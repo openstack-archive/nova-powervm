@@ -21,6 +21,7 @@ from nova import exception
 from nova.openstack.common import log as logging
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
+from pypowervm.jobs import power
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
@@ -48,6 +49,9 @@ POWERVM_TO_NOVA_STATE = {
 
     "error": power_state.CRASHED
 }
+
+POWERVM_STARTABLE_STATE = ("not activated")
+POWERVM_STOPABLE_STATE = ("running", "starting", "open firmware")
 
 
 def _translate_vm_state(pvm_state):
@@ -190,11 +194,20 @@ def get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid):
     pvm_inst_uuid = pvm_uuids.lookup(instance.name)
     resp = adapter.read(pvm_consts.MGT_SYS, root_id=host_uuid,
                         child_type=pvm_consts.LPAR, child_id=pvm_inst_uuid)
-    return pvm_lpar.LogicalPartition(resp.entry)
+    return pvm_lpar.LogicalPartition.load_from_response(resp)
 
 
 def calc_proc_units(vcpu):
     return (vcpu * CONF.proc_units_factor)
+
+
+def _format_lpar_resources(flavor):
+    mem = str(flavor.memory_mb)
+    vcpus = str(flavor.vcpus)
+    proc_units = '%.2f' % calc_proc_units(flavor.vcpus)
+    proc_weight = CONF.uncapped_proc_weight
+
+    return mem, vcpus, proc_units, proc_weight
 
 
 def crt_lpar(adapter, host_uuid, instance, flavor):
@@ -207,10 +220,7 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
     :returns: The LPAR response from the API.
     """
 
-    mem = str(flavor.memory_mb)
-    vcpus = str(flavor.vcpus)
-    proc_units = '%.2f' % calc_proc_units(flavor.vcpus)
-    proc_weight = CONF.uncapped_proc_weight
+    mem, vcpus, proc_units, proc_weight = _format_lpar_resources(flavor)
 
     sprocs = pvm_lpar.crt_shared_procs(proc_units, vcpus,
                                        uncapped_weight=proc_weight)
@@ -226,6 +236,41 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
                           root_id=host_uuid, child_type=pvm_lpar.LPAR)
 
 
+def update(adapter, pvm_uuids, host_uuid, instance, flavor):
+    """Update an LPAR based on the host based on the instance
+
+    :param adapter: The adapter for the pypowervm API
+    :param pvm_uuids: The PowerVM UUID map (from the UUIDCache)
+    :param host_uuid: (TEMPORARY) The host UUID
+    :param instance: The nova instance.
+    :param flavor: The nova flavor.
+    """
+
+    mem, vcpus, proc_units, proc_weight = _format_lpar_resources(flavor)
+
+    entry = get_instance_wrapper(adapter, instance,
+                                 pvm_uuids, host_uuid)
+    uuid = entry.uuid
+
+    # Set the memory fields
+    entry.desired_mem = mem
+    entry.max_mem = mem
+    entry.min_mem = mem
+    # VCPU
+    entry.desired_vcpus = vcpus
+    entry.max_vcpus = vcpus
+    entry.min_vcpus = vcpus
+    # Proc Units
+    entry.desired_proc_units = proc_units
+    entry.max_proc_units = proc_units
+    entry.min_proc_units = proc_units
+    # Proc weight
+    entry.uncapped_weight = str(proc_weight)
+    # Write out the new specs
+    adapter.update(entry._element, entry.etag, pvm_consts.MGT_SYS,
+                   root_id=host_uuid, child_type=pvm_lpar.LPAR, child_id=uuid)
+
+
 def dlt_lpar(adapter, lpar_uuid):
     """Delete an LPAR
 
@@ -234,6 +279,26 @@ def dlt_lpar(adapter, lpar_uuid):
     """
     resp = adapter.delete(pvm_consts.LPAR, root_id=lpar_uuid)
     return resp
+
+
+def power_on(adapter, instance, pvm_uuids, host_uuid, entry=None):
+    if entry is None:
+        entry = get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid)
+
+    # Get the current state and see if we can start the VM
+    if entry.state in POWERVM_STARTABLE_STATE:
+        # Now start the lpar
+        power.power_on(adapter, entry, host_uuid)
+
+
+def power_off(adapter, instance, pvm_uuids, host_uuid, entry=None):
+    if entry is None:
+        entry = get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid)
+
+    # Get the current state and see if we can stop the VM
+    if entry.state in POWERVM_STOPABLE_STATE:
+        # Now stop the lpar
+        power.power_off(adapter, entry, host_uuid)
 
 
 class UUIDCache(object):
