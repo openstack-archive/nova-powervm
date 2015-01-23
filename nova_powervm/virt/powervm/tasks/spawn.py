@@ -205,12 +205,16 @@ def tf_power_on(adapter, host_uuid, instance):
 
     def _task(adapter, host_uuid, instance, lpar_crt_resp):
         LOG.info(_LI('Powering on instance: %s') % instance.name)
-        power.power_on(adapter, host_uuid, lpar_crt_resp.entry)
+        power.power_on(adapter,
+                       pvm_lpar.LogicalPartition(lpar_crt_resp.entry),
+                       host_uuid)
 
     def _revert(adapter, host_uuid, instance, lpar_crt_resp, result,
                 flow_failures):
         LOG.info(_LI('Powering off instance: %s') % instance.name)
-        power.power_off(adapter, lpar_crt_resp.entry, host_uuid,
+        power.power_off(adapter,
+                        pvm_lpar.LogicalPartition(lpar_crt_resp.entry),
+                        host_uuid,
                         force_immediate=True)
 
     return task.FunctorTask(
