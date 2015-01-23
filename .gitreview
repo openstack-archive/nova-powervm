@@ -1,4 +1,4 @@
 [gerrit]
-host=***REMOVED***
+host=review.openstack.org
 port=29418
-project=nova-powervm.git
+project=stackforge/nova-powervm.git
