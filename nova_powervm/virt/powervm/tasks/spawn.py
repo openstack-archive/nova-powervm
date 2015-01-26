@@ -21,6 +21,7 @@ from pypowervm.jobs import power
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from taskflow import task
+from taskflow.types import failure as task_fail
 
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import vios
@@ -50,6 +51,12 @@ def tf_crt_lpar(adapter, host_uuid, instance, flavor):
         # failures even if only a subset are used.
 
         LOG.warn(_LW('Instance %s to be undefined off host') % instance.name)
+
+        if isinstance(result, task_fail.Failure):
+            # No response, nothing to do
+            LOG.info(_LI('Create failed.  No delete of LPAR needed for '
+                         'instance %s') % instance.name)
+            return
 
         if result is None or result.entry is None:
             # No response, nothing to do
@@ -91,7 +98,7 @@ def tf_crt_vol_from_img(block_dvr, context, instance, image_meta):
         # The parameters have to match the crt method, plus the response +
         # failures even if only a subset are used.
         LOG.warn(_LW('Image for instance %s to be deleted') % instance.name)
-        if result is None:
+        if result is None or isinstance(result, task_fail.Failure):
             # No result means no volume to clean up.
             return
         block_dvr.delete_volume(context, result)
@@ -154,8 +161,8 @@ def tf_cfg_drive(adapter, host_uuid, vios_uuid, instance, injected_files,
         lpar = pvm_lpar.LogicalPartition(lpar_crt_resp.entry)
         media_builder = media.ConfigDrivePowerVM(adapter, host_uuid, vios_uuid)
         vscsi_map = media_builder.create_cfg_drv_vopt(instance, injected_files,
-                                                      network_info, admin_pass,
-                                                      lpar.uuid)
+                                                      network_info, lpar.uuid,
+                                                      admin_pass=admin_pass)
         return vscsi_map
 
     # TODO(IBM) Need a revert here.
@@ -182,7 +189,7 @@ def tf_connect_cfg_drive(adapter, instance, vios_uuid, vios_name):
     def _task(adapter, instance, vios_uuid, vios_name, cfg_drv_vscsi_map):
         LOG.info(_LI('Attaching Config Drive to instance: %s') % instance.name)
         vios.add_vscsi_mapping(adapter, vios_uuid, vios_name,
-                               cfg_drv_vscsi_map)
+                               cfg_drv_vscsi_map._element)
 
     # TODO(IBM) Need a revert here.
     return task.FunctorTask(
@@ -212,6 +219,12 @@ def tf_power_on(adapter, host_uuid, instance):
     def _revert(adapter, host_uuid, instance, lpar_crt_resp, result,
                 flow_failures):
         LOG.info(_LI('Powering off instance: %s') % instance.name)
+
+        if isinstance(result, task_fail.Failure):
+            # The power on itself failed...can't power off.
+            LOG.debug('Power on failed.  Not performing power off.')
+            return
+
         power.power_off(adapter,
                         pvm_lpar.LogicalPartition(lpar_crt_resp.entry),
                         host_uuid,

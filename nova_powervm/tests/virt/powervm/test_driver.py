@@ -228,7 +228,6 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_pwron.called)
 
         # Validate the rollbacks were called
-        self.assertTrue(mock_pwroff.called)
         self.assertTrue(mock_dlt.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
