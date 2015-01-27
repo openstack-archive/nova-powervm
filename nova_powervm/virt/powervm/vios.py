@@ -92,10 +92,9 @@ def add_vscsi_mapping(adapter, vios_uuid, vios_name, scsi_map):
     # Wrap the entry
     vios_wrap = pvm_vios.VirtualIOServer(vios_entry)
     # Pull the current mappings
-    cur_mappings = vios_wrap.get_scsi_mappings()
+    cur_mappings = vios_wrap.scsi_mappings
     # Add the new mapping to the end
     cur_mappings.append(pvm_vios.VirtualSCSIMapping(scsi_map))
-    vios_wrap.set_scsi_mappings(cur_mappings)
     # Write it back to the VIOS
     adapter.update(vios_wrap._entry.element, etag,
                    pvm_consts.VIOS, vios_uuid, xag=None)
