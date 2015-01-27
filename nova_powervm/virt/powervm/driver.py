@@ -15,6 +15,7 @@
 #    under the License.
 
 
+from nova.compute import task_states
 from nova import context as ctx
 from nova import exception
 from nova.i18n import _LI
@@ -29,7 +30,6 @@ from taskflow.patterns import linear_flow as lf
 
 from pypowervm import adapter as pvm_apt
 from pypowervm.helpers import log_helper as log_hlp
-from pypowervm.jobs import power
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import managed_system as msentry_wrapper
 
@@ -217,8 +217,25 @@ class PowerVMDriver(driver.ComputeDriver):
         """
 
         self._log_operation('destroy', instance)
+        if instance.task_state == task_states.RESIZE_REVERTING:
+            # This destroy is part of resize, just skip destroying
+            # TODO(IBM): What to do longer term
+            LOG.info(_LI('Ignoring destroy call during resize revert.'))
+            return
+
         try:
-            vm.dlt_lpar(self.adapter, self.pvm_uuids.lookup(instance.name))
+            LOG.info(_LI('Destroy: Instance task_state, vm_state:'
+                         ' %(task_state)s,%(vm_state)s') %
+                     dict(task_state=instance.task_state,
+                          vm_state=instance.vm_state))
+            entry = vm.get_instance_wrapper(self.adapter,
+                                            instance,
+                                            self.pvm_uuids,
+                                            self.host_uuid)
+            vm.power_off(self.adapter, instance,
+                         self.pvm_uuids, self.host_uuid, entry=entry)
+
+            vm.dlt_lpar(self.adapter, entry.uuid)
             # TODO(IBM): delete the disk and connections
         except exception.InstanceNotFound:
             # Don't worry if the instance wasn't found
@@ -257,12 +274,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         self._log_operation('power_off', instance)
         """Power off the specified instance."""
-        power.power_off(self.adapter,
-                        vm.get_instance_wrapper(self.adapter,
-                                                instance,
-                                                self.pvm_uuids,
-                                                self.host_uuid),
-                        self.host_uuid)
+        vm.power_off(self.adapter, instance, self.pvm_uuids, self.host_uuid)
 
     def power_on(self, context, instance, network_info,
                  block_device_info=None):
@@ -271,12 +283,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: nova.objects.instance.Instance
         """
         self._log_operation('power_on', instance)
-        power.power_on(self.adapter,
-                       vm.get_instance_wrapper(self.adapter,
-                                               instance,
-                                               self.pvm_uuids,
-                                               self.host_uuid),
-                       self.host_uuid)
+        vm.power_on(self.adapter, instance, self.pvm_uuids, self.host_uuid)
 
     def get_available_resource(self, nodename):
         """Retrieve resource information.
@@ -325,6 +332,125 @@ class PowerVMDriver(driver.ComputeDriver):
         """Indicate if the driver requires the legacy network_info format.
         """
         return False
+
+    def get_host_ip_addr(self):
+        """Retrieves the IP address of the dom0
+        """
+        # TODO(IBM): Return real data for PowerVM
+        return '9.9.9.9'
+
+    def get_volume_connector(self, instance):
+        """Get connector information for the instance for attaching to volumes.
+
+        Connector information is a dictionary representing the ip of the
+        machine that will be making the connection, the name of the iscsi
+        initiator and the hostname of the machine as follows::
+
+            {
+                'ip': ip,
+                'initiator': initiator,
+                'host': hostname
+            }
+
+        """
+        # TODO(IBM): Implement.
+        return {}
+
+    def migrate_disk_and_power_off(self, context, instance, dest,
+                                   flavor, network_info,
+                                   block_device_info=None,
+                                   timeout=0, retry_interval=0):
+
+        disk_info = {}
+
+        # We may be passed a flavor that is in dict format, but the
+        # downstream code is expecting an object, so convert it.
+        if flavor and not isinstance(flavor, flavor_obj.Flavor):
+            flav_obj = flavor_obj.Flavor.get_by_id(context, flavor['id'])
+
+        if dest == self.get_host_ip_addr():
+            self._log_operation('resize', instance)
+            # This is a local resize
+            # TODO(IBM):Only handle VM resizes for now.
+            #   Ignore boot and ephemeral disk size differences
+            vm.power_off(self.adapter, instance,
+                         self.pvm_uuids, self.host_uuid)
+
+            vm.update(self.adapter, self.pvm_uuids, self.host_uuid, instance,
+                      flav_obj)
+        else:
+            self._log_operation('migration', instance)
+            raise NotImplementedError()
+
+        # TODO(IBM): The caller is expecting disk info returned
+        return disk_info
+
+    def finish_migration(self, context, migration, instance, disk_info,
+                         network_info, image_meta, resize_instance,
+                         block_device_info=None, power_on=True):
+        """Completes a resize.
+
+        :param context: the context for the migration/resize
+        :param migration: the migrate/resize information
+        :param instance: nova.objects.instance.Instance being migrated/resized
+        :param disk_info: the newly transferred disk information
+        :param network_info:
+           :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
+        :param image_meta: image object returned by nova.image.glance that
+                           defines the image from which this instance
+                           was created
+        :param resize_instance: True if the instance is being resized,
+                                False otherwise
+        :param block_device_info: instance volume block device info
+        :param power_on: True if the instance should be powered on, False
+                         otherwise
+        """
+        # TODO(IBM): Finish this up
+
+        if power_on:
+            vm.power_on(self.adapter, instance, self.pvm_uuids,
+                        self.host_uuid)
+
+    def confirm_migration(self, migration, instance, network_info):
+        """Confirms a resize, destroying the source VM.
+
+        :param migration: the migrate/resize information
+        :param instance: nova.objects.instance.Instance
+        :param network_info:
+           :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
+        """
+        # TODO(IBM): Anything to do here?
+        pass
+
+    def finish_revert_migration(self, context, instance, network_info,
+                                block_device_info=None, power_on=True):
+        """Finish reverting a resize.
+
+        :param context: the context for the finish_revert_migration
+        :param instance: nova.objects.instance.Instance being migrated/resized
+        :param network_info:
+           :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
+        :param block_device_info: instance volume block device info
+        :param power_on: True if the instance should be powered on, False
+                         otherwise
+        """
+        self._log_operation('revert resize', instance)
+        # TODO(IBM): What to do here?  Do we want to recreate the LPAR
+        # Or just change the settings back to the flavor?
+
+        # Get the flavor from the instance, so we can revert it
+        admin_ctx = ctx.get_admin_context(read_deleted='yes')
+        flav_obj = (
+            flavor_obj.Flavor.get_by_id(admin_ctx,
+                                        instance.instance_type_id))
+        # TODO(IBM)  Get the entry once for both power_off and update
+        vm.power_off(self.adapter, instance, self.pvm_uuids, self.host_uuid)
+        vm.update(self.adapter, self.pvm_uuids, self.host_uuid, instance,
+                  flav_obj)
+
+        if power_on:
+            vm.power_on(self.adapter, instance, self.pvm_uuids,
+                        self.host_uuid)
 
     def check_can_live_migrate_destination(self, ctxt, instance_ref,
                                            src_compute_info, dst_compute_info,
