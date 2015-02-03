@@ -1,4 +1,4 @@
-# Copyright 2014, 2015 IBM Corp.
+# Copyright 2015 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -16,15 +16,19 @@
 #
 # @author: Adam Reznechek, IBM Corp.
 
-"""Implementation of inspector abstraction for PowerVM"""
+"""Test cases for PowerVM inspector implementation"""
 
-from ceilometer.compute.virt import inspector as virt_inspector
+from oslotest import base
+
+from ceilometer_powervm.compute.virt.powervm import inspector as pvm_inspector
 
 
-class PowerVMInspector(virt_inspector.Inspector):
+class TestPowerVMInspector(base.BaseTestCase):
 
-    def __init__(self):
-        super(PowerVMInspector, self).__init__()
+    def setUp(self):
+        self._inspector = pvm_inspector.PowerVMInspector()
 
-    def inspect_instances(self):
+        super(TestPowerVMInspector, self).setUp()
+
+    def test_inspect_instances(self):
         pass
