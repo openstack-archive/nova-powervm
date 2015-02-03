@@ -153,11 +153,9 @@ class ConfigDrivePowerVM(object):
 
         # Now, find the vopt in the vg and remove it from the list
         vmedia_repo = None
-        optical_media = None
         vopt_media = None
-        for vmedia in vol_grp.get_vmedia_repos():
-            optical_media = vmedia.get_optical_media()
-            for vopt in optical_media:
+        for vmedia in vol_grp.vmedia_repos:
+            for vopt in vmedia.optical_media:
                 if vopt.media_name == file_name:
                     vmedia_repo = vmedia
                     vopt_media = vopt
@@ -169,8 +167,7 @@ class ConfigDrivePowerVM(object):
             return
 
         # Remove the entry from the wrapper and then do an update
-        optical_media.remove(vopt_media)
-        vmedia_repo.set_optical_media(optical_media)
+        vmedia_repo.optical_media.remove(vopt_media)
         self.adapter.update(vol_grp._element, vol_grp.etag, vios_w.VIO_ROOT,
                             root_id=self.vios_uuid, child_type=vg.VG_ROOT,
                             child_id=CONF.vopt_media_volume_group)
@@ -227,13 +224,11 @@ class ConfigDrivePowerVM(object):
                     vol_grp=CONF.vopt_media_volume_group)
 
         # Ensure that there is a virtual optical media repository within it.
-        vmedia_repos = found_vg.get_vmedia_repos()
+        vmedia_repos = found_vg.vmedia_repos
         if len(vmedia_repos) == 0:
             vopt_repo = vg.crt_vmedia_repo('vopt',
                                            str(CONF.vopt_media_rep_size))
-            vmedia_repos = [vg.VirtualMediaRepository(vopt_repo)]
-            # TODO(IBM) This fails because its appending at the end...
-            found_vg.set_vmedia_repos(vmedia_repos)
+            found_vg.vmedia_repos = [vg.VirtualMediaRepository(vopt_repo)]
             self.adapter.update(found_vg._entry.element, resp.headers['etag'],
                                 pvmc.VIOS, self.vios_uuid, pvmc.VOL_GROUP,
                                 found_vg.uuid)

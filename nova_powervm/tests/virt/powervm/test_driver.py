@@ -112,13 +112,12 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
     @mock.patch('nova.virt.configdrive.required_by')
-    @mock.patch('nova.context.get_admin_context')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
     @mock.patch('pypowervm.jobs.power.power_on')
-    def test_spawn_ops(self, mock_pwron, mock_disk, mock_get_flv, mock_get_ctx,
-                       mock_cfg_drv, mock_uuidcache, mock_crt, mock_find,
-                       mock_apt, mock_sess):
+    def test_spawn_ops(self, mock_pwron, mock_disk, mock_get_flv, mock_cfg_drv,
+                       mock_uuidcache, mock_crt, mock_find, mock_apt,
+                       mock_sess):
 
         """Validates the PowerVM driver operations."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
@@ -153,14 +152,13 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vios.add_vscsi_mapping')
     @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
     @mock.patch('nova.virt.configdrive.required_by')
-    @mock.patch('nova.context.get_admin_context')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
     @mock.patch('pypowervm.jobs.power.power_on')
     def test_spawn_with_cfg(self, mock_pwron, mock_disk, mock_get_flv,
-                            mock_get_ctx, mock_cfg_drv, mock_val_vopt,
-                            mock_vios_vscsi, mock_uuidcache, mock_cfg_vopt,
-                            mock_crt, mock_find, mock_apt, mock_sess):
+                            mock_cfg_drv, mock_val_vopt, mock_vios_vscsi,
+                            mock_uuidcache, mock_cfg_vopt, mock_crt, mock_find,
+                            mock_apt, mock_sess):
 
         """Validates the PowerVM spawn w/ config drive operations."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
@@ -193,15 +191,14 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
     @mock.patch('nova.virt.configdrive.required_by')
-    @mock.patch('nova.context.get_admin_context')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
     @mock.patch('pypowervm.jobs.power.power_on')
     @mock.patch('pypowervm.jobs.power.power_off')
     def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_disk,
-                                mock_get_flv, mock_get_ctx, mock_cfg_drv,
-                                mock_uuidcache, mock_dlt, mock_crt, mock_find,
-                                mock_apt, mock_sess):
+                                mock_get_flv, mock_cfg_drv, mock_uuidcache,
+                                mock_dlt, mock_crt, mock_find, mock_apt,
+                                mock_sess):
         """Validates the PowerVM driver operations.  Will do a rollback."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         drv.init_host('FakeHost')

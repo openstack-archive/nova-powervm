@@ -1,4 +1,3 @@
-# Copyright 2014 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -15,28 +14,28 @@
 #    under the License.
 
 # TODO(mikal): move eventlet imports to nova.__init__ once we move to PBR
+from nova.objects import flavor
 import os
 import sys
 
-SYS_META = {
-    'instance_type_memory_mb': 2048,
-    'instance_type_swap': 0,
-    'instance_type_vcpu_weight': None,
-    'instance_type_root_gb': 1,
-    'instance_type_id': 2,
-    'instance_type_name': u'm1.small',
-    'instance_type_ephemeral_gb': 0,
-    'instance_type_rxtx_factor': 1.0,
-    'instance_type_flavorid': u'1',
-    'instance_type_vcpus': 1
-}
+
+TEST_FLAVOR = flavor.Flavor(memory_mb=2048,
+                            swap=0,
+                            vcpu_weight=None,
+                            root_gb=1,
+                            id=2,
+                            name=u'm1.small',
+                            ephemeral_gb=0,
+                            rxtx_factor=1.0,
+                            flavorid=u'1',
+                            vcpus=1)
 
 TEST_INSTANCE = {
     'id': 1,
     'uuid': '49629a5c-f4c4-4721-9511-9725786ff2e5',
     'display_name': 'Fake Instance',
     'instance_type_id': '5',
-    'system_metadata': SYS_META
+    'flavor': TEST_FLAVOR
 }
 
 # NOTE(mikal): All of this is because if dnspython is present in your
