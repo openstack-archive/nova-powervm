@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# TODO(mikal): move eventlet imports to nova.__init__ once we move to PBR
 from nova.objects import flavor
 import os
 import sys

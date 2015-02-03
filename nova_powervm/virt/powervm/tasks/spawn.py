@@ -101,7 +101,8 @@ def tf_crt_vol_from_img(block_dvr, context, instance, image_meta):
         if result is None or isinstance(result, task_fail.Failure):
             # No result means no volume to clean up.
             return
-        block_dvr.delete_volume(context, result)
+        # TODO(thorst) no mappings at this point...how to delete.
+        # block_dvr.delete_volumes(context, instance, result)
 
     return task.FunctorTask(
         _task, revert=_revert, name='crt_vol_from_img',

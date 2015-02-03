@@ -23,6 +23,7 @@ from nova.i18n import _LE
 from nova.openstack.common import log as logging
 from pypowervm import exceptions as pvm_exc
 from pypowervm.wrappers import constants as pvm_consts
+from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 vios_opts = [
@@ -86,15 +87,53 @@ def get_vios_entry(adapter, vios_uuid, vios_name):
     return resp.entry, resp.headers['etag']
 
 
+def get_vscsi_mappings(adapter, lpar_uuid, vio_wrapper, mapping_type):
+    """Returns a list of VirtualSCSIMaps that pair to the instance.
+
+    :param adapter: The pypowervm API Adapter.
+    :param lpar_uuid: The lpar UUID that identifies which system to get the
+                      storage mappings for.
+    :param vio_wrapper: The VIOS pypowervm wrapper for the VIOS.  Should have
+                        the mappings within it.
+    :param mapping_type: The type of mapping to look for.  Typically
+                         VirtualOpticalMedia or VirtualDisk
+    :returns: A list of vSCSI Mappings (pypowervm wrapper) from the VIOS
+              that are tied to the lpar, for the mapping type.
+    """
+    # Quick read of the partition ID.  Identifier between LPAR and VIOS
+    partition_id = adapter.read(pvm_lpar.LPAR_ROOT, root_id=lpar_uuid,
+                                suffix_type='quick',
+                                suffix_parm='PartitionID').body
+
+    # The return list is the Virtual SCSI Mapping wrappers
+    vscsi_maps = []
+
+    # Find all of the maps that match up to our partition
+    for scsi_map in vio_wrapper.scsi_mappings:
+        # If no client, it can't match us...
+        if scsi_map.client_adapter is None:
+            continue
+
+        # If the ID doesn't match up, not a valid one.
+        if scsi_map.client_adapter.lpar_id != partition_id:
+            continue
+
+        # Check to see if the mapping is to a vopt
+        if (scsi_map.backing_storage is None or
+                not isinstance(scsi_map.backing_storage, mapping_type)):
+            continue
+
+        vscsi_maps.append(scsi_map)
+    return vscsi_maps
+
+
 def add_vscsi_mapping(adapter, vios_uuid, vios_name, scsi_map):
     # Get the VIOS Entry
     vios_entry, etag = get_vios_entry(adapter, vios_uuid, vios_name)
     # Wrap the entry
     vios_wrap = pvm_vios.VirtualIOServer(vios_entry)
-    # Pull the current mappings
-    cur_mappings = vios_wrap.scsi_mappings
     # Add the new mapping to the end
-    cur_mappings.append(pvm_vios.VirtualSCSIMapping(scsi_map))
+    vios_wrap.scsi_mappings.append(pvm_vios.VirtualSCSIMapping(scsi_map))
     # Write it back to the VIOS
     adapter.update(vios_wrap._entry.element, etag,
                    pvm_consts.VIOS, vios_uuid, xag=None)

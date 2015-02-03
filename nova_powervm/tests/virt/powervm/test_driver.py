@@ -227,6 +227,47 @@ class TestPowerVMDriver(test.TestCase):
         # Validate the rollbacks were called
         self.assertTrue(mock_dlt.called)
 
+    @mock.patch('pypowervm.adapter.Session')
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                'dlt_vopt')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_validate_vopt_vg')
+    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    @mock.patch('pypowervm.jobs.power.power_off')
+    def test_destroy(self, mock_pwroff, mock_disk, mock_get_flv,
+                     mock_uuidcache, mock_val_vopt, mock_dlt_vopt, mock_dlt,
+                     mock_find, mock_apt, mock_sess):
+
+        """Validates the basic PowerVM destroy."""
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv.init_host('FakeHost')
+        drv.adapter = mock_apt
+
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.task_state = None
+        mock_get_flv.return_value = inst.get_flavor()
+
+        # Invoke the method.
+        drv.destroy('context', inst, mock.Mock())
+
+        # Power off was called
+        self.assertTrue(mock_pwroff.called)
+
+        # Validate that the storage delete was called
+        self.assertTrue(mock_dlt.called)
+
+        # Validate that the vopt delete was called
+        self.assertTrue(mock_dlt_vopt.called)
+
+        # Delete LPAR was called
+        mock_dlt.assert_called_with(mock_apt, mock.ANY)
+
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):
         """Validates the log_operations."""

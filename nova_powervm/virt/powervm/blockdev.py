@@ -29,11 +29,27 @@ class StorageAdapter(object):
         """
         self._connection = connection
 
-    def delete_volume(self, context, volume_info):
-        """Removes the disk and its associated connection
+    def disconnect_image_volume(self, context, instance, lpar_uuid):
+        """Disconnects the storage adapters from the image volume.
 
         :param context: nova context for operation
-        :param volume_info: dictionary with volume info
+        :param context: nova context for operation
+        :param instance: instance to delete the image for.
+        :param lpar_uuid: The UUID for the pypowervm LPAR element.
+        :return: A list of Mappings (either pypowervm VirtualSCSIMappings or
+                 VirtualFCMappings)
+        """
+        pass
+
+    def delete_volumes(self, context, instance, mappings):
+        """Removes the disks specified by the mappings.
+
+        :param context: nova context for operation
+        :param instance: instance to delete the image for.
+        :param mappings: The mappings that had been used to identify the
+                         backing storage.  List of pypowervm
+                         VirtualSCSIMappings or VirtualFCMappings.
+                         Typically derived from disconnect_image_volume.
         """
         pass
 

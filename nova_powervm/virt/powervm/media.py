@@ -18,7 +18,6 @@ import abc
 from nova.api.metadata import base as instance_metadata
 from nova.i18n import _LE
 from nova.i18n import _LI
-from nova.i18n import _LW
 from nova.openstack.common import log as logging
 from nova.virt import configdrive
 import os
@@ -27,9 +26,10 @@ from oslo.config import cfg
 
 from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import constants as pvmc
-from pypowervm.wrappers import vios_file
 from pypowervm.wrappers import virtual_io_server as vios_w
 from pypowervm.wrappers import volume_group as vg
+
+from nova_powervm.virt.powervm import vios
 
 import six
 
@@ -132,65 +132,6 @@ class ConfigDrivePowerVM(object):
                                            lpar_uuid, file_name)
         return vios_w.VirtualSCSIMapping(elem)
 
-    def dlt_cfg_drv_vopt(self, file_name):
-        """Deletes the config drive from the system.
-
-        Prior to calling this method, the config drive must be detached from
-        the VM.
-
-        Will delete the virtual optical media, as well as the file that backs
-        it.
-
-        If the file can not be found, the method completes without error.
-
-        :param file_name: The name of the media to remove off of the system.
-        """
-        # Load the latest volume group
-        resp = self.adapter.read(vios_w.VIO_ROOT, root_id=self.vios_uuid,
-                                 child_type=vg.VG_ROOT,
-                                 child_id=CONF.vopt_media_volume_group)
-        vol_grp = vg.VolumeGroup.load_from_response(resp)
-
-        # Now, find the vopt in the vg and remove it from the list
-        vmedia_repo = None
-        vopt_media = None
-        for vmedia in vol_grp.vmedia_repos:
-            for vopt in vmedia.optical_media:
-                if vopt.media_name == file_name:
-                    vmedia_repo = vmedia
-                    vopt_media = vopt
-                    break
-
-        if vopt_media is None:
-            LOG.info(_LI("Virtual Optical %(file_name)s was not found for "
-                         "deletion.") % {'file_name': file_name})
-            return
-
-        # Remove the entry from the wrapper and then do an update
-        vmedia_repo.optical_media.remove(vopt_media)
-        self.adapter.update(vol_grp._element, vol_grp.etag, vios_w.VIO_ROOT,
-                            root_id=self.vios_uuid, child_type=vg.VG_ROOT,
-                            child_id=CONF.vopt_media_volume_group)
-
-        # Now we need to delete the file.  Unfortunately, we have to find the
-        # file as the vopt media doesn't point us to the file directly.
-        # So we have to load all the files (pretty quick) and then find
-        # the one to delete.
-        #
-        # Should look at optimizations that can be made.
-        file_feed_resp = self.adapter.read(vios_file.FILE_ROOT, service='web')
-        file_feed = vios_file.File.load_from_response(file_feed_resp)
-        for v_file in file_feed:
-            if v_file.file_name == file_name:
-                self.adapter.delete(vios_file.FILE_ROOT, root_id=v_file.uuid,
-                                    service='web')
-                return
-
-        # If we made it here, the file wasn't actually deleted, but vopt was.
-        LOG.warn(_LW("Virtual Optical for %(file_name)s was deleted, but the "
-                     "corresponding file was not found to be deleted.")
-                 % {'file_name': file_name})
-
     def _upload_lv(self, iso_path, file_name, file_size):
         with open(iso_path, 'rb') as d_stream:
             upload_lv.upload_vopt(self.adapter, self.vios_uuid, d_stream,
@@ -224,8 +165,7 @@ class ConfigDrivePowerVM(object):
                     vol_grp=CONF.vopt_media_volume_group)
 
         # Ensure that there is a virtual optical media repository within it.
-        vmedia_repos = found_vg.vmedia_repos
-        if len(vmedia_repos) == 0:
+        if len(found_vg.vmedia_repos) == 0:
             vopt_repo = vg.crt_vmedia_repo('vopt',
                                            str(CONF.vopt_media_rep_size))
             found_vg.vmedia_repos = [vg.VirtualMediaRepository(vopt_repo)]
@@ -234,3 +174,40 @@ class ConfigDrivePowerVM(object):
                                 found_vg.uuid)
 
         return found_vg.uuid
+
+    def dlt_vopt(self, lpar_uuid):
+        """Deletes the virtual optical and scsi mappings for a VM."""
+
+        # Read the SCSI mappings from the VIOS.
+        vio_rsp = self.adapter.read(vios_w.VIO_ROOT, root_id=self.vios_uuid,
+                                    xag=[vios_w.XAG_VIOS_SCSI_MAPPING])
+        vio = vios_w.VirtualIOServer.load_from_response(vio_rsp)
+
+        # Get the mappings to this VM
+        existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid, vio,
+                                                vg.VirtualOpticalMedia)
+
+        for scsi_map in existing_maps:
+            vio.scsi_mappings.remove(scsi_map)
+
+        # Remove the mappings
+        self.adapter.update(vio._element, vio.etag, vios_w.VIO_ROOT,
+                            root_id=vio.uuid,
+                            xag=[vios_w.XAG_VIOS_SCSI_MAPPING])
+
+        # Next delete the media from the volume group...
+        # The mappings above have the backing storage.  Just need to load
+        # the volume group (there is a new etag after the VIOS update)
+        # and find the matching ones.
+        vg_rsp = self.adapter.read(vios_w.VIO_ROOT, root_id=self.vios_uuid,
+                                   child_type=vg.VG_ROOT,
+                                   child_id=self.vg_uuid)
+        volgrp = vg.VolumeGroup.load_from_response(vg_rsp)
+        optical_medias = volgrp.vmedia_repos[0].optical_media
+        for scsi_map in existing_maps:
+            optical_medias.remove(scsi_map.backing_storage)
+
+        # Now we can do an update...and be done with it.
+        self.adapter.update(volgrp._element, volgrp.etag, vios_w.VIO_ROOT,
+                            root_id=self.vios_uuid, child_type=vg.VG_ROOT,
+                            child_id=self.vg_uuid)

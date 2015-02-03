@@ -26,7 +26,7 @@ from nova.openstack.common import log as logging
 from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import virtual_io_server as pvm_vios
-from pypowervm.wrappers import volume_group as vol_grp
+from pypowervm.wrappers import volume_group as pvm_vg
 
 from nova_powervm.virt.powervm import blockdev
 from nova_powervm.virt.powervm import vios
@@ -94,9 +94,60 @@ class LocalStorage(blockdev.StorageAdapter):
         LOG.info(_LI('Local Storage driver initialized: '
                      'volume group: \'%s\'') % self.vg_name)
 
-    def delete_volume(self, context, volume_info):
-        # TODO(IBM):
-        pass
+    def delete_volumes(self, context, instance, mappings):
+        LOG.info('Deleting local volumes for instance %s'
+                 % instance.name)
+        # All of local disk is done against the volume group.  So reload
+        # that (to get new etag) and then do an update against it.
+        vg_rsp = self.adapter.read(pvm_vios.VIO_ROOT, root_id=self.vios_uuid,
+                                   child_type=pvm_vg.VG_ROOT,
+                                   child_id=self.vg_uuid)
+        vg = pvm_vg.VolumeGroup.load_from_response(vg_rsp)
+
+        # The mappings are from the VIOS and they don't 100% line up with
+        # the elements from the VG.  Need to find the matching ones based on
+        # the UDID of the disk.
+        # TODO(thorst) I think this should be handled down in pypowervm.  Have
+        # the wrapper strip out self references.
+        removals = []
+        for scsi_map in mappings:
+            for vdisk in vg.virtual_disks:
+                if vdisk.udid == scsi_map.backing_storage.udid:
+                    removals.append(vdisk)
+                    break
+
+        # We know that the mappings are VirtualSCSIMappings.  Remove the
+        # storage that resides in the scsi map from the volume group
+        existing_vds = vg.virtual_disks
+        for removal in removals:
+            existing_vds.remove(removal)
+
+        # Now update the volume group to remove the storage.
+        self.adapter.update(vg._element, vg.etag, pvm_vios.VIO_ROOT,
+                            self.vios_uuid, child_type=pvm_vg.VG_ROOT,
+                            child_id=self.vg_uuid)
+
+    def disconnect_image_volume(self, context, instance, lpar_uuid):
+        LOG.info('Disconnecting ephemeral local volume from instance %s'
+                 % instance.name)
+        # Quick read the VIOS, using specific extended attribute group
+        vios_resp = self.adapter.read(pvm_vios.VIO_ROOT, self.vios_uuid,
+                                      xag=[pvm_vios.XAG_VIOS_SCSI_MAPPING])
+        vios_w = pvm_vios.VirtualIOServer.load_from_response(vios_resp)
+
+        # Find the existing mappings, and then pull them off the VIOS
+        existing_vios_mappings = vios_w.scsi_mappings
+        existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid,
+                                                vios_w, pvm_vg.VirtualDisk)
+        for scsi_map in existing_maps:
+            existing_vios_mappings.remove(scsi_map)
+
+        # Update the VIOS
+        self.adapter.update(vios_w._element, vios_w.etag, pvm_vios.VIO_ROOT,
+                            vios_w.uuid, xag=[pvm_vios.XAG_VIOS_SCSI_MAPPING])
+
+        # Return the mappings that we just removed.
+        return existing_maps
 
     def create_volume_from_image(self, context, instance, image):
         LOG.info(_LI('Create volume.'))
@@ -133,12 +184,10 @@ class LocalStorage(blockdev.StorageAdapter):
             raise e
 
         # Search the feed for the volume group
-        for entry in resp.feed.entries:
-            wrapper = vol_grp.VolumeGroup(entry)
-            wrap_vg_name = wrapper.name
-            LOG.info(_LI('Volume group: %s') % wrap_vg_name)
-            if name == wrap_vg_name:
-                uuid = entry.properties['id']
-                return uuid
+        vol_grps = pvm_vg.VolumeGroup.load_from_response(resp)
+        for vol_grp in vol_grps:
+            LOG.info(_LI('Volume group: %s') % vol_grp.name)
+            if name == vol_grp.name:
+                return vol_grp.uuid
 
         raise VGNotFound(vg_name=name)

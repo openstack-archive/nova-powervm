@@ -17,7 +17,6 @@
 
 from nova.compute import task_states
 from nova import context as ctx
-from nova import exception
 from nova.i18n import _LI
 from nova.objects import flavor as flavor_obj
 from nova.openstack.common import log as logging
@@ -35,6 +34,7 @@ from pypowervm.wrappers import managed_system as msentry_wrapper
 
 from nova_powervm.virt.powervm import host as pvm_host
 from nova_powervm.virt.powervm import localdisk as blk_lcl
+from nova_powervm.virt.powervm.tasks import destroy as tf_destroy
 from nova_powervm.virt.powervm.tasks import spawn as tf_spawn
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
@@ -155,7 +155,6 @@ class PowerVMDriver(driver.ComputeDriver):
                                   attached to the instance.
         :param flavor: The flavor for the instance to be spawned.
         """
-
         self._log_operation('spawn', instance)
         if not flavor:
             admin_ctx = ctx.get_admin_context(read_deleted='yes')
@@ -223,24 +222,37 @@ class PowerVMDriver(driver.ComputeDriver):
             LOG.info(_LI('Ignoring destroy call during resize revert.'))
             return
 
-        try:
-            LOG.info(_LI('Destroy: Instance task_state, vm_state:'
-                         ' %(task_state)s,%(vm_state)s') %
-                     dict(task_state=instance.task_state,
-                          vm_state=instance.vm_state))
-            entry = vm.get_instance_wrapper(self.adapter,
-                                            instance,
-                                            self.pvm_uuids,
-                                            self.host_uuid)
-            vm.power_off(self.adapter, instance,
-                         self.pvm_uuids, self.host_uuid, entry=entry)
+        pvm_inst_uuid = self.pvm_uuids.lookup(instance.name)
 
-            vm.dlt_lpar(self.adapter, entry.uuid)
-            # TODO(IBM): delete the disk and connections
-        except exception.InstanceNotFound:
-            # Don't worry if the instance wasn't found
-            pass
-        return
+        # Define the flow
+        flow = lf.Flow("destroy")
+
+        # Power Off the LPAR
+        flow.add(tf_destroy.tf_pwr_off_lpar(self.adapter, self.host_uuid,
+                                            pvm_inst_uuid, instance))
+
+        # Delete the virtual optical
+        flow.add(tf_destroy.tf_dlt_vopt(self.adapter, self.host_uuid,
+                                        self.vios_uuid, instance,
+                                        pvm_inst_uuid))
+
+        # Detach the storage adapters
+        flow.add(tf_destroy.tf_detach_storage(self.block_dvr, context,
+                                              instance, pvm_inst_uuid))
+
+        # Delete the storage devices
+        if destroy_disks:
+            flow.add(tf_destroy.tf_delete_storage(self.block_dvr, context,
+                                                  instance))
+
+        # Last step is to delete the LPAR from the system.
+        # Note: If moving to a Graph Flow, will need to change to depend on
+        # the prior step.
+        flow.add(tf_destroy.tf_dlt_lpar(self.adapter, pvm_inst_uuid, instance))
+
+        # Build the engine & run!
+        engine = taskflow.engines.load(flow)
+        engine.run()
 
     def attach_volume(self, connection_info, instance, mountpoint):
         """Attach the disk to the instance at mountpoint using info."""
