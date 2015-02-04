@@ -182,16 +182,15 @@ def get_lpar_list(adapter, host_uuid):
     return lpar_list
 
 
-def get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid):
+def get_instance_wrapper(adapter, instance, host_uuid):
     """Get the LogicalPartition wrapper for a given Nova instance.
 
     :param adapter: The adapter for the pypowervm API
     :param instance: The nova instance.
-    :param pvm_uuids: The PowerVM UUID map (from the UUIDCache)
     :param host_uuid: (TEMPORARY) The host UUID
     :returns: The pypowervm logical_partition wrapper.
     """
-    pvm_inst_uuid = pvm_uuids.lookup(instance.name)
+    pvm_inst_uuid = get_pvm_uuid(instance)
     resp = adapter.read(pvm_consts.MGT_SYS, root_id=host_uuid,
                         child_type=pvm_consts.LPAR, child_id=pvm_inst_uuid)
     return pvm_lpar.LogicalPartition.load_from_response(resp)
@@ -236,11 +235,10 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
                           root_id=host_uuid, child_type=pvm_lpar.LPAR)
 
 
-def update(adapter, pvm_uuids, host_uuid, instance, flavor):
+def update(adapter, host_uuid, instance, flavor):
     """Update an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
-    :param pvm_uuids: The PowerVM UUID map (from the UUIDCache)
     :param host_uuid: (TEMPORARY) The host UUID
     :param instance: The nova instance.
     :param flavor: The nova flavor.
@@ -248,8 +246,7 @@ def update(adapter, pvm_uuids, host_uuid, instance, flavor):
 
     mem, vcpus, proc_units, proc_weight = _format_lpar_resources(flavor)
 
-    entry = get_instance_wrapper(adapter, instance,
-                                 pvm_uuids, host_uuid)
+    entry = get_instance_wrapper(adapter, instance, host_uuid)
     uuid = entry.uuid
 
     # Set the memory fields
@@ -281,9 +278,9 @@ def dlt_lpar(adapter, lpar_uuid):
     return resp
 
 
-def power_on(adapter, instance, pvm_uuids, host_uuid, entry=None):
+def power_on(adapter, instance, host_uuid, entry=None):
     if entry is None:
-        entry = get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid)
+        entry = get_instance_wrapper(adapter, instance, host_uuid)
 
     # Get the current state and see if we can start the VM
     if entry.state in POWERVM_STARTABLE_STATE:
@@ -291,14 +288,30 @@ def power_on(adapter, instance, pvm_uuids, host_uuid, entry=None):
         power.power_on(adapter, entry, host_uuid)
 
 
-def power_off(adapter, instance, pvm_uuids, host_uuid, entry=None):
+def power_off(adapter, instance, host_uuid, entry=None):
     if entry is None:
-        entry = get_instance_wrapper(adapter, instance, pvm_uuids, host_uuid)
+        entry = get_instance_wrapper(adapter, instance, host_uuid)
 
     # Get the current state and see if we can stop the VM
     if entry.state in POWERVM_STOPABLE_STATE:
         # Now stop the lpar
         power.power_off(adapter, entry, host_uuid)
+
+
+def get_pvm_uuid(instance):
+    """Get the corresponding PowerVM VM uuid of an instance uuid
+
+    Maps a OpenStack instance uuid to a PowerVM uuid.  For now, this
+    just uses a cache or looks up the value from PowerVM.  When we're
+    able to set a uuid in PowerVM, then it will be a simple conversion
+    between formats.  (Stay tuned.)
+
+    :param instance: nova.objects.instance.Instance
+    :returns: pvm_uuid.
+    """
+
+    cache = UUIDCache.get_cache()
+    return cache.lookup(instance.name)
 
 
 class UUIDCache(object):
@@ -309,6 +322,18 @@ class UUIDCache(object):
 
     :param adapter: python-powervm adapter.
     """
+    _single = None
+
+    def __new__(cls, *args, **kwds):
+        if not isinstance(cls._single, cls):
+            # Create it
+            cls._single = object.__new__(cls, *args, **kwds)
+        return cls._single
+
+    @classmethod
+    def get_cache(cls):
+        return cls._single
+
     def __init__(self, adapter):
         self._adapter = adapter
         self._cache = {}

@@ -60,7 +60,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # First need to resolve the managed host UUID
         self._get_host_uuid()
         # Initialize the UUID Cache. Lets not prime it at this time.
-        self.pvm_uuids = vm.UUIDCache(self.adapter)
+        vm.UUIDCache(self.adapter)
         self._get_vios_uuid()
         # Initialize the disk adapter
         self._get_blockdev_driver()
@@ -119,7 +119,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :cpu_time:        (int) the CPU time used in nanoseconds
         """
         info = vm.InstanceInfo(self.adapter, instance.name,
-                               self.pvm_uuids.lookup(instance.name))
+                               vm.get_pvm_uuid(instance))
         return info
 
     def list_instances(self):
@@ -222,7 +222,7 @@ class PowerVMDriver(driver.ComputeDriver):
             LOG.info(_LI('Ignoring destroy call during resize revert.'))
             return
 
-        pvm_inst_uuid = self.pvm_uuids.lookup(instance.name)
+        pvm_inst_uuid = vm.get_pvm_uuid(instance)
 
         # Define the flow
         flow = lf.Flow("destroy")
@@ -286,7 +286,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         self._log_operation('power_off', instance)
         """Power off the specified instance."""
-        vm.power_off(self.adapter, instance, self.pvm_uuids, self.host_uuid)
+        vm.power_off(self.adapter, instance, self.host_uuid)
 
     def power_on(self, context, instance, network_info,
                  block_device_info=None):
@@ -295,7 +295,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: nova.objects.instance.Instance
         """
         self._log_operation('power_on', instance)
-        vm.power_on(self.adapter, instance, self.pvm_uuids, self.host_uuid)
+        vm.power_on(self.adapter, instance, self.host_uuid)
 
     def get_available_resource(self, nodename):
         """Retrieve resource information.
@@ -385,11 +385,9 @@ class PowerVMDriver(driver.ComputeDriver):
             # This is a local resize
             # TODO(IBM):Only handle VM resizes for now.
             #   Ignore boot and ephemeral disk size differences
-            vm.power_off(self.adapter, instance,
-                         self.pvm_uuids, self.host_uuid)
+            vm.power_off(self.adapter, instance, self.host_uuid)
 
-            vm.update(self.adapter, self.pvm_uuids, self.host_uuid, instance,
-                      flav_obj)
+            vm.update(self.adapter, self.host_uuid, instance, flav_obj)
         else:
             self._log_operation('migration', instance)
             raise NotImplementedError()
@@ -420,8 +418,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # TODO(IBM): Finish this up
 
         if power_on:
-            vm.power_on(self.adapter, instance, self.pvm_uuids,
-                        self.host_uuid)
+            vm.power_on(self.adapter, instance, self.host_uuid)
 
     def confirm_migration(self, migration, instance, network_info):
         """Confirms a resize, destroying the source VM.
@@ -456,13 +453,11 @@ class PowerVMDriver(driver.ComputeDriver):
             flavor_obj.Flavor.get_by_id(admin_ctx,
                                         instance.instance_type_id))
         # TODO(IBM)  Get the entry once for both power_off and update
-        vm.power_off(self.adapter, instance, self.pvm_uuids, self.host_uuid)
-        vm.update(self.adapter, self.pvm_uuids, self.host_uuid, instance,
-                  flav_obj)
+        vm.power_off(self.adapter, instance, self.host_uuid)
+        vm.update(self.adapter, self.host_uuid, instance, flav_obj)
 
         if power_on:
-            vm.power_on(self.adapter, instance, self.pvm_uuids,
-                        self.host_uuid)
+            vm.power_on(self.adapter, instance, self.host_uuid)
 
     def check_can_live_migrate_destination(self, ctxt, instance_ref,
                                            src_compute_info, dst_compute_info,
