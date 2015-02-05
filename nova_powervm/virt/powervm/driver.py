@@ -166,32 +166,29 @@ class PowerVMDriver(driver.ComputeDriver):
         flow = lf.Flow("spawn")
 
         # Create the LPAR
-        flow.add(tf_spawn.tf_crt_lpar(self.adapter, self.host_uuid,
-                                      instance, flavor))
+        flow.add(tf_spawn.CreateVM(self.adapter, self.host_uuid, instance,
+                                   flavor))
 
         # Creates the boot image.
-        flow.add(tf_spawn.tf_crt_vol_from_img(self.block_dvr,
-                                              context,
-                                              instance,
-                                              image_meta))
+        flow.add(tf_spawn.CreateVolumeForImg(self.block_dvr, context,
+                                             instance, image_meta))
 
         # Connects up the volume to the LPAR
-        flow.add(tf_spawn.tf_connect_vol(self.block_dvr, context, instance))
+        flow.add(tf_spawn.ConnectVol(self.block_dvr, context, instance))
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
-            flow.add(tf_spawn.tf_cfg_drive(self.adapter, self.host_uuid,
-                                           self.vios_uuid, instance,
-                                           injected_files, network_info,
-                                           admin_password))
-            flow.add(tf_spawn.tf_connect_cfg_drive(self.adapter, instance,
-                                                   self.vios_uuid,
-                                                   CONF.vios_name))
+            flow.add(tf_spawn.CreateCfgDrive(self.adapter, self.host_uuid,
+                                             self.vios_uuid, instance,
+                                             injected_files, network_info,
+                                             admin_password))
+            flow.add(tf_spawn.ConnectCfgDrive(self.adapter, instance,
+                                              self.vios_uuid, CONF.vios_name))
 
         # Last step is to power on the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
         # the prior step.
-        flow.add(tf_spawn.tf_power_on(self.adapter, self.host_uuid, instance))
+        flow.add(tf_spawn.PowerOnVM(self.adapter, self.host_uuid, instance))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)
@@ -228,27 +225,27 @@ class PowerVMDriver(driver.ComputeDriver):
         flow = lf.Flow("destroy")
 
         # Power Off the LPAR
-        flow.add(tf_destroy.tf_pwr_off_lpar(self.adapter, self.host_uuid,
-                                            pvm_inst_uuid, instance))
+        flow.add(tf_destroy.PowerOffVM(self.adapter, self.host_uuid,
+                                       pvm_inst_uuid, instance))
 
         # Delete the virtual optical
-        flow.add(tf_destroy.tf_dlt_vopt(self.adapter, self.host_uuid,
-                                        self.vios_uuid, instance,
-                                        pvm_inst_uuid))
+        flow.add(tf_destroy.DeleteVOpt(self.adapter, self.host_uuid,
+                                       self.vios_uuid, instance,
+                                       pvm_inst_uuid))
 
         # Detach the storage adapters
-        flow.add(tf_destroy.tf_detach_storage(self.block_dvr, context,
-                                              instance, pvm_inst_uuid))
+        flow.add(tf_destroy.DetachStorage(self.block_dvr, context,
+                                          instance, pvm_inst_uuid))
 
         # Delete the storage devices
         if destroy_disks:
-            flow.add(tf_destroy.tf_delete_storage(self.block_dvr, context,
-                                                  instance))
+            flow.add(tf_destroy.DeleteStorage(self.block_dvr, context,
+                                              instance))
 
         # Last step is to delete the LPAR from the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
         # the prior step.
-        flow.add(tf_destroy.tf_dlt_lpar(self.adapter, pvm_inst_uuid, instance))
+        flow.add(tf_destroy.DeleteVM(self.adapter, pvm_inst_uuid, instance))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)

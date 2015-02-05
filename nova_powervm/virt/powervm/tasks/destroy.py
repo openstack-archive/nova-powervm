@@ -27,105 +27,129 @@ from nova_powervm.virt.powervm import vm
 LOG = logging.getLogger(__name__)
 
 
-def tf_pwr_off_lpar(adapter, host_uuid, lpar_uuid, instance):
-    """Creates the Task to power off an LPAR.
+class PowerOffVM(task.Task):
+    """The task to power off a VM."""
 
-    :param adapter: The adapter for the pypowervm API
-    :param host_uuid: The host UUID
-    :param lpar_uuid: The UUID of the lpar that has media.
-    :param instance: The nova instance.
-    """
-    def _task(adapter, host_uuid, lpar_uuid, instance):
+    def __init__(self, adapter, host_uuid, lpar_uuid, instance):
+        """Creates the Task to power off an LPAR.
+
+        :param adapter: The adapter for the pypowervm API
+        :param host_uuid: The host UUID
+        :param lpar_uuid: The UUID of the lpar that has media.
+        :param instance: The nova instance.
+        """
+        super(PowerOffVM, self).__init__(name='pwr_off_lpar')
+        self.adapter = adapter
+        self.host_uuid = host_uuid
+        self.lpar_uuid = lpar_uuid
+        self.instance = instance
+
+    def execute(self):
         LOG.info(_LI('Powering off instance %s for deletion')
-                 % instance.name)
-        resp = adapter.read(lpar_w.LPAR_ROOT, lpar_uuid)
+                 % self.instance.name)
+        resp = self.adapter.read(lpar_w.LPAR_ROOT, self.lpar_uuid)
         lpar = lpar_w.LogicalPartition.load_from_response(resp)
-        power.power_off(adapter, lpar, host_uuid, force_immediate=True)
-
-    return task.FunctorTask(
-        _task, name='pwr_off_lpar',
-        inject={'adapter': adapter, 'host_uuid': host_uuid,
-                'lpar_uuid': lpar_uuid, 'instance': instance})
+        power.power_off(self.adapter, lpar, self.host_uuid,
+                        force_immediate=True)
 
 
-def tf_dlt_vopt(adapter, host_uuid, vios_uuid, instance, lpar_uuid):
-    """Creates the Task to delete the instances virtual optical media.
+class DeleteVOpt(task.Task):
+    """The task to delete the virtual optical."""
 
-    :param adapter: The adapter for the pypowervm API
-    :param host_uuid: The host UUID of the system.
-    :param vios_uuid: The VIOS UUID the media is being deleted from.
-    :param instance: The nova instance.
-    :param lpar_uuid: The UUID of the lpar that has media.
-    """
-    def _task(adapter, host_uuid, vios_uuid, instance, lpar_uuid):
+    def __init__(self, adapter, host_uuid, vios_uuid, instance, lpar_uuid):
+        """Creates the Task to delete the instances virtual optical media.
+
+        :param adapter: The adapter for the pypowervm API
+        :param host_uuid: The host UUID of the system.
+        :param vios_uuid: The VIOS UUID the media is being deleted from.
+        :param instance: The nova instance.
+        :param lpar_uuid: The UUID of the lpar that has media.
+        """
+        super(DeleteVOpt, self).__init__(name='vopt_delete')
+        self.adapter = adapter
+        self.host_uuid = host_uuid
+        self.vios_uuid = vios_uuid
+        self.instance = instance
+        self.lpar_uuid = lpar_uuid
+
+    def execute(self):
         LOG.info(_LI('Deleting Virtual Optical Media for instance %s')
-                 % instance.name)
-        media_builder = media.ConfigDrivePowerVM(adapter, host_uuid,
-                                                 vios_uuid)
-        media_builder.dlt_vopt(lpar_uuid)
-
-    return task.FunctorTask(
-        _task, name='vopt_delete',
-        inject={'adapter': adapter, 'host_uuid': host_uuid,
-                'vios_uuid': vios_uuid, 'instance': instance,
-                'lpar_uuid': lpar_uuid})
+                 % self.instance.name)
+        media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid,
+                                                 self.vios_uuid)
+        media_builder.dlt_vopt(self.lpar_uuid)
 
 
-def tf_detach_storage(block_dvr, context, instance, lpar_uuid):
-    """Creates the Task to detach the storage adapters.
+class DetachStorage(task.Task):
+    """The task to detach the storage from the instance."""
 
-    Provides the stor_adpt_mappings.  A list of pypowervm VirtualSCSIMappings
-    or VirtualFCMappings (depending on the storage adapter).
+    def __init__(self, block_dvr, context, instance, lpar_uuid):
+        """Creates the Task to detach the storage adapters.
 
-    :param block_dvr: The StorageAdapter for the VM.
-    :param context: The nova context.
-    :param instance: The nova instance.
-    :param lpar_uuid: The UUID of the lpar..
-    """
-    def _task(block_dvr, context, instance, lpar_uuid):
+        Provides the stor_adpt_mappings.  A list of pypowervm
+        VirtualSCSIMappings or VirtualFCMappings (depending on the storage
+        adapter).
+
+        :param block_dvr: The StorageAdapter for the VM.
+        :param context: The nova context.
+        :param instance: The nova instance.
+        :param lpar_uuid: The UUID of the lpar..
+        """
+        super(DetachStorage, self).__init__(name='detach_storage',
+                                            provides='stor_adpt_mappings')
+        self.block_dvr = block_dvr
+        self.context = context
+        self.instance = instance
+        self.lpar_uuid = lpar_uuid
+
+    def execute(self):
         LOG.info(_LI('Detaching disk storage adapters for instance %s')
-                 % instance.name)
-        return block_dvr.disconnect_image_volume(context, instance, lpar_uuid)
-
-    return task.FunctorTask(
-        _task, name='detach_storage',
-        provides='stor_adpt_mappings',
-        inject={'block_dvr': block_dvr, 'context': context,
-                'instance': instance, 'lpar_uuid': lpar_uuid})
+                 % self.instance.name)
+        return self.block_dvr.disconnect_image_volume(self.context,
+                                                      self.instance,
+                                                      self.lpar_uuid)
 
 
-def tf_delete_storage(block_dvr, context, instance):
-    """Creates the Task to delete the storage from the system.
+class DeleteStorage(task.Task):
+    """The task to delete the backing storage."""
 
-    Requires the stor_adpt_mappings.
+    def __init__(self, block_dvr, context, instance):
+        """Creates the Task to delete the storage from the system.
 
-    :param block_dvr: The StorageAdapter for the VM.
-    :param context: The nova context.
-    :param instance: The nova instance.
-    """
-    def _task(block_dvr, context, instance, stor_adpt_mappings):
-        LOG.info(_LI('Deleting storage for instance %s.') % instance.name)
-        block_dvr.delete_volumes(context, instance, stor_adpt_mappings)
+        Requires the stor_adpt_mappings.
 
-    return task.FunctorTask(
-        _task, name='dlt_storage',
-        requires=['stor_adpt_mappings'],
-        inject={'block_dvr': block_dvr, 'context': context,
-                'instance': instance})
+        :param block_dvr: The StorageAdapter for the VM.
+        :param context: The nova context.
+        :param instance: The nova instance.
+        """
+        req = ['stor_adpt_mappings']
+        super(DeleteStorage, self).__init__(name='dlt_storage',
+                                            requires=req)
+        self.block_dvr = block_dvr
+        self.context = context
+        self.instance = instance
+
+    def execute(self, stor_adpt_mappings):
+        LOG.info(_LI('Deleting storage for instance %s.') % self.instance.name)
+        self.block_dvr.delete_volumes(self.context, self.instance,
+                                      stor_adpt_mappings)
 
 
-def tf_dlt_lpar(adapter, lpar_uuid, instance):
-    """Create the Task to delete the VM from the system.
+class DeleteVM(task.Task):
+    """The task to delete the instance from the system."""
 
-    :param adapter: The adapter for the pypowervm API.
-    :param lpar_uuid: The VM's PowerVM UUID.
-    :param instance: The nova instance.
-    """
-    def _task(adapter, lpar_uuid, instance):
-        LOG.info(_LI('Deleting instance %s from system.') % instance.name)
-        vm.dlt_lpar(adapter, lpar_uuid)
+    def __init__(self, adapter, lpar_uuid, instance):
+        """Create the Task to delete the VM from the system.
 
-    return task.FunctorTask(
-        _task, name='dlt_lpar',
-        inject={'adapter': adapter, 'lpar_uuid': lpar_uuid,
-                'instance': instance})
+        :param adapter: The adapter for the pypowervm API.
+        :param lpar_uuid: The VM's PowerVM UUID.
+        :param instance: The nova instance.
+        """
+        super(DeleteVM, self).__init__(name='dlt_lpar')
+        self.adapter = adapter
+        self.lpar_uuid = lpar_uuid
+        self.instance = instance
+
+    def execute(self):
+        LOG.info(_LI('Deleting instance %s from system.') % self.instance.name)
+        vm.dlt_lpar(self.adapter, self.lpar_uuid)
