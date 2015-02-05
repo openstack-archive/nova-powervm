@@ -228,12 +228,12 @@ class TestPowerVMDriver(test.TestCase):
                 'dlt_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
-    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
     @mock.patch('pypowervm.jobs.power.power_off')
     def test_destroy(self, mock_pwroff, mock_disk, mock_get_flv,
-                     mock_uuidcache, mock_val_vopt, mock_dlt_vopt, mock_dlt,
+                     mock_pvmuuid, mock_val_vopt, mock_dlt_vopt, mock_dlt,
                      mock_find, mock_apt, mock_sess):
 
         """Validates the basic PowerVM destroy."""
@@ -260,6 +260,45 @@ class TestPowerVMDriver(test.TestCase):
 
         # Delete LPAR was called
         mock_dlt.assert_called_with(mock_apt, mock.ANY)
+
+    @mock.patch('pypowervm.adapter.Session')
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.update')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    def test_resize(self, mock_disk, mock_get_flv,
+                    mock_update, mock_pwr_off, mock_find,
+                    mock_apt, mock_sess):
+        """Validates the PowerVM driver resize operation."""
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv.init_host('FakeHost')
+        drv.adapter = mock_apt
+
+        # Set up the mocks to the resize operation.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Catch root disk resize smaller.
+        small_root = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=9)
+        self.assertRaises(
+            exc.InstanceFaultRollback, drv.migrate_disk_and_power_off,
+            'context', inst, 'dest', small_root, 'network_info')
+
+        new_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=10)
+
+        # We don't support resize to different host.
+        self.assertRaises(
+            NotImplementedError, drv.migrate_disk_and_power_off,
+            'context', inst, 'bogus host', new_flav, 'network_info')
+
+        host = drv.get_host_ip_addr()
+        drv.migrate_disk_and_power_off(
+            'context', inst, host, new_flav, 'network_info')
+        mock_pwr_off.assert_called_with(
+            drv.adapter, inst, drv.host_uuid)
+        mock_update.assert_called_with(
+            drv.adapter, drv.host_uuid, inst, new_flav)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):
