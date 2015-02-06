@@ -278,6 +278,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Set up the mocks to the resize operation.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        host = drv.get_host_ip_addr()
 
         # Catch root disk resize smaller.
         small_root = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=9)
@@ -292,13 +293,19 @@ class TestPowerVMDriver(test.TestCase):
             NotImplementedError, drv.migrate_disk_and_power_off,
             'context', inst, 'bogus host', new_flav, 'network_info')
 
-        host = drv.get_host_ip_addr()
         drv.migrate_disk_and_power_off(
             'context', inst, host, new_flav, 'network_info')
         mock_pwr_off.assert_called_with(
             drv.adapter, inst, drv.host_uuid)
         mock_update.assert_called_with(
             drv.adapter, drv.host_uuid, inst, new_flav)
+
+        # Boot disk resize
+        boot_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=12)
+        drv.migrate_disk_and_power_off(
+            'context', inst, host, boot_flav, 'network_info')
+        drv.block_dvr.extend_volume.assert_called_with(
+            'context', inst, dict(type='boot'), 12)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):

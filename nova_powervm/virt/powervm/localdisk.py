@@ -20,9 +20,11 @@ import abc
 from oslo.config import cfg
 import six
 
+from nova import exception as nova_exc
 from nova import image
 from nova.i18n import _LI, _LE
 from nova.openstack.common import log as logging
+from pypowervm import exceptions as pvm_exc
 from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import storage as pvm_st
@@ -99,10 +101,7 @@ class LocalStorage(blockdev.StorageAdapter):
                  % instance.name)
         # All of local disk is done against the volume group.  So reload
         # that (to get new etag) and then do an update against it.
-        vg_rsp = self.adapter.read(pvm_vios.VIO_ROOT, root_id=self.vios_uuid,
-                                   child_type=pvm_st.VG_ROOT,
-                                   child_id=self.vg_uuid)
-        vg = pvm_st.VolumeGroup.load_from_response(vg_rsp)
+        vg = pvm_st.VolumeGroup.load_from_response(self._get_vg())
 
         # The mappings are from the VIOS and they don't 100% line up with
         # the elements from the VG.  Need to find the matching ones based on
@@ -171,6 +170,51 @@ class LocalStorage(blockdev.StorageAdapter):
         vios.add_vscsi_mapping(self.adapter, self.vios_uuid, self.vios_name,
                                scsi_map)
 
+    def extend_volume(self, context, instance, volume_info, size):
+        """Extends the disk
+
+        :param context: nova context for operation
+        :param instance: instance to create the volume for
+        :param volume_info: dictionary with volume info
+        :param size: the new size in gb
+        """
+        def _extend():
+            # Get the volume group
+            resp = self._get_vg()
+            vg_wrap = pvm_st.VolumeGroup.load_from_response(resp)
+            # Find the disk by name
+            vdisks = vg_wrap.virtual_disks
+            disk_found = None
+            for vdisk in vdisks:
+                if vdisk.name == vol_name:
+                    disk_found = vdisk
+                    break
+
+            if not disk_found:
+                LOG.error(_LE('Disk %s not found during resize.') % vol_name,
+                          instance=instance)
+                raise nova_exc.DiskNotFound(
+                    location=self.vg_name + '/' + vol_name)
+
+            # Set the new size
+            disk_found.capacity = size
+
+            # Post it to the VIOS
+            self.adapter.update(vg_wrap._element, vg_wrap.etag,
+                                pvm_consts.VIOS, root_id=self.vios_uuid,
+                                child_type=pvm_consts.VOL_GROUP,
+                                child_id=self.vg_uuid, xag=None)
+
+        # Get the volume name based on the instance and type
+        vol_name = self._get_disk_name(volume_info['type'], instance)
+        LOG.info(_LI('Extending disk: %s') % vol_name)
+        try:
+            _extend()
+        except pvm_exc.Error:
+            # TODO(IBM): Handle etag mismatch and retry
+            LOG.exception()
+            raise
+
     def _get_disk_name(self, type_, instance):
         return type_[:6] + '_' + instance.uuid[:8]
 
@@ -191,3 +235,9 @@ class LocalStorage(blockdev.StorageAdapter):
                 return vol_grp.uuid
 
         raise VGNotFound(vg_name=name)
+
+    def _get_vg(self):
+        vg_rsp = self.adapter.read(pvm_vios.VIO_ROOT, root_id=self.vios_uuid,
+                                   child_type=pvm_st.VG_ROOT,
+                                   child_id=self.vg_uuid)
+        return vg_rsp

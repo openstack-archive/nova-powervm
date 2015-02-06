@@ -16,12 +16,15 @@
 
 import mock
 
+from nova import exception as nova_exc
+from nova import objects
 from nova import test
 import os
 from pypowervm import adapter as adpt
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import virtual_io_server as vios_w
 
+from nova_powervm.tests.virt import powervm
 from nova_powervm.virt.powervm import localdisk as ld
 
 
@@ -97,3 +100,36 @@ class TestLocalDisk(test.TestCase):
 
         # Validate the call
         self.assertEqual(1, mock_adpt.update.call_count)
+
+    @mock.patch('pypowervm.wrappers.storage.VolumeGroup')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+                '_get_vg_uuid')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+                '_get_disk_name')
+    @mock.patch('pypowervm.adapter.Adapter')
+    def test_extend_volume(self, mock_adpt, mock_dsk_name,
+                           mock_vg_uuid, mock_vg):
+        local = ld.LocalStorage({'adapter': mock_adpt,
+                                 'host_uuid': 'host_uuid',
+                                 'vios_name': 'vios_name',
+                                 'vios_uuid': 'vios_uuid'})
+
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        vdisk = mock.Mock(name='vdisk')
+        vdisk.name = 'disk_name'
+
+        resp = mock.Mock(name='response')
+        resp.virtual_disks = [vdisk]
+        mock_vg.load_from_response.return_value = resp
+
+        mock_dsk_name.return_value = 'NOMATCH'
+        self.assertRaises(nova_exc.DiskNotFound, local.extend_volume,
+                          'context', inst, dict(type='boot'), 10)
+
+        mock_dsk_name.return_value = 'disk_name'
+        local.extend_volume('context', inst, dict(type='boot'), 1000)
+
+        # Validate the call
+        self.assertEqual(1, mock_adpt.update.call_count)
+        self.assertEqual(vdisk.capacity, 1000)

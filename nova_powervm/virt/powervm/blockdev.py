@@ -67,3 +67,13 @@ class StorageAdapter(object):
     def connect_volume(self, context, instance, volume_info, lpar_uuid,
                        **kwds):
         pass
+
+    def extend_volume(self, context, instance, volume_info, size):
+        """Extends the disk
+
+        :param context: nova context for operation
+        :param instance: instance to create the volume for
+        :param volume_info: dictionary with volume info
+        :param size: the new size in gb
+        """
+        raise NotImplementedError()

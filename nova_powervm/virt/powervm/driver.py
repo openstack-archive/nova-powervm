@@ -391,6 +391,11 @@ class PowerVMDriver(driver.ComputeDriver):
             #   Ignore boot and ephemeral disk size differences
             vm.power_off(self.adapter, instance, self.host_uuid)
 
+            if flav_obj.root_gb > instance.root_gb:
+                # Resize the root disk
+                self.block_dvr.extend_volume(
+                    context, instance, dict(type='boot'), flav_obj.root_gb)
+
             vm.update(self.adapter, self.host_uuid, instance, flav_obj)
         else:
             self._log_operation('migration', instance)
