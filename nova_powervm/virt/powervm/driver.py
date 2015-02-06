@@ -17,7 +17,8 @@
 
 from nova.compute import task_states
 from nova import context as ctx
-from nova.i18n import _LI
+from nova import exception
+from nova.i18n import _LI, _
 from nova.objects import flavor as flavor_obj
 from nova.openstack.common import log as logging
 from nova.virt import configdrive
@@ -376,6 +377,12 @@ class PowerVMDriver(driver.ComputeDriver):
         # downstream code is expecting an object, so convert it.
         if flavor and not isinstance(flavor, flavor_obj.Flavor):
             flav_obj = flavor_obj.Flavor.get_by_id(context, flavor['id'])
+        else:
+            flav_obj = flavor
+
+        if flav_obj and flav_obj.root_gb < instance.root_gb:
+            raise exception.InstanceFaultRollback(
+                exception.ResizeError(reason=_('Cannot reduce disk size.')))
 
         if dest == self.get_host_ip_addr():
             self._log_operation('resize', instance)

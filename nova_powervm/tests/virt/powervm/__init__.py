@@ -21,7 +21,7 @@ import sys
 TEST_FLAVOR = flavor.Flavor(memory_mb=2048,
                             swap=0,
                             vcpu_weight=None,
-                            root_gb=1,
+                            root_gb=10,
                             id=2,
                             name=u'm1.small',
                             ephemeral_gb=0,
@@ -33,6 +33,8 @@ TEST_INSTANCE = {
     'id': 1,
     'uuid': '49629a5c-f4c4-4721-9511-9725786ff2e5',
     'display_name': 'Fake Instance',
+    'root_gb': 10,
+    'ephemeral_gb': 0,
     'instance_type_id': '5',
     'flavor': TEST_FLAVOR
 }
