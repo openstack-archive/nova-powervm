@@ -25,8 +25,8 @@ from nova.i18n import _LI, _LE
 from nova.openstack.common import log as logging
 from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import constants as pvm_consts
+from pypowervm.wrappers import storage as pvm_st
 from pypowervm.wrappers import virtual_io_server as pvm_vios
-from pypowervm.wrappers import volume_group as pvm_vg
 
 from nova_powervm.virt.powervm import blockdev
 from nova_powervm.virt.powervm import vios
@@ -100,9 +100,9 @@ class LocalStorage(blockdev.StorageAdapter):
         # All of local disk is done against the volume group.  So reload
         # that (to get new etag) and then do an update against it.
         vg_rsp = self.adapter.read(pvm_vios.VIO_ROOT, root_id=self.vios_uuid,
-                                   child_type=pvm_vg.VG_ROOT,
+                                   child_type=pvm_st.VG_ROOT,
                                    child_id=self.vg_uuid)
-        vg = pvm_vg.VolumeGroup.load_from_response(vg_rsp)
+        vg = pvm_st.VolumeGroup.load_from_response(vg_rsp)
 
         # The mappings are from the VIOS and they don't 100% line up with
         # the elements from the VG.  Need to find the matching ones based on
@@ -124,7 +124,7 @@ class LocalStorage(blockdev.StorageAdapter):
 
         # Now update the volume group to remove the storage.
         self.adapter.update(vg._element, vg.etag, pvm_vios.VIO_ROOT,
-                            self.vios_uuid, child_type=pvm_vg.VG_ROOT,
+                            self.vios_uuid, child_type=pvm_st.VG_ROOT,
                             child_id=self.vg_uuid)
 
     def disconnect_image_volume(self, context, instance, lpar_uuid):
@@ -138,7 +138,7 @@ class LocalStorage(blockdev.StorageAdapter):
         # Find the existing mappings, and then pull them off the VIOS
         existing_vios_mappings = vios_w.scsi_mappings
         existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid,
-                                                vios_w, pvm_vg.VirtualDisk)
+                                                vios_w, pvm_st.VirtualDisk)
         for scsi_map in existing_maps:
             existing_vios_mappings.remove(scsi_map)
 
@@ -184,7 +184,7 @@ class LocalStorage(blockdev.StorageAdapter):
             raise e
 
         # Search the feed for the volume group
-        vol_grps = pvm_vg.VolumeGroup.load_from_response(resp)
+        vol_grps = pvm_st.VolumeGroup.load_from_response(resp)
         for vol_grp in vol_grps:
             LOG.info(_LI('Volume group: %s') % vol_grp.name)
             if name == vol_grp.name:

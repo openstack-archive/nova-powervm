@@ -20,8 +20,8 @@ from nova import test
 import os
 from pypowervm import adapter as adpt
 from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.wrappers import storage as st_w
 from pypowervm.wrappers import virtual_io_server as vios_w
-from pypowervm.wrappers import volume_group as vg_w
 
 from nova_powervm.virt.powervm import media as m
 
@@ -132,7 +132,7 @@ class TestConfigDrivePowerVM(test.TestCase):
             if kwargs.get('child_type') is not None:
                 # This is the VG update.  Make sure there are no optical medias
                 # anymore.
-                vg = vg_w.VolumeGroup(adpt.Entry({}, kargs[0]))
+                vg = st_w.VolumeGroup(adpt.Entry({}, kargs[0]))
                 self.assertEqual(0, len(vg.vmedia_repos[0].optical_media))
             elif kwargs.get('xag') is not None:
                 # This is the VIOS call.  Make sure the xag is set and the

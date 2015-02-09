@@ -26,8 +26,8 @@ from oslo.config import cfg
 
 from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import constants as pvmc
+from pypowervm.wrappers import storage as pvm_st
 from pypowervm.wrappers import virtual_io_server as vios_w
-from pypowervm.wrappers import volume_group as vg
 
 from nova_powervm.virt.powervm import vios
 
@@ -148,7 +148,7 @@ class ConfigDrivePowerVM(object):
         resp = self.adapter.read(pvmc.VIOS, self.vios_uuid, pvmc.VOL_GROUP)
         found_vg = None
         for vg_entry in resp.feed.entries:
-            vol_grp = vg.VolumeGroup(vg_entry)
+            vol_grp = pvm_st.VolumeGroup(vg_entry)
             if vol_grp.name == CONF.vopt_media_volume_group:
                 found_vg = vol_grp
                 break
@@ -166,9 +166,9 @@ class ConfigDrivePowerVM(object):
 
         # Ensure that there is a virtual optical media repository within it.
         if len(found_vg.vmedia_repos) == 0:
-            vopt_repo = vg.crt_vmedia_repo('vopt',
-                                           str(CONF.vopt_media_rep_size))
-            found_vg.vmedia_repos = [vg.VirtualMediaRepository(vopt_repo)]
+            vopt_repo = pvm_st.crt_vmedia_repo('vopt',
+                                               str(CONF.vopt_media_rep_size))
+            found_vg.vmedia_repos = [pvm_st.VirtualMediaRepository(vopt_repo)]
             self.adapter.update(found_vg._entry.element, resp.headers['etag'],
                                 pvmc.VIOS, self.vios_uuid, pvmc.VOL_GROUP,
                                 found_vg.uuid)
@@ -185,7 +185,7 @@ class ConfigDrivePowerVM(object):
 
         # Get the mappings to this VM
         existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid, vio,
-                                                vg.VirtualOpticalMedia)
+                                                pvm_st.VirtualOpticalMedia)
 
         for scsi_map in existing_maps:
             vio.scsi_mappings.remove(scsi_map)
@@ -200,14 +200,14 @@ class ConfigDrivePowerVM(object):
         # the volume group (there is a new etag after the VIOS update)
         # and find the matching ones.
         vg_rsp = self.adapter.read(vios_w.VIO_ROOT, root_id=self.vios_uuid,
-                                   child_type=vg.VG_ROOT,
+                                   child_type=pvm_st.VG_ROOT,
                                    child_id=self.vg_uuid)
-        volgrp = vg.VolumeGroup.load_from_response(vg_rsp)
+        volgrp = pvm_st.VolumeGroup.load_from_response(vg_rsp)
         optical_medias = volgrp.vmedia_repos[0].optical_media
         for scsi_map in existing_maps:
             optical_medias.remove(scsi_map.backing_storage)
 
         # Now we can do an update...and be done with it.
         self.adapter.update(volgrp._element, volgrp.etag, vios_w.VIO_ROOT,
-                            root_id=self.vios_uuid, child_type=vg.VG_ROOT,
+                            root_id=self.vios_uuid, child_type=pvm_st.VG_ROOT,
                             child_id=self.vg_uuid)
