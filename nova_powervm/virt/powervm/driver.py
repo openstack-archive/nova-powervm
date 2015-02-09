@@ -30,6 +30,7 @@ from taskflow.patterns import linear_flow as lf
 
 from pypowervm import adapter as pvm_apt
 from pypowervm.helpers import log_helper as log_hlp
+from pypowervm import util as pvm_util
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import managed_system as msentry_wrapper
 
@@ -320,7 +321,18 @@ class PowerVMDriver(driver.ComputeDriver):
     def plug_vifs(self, instance, network_info):
         """Plug VIFs into networks."""
         self._log_operation('plug_vifs', instance)
-        # TODO(IBM): Implement
+
+        # Get all the current VIFs.  Only create new ones.
+        cna_w_list = vm.get_cnas(self.adapter, instance, self.host_uuid)
+        for vif in network_info:
+            crt_cna = True
+            for cna_w in cna_w_list:
+                if cna_w.mac == pvm_util.sanitize_mac_for_api(vif['address']):
+                    crt_cna = False
+
+            # If the crt_cna flag is true, then actually kick off the create
+            if crt_cna:
+                vm.crt_vif(self.adapter, instance, self.host_uuid, vif)
 
     def unplug_vifs(self, instance, network_info):
         """Unplug VIFs from networks."""
