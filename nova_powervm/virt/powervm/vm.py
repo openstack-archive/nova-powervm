@@ -21,7 +21,9 @@ from nova import exception
 from nova.openstack.common import log as logging
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
+from pypowervm.jobs import cna
 from pypowervm.jobs import power
+from pypowervm.wrappers import client_network_adapter as pvm_cna
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
@@ -312,6 +314,36 @@ def get_pvm_uuid(instance):
 
     cache = UUIDCache.get_cache()
     return cache.lookup(instance.name)
+
+
+def get_cnas(adapter, instance, host_uuid):
+    """Returns the current CNAs on the instance.
+
+    The Client Network Adapters are the Ethernet adapters for a VM.
+    :param adapter: The pypowervm adapter.
+    :param instance: The nova instance.
+    :param host_uuid: The host system UUID.
+    :returns The ClientNetworkAdapter wrappers that represent the CNAs on the
+             VM.
+    """
+    cna_resp = adapter.read(pvm_lpar.LPAR_ROOT,
+                            root_id=get_pvm_uuid(instance),
+                            child_type=pvm_cna.VADPT_ROOT)
+    return pvm_cna.ClientNetworkAdapter.load_from_response(cna_resp)
+
+
+def crt_vif(adapter, instance, host_uuid, vif):
+    """Will create a Client Network Adapter on the system.
+
+    :param adapter: The pypowervm adapter API interface.
+    :param instance: The nova instance to create the VIF against.
+    :param host_uuid: The host system UUID.
+    :param vif: The nova VIF that describes the ethernet interface.
+    """
+    lpar_uuid = get_pvm_uuid(instance)
+    # CNA's require a VLAN.  If the network doesn't provide, default to 1
+    vlan = vif['network'].get('vlan', 1)
+    cna.crt_cna(adapter, host_uuid, lpar_uuid, vlan, mac_addr=vif['address'])
 
 
 class UUIDCache(object):

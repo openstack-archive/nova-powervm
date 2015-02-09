@@ -187,3 +187,23 @@ class TestVM(test.TestCase):
         vm.crt_lpar(mock_adr, 'host_uuid', instance, flavor)
         self.assertTrue(mock_adr.create.called)
         self.assertTrue(mock_crt_sp.called)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.jobs.cna.crt_cna')
+    def test_crt_vif(self, mock_crt_cna, mock_pvm_uuid):
+        """Tests that a VIF can be created."""
+
+        # Set up the mocks
+        fake_vif = {'network': {'vlan': 5}, 'address': 'aabbccddeeff'}
+
+        def validate_of_crt(*kargs, **kwargs):
+            self.assertEqual('fake_host', kargs[1])
+            self.assertEqual(5, kargs[3])
+            self.assertEqual('aabbccddeeff', kwargs['mac_addr'])
+        mock_crt_cna.side_effect = validate_of_crt
+
+        # Invoke
+        vm.crt_vif(mock.MagicMock(), mock.MagicMock(), 'fake_host', fake_vif)
+
+        # Validate (along with validate method above)
+        self.assertEqual(1, mock_crt_cna.call_count)

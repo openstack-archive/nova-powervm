@@ -106,6 +106,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
     @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
@@ -113,7 +114,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
     @mock.patch('pypowervm.jobs.power.power_on')
     def test_spawn_ops(self, mock_pwron, mock_disk, mock_get_flv, mock_cfg_drv,
-                       mock_crt, mock_find, mock_apt, mock_sess):
+                       mock_crt, mock_find, mock_plug_vifs, mock_apt,
+                       mock_sess):
 
         """Validates the PowerVM driver operations."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
@@ -139,6 +141,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
     @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -153,7 +156,7 @@ class TestPowerVMDriver(test.TestCase):
     def test_spawn_with_cfg(self, mock_pwron, mock_disk, mock_get_flv,
                             mock_cfg_drv, mock_val_vopt, mock_vios_vscsi,
                             mock_cfg_vopt, mock_crt, mock_find,
-                            mock_apt, mock_sess):
+                            mock_plug_vifs, mock_apt, mock_sess):
 
         """Validates the PowerVM spawn w/ config drive operations."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
@@ -181,6 +184,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
     @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
@@ -191,7 +195,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.jobs.power.power_off')
     def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_disk,
                                 mock_get_flv, mock_cfg_drv, mock_dlt, mock_crt,
-                                mock_find, mock_apt, mock_sess):
+                                mock_find, mock_plug_vifs, mock_apt,
+                                mock_sess):
         """Validates the PowerVM driver operations.  Will do a rollback."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         drv.init_host('FakeHost')
@@ -338,3 +343,37 @@ class TestPowerVMDriver(test.TestCase):
             else:
                 value = stats['stats'].get(stat, None)
                 self.assertIsNotNone(value)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    @mock.patch('pypowervm.adapter.Session')
+    @mock.patch('pypowervm.adapter.Adapter')
+    def test_plug_vifs(self, mock_adpt, mock_session, mock_local,
+                       mock_find_entry, mock_vm_get, mock_vm_crt):
+        # Core driver mockup
+        # TODO(thorst) simplify this into method?
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv.init_host('FakeHost')
+        drv.adapter = mock_adpt
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Mock up the CNA response
+        cnas = [mock.MagicMock(), mock.MagicMock()]
+        cnas[0].mac = 'AABBCCDDEEFF'
+        cnas[1].mac = 'AABBCCDDEE11'
+        mock_vm_get.return_value = cnas
+
+        # Mock up the network info.  They get sanitized to upper case.
+        net_info = [
+            {'address': 'aabbccddeeff'},
+            {'address': 'aabbccddee22'}
+        ]
+
+        # Run method
+        drv.plug_vifs(inst, net_info)
+
+        # The create should have only been called once.  The other was already
+        # existing.
+        self.assertEqual(1, mock_vm_crt.call_count)
