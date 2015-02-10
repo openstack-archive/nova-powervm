@@ -342,7 +342,7 @@ def crt_vif(adapter, instance, host_uuid, vif):
     """
     lpar_uuid = get_pvm_uuid(instance)
     # CNA's require a VLAN.  If the network doesn't provide, default to 1
-    vlan = vif['network'].get('vlan', 1)
+    vlan = vif['network']['meta'].get('vlan', 1)
     cna.crt_cna(adapter, host_uuid, lpar_uuid, vlan, mac_addr=vif['address'])
 
 

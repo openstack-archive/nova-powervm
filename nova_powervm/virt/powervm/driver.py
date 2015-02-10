@@ -185,6 +185,11 @@ class PowerVMDriver(driver.ComputeDriver):
             flow.add(tf_spawn.ConnectCfgDrive(self.adapter, instance,
                                               self.vios_uuid, CONF.vios_name))
 
+        # Plug the VIFs
+        vif_plug_info = {'instance': instance, 'network_info': network_info}
+        flow.add(taskflow.task.FunctorTask(self._plug_vifs, name='plug_vifs',
+                                           inject=vif_plug_info))
+
         # Last step is to power on the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
         # the prior step.
@@ -319,7 +324,10 @@ class PowerVMDriver(driver.ComputeDriver):
     def plug_vifs(self, instance, network_info):
         """Plug VIFs into networks."""
         self._log_operation('plug_vifs', instance)
+        self._plug_vifs(instance, network_info)
 
+    def _plug_vifs(self, instance, network_info):
+        """Actual logic to plug VIFs into networks."""
         # Get all the current VIFs.  Only create new ones.
         cna_w_list = vm.get_cnas(self.adapter, instance, self.host_uuid)
         for vif in network_info:
@@ -330,6 +338,10 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # If the crt_cna flag is true, then actually kick off the create
             if crt_cna:
+                LOG.info(_LI('Creating VIF with mac %(mac)s for instance '
+                             '%(inst)s') % {'mac': vif['address'],
+                                            'inst': instance.name},
+                         instance=instance)
                 vm.crt_vif(self.adapter, instance, self.host_uuid, vif)
 
     def unplug_vifs(self, instance, network_info):

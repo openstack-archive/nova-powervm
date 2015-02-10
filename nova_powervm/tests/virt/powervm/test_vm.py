@@ -194,7 +194,8 @@ class TestVM(test.TestCase):
         """Tests that a VIF can be created."""
 
         # Set up the mocks
-        fake_vif = {'network': {'vlan': 5}, 'address': 'aabbccddeeff'}
+        fake_vif = {'network': {'meta': {'vlan': 5}},
+                    'address': 'aabbccddeeff'}
 
         def validate_of_crt(*kargs, **kwargs):
             self.assertEqual('fake_host', kargs[1])

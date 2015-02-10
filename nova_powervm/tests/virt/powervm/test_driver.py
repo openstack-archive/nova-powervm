@@ -106,7 +106,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
-    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
     @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
@@ -141,7 +141,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
-    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
     @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -184,7 +184,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
-    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
     @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
