@@ -237,18 +237,22 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
                           root_id=host_uuid, child_type=pvm_lpar.LPAR)
 
 
-def update(adapter, host_uuid, instance, flavor):
+def update(adapter, host_uuid, instance, flavor, entry=None):
     """Update an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
     :param host_uuid: (TEMPORARY) The host UUID
     :param instance: The nova instance.
     :param flavor: The nova flavor.
+    :param entry: The instance pvm entry, if available, otherwise it will
+        be fetched.
     """
 
+    # Get the resource values
     mem, vcpus, proc_units, proc_weight = _format_lpar_resources(flavor)
 
-    entry = get_instance_wrapper(adapter, instance, host_uuid)
+    if not entry:
+        entry = get_instance_wrapper(adapter, instance, host_uuid)
     uuid = entry.uuid
 
     # Set the memory fields
@@ -288,6 +292,9 @@ def power_on(adapter, instance, host_uuid, entry=None):
     if entry.state in POWERVM_STARTABLE_STATE:
         # Now start the lpar
         power.power_on(adapter, entry, host_uuid)
+        return True
+
+    return False
 
 
 def power_off(adapter, instance, host_uuid, entry=None):
@@ -298,6 +305,9 @@ def power_off(adapter, instance, host_uuid, entry=None):
     if entry.state in POWERVM_STOPABLE_STATE:
         # Now stop the lpar
         power.power_off(adapter, entry, host_uuid)
+        return True
+
+    return False
 
 
 def get_pvm_uuid(instance):

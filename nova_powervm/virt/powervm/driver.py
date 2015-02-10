@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-
 from nova.compute import task_states
 from nova import context as ctx
 from nova import exception
@@ -23,6 +22,7 @@ from nova.objects import flavor as flavor_obj
 from nova.openstack.common import log as logging
 from nova.virt import configdrive
 from nova.virt import driver
+import time
 
 from oslo.config import cfg
 import taskflow.engines
@@ -31,6 +31,7 @@ from taskflow.patterns import linear_flow as lf
 from pypowervm import adapter as pvm_apt
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm import util as pvm_util
+from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import managed_system as msentry_wrapper
 
@@ -397,22 +398,47 @@ class PowerVMDriver(driver.ComputeDriver):
         if dest == self.get_host_ip_addr():
             self._log_operation('resize', instance)
             # This is a local resize
-            # TODO(IBM):Only handle VM resizes for now.
-            #   Ignore boot and ephemeral disk size differences
-            vm.power_off(self.adapter, instance, self.host_uuid)
-
+            # Check for disk resizes before VM resources
             if flav_obj.root_gb > instance.root_gb:
+                vm.power_off(self.adapter, instance, self.host_uuid)
                 # Resize the root disk
                 self.block_dvr.extend_volume(
                     context, instance, dict(type='boot'), flav_obj.root_gb)
 
-            vm.update(self.adapter, self.host_uuid, instance, flav_obj)
+            # Do any VM resource changes
+            self._resize_vm(context, instance, flav_obj, retry_interval)
         else:
             self._log_operation('migration', instance)
             raise NotImplementedError()
 
         # TODO(IBM): The caller is expecting disk info returned
         return disk_info
+
+    def _resize_vm(self, context, instance, flav_obj, retry_interval=0):
+
+        def _delay(attempt, max_attempts, *args, **kwds):
+            LOG.info(_LI('Retrying to update VM.'), instance=instance)
+            time.sleep(retry_interval)
+
+        @pvm_retry.retry(delay_func=_delay)
+        def _update_vm():
+            LOG.debug('Resizing instance %s.' % instance.name,
+                      instance=instance)
+            entry = vm.get_instance_wrapper(self.adapter, instance,
+                                            self.host_uuid)
+
+            pwrd = vm.power_off(self.adapter, instance,
+                                self.host_uuid, entry=entry)
+            # If it was powered off then the etag changed, fetch it again
+            if pwrd:
+                entry = vm.get_instance_wrapper(self.adapter, instance,
+                                                self.host_uuid)
+
+            vm.update(self.adapter, self.host_uuid,
+                      instance, flav_obj, entry=entry)
+
+        # Update the VM
+        _update_vm()
 
     def finish_migration(self, context, migration, instance, disk_info,
                          network_info, image_meta, resize_instance,
