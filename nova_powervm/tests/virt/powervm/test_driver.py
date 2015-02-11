@@ -269,12 +269,13 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
     def test_resize(self, mock_disk, mock_get_flv,
-                    mock_update, mock_pwr_off, mock_find,
+                    mock_update, mock_pwr_off, mock_get_uuid, mock_find,
                     mock_apt, mock_sess):
         """Validates the PowerVM driver resize operation."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())
@@ -301,9 +302,9 @@ class TestPowerVMDriver(test.TestCase):
         drv.migrate_disk_and_power_off(
             'context', inst, host, new_flav, 'network_info')
         mock_pwr_off.assert_called_with(
-            drv.adapter, inst, drv.host_uuid)
+            drv.adapter, inst, drv.host_uuid, entry=mock.ANY)
         mock_update.assert_called_with(
-            drv.adapter, drv.host_uuid, inst, new_flav)
+            drv.adapter, drv.host_uuid, inst, new_flav, entry=mock.ANY)
 
         # Boot disk resize
         boot_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=12)
