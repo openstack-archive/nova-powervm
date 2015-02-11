@@ -44,8 +44,8 @@ pvm_opts = [
     cfg.StrOpt('pvm_host_mtms',
                default='',
                help='The Model Type/Serial Number of the host server to '
-                    'manage.  Format is MODELTYPE_SERIALNUM.  Example is '
-                    '828642A_1234ABC.'),
+                    'manage.  Format is MODEL-TYPE*SERIALNUM.  Example is '
+                    '8286-42A*1234ABC.'),
     cfg.StrOpt('pvm_server_ip',
                default='localhost',
                help='The IP Address hosting the PowerVM REST API'),
