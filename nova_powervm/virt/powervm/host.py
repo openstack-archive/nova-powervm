@@ -22,9 +22,6 @@ from nova.openstack.common import log as logging
 
 from oslo.serialization import jsonutils
 
-from pypowervm.wrappers import constants as pvm_consts
-from pypowervm.wrappers import managed_system as msentry_wrapper
-
 LOG = logging.getLogger(__name__)
 
 # Power VM hypervisor info
@@ -42,58 +39,26 @@ POWERVM_SUPPORTED_INSTANCES = jsonutils.dumps([(arch.PPC64,
 HOST_STATS_CPU_INFO = jsonutils.dumps({'vendor': 'ibm', 'arch': 'ppc64'})
 
 
-def parse_mtm(mtm_serial):
-    mtm, serial = mtm_serial.split('_', 1)
-    mt = mtm[0:4]
-    md = mtm[4:7]
-    return mt, md, serial
-
-
-def get_mtm_serial(msentry):
-    mt = msentry.machine_type
-    md = msentry.model
-    ms = msentry.serial
-    return mt + md + '_' + ms
-
-
-def find_entry_by_mtm_serial(resp, mtm_serial):
-    mt, md, serial = parse_mtm(mtm_serial)
-    entries = resp.feed.findentries(pvm_consts.MACHINE_SERIAL, serial)
-    if entries is None:
-        return None
-    else:
-        LOG.info("Entry %s" % entries)
-
-    # Confirm same model and type
-    for entry in entries:
-        wrapper = msentry_wrapper.ManagedSystem(entry)
-        if (wrapper.machine_type == mt and wrapper.model == md):
-            return entry
-
-    # No matching MTM Serial was found
-    return None
-
-
-def build_host_resource_from_entry(msentry):
+def build_host_resource_from_ms(ms_wrapper):
     """Build the host resource dict from an MS adapter wrapper
 
     This method builds the host resource dictionary from the
     ManagedSystem Entry wrapper
 
-    :param msentry: ManagedSystem Entry Wrapper.
+    :param ms_wrapper: ManagedSystem Entry Wrapper.
     """
     data = {}
 
     # Calculate the vcpus
-    proc_units = msentry.proc_units_configurable
-    proc_units_avail = msentry.proc_units_avail
+    proc_units = ms_wrapper.proc_units_configurable
+    proc_units_avail = ms_wrapper.proc_units_avail
     pu_used = float(proc_units) - float(proc_units_avail)
     data['vcpus'] = int(math.ceil(float(proc_units)))
     data['vcpus_used'] = int(math.ceil(pu_used))
 
-    data['memory_mb'] = msentry.memory_configurable
-    data['memory_mb_used'] = (msentry.memory_configurable -
-                              msentry.memory_free)
+    data['memory_mb'] = ms_wrapper.memory_configurable
+    data['memory_mb_used'] = (ms_wrapper.memory_configurable -
+                              ms_wrapper.memory_free)
 
     # TODO(IBM): make the local gb large for now
     data["local_gb"] = (1 << 21)
@@ -101,8 +66,7 @@ def build_host_resource_from_entry(msentry):
 
     data["hypervisor_type"] = hv_type.PHYP
     data["hypervisor_version"] = IBM_POWERVM_HYPERVISOR_VERSION
-    # TODO(IBM): Get the right host name
-    data["hypervisor_hostname"] = get_mtm_serial(msentry)
+    data["hypervisor_hostname"] = ms_wrapper.mtms.mtms_str()
     data["cpu_info"] = HOST_STATS_CPU_INFO
     data["numa_topology"] = None
     data["supported_instances"] = POWERVM_SUPPORTED_INSTANCES

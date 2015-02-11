@@ -92,12 +92,10 @@ class PowerVMDriver(driver.ComputeDriver):
     def _get_host_uuid(self):
         # Need to get a list of the hosts, then find the matching one
         resp = self.adapter.read(pvm_consts.MGT_SYS)
-        host_entry = pvm_host.find_entry_by_mtm_serial(resp,
-                                                       CONF.pvm_host_mtms)
-        if not host_entry:
+        mtms = CONF.pvm_host_mtms
+        self.host_wrapper = msentry_wrapper.find_entry_by_mtms(resp, mtms)
+        if not self.host_wrapper:
             raise Exception("Host %s not found" % CONF.pvm_host_mtms)
-
-        self.host_wrapper = msentry_wrapper.ManagedSystem(host_entry)
         self.host_uuid = self.host_wrapper.uuid
         LOG.info(_LI("Host UUID is:%s") % self.host_uuid)
 
@@ -311,7 +309,7 @@ class PowerVMDriver(driver.ComputeDriver):
         resp = self.adapter.read(pvm_consts.MGT_SYS, root_id=self.host_uuid)
         if resp:
             self.host_wrapper = msentry_wrapper.ManagedSystem(resp.entry)
-        data = pvm_host.build_host_resource_from_entry(self.host_wrapper)
+        data = pvm_host.build_host_resource_from_ms(self.host_wrapper)
         return data
 
     def get_host_uptime(self, host):
@@ -348,7 +346,7 @@ class PowerVMDriver(driver.ComputeDriver):
         [hypervisor_hostname].
         """
 
-        return [pvm_host.get_mtm_serial(self.host_wrapper)]
+        return [self.host_wrapper.mtms.mtms_str()]
 
     def legacy_nwinfo(self):
         """Indicate if the driver requires the legacy network_info format.

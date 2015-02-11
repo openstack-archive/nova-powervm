@@ -67,7 +67,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
-    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
     def test_driver_init(self, mock_disk, mock_find, mock_apt, mock_sess):
         """Validates the PowerVM driver can be initialized for the host."""
@@ -78,7 +78,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
-    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.context.get_admin_context')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
@@ -107,7 +107,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
-    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
@@ -142,7 +142,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
-    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'create_cfg_drv_vopt')
@@ -185,7 +185,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.plug_vifs')
-    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
@@ -227,7 +227,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
-    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'dlt_vopt')
@@ -268,7 +268,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
-    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
@@ -325,7 +325,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_log.info.assert_called_with(entry)
 
     def test_host_resources(self):
-        stats = pvm_host.build_host_resource_from_entry(self.wrapper)
+        stats = pvm_host.build_host_resource_from_ms(self.wrapper)
         self.assertIsNotNone(stats)
 
         # Check for the presence of fields
@@ -353,7 +353,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    @mock.patch('nova_powervm.virt.powervm.host.find_entry_by_mtm_serial')
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
     @mock.patch('pypowervm.adapter.Session')
     @mock.patch('pypowervm.adapter.Adapter')
