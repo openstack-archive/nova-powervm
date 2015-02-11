@@ -152,6 +152,22 @@ class TestVM(test.TestCase):
         self.assertEqual(len(lpar_list), 21)
 
     @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('pypowervm.jobs.vterm.close_vterm')
+    def test_dlt_lpar(self, mock_vterm, mock_adpt):
+        """Performs a delete LPAR test."""
+        vm.dlt_lpar(mock_adpt, '12345')
+        self.assertEqual(1, mock_adpt.delete.call_count)
+        # test failure due to open vterm
+        mock_adpt.delete.side_effect = pvm_exc.JobRequestFailed(
+            error='delete', operation_name='HSCL151B')
+        # If failed due to vterm test close_vterm and delete are called
+        mock_adpt.reset_mock()
+        self.assertRaises(pvm_exc.JobRequestFailed,
+                          vm.dlt_lpar, mock_adpt, '12345')
+        self.assertEqual(1, mock_vterm.call_count)
+        self.assertEqual(2, mock_adpt.delete.call_count)
+
+    @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('pypowervm.wrappers.logical_partition.crt_shared_procs')
     @mock.patch('pypowervm.wrappers.logical_partition.crt_lpar')
     def test_crt_lpar(self, mock_crt_lpar, mock_crt_sp, mock_adr):

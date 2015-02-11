@@ -18,14 +18,18 @@ from oslo.config import cfg
 
 from nova.compute import power_state
 from nova import exception
+from nova.i18n import _LI, _LE
 from nova.openstack.common import log as logging
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
 from pypowervm.jobs import cna
 from pypowervm.jobs import power
+from pypowervm.jobs import vterm
 from pypowervm.wrappers import client_network_adapter as pvm_cna
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import logical_partition as pvm_lpar
+
+import six
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -276,8 +280,32 @@ def dlt_lpar(adapter, lpar_uuid):
     :param adapter: The adapter for the pypowervm API
     :param lpar_uuid: The lpar to delete
     """
-    resp = adapter.delete(pvm_consts.LPAR, root_id=lpar_uuid)
-    return resp
+    # Attempt to delete the VM. If delete fails because of vterm
+    # we will close the vterm and try the delete again
+    try:
+        LOG.info(_LI('Deleting virtual machine. LPARID: %s') % lpar_uuid)
+        resp = adapter.delete(pvm_consts.LPAR, root_id=lpar_uuid)
+        LOG.info(_LI('Virtual machine delete status: %s') % resp.status)
+        return resp
+    except pvm_exc.Error as e:
+        emsg = six.text_type(e)
+        if 'HSCL151B' in emsg:
+            # If this is a vterm error attempt to close vterm
+            try:
+                LOG.info(_LI('Closing virtual terminal'))
+                vterm.close_vterm(adapter, lpar_uuid)
+                # Try to delete the vm again
+                resp = adapter.delete(pvm_consts.LPAR, root_id=lpar_uuid)
+                LOG.info(_LI('Virtual machine delete status: %s')
+                         % resp.status)
+                return resp
+            except pvm_exc.Error as e:
+                # Fall through and raise exception
+                pass
+        # Attempting to close vterm did not help so raise exception
+        LOG.error(_LE('Virtual machine delete failed: LPARID=%s')
+                  % lpar_uuid)
+        raise e
 
 
 def power_on(adapter, instance, host_uuid, entry=None):
