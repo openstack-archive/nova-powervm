@@ -315,7 +315,13 @@ class PowerVMDriver(driver.ComputeDriver):
         resp = self.adapter.read(pvm_consts.MGT_SYS, root_id=self.host_uuid)
         if resp:
             self.host_wrapper = msentry_wrapper.ManagedSystem(resp.entry)
+        # Get host information
         data = pvm_host.build_host_resource_from_ms(self.host_wrapper)
+
+        # Add the disk information
+        data["local_gb"] = self.block_dvr.capacity
+        data["local_gb_used"] = self.block_dvr.capacity_used
+
         return data
 
     def get_host_uptime(self, host):

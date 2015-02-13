@@ -96,12 +96,31 @@ class LocalStorage(blockdev.StorageAdapter):
         LOG.info(_LI('Local Storage driver initialized: '
                      'volume group: \'%s\'') % self.vg_name)
 
+    @property
+    def capacity(self):
+        """Capacity of the storage in gigabytes
+
+        """
+        vg_wrap = self._get_vg_wrap()
+
+        return float(vg_wrap.capacity)
+
+    @property
+    def capacity_used(self):
+        """Capacity of the storage in gigabytes that is used
+
+        """
+        vg_wrap = self._get_vg_wrap()
+
+        # Subtract available from capacity
+        return (float(vg_wrap.capacity) - float(vg_wrap.available_size))
+
     def delete_volumes(self, context, instance, mappings):
         LOG.info('Deleting local volumes for instance %s'
                  % instance.name)
         # All of local disk is done against the volume group.  So reload
         # that (to get new etag) and then do an update against it.
-        vg = pvm_st.VolumeGroup.load_from_response(self._get_vg())
+        vg_wrap = self._get_vg_wrap()
 
         # The mappings are from the VIOS and they don't 100% line up with
         # the elements from the VG.  Need to find the matching ones based on
@@ -110,19 +129,19 @@ class LocalStorage(blockdev.StorageAdapter):
         # the wrapper strip out self references.
         removals = []
         for scsi_map in mappings:
-            for vdisk in vg.virtual_disks:
+            for vdisk in vg_wrap.virtual_disks:
                 if vdisk.udid == scsi_map.backing_storage.udid:
                     removals.append(vdisk)
                     break
 
         # We know that the mappings are VirtualSCSIMappings.  Remove the
         # storage that resides in the scsi map from the volume group
-        existing_vds = vg.virtual_disks
+        existing_vds = vg_wrap.virtual_disks
         for removal in removals:
             existing_vds.remove(removal)
 
         # Now update the volume group to remove the storage.
-        self.adapter.update(vg._element, vg.etag, pvm_vios.VIO_ROOT,
+        self.adapter.update(vg_wrap._element, vg_wrap.etag, pvm_vios.VIO_ROOT,
                             self.vios_uuid, child_type=pvm_st.VG_ROOT,
                             child_id=self.vg_uuid)
 
@@ -180,8 +199,7 @@ class LocalStorage(blockdev.StorageAdapter):
         """
         def _extend():
             # Get the volume group
-            resp = self._get_vg()
-            vg_wrap = pvm_st.VolumeGroup.load_from_response(resp)
+            vg_wrap = self._get_vg_wrap()
             # Find the disk by name
             vdisks = vg_wrap.virtual_disks
             disk_found = None
@@ -241,3 +259,6 @@ class LocalStorage(blockdev.StorageAdapter):
                                    child_type=pvm_st.VG_ROOT,
                                    child_id=self.vg_uuid)
         return vg_rsp
+
+    def _get_vg_wrap(self):
+        return pvm_st.VolumeGroup.load_from_response(self._get_vg())

@@ -29,6 +29,22 @@ class StorageAdapter(object):
         """
         self._connection = connection
 
+    @property
+    def capacity(self):
+        """Capacity of the storage in gigabytes
+
+        Default is to make the capacity arbitrarily large
+        """
+        return (1 << 21)
+
+    @property
+    def capacity_used(self):
+        """Capacity of the storage in gigabytes that is used
+
+        Default is to say none of it is used.
+        """
+        return 0
+
     def disconnect_image_volume(self, context, instance, lpar_uuid):
         """Disconnects the storage adapters from the image volume.
 

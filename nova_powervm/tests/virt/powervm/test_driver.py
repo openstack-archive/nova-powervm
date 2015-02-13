@@ -30,7 +30,6 @@ import pypowervm.wrappers.managed_system as msentry_wrapper
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.virt.powervm import driver
-from nova_powervm.virt.powervm import host as pvm_host
 
 MS_HTTPRESP_FILE = "managedsystem.txt"
 MS_NAME = 'HV4'
@@ -55,8 +54,8 @@ class TestPowerVMDriver(test.TestCase):
                             "Could not find %s in %s" %
                             (MS_NAME, MS_HTTPRESP_FILE))
 
-        self.myentry = entries[0]
-        self.wrapper = msentry_wrapper.ManagedSystem(self.myentry)
+        self.ms_entry = entries[0]
+        self.wrapper = msentry_wrapper.ManagedSystem(self.ms_entry)
 
     def test_driver_create(self):
         """Validates that a driver of the PowerVM type can just be
@@ -325,32 +324,29 @@ class TestPowerVMDriver(test.TestCase):
                  'UUID: 49629a5c-f4c4-4721-9511-9725786ff2e5')
         mock_log.info.assert_called_with(entry)
 
-    def test_host_resources(self):
-        stats = pvm_host.build_host_resource_from_ms(self.wrapper)
+    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    @mock.patch('pypowervm.adapter.Session')
+    @mock.patch('pypowervm.adapter.Adapter')
+    def test_host_resources(self, mock_adpt, mock_session, mock_local,
+                            mock_find_entry):
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv.init_host('FakeHost')
+        drv.adapter = mock_adpt
+
+        # Set the return value of None so we use the cached value in the drv
+        mock_adpt.read.return_value = None
+        drv.host_wrapper = self.wrapper
+
+        stats = drv.get_available_resource('nodename')
         self.assertIsNotNone(stats)
 
-        # Check for the presence of fields
-        fields = (('vcpus', 500), ('vcpus_used', 0),
-                  ('memory_mb', 5242880), ('memory_mb_used', 128),
-                  'local_gb', 'local_gb_used', 'hypervisor_type',
-                  'hypervisor_version', 'hypervisor_hostname', 'cpu_info',
-                  'supported_instances', 'stats')
+        # Check for the presence of fields added to host stats
+        fields = ('local_gb', 'local_gb_used')
+
         for fld in fields:
-            if isinstance(fld, tuple):
-                value = stats.get(fld[0], None)
-                self.assertEqual(value, fld[1])
-            else:
-                value = stats.get(fld, None)
-                self.assertIsNotNone(value)
-        # Check for individual stats
-        hstats = (('proc_units', '500.00'), ('proc_units_used', '0.00'))
-        for stat in hstats:
-            if isinstance(stat, tuple):
-                value = stats['stats'].get(stat[0], None)
-                self.assertEqual(value, stat[1])
-            else:
-                value = stats['stats'].get(stat, None)
-                self.assertIsNotNone(value)
+            value = stats.get(fld, None)
+            self.assertIsNotNone(value)
 
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')

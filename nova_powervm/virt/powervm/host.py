@@ -60,10 +60,6 @@ def build_host_resource_from_ms(ms_wrapper):
     data['memory_mb_used'] = (ms_wrapper.memory_configurable -
                               ms_wrapper.memory_free)
 
-    # TODO(IBM): make the local gb large for now
-    data["local_gb"] = (1 << 21)
-    data["local_gb_used"] = 0
-
     data["hypervisor_type"] = hv_type.PHYP
     data["hypervisor_version"] = IBM_POWERVM_HYPERVISOR_VERSION
     data["hypervisor_hostname"] = ms_wrapper.mtms.mtms_str()

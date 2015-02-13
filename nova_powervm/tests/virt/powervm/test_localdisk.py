@@ -49,6 +49,33 @@ class TestLocalDisk(test.TestCase):
         self.vg_to_vio = resp(VOL_GRP_WITH_VIOS)
         self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
 
+    def get_ls(self, adpt):
+        local = ld.LocalStorage({'adapter': adpt,
+                                 'host_uuid': 'host_uuid',
+                                 'vios_name': 'vios_name',
+                                 'vios_uuid': 'vios_uuid'})
+        return local
+
+    @mock.patch('pypowervm.wrappers.storage.VolumeGroup')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+                '_get_vg_uuid')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+                '_get_vg')
+    @mock.patch('pypowervm.adapter.Adapter')
+    def test_capacity(self, mock_adpt, mock_get_vg, mock_vg_uuid, mock_vg):
+        """Tests the capacity methods."""
+
+        # Set up the mock data.  This will simulate our vg wrapper
+        wrap = mock.MagicMock(name='vg_wrapper')
+        type(wrap).capacity = mock.PropertyMock(return_value='5120')
+        type(wrap).available_size = mock.PropertyMock(return_value='2048')
+
+        mock_vg.load_from_response.return_value = wrap
+        local = self.get_ls(mock_adpt)
+
+        self.assertEqual(5120.0, local.capacity)
+        self.assertEqual(3072.0, local.capacity_used)
+
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     @mock.patch('pypowervm.adapter.Adapter')
@@ -56,14 +83,11 @@ class TestLocalDisk(test.TestCase):
         """Tests the disconnect_image_volume method."""
 
         # Set up the mock data.
-        class FakeQuickProp():
-            @property
-            def body(self):
-                return '2'
-
+        resp = mock.MagicMock(name='resp')
+        type(resp).body = mock.PropertyMock(return_value='2')
         mock_vg_uuid.return_value = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
 
-        mock_adpt.read.side_effect = [self.vio_to_vg, FakeQuickProp()]
+        mock_adpt.read.side_effect = [self.vio_to_vg, resp]
 
         def validate_update(*kargs, **kwargs):
             # Make sure that the mappings are only 1 (the remaining vopt)
@@ -72,10 +96,7 @@ class TestLocalDisk(test.TestCase):
             self.assertEqual(1, len(vio.scsi_mappings))
         mock_adpt.update.side_effect = validate_update
 
-        local = ld.LocalStorage({'adapter': mock_adpt,
-                                 'host_uuid': 'host_uuid',
-                                 'vios_name': 'vios_name',
-                                 'vios_uuid': 'vios_uuid'})
+        local = self.get_ls(mock_adpt)
         local.disconnect_image_volume(mock.MagicMock(), mock.MagicMock(), '2')
         self.assertEqual(1, mock_adpt.update.call_count)
 
@@ -91,10 +112,7 @@ class TestLocalDisk(test.TestCase):
         scsi_mapping.udid = '0300025d4a00007a000000014b36d9deaf.1'
 
         # Invoke the call
-        local = ld.LocalStorage({'adapter': mock_adpt,
-                                 'host_uuid': 'host_uuid',
-                                 'vios_name': 'vios_name',
-                                 'vios_uuid': 'vios_uuid'})
+        local = self.get_ls(mock_adpt)
         local.delete_volumes(mock.MagicMock(), mock.MagicMock(),
                              [scsi_mapping])
 
@@ -109,10 +127,7 @@ class TestLocalDisk(test.TestCase):
     @mock.patch('pypowervm.adapter.Adapter')
     def test_extend_volume(self, mock_adpt, mock_dsk_name,
                            mock_vg_uuid, mock_vg):
-        local = ld.LocalStorage({'adapter': mock_adpt,
-                                 'host_uuid': 'host_uuid',
-                                 'vios_name': 'vios_name',
-                                 'vios_uuid': 'vios_uuid'})
+        local = self.get_ls(mock_adpt)
 
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
