@@ -56,6 +56,28 @@ class TestLocalDisk(test.TestCase):
                                  'vios_uuid': 'vios_uuid'})
         return local
 
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('pypowervm.jobs.upload_lv.upload_new_vdisk')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+                '_get_vg_uuid')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+                '_get_disk_name')
+    @mock.patch('nova_powervm.virt.powervm.localdisk.IterableToFileAdapter')
+    @mock.patch('nova.image.API')
+    def test_create_volume_from_image(self, mock_img_api, mock_file_adpt,
+                                      mock_get_dname, mock_vg_uuid,
+                                      mock_upload_lv, mock_adpt):
+        mock_img = {'id': 'fake_id', 'size': 50}
+        mock_get_dname.return_value = 'fake_vol'
+
+        vol_name = self.get_ls(mock_adpt).create_volume_from_image(None, None,
+                                                                   mock_img,
+                                                                   20)
+        mock_upload_lv.assert_called_with(mock.ANY, mock.ANY, mock.ANY,
+                                          mock.ANY, 'fake_vol', 50,
+                                          d_size=21474836480L)
+        self.assertEqual('fake_vol', vol_name.get('device_name'))
+
     @mock.patch('pypowervm.wrappers.storage.VolumeGroup')
     @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
                 '_get_vg_uuid')

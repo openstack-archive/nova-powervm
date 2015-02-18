@@ -18,6 +18,7 @@
 import abc
 
 from oslo.config import cfg
+from oslo.utils import units
 import six
 
 from nova import exception as nova_exc
@@ -43,7 +44,6 @@ localdisk_opts = [
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 CONF.register_opts(localdisk_opts)
-IMAGE_API = image.API()
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -93,6 +93,7 @@ class LocalStorage(blockdev.StorageAdapter):
         self.vg_name = CONF.volume_group_name
         self.vg_uuid = self._get_vg_uuid(self.adapter, self.vios_uuid,
                                          CONF.volume_group_name)
+        self.image_api = image.API()
         LOG.info(_LI('Local Storage driver initialized: '
                      'volume group: \'%s\'') % self.vg_name)
 
@@ -167,15 +168,29 @@ class LocalStorage(blockdev.StorageAdapter):
         # Return the mappings that we just removed.
         return existing_maps
 
-    def create_volume_from_image(self, context, instance, image):
+    def create_volume_from_image(self, context, instance, image, disk_size):
         LOG.info(_LI('Create volume.'))
 
         # Transfer the image
-        chunks = IMAGE_API.download(context, image['id'])
+        chunks = self.image_api.download(context, image['id'])
         stream = IterableToFileAdapter(chunks)
         vol_name = self._get_disk_name('boot', instance)
+
+        # Disk size to API is in bytes.  Input from method is in Gb
+        disk_bytes = disk_size * units.Gi
+        if disk_bytes < image['size']:
+            # If the image is bigger than the disk, then change the disk size
+            # to match the image (so that the image fits).
+            disk_bytes = image['size']
+
+        # This method will create a new disk at our specified size.  It will
+        # then put the image in the disk.  If the disk is bigger, user can
+        # resize the disk, create a new partition, etc...
+        # If the image is bigger than disk, API should make the disk big
+        # enough to support the image (up to 1 Gb boundary).
         upload_lv.upload_new_vdisk(self.adapter, self.vios_uuid, self.vg_uuid,
-                                   stream, vol_name, image['size'])
+                                   stream, vol_name, image['size'],
+                                   d_size=disk_bytes)
 
         return {'device_name': vol_name}
 

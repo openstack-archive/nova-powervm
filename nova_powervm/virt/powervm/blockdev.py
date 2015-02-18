@@ -69,12 +69,16 @@ class StorageAdapter(object):
         """
         pass
 
-    def create_volume_from_image(self, context, instance, image):
+    def create_volume_from_image(self, context, instance, image, disk_size):
         """Creates a Volume and copies the specified image to it
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the volume for
         :param image_id: image_id reference used to locate image in glance
+        :param disk_size: The size of the disk to create in GB.  If smaller
+                          than the image, it will be ignored (as the disk
+                          must be at least as big as the image).  Must be an
+                          int.
         :returns: dictionary with the name of the created
                   disk device in 'device_name' key
         """

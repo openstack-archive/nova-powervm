@@ -172,7 +172,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Creates the boot image.
         flow.add(tf_spawn.CreateVolumeForImg(self.block_dvr, context,
-                                             instance, image_meta))
+                                             instance, image_meta,
+                                             block_device_info, flavor))
 
         # Connects up the volume to the LPAR
         flow.add(tf_spawn.ConnectVol(self.block_dvr, context, instance))
@@ -365,7 +366,7 @@ class PowerVMDriver(driver.ComputeDriver):
         [hypervisor_hostname].
         """
 
-        return [self.host_wrapper.mtms.mtms_str()]
+        return [self.host_wrapper.mtms.mtms_str]
 
     def legacy_nwinfo(self):
         """Indicate if the driver requires the legacy network_info format.

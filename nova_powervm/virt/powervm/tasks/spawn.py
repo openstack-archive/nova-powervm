@@ -83,7 +83,8 @@ class CreateVM(task.Task):
 class CreateVolumeForImg(task.Task):
     """The Task to create the volume from an Image in the storage."""
 
-    def __init__(self, block_dvr, context, instance, image_meta):
+    def __init__(self, block_dvr, context, instance, image_meta,
+                 block_device_info, flavor):
         """Create the Task.
 
         Provides the 'vol_dev_info' for other tasks.  Comes from the block_dvr
@@ -93,6 +94,9 @@ class CreateVolumeForImg(task.Task):
         :param context: The context passed into the spawn method.
         :param instance: The nova instance.
         :param image_meta: The image metadata.
+        :param block_device_info: Information about block devices to be
+                                  attached to the instance.
+        :param flavor: The flavor for the instance to be spawned.
         """
         super(CreateVolumeForImg, self).__init__(name='crt_vol_from_img',
                                                  provides='vol_dev_info')
@@ -100,12 +104,15 @@ class CreateVolumeForImg(task.Task):
         self.context = context
         self.instance = instance
         self.image_meta = image_meta
+        self.block_device_info = block_device_info
+        self.flavor = flavor
 
     def execute(self):
         LOG.info(_LI('Creating disk for instance: %s') % self.instance.name)
         return self.block_dvr.create_volume_from_image(self.context,
                                                        self.instance,
-                                                       self.image_meta)
+                                                       self.image_meta,
+                                                       self.flavor.root_gb)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
