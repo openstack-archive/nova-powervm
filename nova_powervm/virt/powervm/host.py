@@ -62,7 +62,7 @@ def build_host_resource_from_ms(ms_wrapper):
 
     data["hypervisor_type"] = hv_type.PHYP
     data["hypervisor_version"] = IBM_POWERVM_HYPERVISOR_VERSION
-    data["hypervisor_hostname"] = ms_wrapper.mtms.mtms_str()
+    data["hypervisor_hostname"] = ms_wrapper.mtms.mtms_str
     data["cpu_info"] = HOST_STATS_CPU_INFO
     data["numa_topology"] = None
     data["supported_instances"] = POWERVM_SUPPORTED_INSTANCES
