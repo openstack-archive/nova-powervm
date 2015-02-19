@@ -325,14 +325,14 @@ def power_on(adapter, instance, host_uuid, entry=None):
     return False
 
 
-def power_off(adapter, instance, host_uuid, entry=None):
+def power_off(adapter, instance, host_uuid, entry=None, add_parms=None):
     if entry is None:
         entry = get_instance_wrapper(adapter, instance, host_uuid)
 
     # Get the current state and see if we can stop the VM
     if entry.state in POWERVM_STOPABLE_STATE:
         # Now stop the lpar
-        power.power_off(adapter, entry, host_uuid)
+        power.power_off(adapter, entry, host_uuid, add_parms=add_parms)
         return True
 
     return False

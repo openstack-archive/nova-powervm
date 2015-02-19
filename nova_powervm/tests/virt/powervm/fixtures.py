@@ -63,3 +63,4 @@ class PowerVMComputeDriver(fixtures.Fixture):
         self.drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         self._init_host()
         self.drv.adapter = self.pypvm.apt
+        self.drv.image_api = mock.Mock()

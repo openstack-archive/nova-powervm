@@ -110,7 +110,6 @@ class TestPowerVMDriver(test.TestCase):
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
-        mock_crt.return_value = mock.MagicMock()
         mock_cfg_drv.return_value = False
 
         # Invoke the method.
@@ -189,15 +188,15 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_dlt.called)
 
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'dlt_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('pypowervm.jobs.power.power_off')
-    def test_destroy(self, mock_pwroff, mock_get_flv,
-                     mock_pvmuuid, mock_val_vopt, mock_dlt_vopt, mock_dlt):
+    def test_destroy(self, mock_get_flv, mock_pvmuuid, mock_val_vopt,
+                     mock_dlt_vopt, mock_pwroff, mock_dlt):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
@@ -258,6 +257,31 @@ class TestPowerVMDriver(test.TestCase):
             'context', inst, host, boot_flav, 'network_info')
         self.drv.block_dvr.extend_volume.assert_called_with(
             'context', inst, dict(type='boot'), 12)
+
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.driver.vm')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.power')
+    def test_rescue(self, mock_task_pwr, mock_task_vm,
+                    mock_dvr_vm, mock_get_flv):
+
+        """Validates the PowerVM driver rescue operation."""
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        # my_flavor = inst.get_flavor()
+        # mock_get_flv.return_value = my_flavor
+
+        self.drv.block_dvr = mock.Mock()
+
+        # Invoke the method.
+        self.drv.rescue('context', inst, mock.MagicMock(),
+                        mock.MagicMock(), 'rescue_psswd')
+
+        self.assertTrue(mock_task_vm.power_off.called)
+        self.assertTrue(self.drv.block_dvr.create_volume_from_image.called)
+        self.assertTrue(self.drv.block_dvr.connect_volume.called)
+        # TODO(IBM): Power on not called until bootmode=sms is supported
+        # self.assertTrue(mock_task_pwr.power_on.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):

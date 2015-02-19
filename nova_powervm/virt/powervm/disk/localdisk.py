@@ -168,13 +168,14 @@ class LocalStorage(blockdev.StorageAdapter):
         # Return the mappings that we just removed.
         return existing_maps
 
-    def create_volume_from_image(self, context, instance, image, disk_size):
+    def create_volume_from_image(self, context, instance, image, disk_size,
+                                 image_type=blockdev.BOOT_DISK):
         LOG.info(_LI('Create volume.'))
 
         # Transfer the image
         chunks = self.image_api.download(context, image['id'])
         stream = IterableToFileAdapter(chunks)
-        vol_name = self._get_disk_name('boot', instance)
+        vol_name = self._get_disk_name(image_type, instance)
 
         # Disk size to API is in bytes.  Input from method is in Gb
         disk_bytes = disk_size * units.Gi

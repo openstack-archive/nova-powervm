@@ -18,6 +18,9 @@ import abc
 
 import six
 
+BOOT_DISK = 'boot'
+RESCUE_DISK = 'rescue'
+
 
 @six.add_metaclass(abc.ABCMeta)
 class StorageAdapter(object):
@@ -69,7 +72,8 @@ class StorageAdapter(object):
         """
         pass
 
-    def create_volume_from_image(self, context, instance, image, disk_size):
+    def create_volume_from_image(self, context, instance, image, disk_size,
+                                 image_type=BOOT_DISK):
         """Creates a Volume and copies the specified image to it
 
         :param context: nova context used to retrieve image from glance
@@ -79,6 +83,7 @@ class StorageAdapter(object):
                           than the image, it will be ignored (as the disk
                           must be at least as big as the image).  Must be an
                           int.
+        :param image_type: the image type. See disk constants above.
         :returns: dictionary with the name of the created
                   disk device in 'device_name' key
         """

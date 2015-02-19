@@ -14,77 +14,24 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.i18n import _LI
-from nova.i18n import _LW
-from pypowervm.jobs import power
-from pypowervm.wrappers import logical_partition as pvm_lpar
+from nova.i18n import _LI, _LW
 
 from oslo_log import log as logging
 from taskflow import task
 from taskflow.types import failure as task_fail
 
+from nova_powervm.virt.powervm.disk import blockdev
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import vios
-from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
-
-
-class CreateVM(task.Task):
-    """The task for the Create VM step of the spawn."""
-
-    def __init__(self, adapter, host_uuid, instance, flavor):
-        """Creates the Task for the Create VM step of the spawn.
-
-        Provides the 'lpar_crt_response' for other tasks.
-
-        :param adapter: The adapter for the pypowervm API
-        :param host_uuid: The host UUID
-        :param instance: The nova instance.
-        :param flavor: The nova flavor.
-        """
-        super(CreateVM, self).__init__(name='crt_lpar',
-                                       provides='lpar_crt_resp')
-        self.adapter = adapter
-        self.host_uuid = host_uuid
-        self.instance = instance
-        self.flavor = flavor
-
-    def execute(self):
-        LOG.info(_LI('Creating instance: %s') % self.instance.name)
-        resp = vm.crt_lpar(self.adapter, self.host_uuid, self.instance,
-                           self.flavor)
-        return resp
-
-    def revert(self, result, flow_failures):
-        # The parameters have to match the execute method, plus the response +
-        # failures even if only a subset are used.
-        LOG.warn(_LW('Instance %s to be undefined off host') %
-                 self.instance.name)
-
-        if isinstance(result, task_fail.Failure):
-            # No response, nothing to do
-            LOG.info(_LI('Create failed.  No delete of LPAR needed for '
-                         'instance %s') % self.instance.name)
-            return
-
-        if result is None or result.entry is None:
-            # No response, nothing to do
-            LOG.info(_LI('Instance %s not found on host.  No update needed.') %
-                     self.instance.name)
-            return
-
-        # Wrap to the actual delete.
-        lpar = pvm_lpar.LogicalPartition(result.entry)
-        vm.dlt_lpar(self.adapter, lpar.uuid)
-        LOG.info(_LI('Instance %s removed from system') % self.instance.name)
 
 
 class CreateVolumeForImg(task.Task):
     """The Task to create the volume from an Image in the storage."""
 
     def __init__(self, block_dvr, context, instance, image_meta,
-                 block_device_info, flavor):
+                 disk_size=0, image_type=blockdev.BOOT_DISK):
         """Create the Task.
 
         Provides the 'vol_dev_info' for other tasks.  Comes from the block_dvr
@@ -94,9 +41,9 @@ class CreateVolumeForImg(task.Task):
         :param context: The context passed into the spawn method.
         :param instance: The nova instance.
         :param image_meta: The image metadata.
-        :param block_device_info: Information about block devices to be
-                                  attached to the instance.
-        :param flavor: The flavor for the instance to be spawned.
+        :param disk_size: The size of volume to create. If the size is
+            smaller than the image, the image size will be used.
+        :param image_type: The image type. See disk/blockdev.py
         """
         super(CreateVolumeForImg, self).__init__(name='crt_vol_from_img',
                                                  provides='vol_dev_info')
@@ -104,15 +51,14 @@ class CreateVolumeForImg(task.Task):
         self.context = context
         self.instance = instance
         self.image_meta = image_meta
-        self.block_device_info = block_device_info
-        self.flavor = flavor
+        self.disk_size = disk_size
+        self.image_type = image_type
 
     def execute(self):
         LOG.info(_LI('Creating disk for instance: %s') % self.instance.name)
-        return self.block_dvr.create_volume_from_image(self.context,
-                                                       self.instance,
-                                                       self.image_meta,
-                                                       self.flavor.root_gb)
+        return self.block_dvr.create_volume_from_image(
+            self.context, self.instance, self.image_meta, self.disk_size,
+            image_type=self.image_type)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
@@ -132,8 +78,7 @@ class ConnectVol(task.Task):
     def __init__(self, block_dvr, context, instance):
         """Create the Task for the connect volume to instance method.
 
-        Requires LPAR info through requirement of lpar_crt_resp (provided by
-        tf_crt_lpar).
+        Requires LPAR info through requirement of lpar_wrap.
 
         Requires volume info through requirement of vol_dev_info (provided by
         tf_crt_vol_from_img)
@@ -143,18 +88,17 @@ class ConnectVol(task.Task):
         :param instance: The nova instance.
         """
         super(ConnectVol, self).__init__(name='connect_vol',
-                                         requires=['lpar_crt_resp',
+                                         requires=['lpar_wrap',
                                                    'vol_dev_info'])
         self.block_dvr = block_dvr
         self.context = context
         self.instance = instance
 
-    def execute(self, lpar_crt_resp, vol_dev_info):
-        LOG.info(_LI('Connecting boot disk to instance: %s') %
+    def execute(self, lpar_wrap, vol_dev_info):
+        LOG.info(_LI('Connecting disk to instance: %s') %
                  self.instance.name)
-        lpar = pvm_lpar.LogicalPartition(lpar_crt_resp.entry)
         self.block_dvr.connect_volume(self.context, self.instance,
-                                      vol_dev_info, lpar.uuid)
+                                      vol_dev_info, lpar_wrap.uuid)
 
 
 class CreateCfgDrive(task.Task):
@@ -164,7 +108,7 @@ class CreateCfgDrive(task.Task):
                  network_info, admin_pass):
         """Create the Task that creates the config drive.
 
-        Requires the 'lpar_crt_resp'.
+        Requires the 'lpar_wrap'.
         Provides the 'cfg_drv_vscsi_map' which is an element to later map
         the vscsi drive.
 
@@ -178,7 +122,7 @@ class CreateCfgDrive(task.Task):
         :param admin_pass: Optional password to inject for the VM.
         """
         super(CreateCfgDrive, self).__init__(name='cfg_drive',
-                                             requires=['lpar_crt_resp'],
+                                             requires=['lpar_wrap'],
                                              provides='cfg_drv_vscsi_map')
         self.adapter = adapter
         self.host_uuid = host_uuid
@@ -188,16 +132,15 @@ class CreateCfgDrive(task.Task):
         self.network_info = network_info
         self.ad_pass = admin_pass
 
-    def execute(self, lpar_crt_resp):
+    def execute(self, lpar_wrap):
         LOG.info(_LI('Creating Config Drive for instance: %s') %
                  self.instance.name)
-        lpar = pvm_lpar.LogicalPartition(lpar_crt_resp.entry)
         media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid,
                                                  self.vios_uuid)
         vscsi_map = media_builder.create_cfg_drv_vopt(self.instance,
                                                       self.injected_files,
                                                       self.network_info,
-                                                      lpar.uuid,
+                                                      lpar_wrap.uuid,
                                                       admin_pass=self.ad_pass)
         return vscsi_map
 
@@ -230,40 +173,82 @@ class ConnectCfgDrive(task.Task):
                                cfg_drv_vscsi_map._element)
 
 
-class PowerOnVM(task.Task):
-    """The task to power on the instance."""
+class DeleteVOpt(task.Task):
+    """The task to delete the virtual optical."""
 
-    def __init__(self, adapter, host_uuid, instance):
-        """Create the Task for the power on of the LPAR.
+    def __init__(self, adapter, host_uuid, vios_uuid, instance, lpar_uuid):
+        """Creates the Task to delete the instances virtual optical media.
 
-        Obtains LPAR info through requirement of lpar_crt_resp (provided by
-        tf_crt_lpar).
-
-        :param adapter: The pypowervm adapter.
-        :param host_uuid: The host UUID.
+        :param adapter: The adapter for the pypowervm API
+        :param host_uuid: The host UUID of the system.
+        :param vios_uuid: The VIOS UUID the media is being deleted from.
         :param instance: The nova instance.
+        :param lpar_uuid: The UUID of the lpar that has media.
         """
-        super(PowerOnVM, self).__init__(name='pwr_lpar',
-                                        requires=['lpar_crt_resp'])
+        super(DeleteVOpt, self).__init__(name='vopt_delete')
         self.adapter = adapter
         self.host_uuid = host_uuid
+        self.vios_uuid = vios_uuid
+        self.instance = instance
+        self.lpar_uuid = lpar_uuid
+
+    def execute(self):
+        LOG.info(_LI('Deleting Virtual Optical Media for instance %s')
+                 % self.instance.name)
+        media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid,
+                                                 self.vios_uuid)
+        media_builder.dlt_vopt(self.lpar_uuid)
+
+
+class Detach(task.Task):
+    """The task to detach the storage from the instance."""
+
+    def __init__(self, block_dvr, context, instance, lpar_uuid):
+        """Creates the Task to detach the storage adapters.
+
+        Provides the stor_adpt_mappings.  A list of pypowervm
+        VirtualSCSIMappings or VirtualFCMappings (depending on the storage
+        adapter).
+
+        :param block_dvr: The StorageAdapter for the VM.
+        :param context: The nova context.
+        :param instance: The nova instance.
+        :param lpar_uuid: The UUID of the lpar..
+        """
+        super(Detach, self).__init__(name='detach_storage',
+                                     provides='stor_adpt_mappings')
+        self.block_dvr = block_dvr
+        self.context = context
+        self.instance = instance
+        self.lpar_uuid = lpar_uuid
+
+    def execute(self):
+        LOG.info(_LI('Detaching disk storage adapters for instance %s')
+                 % self.instance.name)
+        return self.block_dvr.disconnect_image_volume(self.context,
+                                                      self.instance,
+                                                      self.lpar_uuid)
+
+
+class Delete(task.Task):
+    """The task to delete the backing storage."""
+
+    def __init__(self, block_dvr, context, instance):
+        """Creates the Task to delete the storage from the system.
+
+        Requires the stor_adpt_mappings.
+
+        :param block_dvr: The StorageAdapter for the VM.
+        :param context: The nova context.
+        :param instance: The nova instance.
+        """
+        req = ['stor_adpt_mappings']
+        super(Delete, self).__init__(name='dlt_storage', requires=req)
+        self.block_dvr = block_dvr
+        self.context = context
         self.instance = instance
 
-    def execute(self, lpar_crt_resp):
-        LOG.info(_LI('Powering on instance: %s') % self.instance.name)
-        power.power_on(self.adapter,
-                       pvm_lpar.LogicalPartition(lpar_crt_resp.entry),
-                       self.host_uuid)
-
-    def revert(self, lpar_crt_resp, result, flow_failures):
-        LOG.info(_LI('Powering off instance: %s') % self.instance.name)
-
-        if isinstance(result, task_fail.Failure):
-            # The power on itself failed...can't power off.
-            LOG.debug('Power on failed.  Not performing power off.')
-            return
-
-        power.power_off(self.adapter,
-                        pvm_lpar.LogicalPartition(lpar_crt_resp.entry),
-                        self.host_uuid,
-                        force_immediate=True)
+    def execute(self, stor_adpt_mappings):
+        LOG.info(_LI('Deleting storage for instance %s.') % self.instance.name)
+        self.block_dvr.delete_volumes(self.context, self.instance,
+                                      stor_adpt_mappings)

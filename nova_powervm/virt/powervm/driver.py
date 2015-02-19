@@ -17,6 +17,7 @@
 from nova.compute import task_states
 from nova import context as ctx
 from nova import exception
+from nova import image
 from nova.i18n import _LI, _
 from nova.objects import flavor as flavor_obj
 from nova.virt import configdrive
@@ -35,10 +36,11 @@ from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import managed_system as msentry_wrapper
 
+from nova_powervm.virt.powervm.disk import blockdev
 from nova_powervm.virt.powervm.disk import localdisk as blk_lcl
 from nova_powervm.virt.powervm import host as pvm_host
-from nova_powervm.virt.powervm.tasks import destroy as tf_destroy
-from nova_powervm.virt.powervm.tasks import spawn as tf_spawn
+from nova_powervm.virt.powervm.tasks import storage as tf_stg
+from nova_powervm.virt.powervm.tasks import vm as tf_vm
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
@@ -67,6 +69,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_vios_uuid()
         # Initialize the disk adapter
         self._get_blockdev_driver()
+        self.image_api = image.API()
         LOG.info(_LI("The compute driver has been initialized."))
 
     def _get_adapter(self):
@@ -167,25 +170,25 @@ class PowerVMDriver(driver.ComputeDriver):
         flow = lf.Flow("spawn")
 
         # Create the LPAR
-        flow.add(tf_spawn.CreateVM(self.adapter, self.host_uuid, instance,
-                                   flavor))
+        flow.add(tf_vm.Create(self.adapter, self.host_uuid, instance,
+                              flavor))
 
         # Creates the boot image.
-        flow.add(tf_spawn.CreateVolumeForImg(self.block_dvr, context,
-                                             instance, image_meta,
-                                             block_device_info, flavor))
+        flow.add(tf_stg.CreateVolumeForImg(
+            self.block_dvr, context, instance, image_meta,
+            disk_size=flavor.root_gb))
 
         # Connects up the volume to the LPAR
-        flow.add(tf_spawn.ConnectVol(self.block_dvr, context, instance))
+        flow.add(tf_stg.ConnectVol(self.block_dvr, context, instance))
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
-            flow.add(tf_spawn.CreateCfgDrive(self.adapter, self.host_uuid,
-                                             self.vios_uuid, instance,
-                                             injected_files, network_info,
-                                             admin_password))
-            flow.add(tf_spawn.ConnectCfgDrive(self.adapter, instance,
-                                              self.vios_uuid, CONF.vios_name))
+            flow.add(tf_stg.CreateCfgDrive(self.adapter, self.host_uuid,
+                                           self.vios_uuid, instance,
+                                           injected_files, network_info,
+                                           admin_password))
+            flow.add(tf_stg.ConnectCfgDrive(self.adapter, instance,
+                                            self.vios_uuid, CONF.vios_name))
 
         # Plug the VIFs
         vif_plug_info = {'instance': instance, 'network_info': network_info}
@@ -195,7 +198,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # Last step is to power on the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
         # the prior step.
-        flow.add(tf_spawn.PowerOnVM(self.adapter, self.host_uuid, instance))
+        flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)
@@ -232,27 +235,26 @@ class PowerVMDriver(driver.ComputeDriver):
         flow = lf.Flow("destroy")
 
         # Power Off the LPAR
-        flow.add(tf_destroy.PowerOffVM(self.adapter, self.host_uuid,
-                                       pvm_inst_uuid, instance))
+        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
+                                pvm_inst_uuid, instance))
 
         # Delete the virtual optical
-        flow.add(tf_destroy.DeleteVOpt(self.adapter, self.host_uuid,
-                                       self.vios_uuid, instance,
-                                       pvm_inst_uuid))
+        flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid,
+                                   self.vios_uuid, instance,
+                                   pvm_inst_uuid))
 
         # Detach the storage adapters
-        flow.add(tf_destroy.DetachStorage(self.block_dvr, context,
-                                          instance, pvm_inst_uuid))
+        flow.add(
+            tf_stg.Detach(self.block_dvr, context, instance, pvm_inst_uuid))
 
         # Delete the storage devices
         if destroy_disks:
-            flow.add(tf_destroy.DeleteStorage(self.block_dvr, context,
-                                              instance))
+            flow.add(tf_stg.Delete(self.block_dvr, context, instance))
 
         # Last step is to delete the LPAR from the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
         # the prior step.
-        flow.add(tf_destroy.DeleteVM(self.adapter, pvm_inst_uuid, instance))
+        flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)
@@ -278,6 +280,56 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         self._log_operation('snapshot', instance)
         # TODO(IBM): Implement snapshot
+
+    def rescue(self, context, instance, network_info, image_meta,
+               rescue_password):
+        """Rescue the specified instance.
+
+        :param instance: nova.objects.instance.Instance
+        """
+        self._log_operation('rescue', instance)
+
+        # We need the image size, which isn't in the system meta data
+        # so get the all the info.
+        image_meta = self.image_api.get(context, image_meta['id'])
+
+        pvm_inst_uuid = vm.get_pvm_uuid(instance)
+        # Define the flow
+        flow = lf.Flow("rescue")
+
+        # Get the LPAR Wrapper
+        flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
+
+        # Power Off the LPAR
+        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
+                                pvm_inst_uuid, instance))
+
+        # Creates the boot image.
+        flow.add(tf_stg.CreateVolumeForImg(
+            self.block_dvr, context, instance, image_meta,
+            image_type=blockdev.RESCUE_DISK))
+
+        # Connects up the volume to the LPAR
+        flow.add(tf_stg.ConnectVol(self.block_dvr, context, instance))
+
+        # Last step is to power on the system.
+        # TODO(IBM): Currently, sending the bootmode=sms options causes
+        # the poweron job to fail.  Bypass it for now.  The VM can be
+        # powered on manually to sms.
+        # flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid,
+        #                       instance, pwr_opts=dict(bootmode='sms')))
+
+        # Build the engine & run!
+        engine = taskflow.engines.load(flow)
+        engine.run()
+
+    def unrescue(self, instance, network_info):
+        """Unrescue the specified instance.
+
+        :param instance: nova.objects.instance.Instance
+        """
+        # TODO(IBM) Implement next...
+        raise NotImplementedError()
 
     def power_off(self, instance, timeout=0, retry_interval=0):
         """Power off the specified instance.
