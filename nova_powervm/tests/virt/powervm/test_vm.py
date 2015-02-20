@@ -27,6 +27,7 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.tests.wrappers.util import pvmhttp
 
 from nova_powervm.tests.virt import powervm
+from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import vm
 
 LPAR_HTTPRESP_FILE = "lpar.txt"
@@ -55,9 +56,11 @@ class TestVM(test.TestCase):
 
         self.resp = lpar_http.response
 
-    @mock.patch('pypowervm.adapter.Adapter')
-    def test_uuid_cache(self, mock_adr):
-        cache = vm.UUIDCache(mock_adr)
+        self.pypvm = self.useFixture(fx.PyPowerVM())
+        self.apt = self.pypvm.apt
+
+    def test_uuid_cache(self):
+        cache = vm.UUIDCache(self.apt)
         cache.add('n1', '123')
         self.assertEqual(cache.lookup('n1'), '123')
 
@@ -75,42 +78,41 @@ class TestVM(test.TestCase):
             self.assertEqual(cache.lookup(lpar), LPAR_MAPPING[lpar].upper())
 
         # Test fetching. Start with a fresh cache and try to look it up
-        cache = vm.UUIDCache(mock_adr)
+        cache = vm.UUIDCache(self.apt)
 
         def return_response(*args, **kwds):
             return self.resp
 
-        mock_adr.read.side_effect = return_response
+        self.apt.read.side_effect = return_response
         self.assertEqual(cache.lookup('z3-9-5-126-127-00000001'),
                          '089ffb20-5d19-4a8c-bb80-13650627d985'.upper())
         # Test it returns None even when we try to look it up
         self.assertEqual(cache.lookup('NoneExistant'), None)
 
         exc = pvm_exc.Error('Not found', response=FakeAdapterResponse(404))
-        mock_adr.read.side_effect = exc
+        self.apt.read.side_effect = exc
         self.assertRaises(exception.InstanceNotFound,
                           cache.lookup, 'NoneExistant')
 
-    @mock.patch('pypowervm.adapter.Adapter')
-    def test_instance_info(self, mock_adr):
+    def test_instance_info(self):
 
         # Test at least one state translation
         self.assertEqual(vm._translate_vm_state('running'),
                          power_state.RUNNING)
 
-        inst_info = vm.InstanceInfo(mock_adr, 'inst_name', '1234')
+        inst_info = vm.InstanceInfo(self.apt, 'inst_name', '1234')
         # Test the static properties
         self.assertEqual(inst_info.id, '1234')
         self.assertEqual(inst_info.cpu_time_ns, 0)
 
         # Check that we raise an exception if the instance is gone.
         exc = pvm_exc.Error('Not found', response=FakeAdapterResponse(404))
-        mock_adr.read.side_effect = exc
+        self.apt.read.side_effect = exc
         self.assertRaises(exception.InstanceNotFound,
                           inst_info.__getattribute__, 'state')
 
         # Reset the test inst_info
-        inst_info = vm.InstanceInfo(mock_adr, 'inst_name', '1234')
+        inst_info = vm.InstanceInfo(self.apt, 'inst_name', '1234')
 
         class FakeResp2(object):
             def __init__(self, body):
@@ -121,56 +123,52 @@ class TestVM(test.TestCase):
         def return_resp(*args, **kwds):
             return resp
 
-        mock_adr.read.side_effect = return_resp
+        self.apt.read.side_effect = return_resp
         self.assertEqual(inst_info.state, power_state.RUNNING)
 
         # Check the __eq__ method
-        inst_info1 = vm.InstanceInfo(mock_adr, 'inst_name', '1234')
-        inst_info2 = vm.InstanceInfo(mock_adr, 'inst_name', '1234')
+        inst_info1 = vm.InstanceInfo(self.apt, 'inst_name', '1234')
+        inst_info2 = vm.InstanceInfo(self.apt, 'inst_name', '1234')
         self.assertEqual(inst_info1, inst_info2)
-        inst_info2 = vm.InstanceInfo(mock_adr, 'name', '4321')
+        inst_info2 = vm.InstanceInfo(self.apt, 'name', '4321')
         self.assertNotEqual(inst_info1, inst_info2)
 
-    @mock.patch('pypowervm.adapter.Adapter')
-    def test_get_lpar_feed(self, mock_adr):
-        mock_adr.read.return_value = self.resp
-        feed = vm.get_lpar_feed(mock_adr, 'host_uuid')
+    def test_get_lpar_feed(self):
+        self.apt.read.return_value = self.resp
+        feed = vm.get_lpar_feed(self.apt, 'host_uuid')
         self.assertEqual(feed, self.resp.feed)
 
         exc = pvm_exc.Error('Not found', response=FakeAdapterResponse(404))
-        mock_adr.read.side_effect = exc
-        feed = vm.get_lpar_feed(mock_adr, 'host_uuid')
+        self.apt.read.side_effect = exc
+        feed = vm.get_lpar_feed(self.apt, 'host_uuid')
         self.assertEqual(feed, None)
 
-    @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('nova_powervm.virt.powervm.vm.get_lpar_feed')
-    def test_get_lpar_list(self, mock_feed, mock_adr):
+    def test_get_lpar_list(self, mock_feed):
         mock_feed.return_value = self.resp.feed
-        lpar_list = vm.get_lpar_list(mock_adr, 'host_uuid')
+        lpar_list = vm.get_lpar_list(self.apt, 'host_uuid')
         # Check the first one in the feed and the length of the feed
         self.assertEqual(lpar_list[0], 'z3-9-5-126-127-00000001')
         self.assertEqual(len(lpar_list), 21)
 
-    @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('pypowervm.jobs.vterm.close_vterm')
-    def test_dlt_lpar(self, mock_vterm, mock_adpt):
+    def test_dlt_lpar(self, mock_vterm):
         """Performs a delete LPAR test."""
-        vm.dlt_lpar(mock_adpt, '12345')
-        self.assertEqual(1, mock_adpt.delete.call_count)
+        vm.dlt_lpar(self.apt, '12345')
+        self.assertEqual(1, self.apt.delete.call_count)
         # test failure due to open vterm
-        mock_adpt.delete.side_effect = pvm_exc.JobRequestFailed(
+        self.apt.delete.side_effect = pvm_exc.JobRequestFailed(
             error='delete', operation_name='HSCL151B')
         # If failed due to vterm test close_vterm and delete are called
-        mock_adpt.reset_mock()
+        self.apt.reset_mock()
         self.assertRaises(pvm_exc.JobRequestFailed,
-                          vm.dlt_lpar, mock_adpt, '12345')
+                          vm.dlt_lpar, self.apt, '12345')
         self.assertEqual(1, mock_vterm.call_count)
-        self.assertEqual(2, mock_adpt.delete.call_count)
+        self.assertEqual(2, self.apt.delete.call_count)
 
-    @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('pypowervm.wrappers.logical_partition.crt_shared_procs')
     @mock.patch('pypowervm.wrappers.logical_partition.crt_lpar')
-    def test_crt_lpar(self, mock_crt_lpar, mock_crt_sp, mock_adr):
+    def test_crt_lpar(self, mock_crt_lpar, mock_crt_sp):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
 
@@ -200,8 +198,8 @@ class TestVM(test.TestCase):
             self.assertEqual('64', kwargs.get('max_io_slots'))
         mock_crt_lpar.side_effect = validate_of_create_lpar
 
-        vm.crt_lpar(mock_adr, 'host_uuid', instance, flavor)
-        self.assertTrue(mock_adr.create.called)
+        vm.crt_lpar(self.apt, 'host_uuid', instance, flavor)
+        self.assertTrue(self.apt.create.called)
         self.assertTrue(mock_crt_sp.called)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
