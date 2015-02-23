@@ -15,7 +15,6 @@
 #    under the License.
 
 from nova.i18n import _LI
-from nova.openstack.common import log as logging
 from pypowervm.jobs import power
 from pypowervm.wrappers import logical_partition as lpar_w
 
@@ -23,6 +22,8 @@ from taskflow import task
 
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import vm
+
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 

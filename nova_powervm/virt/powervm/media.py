@@ -18,11 +18,11 @@ import abc
 from nova.api.metadata import base as instance_metadata
 from nova.i18n import _LE
 from nova.i18n import _LI
-from nova.openstack.common import log as logging
 from nova.virt import configdrive
 import os
 
 from oslo.config import cfg
+from oslo_log import log as logging
 
 from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import constants as pvmc

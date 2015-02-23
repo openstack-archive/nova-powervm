@@ -18,9 +18,9 @@ import math
 from nova.compute import arch
 from nova.compute import hv_type
 from nova.compute import vm_mode
-from nova.openstack.common import log as logging
 
 from oslo.serialization import jsonutils
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 

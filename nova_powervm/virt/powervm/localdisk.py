@@ -19,12 +19,12 @@ import abc
 
 from oslo.config import cfg
 from oslo.utils import units
+from oslo_log import log as logging
 import six
 
 from nova import exception as nova_exc
 from nova import image
 from nova.i18n import _LI, _LE
-from nova.openstack.common import log as logging
 from pypowervm import exceptions as pvm_exc
 from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import constants as pvm_consts

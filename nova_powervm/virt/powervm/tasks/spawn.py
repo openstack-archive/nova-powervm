@@ -16,10 +16,10 @@
 
 from nova.i18n import _LI
 from nova.i18n import _LW
-from nova.openstack.common import log as logging
 from pypowervm.jobs import power
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
+from oslo_log import log as logging
 from taskflow import task
 from taskflow.types import failure as task_fail
 

@@ -15,9 +15,10 @@
 #    under the License.
 
 
-from nova.openstack.common import log as logging
 from nova.virt import driver
 from nova.virt import fake
+
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 

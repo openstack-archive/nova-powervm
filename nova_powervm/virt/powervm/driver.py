@@ -19,12 +19,12 @@ from nova import context as ctx
 from nova import exception
 from nova.i18n import _LI, _
 from nova.objects import flavor as flavor_obj
-from nova.openstack.common import log as logging
 from nova.virt import configdrive
 from nova.virt import driver
 import time
 
 from oslo.config import cfg
+from oslo_log import log as logging
 import taskflow.engines
 from taskflow.patterns import linear_flow as lf
 

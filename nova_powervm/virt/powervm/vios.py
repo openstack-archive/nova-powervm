@@ -17,10 +17,10 @@
 import abc
 
 from oslo.config import cfg
+from oslo_log import log as logging
 import six
 
 from nova.i18n import _LE
-from nova.openstack.common import log as logging
 from pypowervm import exceptions as pvm_exc
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import logical_partition as pvm_lpar

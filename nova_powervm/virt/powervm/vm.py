@@ -15,11 +15,11 @@
 #    under the License.
 
 from oslo.config import cfg
+from oslo_log import log as logging
 
 from nova.compute import power_state
 from nova import exception
 from nova.i18n import _LI, _LE
-from nova.openstack.common import log as logging
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
 from pypowervm.jobs import cna
