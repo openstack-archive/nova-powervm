@@ -26,7 +26,7 @@ from pypowervm.wrappers import virtual_io_server as vios_w
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
-from nova_powervm.virt.powervm import localdisk as ld
+from nova_powervm.virt.powervm.disk import localdisk as ld
 
 
 VOL_GRP_WITH_VIOS = 'fake_volume_group_with_vio_data.txt'
@@ -41,7 +41,7 @@ class TestLocalDisk(test.TestCase):
 
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(data_dir, 'data')
+        data_dir = os.path.join(data_dir, "..", 'data')
 
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)
@@ -60,11 +60,12 @@ class TestLocalDisk(test.TestCase):
         return local
 
     @mock.patch('pypowervm.jobs.upload_lv.upload_new_vdisk')
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_disk_name')
-    @mock.patch('nova_powervm.virt.powervm.localdisk.IterableToFileAdapter')
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.'
+                'IterableToFileAdapter')
     @mock.patch('nova.image.API')
     def test_create_volume_from_image(self, mock_img_api, mock_file_adpt,
                                       mock_get_dname, mock_vg_uuid,
@@ -80,9 +81,9 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual('fake_vol', vol_name.get('device_name'))
 
     @mock.patch('pypowervm.wrappers.storage.VolumeGroup')
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg')
     def test_capacity(self, mock_get_vg, mock_vg_uuid, mock_vg):
         """Tests the capacity methods."""
@@ -98,7 +99,7 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual(5120.0, local.capacity)
         self.assertEqual(3072.0, local.capacity_used)
 
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     def test_disconnect_image_volume(self, mock_vg_uuid):
         """Tests the disconnect_image_volume method."""
@@ -121,7 +122,7 @@ class TestLocalDisk(test.TestCase):
         local.disconnect_image_volume(mock.MagicMock(), mock.MagicMock(), '2')
         self.assertEqual(1, self.apt.update.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     def test_delete_volumes(self, mock_vg_uuid):
         # Mocks
@@ -140,9 +141,9 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual(1, self.apt.update.call_count)
 
     @mock.patch('pypowervm.wrappers.storage.VolumeGroup')
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage.'
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_disk_name')
     def test_extend_volume(self, mock_dsk_name, mock_vg_uuid, mock_vg):
         local = self.get_ls(self.apt)

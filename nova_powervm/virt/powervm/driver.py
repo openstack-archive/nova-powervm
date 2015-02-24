@@ -35,8 +35,8 @@ from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import managed_system as msentry_wrapper
 
+from nova_powervm.virt.powervm.disk import localdisk as blk_lcl
 from nova_powervm.virt.powervm import host as pvm_host
-from nova_powervm.virt.powervm import localdisk as blk_lcl
 from nova_powervm.virt.powervm.tasks import destroy as tf_destroy
 from nova_powervm.virt.powervm.tasks import spawn as tf_spawn
 from nova_powervm.virt.powervm import vios

@@ -31,7 +31,7 @@ from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import storage as pvm_st
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.virt.powervm import blockdev
+from nova_powervm.virt.powervm.disk import blockdev
 from nova_powervm.virt.powervm import vios
 
 localdisk_opts = [

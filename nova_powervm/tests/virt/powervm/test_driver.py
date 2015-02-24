@@ -70,7 +70,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertIsNotNone(test_drv)
 
     @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage')
     def test_driver_init(self, mock_disk, mock_find):
         """Validates the PowerVM driver can be initialized for the host."""
         drv = driver.PowerVMDriver(fake.FakeVirtAPI())

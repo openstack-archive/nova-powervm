@@ -48,7 +48,7 @@ class PowerVMComputeDriver(fixtures.Fixture):
     def __init__(self):
         pass
 
-    @mock.patch('nova_powervm.virt.powervm.localdisk.LocalStorage')
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage')
     @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     def _init_host(self, *args):
         self.drv.init_host('FakeHost')
