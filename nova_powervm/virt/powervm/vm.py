@@ -25,9 +25,9 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.jobs import cna
 from pypowervm.jobs import power
 from pypowervm.jobs import vterm
-from pypowervm.wrappers import client_network_adapter as pvm_cna
 from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import logical_partition as pvm_lpar
+from pypowervm.wrappers import network as pvm_net
 
 import six
 
@@ -366,8 +366,8 @@ def get_cnas(adapter, instance, host_uuid):
     """
     cna_resp = adapter.read(pvm_lpar.LPAR_ROOT,
                             root_id=get_pvm_uuid(instance),
-                            child_type=pvm_cna.VADPT_ROOT)
-    return pvm_cna.ClientNetworkAdapter.load_from_response(cna_resp)
+                            child_type=pvm_net.VADPT_ROOT)
+    return pvm_net.CNA.load_from_response(cna_resp)
 
 
 def crt_vif(adapter, instance, host_uuid, vif):
