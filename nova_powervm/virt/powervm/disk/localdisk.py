@@ -117,8 +117,6 @@ class LocalStorage(blockdev.StorageAdapter):
         return (float(vg_wrap.capacity) - float(vg_wrap.available_size))
 
     def delete_volumes(self, context, instance, mappings):
-        LOG.info('Deleting local volumes for instance %s'
-                 % instance.name)
         # All of local disk is done against the volume group.  So reload
         # that (to get new etag) and then do an update against it.
         vg_wrap = self._get_vg_wrap()
@@ -139,6 +137,8 @@ class LocalStorage(blockdev.StorageAdapter):
         # storage that resides in the scsi map from the volume group
         existing_vds = vg_wrap.virtual_disks
         for removal in removals:
+            LOG.info(_LI('Deleting volume: %s') % removal.name,
+                     instance=instance)
             existing_vds.remove(removal)
 
         # Now update the volume group to remove the storage.
@@ -146,9 +146,7 @@ class LocalStorage(blockdev.StorageAdapter):
                             self.vios_uuid, child_type=pvm_st.VG_ROOT,
                             child_id=self.vg_uuid)
 
-    def disconnect_image_volume(self, context, instance, lpar_uuid):
-        LOG.info('Disconnecting ephemeral local volume from instance %s'
-                 % instance.name)
+    def disconnect_volume(self, context, instance, lpar_uuid, disk_type=None):
         # Quick read the VIOS, using specific extended attribute group
         vios_resp = self.adapter.read(pvm_vios.VIO_ROOT, self.vios_uuid,
                                       xag=[pvm_vios.XAG_VIOS_SCSI_MAPPING])
@@ -158,7 +156,20 @@ class LocalStorage(blockdev.StorageAdapter):
         existing_vios_mappings = vios_w.scsi_mappings
         existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid,
                                                 vios_w, pvm_st.VirtualDisk)
-        for scsi_map in existing_maps:
+        # If disks were specified, only remove those.
+        if disk_type:
+            # Get the list of disk names
+            disks = [self._get_disk_name(dt, instance) for dt in disk_type]
+            # Build the lists of disk maps from the disk names
+            disk_maps = [scsi_map for scsi_map in existing_maps
+                         if scsi_map.backing_storage.name in disks]
+        else:
+            # Otherwise, remove them all
+            disk_maps = existing_maps
+        # Remove each map
+        for scsi_map in disk_maps:
+            LOG.info(_LI('Disconnecting volume: %s')
+                     % scsi_map.backing_storage.name, instance=instance)
             existing_vios_mappings.remove(scsi_map)
 
         # Update the VIOS
@@ -166,7 +177,7 @@ class LocalStorage(blockdev.StorageAdapter):
                             vios_w.uuid, xag=[pvm_vios.XAG_VIOS_SCSI_MAPPING])
 
         # Return the mappings that we just removed.
-        return existing_maps
+        return disk_maps
 
     def create_volume_from_image(self, context, instance, image, disk_size,
                                  image_type=blockdev.BOOT_DISK):
@@ -249,8 +260,8 @@ class LocalStorage(blockdev.StorageAdapter):
             LOG.exception()
             raise
 
-    def _get_disk_name(self, type_, instance):
-        return type_[:6] + '_' + instance.uuid[:8]
+    def _get_disk_name(self, disk_type, instance):
+        return disk_type[:6] + '_' + instance.uuid[:8]
 
     def _get_vg_uuid(self, adapter, vios_uuid, name):
         try:

@@ -268,9 +268,6 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the PowerVM driver rescue operation."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
-        # my_flavor = inst.get_flavor()
-        # mock_get_flv.return_value = my_flavor
-
         self.drv.block_dvr = mock.Mock()
 
         # Invoke the method.
@@ -282,6 +279,26 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(self.drv.block_dvr.connect_volume.called)
         # TODO(IBM): Power on not called until bootmode=sms is supported
         # self.assertTrue(mock_task_pwr.power_on.called)
+
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.driver.vm')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.power')
+    def test_unrescue(self, mock_task_pwr, mock_task_vm,
+                      mock_dvr_vm, mock_get_flv):
+
+        """Validates the PowerVM driver rescue operation."""
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        self.drv.block_dvr = mock.Mock()
+
+        # Invoke the method.
+        self.drv.unrescue(inst, 'network_info')
+
+        self.assertTrue(mock_task_vm.power_off.called)
+        self.assertTrue(self.drv.block_dvr.disconnect_volume.called)
+        self.assertTrue(self.drv.block_dvr.delete_volumes.called)
+        self.assertTrue(mock_task_pwr.power_on.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):

@@ -48,13 +48,15 @@ class StorageAdapter(object):
         """
         return 0
 
-    def disconnect_image_volume(self, context, instance, lpar_uuid):
-        """Disconnects the storage adapters from the image volume.
+    def disconnect_volume(self, context, instance, lpar_uuid, disk_type=None):
+        """Disconnects the storage adapters from the volume.
 
         :param context: nova context for operation
         :param context: nova context for operation
         :param instance: instance to delete the image for.
         :param lpar_uuid: The UUID for the pypowervm LPAR element.
+        :param disk_type: The list of disk types to remove or None which means
+            to remove all disks from the VM.
         :return: A list of Mappings (either pypowervm VirtualSCSIMappings or
                  VirtualFCMappings)
         """
@@ -68,7 +70,7 @@ class StorageAdapter(object):
         :param mappings: The mappings that had been used to identify the
                          backing storage.  List of pypowervm
                          VirtualSCSIMappings or VirtualFCMappings.
-                         Typically derived from disconnect_image_volume.
+                         Typically derived from disconnect_volume.
         """
         pass
 

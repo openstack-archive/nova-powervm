@@ -328,8 +328,35 @@ class PowerVMDriver(driver.ComputeDriver):
 
         :param instance: nova.objects.instance.Instance
         """
-        # TODO(IBM) Implement next...
-        raise NotImplementedError()
+        self._log_operation('unrescue', instance)
+
+        pvm_inst_uuid = vm.get_pvm_uuid(instance)
+        context = ctx.get_admin_context()
+
+        # Define the flow
+        flow = lf.Flow("unrescue")
+
+        # Get the LPAR Wrapper
+        flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
+
+        # Power Off the LPAR
+        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
+                                pvm_inst_uuid, instance))
+
+        # Detach the storage adapter for the rescue image
+        flow.add(tf_stg.Detach(self.block_dvr, context, instance,
+                               pvm_inst_uuid,
+                               disk_type=[blockdev.RESCUE_DISK]))
+
+        # Delete the storage devices for the rescue image
+        flow.add(tf_stg.Delete(self.block_dvr, context, instance))
+
+        # Last step is to power on the system.
+        flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
+
+        # Build the engine & run!
+        engine = taskflow.engines.load(flow)
+        engine.run()
 
     def power_off(self, instance, timeout=0, retry_interval=0):
         """Power off the specified instance.

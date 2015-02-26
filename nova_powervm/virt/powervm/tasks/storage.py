@@ -203,7 +203,8 @@ class DeleteVOpt(task.Task):
 class Detach(task.Task):
     """The task to detach the storage from the instance."""
 
-    def __init__(self, block_dvr, context, instance, lpar_uuid):
+    def __init__(self, block_dvr, context, instance, lpar_uuid,
+                 disk_type=None):
         """Creates the Task to detach the storage adapters.
 
         Provides the stor_adpt_mappings.  A list of pypowervm
@@ -213,7 +214,8 @@ class Detach(task.Task):
         :param block_dvr: The StorageAdapter for the VM.
         :param context: The nova context.
         :param instance: The nova instance.
-        :param lpar_uuid: The UUID of the lpar..
+        :param lpar_uuid: The UUID of the lpar.
+        :param disk_type: List of disk types to detach. None means deatch all.
         """
         super(Detach, self).__init__(name='detach_storage',
                                      provides='stor_adpt_mappings')
@@ -221,13 +223,14 @@ class Detach(task.Task):
         self.context = context
         self.instance = instance
         self.lpar_uuid = lpar_uuid
+        self.disk_type = disk_type
 
     def execute(self):
         LOG.info(_LI('Detaching disk storage adapters for instance %s')
                  % self.instance.name)
-        return self.block_dvr.disconnect_image_volume(self.context,
-                                                      self.instance,
-                                                      self.lpar_uuid)
+        return self.block_dvr.disconnect_volume(self.context, self.instance,
+                                                self.lpar_uuid,
+                                                disk_type=self.disk_type)
 
 
 class Delete(task.Task):

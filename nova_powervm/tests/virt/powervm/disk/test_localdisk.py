@@ -26,6 +26,7 @@ from pypowervm.wrappers import virtual_io_server as vios_w
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
+from nova_powervm.virt.powervm.disk import blockdev
 from nova_powervm.virt.powervm.disk import localdisk as ld
 
 
@@ -101,8 +102,8 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
-    def test_disconnect_image_volume(self, mock_vg_uuid):
-        """Tests the disconnect_image_volume method."""
+    def test_disconnect_volume(self, mock_vg_uuid):
+        """Tests the disconnect_volume method."""
 
         # Set up the mock data.
         resp = mock.MagicMock(name='resp')
@@ -119,7 +120,31 @@ class TestLocalDisk(test.TestCase):
         self.apt.update.side_effect = validate_update
 
         local = self.get_ls(self.apt)
-        local.disconnect_image_volume(mock.MagicMock(), mock.MagicMock(), '2')
+        local.disconnect_volume(mock.MagicMock(), mock.MagicMock(), '2')
+        self.assertEqual(1, self.apt.update.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
+                '_get_vg_uuid')
+    def test_disconnect_volume_disktype(self, mock_vg_uuid):
+        """Tests the disconnect_volume method."""
+
+        # Set up the mock data.
+        resp = mock.MagicMock(name='resp')
+        type(resp).body = mock.PropertyMock(return_value='2')
+        mock_vg_uuid.return_value = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
+
+        self.apt.read.side_effect = [self.vio_to_vg, resp]
+
+        def validate_update(*kargs, **kwargs):
+            # No mappings will be removed since the names don't match
+            self.assertEqual([vios_w.XAG_VIOS_SCSI_MAPPING], kwargs['xag'])
+            vio = vios_w.VirtualIOServer(adpt.Entry({}, kargs[0]))
+            self.assertEqual(2, len(vio.scsi_mappings))
+        self.apt.update.side_effect = validate_update
+
+        local = self.get_ls(self.apt)
+        local.disconnect_volume(mock.MagicMock(), mock.MagicMock(), '2',
+                                disk_type=blockdev.BOOT_DISK)
         self.assertEqual(1, self.apt.update.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
