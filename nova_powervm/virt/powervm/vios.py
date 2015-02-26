@@ -23,6 +23,7 @@ import six
 from nova.i18n import _LE
 from pypowervm import exceptions as pvm_exc
 from pypowervm.wrappers import logical_partition as pvm_lpar
+from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 vios_opts = [
@@ -83,6 +84,17 @@ def get_vios_entry(adapter, vios_uuid, vios_name):
         raise
 
     return resp.entry, resp.headers['etag']
+
+
+def get_physical_wwpns(adapter, ms_uuid):
+    """Returns the WWPNs of the FC adapters across all VIOSes on system."""
+    resp = adapter.read(pvm_ms.System.schema_type, root_id=ms_uuid,
+                        child_type=pvm_vios.VIOS.schema_type)
+    vios_feed = pvm_vios.VIOS.wrap(resp)
+    wwpn_list = []
+    for vios in vios_feed:
+        wwpn_list.extend(vios.get_pfc_wwpns())
+    return wwpn_list
 
 
 def get_vscsi_mappings(adapter, lpar_uuid, vio_wrapper, mapping_type):

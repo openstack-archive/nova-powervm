@@ -65,7 +65,7 @@ class TestLocalDisk(test.TestCase):
                 '_get_vg_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_disk_name')
-    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.'
+    @mock.patch('nova_powervm.virt.powervm.disk.blockdev.'
                 'IterableToFileAdapter')
     @mock.patch('nova.image.API')
     def test_create_volume_from_image(self, mock_img_api, mock_file_adpt,

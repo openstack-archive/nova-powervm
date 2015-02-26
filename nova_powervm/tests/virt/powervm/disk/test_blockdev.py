@@ -1,0 +1,43 @@
+# Copyright 2015 IBM Corp.
+#
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+import mock
+
+from nova import test
+
+from nova_powervm.tests.virt.powervm import fixtures as fx
+from nova_powervm.virt.powervm.disk import blockdev
+
+
+class TestStorageAdapter(test.TestCase):
+    """Unit Tests for the generic storage driver."""
+
+    def setUp(self):
+        super(TestStorageAdapter, self).setUp()
+        self.useFixture(fx.ImageAPI())
+
+        self.st_adpt = blockdev.StorageAdapter(None)
+
+    def test_capacity(self):
+        """These are arbitrary capacity numbers."""
+        self.assertEqual(2097152, self.st_adpt.capacity)
+        self.assertEqual(0, self.st_adpt.capacity_used)
+
+    def test_get_image_upload(self):
+        # Test if there is an ID, that we get a file adapter back
+        img_meta = {'id': 'test_id'}
+        temp = self.st_adpt._get_image_upload(mock.Mock(), img_meta)
+        self.assertIsInstance(temp, blockdev.IterableToFileAdapter)

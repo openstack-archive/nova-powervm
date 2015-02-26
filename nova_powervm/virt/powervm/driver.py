@@ -69,6 +69,10 @@ class PowerVMDriver(driver.ComputeDriver):
         # Initialize the disk adapter
         self._get_blockdev_driver()
         self.image_api = image.API()
+
+        # Volume connector constants
+        self._pfc_wwpns = None
+
         LOG.info(_LI("The compute driver has been initialized."))
 
     def _get_adapter(self):
@@ -165,6 +169,8 @@ class PowerVMDriver(driver.ComputeDriver):
                 flavor_obj.Flavor.get_by_id(admin_ctx,
                                             instance.instance_type_id))
 
+        is_boot_from_volume = (image_meta.get('id') is None)
+
         # Define the flow
         flow = lf.Flow("spawn")
 
@@ -172,13 +178,15 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.Create(self.adapter, self.host_uuid, instance,
                               flavor))
 
-        # Creates the boot image.
-        flow.add(tf_stg.CreateVolumeForImg(
-            self.block_dvr, context, instance, image_meta,
-            disk_size=flavor.root_gb))
+        # Only add the image volume if there is an image ID.
+        if not is_boot_from_volume:
+            # Creates the boot image.
+            flow.add(tf_stg.CreateVolumeForImg(
+                self.block_dvr, context, instance, image_meta,
+                disk_size=flavor.root_gb))
 
-        # Connects up the volume to the LPAR
-        flow.add(tf_stg.ConnectVol(self.block_dvr, context, instance))
+            # Connects up the volume to the LPAR
+            flow.add(tf_stg.ConnectVol(self.block_dvr, context, instance))
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
@@ -472,8 +480,15 @@ class PowerVMDriver(driver.ComputeDriver):
             }
 
         """
-        # TODO(IBM): Implement.
-        return {}
+        # Check system data
+        if self._pfc_wwpns is None:
+            self._pfc_wwpns = vios.get_physical_wwpns(self.adapter,
+                                                      self.host_uuid)
+
+        connector = {'host': CONF.host}
+        if self._pfc_wwpns is not None:
+            connector["wwpns"] = self._pfc_wwpns
+        return connector
 
     def migrate_disk_and_power_off(self, context, instance, dest,
                                    flavor, network_info,

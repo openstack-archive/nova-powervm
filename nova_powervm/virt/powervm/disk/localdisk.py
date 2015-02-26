@@ -23,7 +23,6 @@ from oslo_log import log as logging
 import six
 
 from nova import exception as nova_exc
-from nova import image
 from nova.i18n import _LI, _LE
 from pypowervm import exceptions as pvm_exc
 from pypowervm.jobs import upload_lv
@@ -57,31 +56,6 @@ class VGNotFound(AbstractLocalStorageException):
                   ' for this operation.')
 
 
-class IterableToFileAdapter(object):
-    """A degenerate file-like so that an iterable could be read like a file.
-
-    As Glance client returns an iterable, but PowerVM requires a file,
-    this is the adapter between the two.
-
-    Taken from xenapi/image/apis.py
-    """
-
-    def __init__(self, iterable):
-        self.iterator = iterable.__iter__()
-        self.remaining_data = ''
-
-    def read(self, size):
-        chunk = self.remaining_data
-        try:
-            while not chunk:
-                chunk = self.iterator.next()
-        except StopIteration:
-            return ''
-        return_value = chunk[0:size]
-        self.remaining_data = chunk[size:]
-        return return_value
-
-
 class LocalStorage(blockdev.StorageAdapter):
     def __init__(self, connection):
         super(LocalStorage, self).__init__(connection)
@@ -92,7 +66,6 @@ class LocalStorage(blockdev.StorageAdapter):
         self.vg_name = CONF.volume_group_name
         self.vg_uuid = self._get_vg_uuid(self.adapter, self.vios_uuid,
                                          CONF.volume_group_name)
-        self.image_api = image.API()
         LOG.info(_LI('Local Storage driver initialized: '
                      'volume group: \'%s\'') % self.vg_name)
 
@@ -186,8 +159,7 @@ class LocalStorage(blockdev.StorageAdapter):
         LOG.info(_LI('Create volume.'))
 
         # Transfer the image
-        chunks = self.image_api.download(context, image['id'])
-        stream = IterableToFileAdapter(chunks)
+        stream = self._get_image_upload(context, image)
         vol_name = self._get_disk_name(image_type, instance)
 
         # Disk size to API is in bytes.  Input from method is in Gb
@@ -210,10 +182,12 @@ class LocalStorage(blockdev.StorageAdapter):
 
     def connect_volume(self, context, instance, volume_info, lpar_uuid,
                        **kwds):
-        vol_name = volume_info['device_name']
+        vol_name = volume_info.get('device_name')
+
         # Create the mapping structure
-        scsi_map = pvm_vios.crt_scsi_map_to_vdisk(self.adapter, self.host_uuid,
-                                                  lpar_uuid, vol_name)
+        scsi_map = pvm_vios.VSCSIMapping.bld_to_vdisk(self.adapter,
+                                                      self.host_uuid,
+                                                      lpar_uuid, vol_name)
         # Add the mapping to the VIOS
         vios.add_vscsi_mapping(self.adapter, self.vios_uuid, self.vios_name,
                                scsi_map)

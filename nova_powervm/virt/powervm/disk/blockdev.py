@@ -1,3 +1,4 @@
+# Copyright 2013 OpenStack Foundation
 # Copyright 2015 IBM Corp.
 #
 # All Rights Reserved.
@@ -18,8 +19,35 @@ import abc
 
 import six
 
+from nova import image
+
 BOOT_DISK = 'boot'
 RESCUE_DISK = 'rescue'
+
+
+class IterableToFileAdapter(object):
+    """A degenerate file-like so that an iterable could be read like a file.
+
+    As Glance client returns an iterable, but PowerVM requires a file,
+    this is the adapter between the two.
+
+    Taken from xenapi/image/apis.py
+    """
+
+    def __init__(self, iterable):
+        self.iterator = iterable.__iter__()
+        self.remaining_data = ''
+
+    def read(self, size):
+        chunk = self.remaining_data
+        try:
+            while not chunk:
+                chunk = self.iterator.next()
+        except StopIteration:
+            return ''
+        return_value = chunk[0:size]
+        self.remaining_data = chunk[size:]
+        return return_value
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -31,6 +59,7 @@ class StorageAdapter(object):
         :param connection: connection information for the underlying driver
         """
         self._connection = connection
+        self.image_api = image.API()
 
     @property
     def capacity(self):
@@ -48,8 +77,26 @@ class StorageAdapter(object):
         """
         return 0
 
-    def disconnect_volume(self, context, instance, lpar_uuid, disk_type=None):
-        """Disconnects the storage adapters from the volume.
+    def _get_image_upload(self, context, image_meta):
+        """Returns the stream that can be sent to pypowervm.
+
+        The pypowervm API requires a File be sent up for the image.  This
+        method will get the appropriate file adapter (IterableToFileAdapter)
+        built for the invoker.
+
+        Also handles the scenario where a disk is requested, but the boot
+        volume is via cinder.  In that case, a stream is still returned.  But
+        it consists of zero bytes.
+
+        :param context: User context
+        :param image_meta: The image metadata.
+        :return: The stream to send to pypowervm.
+        """
+        chunks = self.image_api.download(context, image_meta['id'])
+        return IterableToFileAdapter(chunks)
+
+    def disconnect_image_volume(self, context, instance, lpar_uuid):
+        """Disconnects the storage adapters from the image volume.
 
         :param context: nova context for operation
         :param context: nova context for operation

@@ -42,6 +42,20 @@ class PyPowerVM(fixtures.Fixture):
         self.addCleanup(self._apt_patcher.stop)
 
 
+class ImageAPI(fixtures.Fixture):
+    """Mock out the Glance API."""
+
+    def __init__(self):
+        pass
+
+    def setUp(self):
+        super(ImageAPI, self).setUp()
+        self._img_api_patcher = mock.patch('nova.image.API')
+        self.img_api = self._img_api_patcher.start()
+
+        self.addCleanup(self.img_api)
+
+
 class PowerVMComputeDriver(fixtures.Fixture):
     """Construct a fake compute driver."""
 
