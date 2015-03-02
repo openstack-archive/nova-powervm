@@ -18,10 +18,8 @@ import mock
 
 from nova import test
 import os
-from pypowervm import adapter as adpt
 from pypowervm.tests.wrappers.util import pvmhttp
-from pypowervm.wrappers import storage as st_w
-from pypowervm.wrappers import virtual_io_server as vios_w
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import media as m
@@ -82,7 +80,8 @@ class TestConfigDrivePowerVM(test.TestCase):
     @mock.patch('os.remove')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_upload_lv')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.crt_scsi_map_to_vopt')
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
+                'bld_to_vopt')
     def test_crt_cfg_drv_vopt(self, mock_vio_w, mock_upld, mock_rm,
                               mock_size, mock_validate, mock_cfg_iso):
         # Mock Returns
@@ -128,14 +127,15 @@ class TestConfigDrivePowerVM(test.TestCase):
             if kwargs.get('child_type') is not None:
                 # This is the VG update.  Make sure there are no optical medias
                 # anymore.
-                vg = st_w.VolumeGroup(adpt.Entry({}, kargs[0]))
+                vg = kargs[0]
                 self.assertEqual(0, len(vg.vmedia_repos[0].optical_media))
             elif kwargs.get('xag') is not None:
                 # This is the VIOS call.  Make sure the xag is set and the
                 # mapping was removed.  Originally 2, one for vopt and
                 # local disk.  Should now be 1.
-                self.assertEqual([vios_w.XAG_VIOS_SCSI_MAPPING], kwargs['xag'])
-                vio = vios_w.VirtualIOServer(adpt.Entry({}, kargs[0]))
+                self.assertEqual([pvm_vios.XAGEnum.VIOS_SCSI_MAPPING],
+                                 kwargs['xag'])
+                vio = kargs[0]
                 self.assertEqual(1, len(vio.scsi_mappings))
             else:
                 self.fail("Shouldn't hit here")

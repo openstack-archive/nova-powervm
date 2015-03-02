@@ -170,7 +170,7 @@ class ConnectCfgDrive(task.Task):
         LOG.info(_LI('Attaching Config Drive to instance: %s') %
                  self.instance.name)
         vios.add_vscsi_mapping(self.adapter, self.vios_uuid, self.vios_name,
-                               cfg_drv_vscsi_map._element)
+                               cfg_drv_vscsi_map.element)
 
 
 class DeleteVOpt(task.Task):
@@ -208,8 +208,7 @@ class Detach(task.Task):
         """Creates the Task to detach the storage adapters.
 
         Provides the stor_adpt_mappings.  A list of pypowervm
-        VirtualSCSIMappings or VirtualFCMappings (depending on the storage
-        adapter).
+        VSCSIMappings or VFCMappings (depending on the storage adapter).
 
         :param block_dvr: The StorageAdapter for the VM.
         :param context: The nova context.

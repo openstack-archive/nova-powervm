@@ -22,7 +22,6 @@ import six
 
 from nova.i18n import _LE
 from pypowervm import exceptions as pvm_exc
-from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -53,8 +52,7 @@ class VIOSNotFound(AbstractVIOSException):
 def get_vios_uuid(adapter, name):
     searchstring = "(PartitionName=='%s')" % name
     try:
-        resp = adapter.read(pvm_consts.VIOS,
-                            suffix_type='search',
+        resp = adapter.read(pvm_vios.VIOS.schema_type, suffix_type='search',
                             suffix_parm=searchstring)
     except pvm_exc.Error as e:
         if e.response.status == 404:
@@ -73,7 +71,7 @@ def get_vios_uuid(adapter, name):
 
 def get_vios_entry(adapter, vios_uuid, vios_name):
     try:
-        resp = adapter.read(pvm_consts.VIOS, root_id=vios_uuid)
+        resp = adapter.read(pvm_vios.VIOS.schema_type, root_id=vios_uuid)
     except pvm_exc.Error as e:
         if e.response.status == 404:
             raise VIOSNotFound(vios_name=vios_name)
@@ -88,7 +86,7 @@ def get_vios_entry(adapter, vios_uuid, vios_name):
 
 
 def get_vscsi_mappings(adapter, lpar_uuid, vio_wrapper, mapping_type):
-    """Returns a list of VirtualSCSIMaps that pair to the instance.
+    """Returns a list of VSCSIMappings that pair to the instance.
 
     :param adapter: The pypowervm API Adapter.
     :param lpar_uuid: The lpar UUID that identifies which system to get the
@@ -96,12 +94,12 @@ def get_vscsi_mappings(adapter, lpar_uuid, vio_wrapper, mapping_type):
     :param vio_wrapper: The VIOS pypowervm wrapper for the VIOS.  Should have
                         the mappings within it.
     :param mapping_type: The type of mapping to look for.  Typically
-                         VirtualOpticalMedia or VirtualDisk
+                         VOptMedia or VDisk
     :returns: A list of vSCSI Mappings (pypowervm wrapper) from the VIOS
               that are tied to the lpar, for the mapping type.
     """
     # Quick read of the partition ID.  Identifier between LPAR and VIOS
-    partition_id = adapter.read(pvm_lpar.LPAR_ROOT, root_id=lpar_uuid,
+    partition_id = adapter.read(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid,
                                 suffix_type='quick',
                                 suffix_parm='PartitionID').body
 
@@ -131,9 +129,9 @@ def add_vscsi_mapping(adapter, vios_uuid, vios_name, scsi_map):
     # Get the VIOS Entry
     vios_entry, etag = get_vios_entry(adapter, vios_uuid, vios_name)
     # Wrap the entry
-    vios_wrap = pvm_vios.VirtualIOServer(vios_entry)
+    vios_wrap = pvm_vios.VIOS.wrap(vios_entry)
     # Add the new mapping to the end
-    vios_wrap.scsi_mappings.append(pvm_vios.VirtualSCSIMapping(scsi_map))
+    vios_wrap.scsi_mappings.append(pvm_vios.VSCSIMapping.wrap(scsi_map))
     # Write it back to the VIOS
-    adapter.update(vios_wrap._entry.element, etag,
-                   pvm_consts.VIOS, vios_uuid, xag=None)
+    adapter.update(vios_wrap, etag, pvm_vios.VIOS.schema_type, vios_uuid,
+                   xag=None)

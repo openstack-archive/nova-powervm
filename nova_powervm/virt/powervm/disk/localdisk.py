@@ -27,8 +27,7 @@ from nova import image
 from nova.i18n import _LI, _LE
 from pypowervm import exceptions as pvm_exc
 from pypowervm.jobs import upload_lv
-from pypowervm.wrappers import constants as pvm_consts
-from pypowervm.wrappers import storage as pvm_st
+from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm.disk import blockdev
@@ -133,8 +132,8 @@ class LocalStorage(blockdev.StorageAdapter):
                     removals.append(vdisk)
                     break
 
-        # We know that the mappings are VirtualSCSIMappings.  Remove the
-        # storage that resides in the scsi map from the volume group
+        # We know that the mappings are VSCSIMappings.  Remove the storage that
+        # resides in the scsi map from the volume group.
         existing_vds = vg_wrap.virtual_disks
         for removal in removals:
             LOG.info(_LI('Deleting volume: %s') % removal.name,
@@ -142,20 +141,22 @@ class LocalStorage(blockdev.StorageAdapter):
             existing_vds.remove(removal)
 
         # Now update the volume group to remove the storage.
-        self.adapter.update(vg_wrap._element, vg_wrap.etag, pvm_vios.VIO_ROOT,
-                            self.vios_uuid, child_type=pvm_st.VG_ROOT,
-                            child_id=self.vg_uuid)
+        self.adapter.update(
+            vg_wrap, vg_wrap.etag, pvm_vios.VIOS.schema_type,
+            root_id=self.vios_uuid, child_type=pvm_stg.VG.schema_type,
+            child_id=self.vg_uuid)
 
     def disconnect_volume(self, context, instance, lpar_uuid, disk_type=None):
         # Quick read the VIOS, using specific extended attribute group
-        vios_resp = self.adapter.read(pvm_vios.VIO_ROOT, self.vios_uuid,
-                                      xag=[pvm_vios.XAG_VIOS_SCSI_MAPPING])
-        vios_w = pvm_vios.VirtualIOServer.load_from_response(vios_resp)
+        vios_resp = self.adapter.read(
+            pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
+            xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
+        vios_w = pvm_vios.VIOS.wrap(vios_resp)
 
         # Find the existing mappings, and then pull them off the VIOS
         existing_vios_mappings = vios_w.scsi_mappings
         existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid,
-                                                vios_w, pvm_st.VirtualDisk)
+                                                vios_w, pvm_stg.VDisk)
         # If disks were specified, only remove those.
         if disk_type:
             # Get the list of disk names
@@ -173,8 +174,9 @@ class LocalStorage(blockdev.StorageAdapter):
             existing_vios_mappings.remove(scsi_map)
 
         # Update the VIOS
-        self.adapter.update(vios_w._element, vios_w.etag, pvm_vios.VIO_ROOT,
-                            vios_w.uuid, xag=[pvm_vios.XAG_VIOS_SCSI_MAPPING])
+        self.adapter.update(vios_w, vios_w.etag, pvm_vios.VIOS.schema_type,
+                            root_id=vios_w.uuid,
+                            xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
 
         # Return the mappings that we just removed.
         return disk_maps
@@ -245,10 +247,10 @@ class LocalStorage(blockdev.StorageAdapter):
             disk_found.capacity = size
 
             # Post it to the VIOS
-            self.adapter.update(vg_wrap._element, vg_wrap.etag,
-                                pvm_consts.VIOS, root_id=self.vios_uuid,
-                                child_type=pvm_consts.VOL_GROUP,
-                                child_id=self.vg_uuid, xag=None)
+            self.adapter.update(
+                vg_wrap, vg_wrap.etag, pvm_vios.VIOS.schema_type,
+                root_id=self.vios_uuid, child_type=pvm_stg.VG.schema_type,
+                child_id=self.vg_uuid, xag=None)
 
         # Get the volume name based on the instance and type
         vol_name = self._get_disk_name(volume_info['type'], instance)
@@ -265,15 +267,14 @@ class LocalStorage(blockdev.StorageAdapter):
 
     def _get_vg_uuid(self, adapter, vios_uuid, name):
         try:
-            resp = adapter.read(pvm_consts.VIOS,
-                                root_id=vios_uuid,
-                                child_type=pvm_consts.VOL_GROUP)
+            resp = adapter.read(pvm_vios.VIOS.schema_type, root_id=vios_uuid,
+                                child_type=pvm_stg.VG.schema_type)
         except Exception as e:
             LOG.exception(e)
             raise e
 
         # Search the feed for the volume group
-        vol_grps = pvm_st.VolumeGroup.load_from_response(resp)
+        vol_grps = pvm_stg.VG.wrap(resp)
         for vol_grp in vol_grps:
             LOG.info(_LI('Volume group: %s') % vol_grp.name)
             if name == vol_grp.name:
@@ -282,10 +283,10 @@ class LocalStorage(blockdev.StorageAdapter):
         raise VGNotFound(vg_name=name)
 
     def _get_vg(self):
-        vg_rsp = self.adapter.read(pvm_vios.VIO_ROOT, root_id=self.vios_uuid,
-                                   child_type=pvm_st.VG_ROOT,
-                                   child_id=self.vg_uuid)
+        vg_rsp = self.adapter.read(
+            pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
+            child_type=pvm_stg.VG.schema_type, child_id=self.vg_uuid)
         return vg_rsp
 
     def _get_vg_wrap(self):
-        return pvm_st.VolumeGroup.load_from_response(self._get_vg())
+        return pvm_stg.VG.wrap(self._get_vg())

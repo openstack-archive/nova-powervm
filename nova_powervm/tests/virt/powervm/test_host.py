@@ -18,8 +18,7 @@
 import logging
 from nova import test
 from pypowervm.tests.wrappers.util import pvmhttp
-from pypowervm.wrappers import constants as wpr_consts
-import pypowervm.wrappers.managed_system as msentry_wrapper
+import pypowervm.wrappers.managed_system as pvm_ms
 
 from nova_powervm.virt.powervm import host as pvm_host
 
@@ -39,15 +38,15 @@ class TestPowerVMHost(test.TestCase):
                             "Could not load %s " %
                             MS_HTTPRESP_FILE)
 
-        entries = ms_http.response.feed.findentries(
-            wpr_consts.SYSTEM_NAME, MS_NAME)
+        entries = ms_http.response.feed.findentries(pvm_ms._SYSTEM_NAME,
+                                                    MS_NAME)
 
         self.assertNotEqual(entries, None,
                             "Could not find %s in %s" %
                             (MS_NAME, MS_HTTPRESP_FILE))
 
         self.ms_entry = entries[0]
-        self.wrapper = msentry_wrapper.ManagedSystem(self.ms_entry)
+        self.wrapper = pvm_ms.System.wrap(self.ms_entry)
 
     def test_host_resources(self):
         stats = pvm_host.build_host_resource_from_ms(self.wrapper)

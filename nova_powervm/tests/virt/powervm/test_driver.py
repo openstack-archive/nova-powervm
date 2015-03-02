@@ -24,9 +24,10 @@ from nova import objects
 from nova import test
 from nova.tests.unit import fake_instance
 from nova.virt import fake
+import pypowervm.adapter as pvm_adp
 from pypowervm.tests.wrappers.util import pvmhttp
-from pypowervm.wrappers import constants as wpr_consts
-import pypowervm.wrappers.managed_system as msentry_wrapper
+import pypowervm.wrappers.logical_partition as pvm_lpar
+import pypowervm.wrappers.managed_system as pvm_ms
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -48,15 +49,15 @@ class TestPowerVMDriver(test.TestCase):
                             "Could not load %s " %
                             MS_HTTPRESP_FILE)
 
-        entries = ms_http.response.feed.findentries(
-            wpr_consts.SYSTEM_NAME, MS_NAME)
+        entries = ms_http.response.feed.findentries(pvm_ms._SYSTEM_NAME,
+                                                    MS_NAME)
 
         self.assertNotEqual(entries, None,
                             "Could not find %s in %s" %
                             (MS_NAME, MS_HTTPRESP_FILE))
 
         self.ms_entry = entries[0]
-        self.wrapper = msentry_wrapper.ManagedSystem(self.ms_entry)
+        self.wrapper = pvm_ms.System.wrap(self.ms_entry)
 
         self.drv_fix = self.useFixture(fx.PowerVMComputeDriver())
         self.drv = self.drv_fix.drv
@@ -111,6 +112,9 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
+        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
+        resp.entry = pvm_lpar.LPAR._bld().entry
+        mock_crt.return_value = resp
 
         # Invoke the method.
         self.drv.spawn('context', inst, mock.Mock(),
@@ -142,6 +146,9 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = True
+        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
+        resp.entry = pvm_lpar.LPAR._bld().entry
+        mock_crt.return_value = resp
 
         # Invoke the method.
         self.drv.spawn('context', inst, mock.Mock(),
@@ -170,6 +177,9 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
+        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
+        resp.entry = pvm_lpar.LPAR._bld().entry
+        mock_crt.return_value = resp
 
         # Make sure power on fails.
         mock_pwron.side_effect = exc.Forbidden()
@@ -223,12 +233,15 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    def test_resize(
-        self, mock_get_flv, mock_update, mock_pwr_off, mock_get_uuid):
+    def test_resize(self, mock_get_flv, mock_update, mock_pwr_off,
+                    mock_get_uuid):
         """Validates the PowerVM driver resize operation."""
         # Set up the mocks to the resize operation.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         host = self.drv.get_host_ip_addr()
+        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
+        resp.entry = pvm_lpar.LPAR._bld().entry
+        self.apt.read.return_value = resp
 
         # Catch root disk resize smaller.
         small_root = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=9)

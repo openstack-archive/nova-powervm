@@ -20,9 +20,9 @@ from nova import exception as nova_exc
 from nova import objects
 from nova import test
 import os
-from pypowervm import adapter as adpt
 from pypowervm.tests.wrappers.util import pvmhttp
-from pypowervm.wrappers import virtual_io_server as vios_w
+from pypowervm.wrappers import storage as pvm_stg
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -81,7 +81,7 @@ class TestLocalDisk(test.TestCase):
                                           d_size=21474836480L)
         self.assertEqual('fake_vol', vol_name.get('device_name'))
 
-    @mock.patch('pypowervm.wrappers.storage.VolumeGroup')
+    @mock.patch('pypowervm.wrappers.storage.VG')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
@@ -90,11 +90,12 @@ class TestLocalDisk(test.TestCase):
         """Tests the capacity methods."""
 
         # Set up the mock data.  This will simulate our vg wrapper
-        wrap = mock.MagicMock(name='vg_wrapper')
-        type(wrap).capacity = mock.PropertyMock(return_value='5120')
-        type(wrap).available_size = mock.PropertyMock(return_value='2048')
+        mock_vg_wrap = mock.MagicMock(name='vg_wrapper')
+        type(mock_vg_wrap).capacity = mock.PropertyMock(return_value='5120')
+        type(mock_vg_wrap).available_size = mock.PropertyMock(
+            return_value='2048')
 
-        mock_vg.load_from_response.return_value = wrap
+        mock_vg.wrap.return_value = mock_vg_wrap
         local = self.get_ls(self.apt)
 
         self.assertEqual(5120.0, local.capacity)
@@ -114,8 +115,9 @@ class TestLocalDisk(test.TestCase):
 
         def validate_update(*kargs, **kwargs):
             # Make sure that the mappings are only 1 (the remaining vopt)
-            self.assertEqual([vios_w.XAG_VIOS_SCSI_MAPPING], kwargs['xag'])
-            vio = vios_w.VirtualIOServer(adpt.Entry({}, kargs[0]))
+            self.assertEqual([pvm_vios.XAGEnum.VIOS_SCSI_MAPPING],
+                             kwargs['xag'])
+            vio = kargs[0]
             self.assertEqual(1, len(vio.scsi_mappings))
         self.apt.update.side_effect = validate_update
 
@@ -137,8 +139,9 @@ class TestLocalDisk(test.TestCase):
 
         def validate_update(*kargs, **kwargs):
             # No mappings will be removed since the names don't match
-            self.assertEqual([vios_w.XAG_VIOS_SCSI_MAPPING], kwargs['xag'])
-            vio = vios_w.VirtualIOServer(adpt.Entry({}, kargs[0]))
+            self.assertEqual([pvm_vios.XAGEnum.VIOS_SCSI_MAPPING],
+                             kwargs['xag'])
+            vio = kargs[0]
             self.assertEqual(2, len(vio.scsi_mappings))
         self.apt.update.side_effect = validate_update
 
@@ -149,13 +152,18 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
-    def test_delete_volumes(self, mock_vg_uuid):
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
+                '_get_vg_wrap')
+    def test_delete_volumes(self, mock_vg, mock_vg_uuid):
         # Mocks
         self.apt.side_effect = [self.vg_to_vio]
 
         # Find from the data the vDisk scsi mapping
         scsi_mapping = mock.MagicMock()
         scsi_mapping.udid = '0300025d4a00007a000000014b36d9deaf.1'
+
+        vg = pvm_stg.VG._bld().entry
+        mock_vg.return_value = pvm_stg.VG.wrap(vg, etag='etag')
 
         # Invoke the call
         local = self.get_ls(self.apt)
@@ -165,7 +173,7 @@ class TestLocalDisk(test.TestCase):
         # Validate the call
         self.assertEqual(1, self.apt.update.call_count)
 
-    @mock.patch('pypowervm.wrappers.storage.VolumeGroup')
+    @mock.patch('pypowervm.wrappers.storage.VG')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
@@ -180,7 +188,7 @@ class TestLocalDisk(test.TestCase):
 
         resp = mock.Mock(name='response')
         resp.virtual_disks = [vdisk]
-        mock_vg.load_from_response.return_value = resp
+        mock_vg.wrap.return_value = resp
 
         mock_dsk_name.return_value = 'NOMATCH'
         self.assertRaises(nova_exc.DiskNotFound, local.extend_volume,

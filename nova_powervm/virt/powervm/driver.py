@@ -33,8 +33,7 @@ from pypowervm import adapter as pvm_apt
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm import util as pvm_util
 from pypowervm.utils import retry as pvm_retry
-from pypowervm.wrappers import constants as pvm_consts
-from pypowervm.wrappers import managed_system as msentry_wrapper
+from pypowervm.wrappers import managed_system as pvm_ms
 
 from nova_powervm.virt.powervm.disk import blockdev
 from nova_powervm.virt.powervm.disk import localdisk as blk_lcl
@@ -95,9 +94,9 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def _get_host_uuid(self):
         # Need to get a list of the hosts, then find the matching one
-        resp = self.adapter.read(pvm_consts.MGT_SYS)
+        resp = self.adapter.read(pvm_ms.System.schema_type)
         mtms = CONF.pvm_host_mtms
-        self.host_wrapper = msentry_wrapper.find_entry_by_mtms(resp, mtms)
+        self.host_wrapper = pvm_ms.find_entry_by_mtms(resp, mtms)
         if not self.host_wrapper:
             raise Exception("Host %s not found" % CONF.pvm_host_mtms)
         self.host_uuid = self.host_wrapper.uuid
@@ -392,9 +391,10 @@ class PowerVMDriver(driver.ComputeDriver):
         :returns: Dictionary describing resources
         """
 
-        resp = self.adapter.read(pvm_consts.MGT_SYS, root_id=self.host_uuid)
+        resp = self.adapter.read(pvm_ms.System.schema_type,
+                                 root_id=self.host_uuid)
         if resp:
-            self.host_wrapper = msentry_wrapper.ManagedSystem(resp.entry)
+            self.host_wrapper = pvm_ms.System.wrap(resp.entry)
         # Get host information
         data = pvm_host.build_host_resource_from_ms(self.host_wrapper)
 

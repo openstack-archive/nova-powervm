@@ -57,8 +57,8 @@ class StorageAdapter(object):
         :param lpar_uuid: The UUID for the pypowervm LPAR element.
         :param disk_type: The list of disk types to remove or None which means
             to remove all disks from the VM.
-        :return: A list of Mappings (either pypowervm VirtualSCSIMappings or
-                 VirtualFCMappings)
+        :return: A list of Mappings (either pypowervm VSCSIMappings or
+                 VFCMappings)
         """
         pass
 
@@ -68,9 +68,8 @@ class StorageAdapter(object):
         :param context: nova context for operation
         :param instance: instance to delete the image for.
         :param mappings: The mappings that had been used to identify the
-                         backing storage.  List of pypowervm
-                         VirtualSCSIMappings or VirtualFCMappings.
-                         Typically derived from disconnect_volume.
+                         backing storage.  List of pypowervm VSCSIMappings or
+                         VFCMappings. Typically derived from disconnect_volume.
         """
         pass
 

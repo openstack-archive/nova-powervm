@@ -25,9 +25,8 @@ from oslo.config import cfg
 from oslo_log import log as logging
 
 from pypowervm.jobs import upload_lv
-from pypowervm.wrappers import constants as pvmc
-from pypowervm.wrappers import storage as pvm_st
-from pypowervm.wrappers import virtual_io_server as vios_w
+from pypowervm.wrappers import storage as pvm_stg
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import vios
 
@@ -112,7 +111,7 @@ class ConfigDrivePowerVM(object):
         :param lpar_uuid: The UUID of the client LPAR
         :param admin_pass: Optional password to inject for the VM.
 
-        :returns: The VirtualSCSIMapping wrapper that can be added to the VIOS
+        :returns: The VSCSIMapping wrapper that can be added to the VIOS
                   to attach it to the VM.
         """
         iso_path, file_name = self._create_cfg_dr_iso(instance, injected_files,
@@ -128,9 +127,8 @@ class ConfigDrivePowerVM(object):
         # Now that it is uploaded, create the vSCSI mappings that link this to
         # the VM.  Don't run the upload as these are batched in a single call
         # to the VIOS later.
-        elem = vios_w.crt_scsi_map_to_vopt(self.adapter, self.host_uuid,
-                                           lpar_uuid, file_name)
-        return vios_w.VirtualSCSIMapping(elem)
+        return pvm_vios.VSCSIMapping.bld_to_vopt(self.adapter, self.host_uuid,
+                                                 lpar_uuid, file_name)
 
     def _upload_lv(self, iso_path, file_name, file_size):
         with open(iso_path, 'rb') as d_stream:
@@ -145,10 +143,11 @@ class ConfigDrivePowerVM(object):
 
         :return vg_uuid: The Volume Group UUID holding the media repo.
         """
-        resp = self.adapter.read(pvmc.VIOS, self.vios_uuid, pvmc.VOL_GROUP)
+        resp = self.adapter.read(pvm_vios.VIOS.schema_type, self.vios_uuid,
+                                 pvm_stg.VG.schema_type)
         found_vg = None
         for vg_entry in resp.feed.entries:
-            vol_grp = pvm_st.VolumeGroup(vg_entry)
+            vol_grp = pvm_stg.VG.wrap(vg_entry)
             if vol_grp.name == CONF.vopt_media_volume_group:
                 found_vg = vol_grp
                 break
@@ -166,12 +165,12 @@ class ConfigDrivePowerVM(object):
 
         # Ensure that there is a virtual optical media repository within it.
         if len(found_vg.vmedia_repos) == 0:
-            vopt_repo = pvm_st.crt_vmedia_repo('vopt',
-                                               str(CONF.vopt_media_rep_size))
-            found_vg.vmedia_repos = [pvm_st.VirtualMediaRepository(vopt_repo)]
-            self.adapter.update(found_vg._entry.element, resp.headers['etag'],
-                                pvmc.VIOS, self.vios_uuid, pvmc.VOL_GROUP,
-                                found_vg.uuid)
+            vopt_repo = pvm_stg.VMediaRepos.bld('vopt',
+                                                str(CONF.vopt_media_rep_size))
+            found_vg.vmedia_repos = [vopt_repo]
+            self.adapter.update(found_vg, resp.headers['etag'],
+                                pvm_vios.VIOS.schema_type, self.vios_uuid,
+                                pvm_stg.VG.schema_type, found_vg.uuid)
 
         return found_vg.uuid
 
@@ -179,35 +178,38 @@ class ConfigDrivePowerVM(object):
         """Deletes the virtual optical and scsi mappings for a VM."""
 
         # Read the SCSI mappings from the VIOS.
-        vio_rsp = self.adapter.read(vios_w.VIO_ROOT, root_id=self.vios_uuid,
-                                    xag=[vios_w.XAG_VIOS_SCSI_MAPPING])
-        vio = vios_w.VirtualIOServer.load_from_response(vio_rsp)
+        vio_rsp = self.adapter.read(
+            pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
+            xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
+        vio = pvm_vios.VIOS.wrap(vio_rsp)
 
         # Get the mappings to this VM
         existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid, vio,
-                                                pvm_st.VirtualOpticalMedia)
+                                                pvm_stg.VOptMedia)
 
         for scsi_map in existing_maps:
             vio.scsi_mappings.remove(scsi_map)
 
         # Remove the mappings
-        self.adapter.update(vio._element, vio.etag, vios_w.VIO_ROOT,
+        self.adapter.update(vio, vio.etag, pvm_vios.VIOS.schema_type,
                             root_id=vio.uuid,
-                            xag=[vios_w.XAG_VIOS_SCSI_MAPPING])
+                            xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
 
         # Next delete the media from the volume group...
         # The mappings above have the backing storage.  Just need to load
         # the volume group (there is a new etag after the VIOS update)
         # and find the matching ones.
-        vg_rsp = self.adapter.read(vios_w.VIO_ROOT, root_id=self.vios_uuid,
-                                   child_type=pvm_st.VG_ROOT,
+        vg_rsp = self.adapter.read(pvm_vios.VIOS.schema_type,
+                                   root_id=self.vios_uuid,
+                                   child_type=pvm_stg.VG.schema_type,
                                    child_id=self.vg_uuid)
-        volgrp = pvm_st.VolumeGroup.load_from_response(vg_rsp)
+        volgrp = pvm_stg.VG.wrap(vg_rsp)
         optical_medias = volgrp.vmedia_repos[0].optical_media
         for scsi_map in existing_maps:
             optical_medias.remove(scsi_map.backing_storage)
 
         # Now we can do an update...and be done with it.
-        self.adapter.update(volgrp._element, volgrp.etag, vios_w.VIO_ROOT,
-                            root_id=self.vios_uuid, child_type=pvm_st.VG_ROOT,
-                            child_id=self.vg_uuid)
+        self.adapter.update(
+            volgrp, volgrp.etag, pvm_vios.VIOS.schema_type,
+            root_id=self.vios_uuid, child_type=pvm_stg.VG.schema_type,
+            child_id=self.vg_uuid)

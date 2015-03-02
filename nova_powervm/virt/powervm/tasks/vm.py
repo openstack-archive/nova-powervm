@@ -75,7 +75,7 @@ class Create(task.Task):
         LOG.info(_LI('Creating instance: %s') % self.instance.name)
         resp = vm.crt_lpar(self.adapter, self.host_uuid, self.instance,
                            self.flavor)
-        return pvm_lpar.LogicalPartition.load_from_response(resp)
+        return pvm_lpar.LPAR.wrap(resp)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +

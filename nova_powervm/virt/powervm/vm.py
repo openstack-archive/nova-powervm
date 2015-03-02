@@ -25,8 +25,8 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.jobs import cna
 from pypowervm.jobs import power
 from pypowervm.jobs import vterm
-from pypowervm.wrappers import constants as pvm_consts
 from pypowervm.wrappers import logical_partition as pvm_lpar
+from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
 
 import six
@@ -104,8 +104,9 @@ class InstanceInfo(hardware.InstanceInfo):
 
     def _get_property(self, q_prop):
         try:
-            resp = self._adapter.read(pvm_consts.LPAR, root_id=self._uuid,
-                                      suffix_type='quick', suffix_parm=q_prop)
+            resp = self._adapter.read(
+                pvm_lpar.LPAR.schema_type, root_id=self._uuid,
+                suffix_type='quick', suffix_parm=q_prop)
         except pvm_exc.Error as e:
             if e.response.status == 404:
                 raise exception.InstanceNotFound(instance_id=self._name)
@@ -167,9 +168,8 @@ def get_lpar_feed(adapter, host_uuid):
 
     feed = None
     try:
-        resp = adapter.read(pvm_consts.MGT_SYS,
-                            root_id=host_uuid,
-                            child_type=pvm_consts.LPAR)
+        resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
+                            child_type=pvm_lpar.LPAR.schema_type)
         feed = resp.feed
     except pvm_exc.Error as e:
         LOG.exception(e)
@@ -182,14 +182,14 @@ def get_lpar_list(adapter, host_uuid):
     feed = get_lpar_feed(adapter, host_uuid)
     if feed is not None:
         for entry in feed.entries:
-            name = pvm_lpar.LogicalPartition(entry).name
+            name = pvm_lpar.LPAR.wrap(entry).name
             lpar_list.append(name)
 
     return lpar_list
 
 
 def get_instance_wrapper(adapter, instance, host_uuid):
-    """Get the LogicalPartition wrapper for a given Nova instance.
+    """Get the LPAR wrapper for a given Nova instance.
 
     :param adapter: The adapter for the pypowervm API
     :param instance: The nova instance.
@@ -197,9 +197,10 @@ def get_instance_wrapper(adapter, instance, host_uuid):
     :returns: The pypowervm logical_partition wrapper.
     """
     pvm_inst_uuid = get_pvm_uuid(instance)
-    resp = adapter.read(pvm_consts.MGT_SYS, root_id=host_uuid,
-                        child_type=pvm_consts.LPAR, child_id=pvm_inst_uuid)
-    return pvm_lpar.LogicalPartition.load_from_response(resp)
+    resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
+                        child_type=pvm_lpar.LPAR.schema_type,
+                        child_id=pvm_inst_uuid)
+    return pvm_lpar.LPAR.wrap(resp)
 
 
 def calc_proc_units(vcpu):
@@ -230,15 +231,16 @@ def crt_lpar(adapter, host_uuid, instance, flavor):
     sprocs = pvm_lpar.crt_shared_procs(proc_units, vcpus,
                                        uncapped_weight=proc_weight)
     lpar_elem = pvm_lpar.crt_lpar(instance.name,
-                                  pvm_lpar.LPAR_TYPE_AIXLINUX,
+                                  pvm_lpar.LPARTypeEnum.AIXLINUX,
                                   sprocs,
                                   mem,
                                   min_mem=mem,
                                   max_mem=mem,
                                   max_io_slots='64')
 
-    return adapter.create(lpar_elem, pvm_consts.MGT_SYS,
-                          root_id=host_uuid, child_type=pvm_lpar.LPAR)
+    return adapter.create(
+        lpar_elem, pvm_ms.System.schema_type, root_id=host_uuid,
+        child_type=pvm_lpar.LPAR.schema_type)
 
 
 def update(adapter, host_uuid, instance, flavor, entry=None):
@@ -274,8 +276,9 @@ def update(adapter, host_uuid, instance, flavor, entry=None):
     # Proc weight
     entry.uncapped_weight = str(proc_weight)
     # Write out the new specs
-    adapter.update(entry._element, entry.etag, pvm_consts.MGT_SYS,
-                   root_id=host_uuid, child_type=pvm_lpar.LPAR, child_id=uuid)
+    adapter.update(entry.element, entry.etag, pvm_ms.System.schema_type,
+                   root_id=host_uuid, child_type=pvm_lpar.LPAR.schema_type,
+                   child_id=uuid)
 
 
 def dlt_lpar(adapter, lpar_uuid):
@@ -288,7 +291,7 @@ def dlt_lpar(adapter, lpar_uuid):
     # we will close the vterm and try the delete again
     try:
         LOG.info(_LI('Deleting virtual machine. LPARID: %s') % lpar_uuid)
-        resp = adapter.delete(pvm_consts.LPAR, root_id=lpar_uuid)
+        resp = adapter.delete(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid)
         LOG.info(_LI('Virtual machine delete status: %s') % resp.status)
         return resp
     except pvm_exc.Error as e:
@@ -299,7 +302,8 @@ def dlt_lpar(adapter, lpar_uuid):
                 LOG.info(_LI('Closing virtual terminal'))
                 vterm.close_vterm(adapter, lpar_uuid)
                 # Try to delete the vm again
-                resp = adapter.delete(pvm_consts.LPAR, root_id=lpar_uuid)
+                resp = adapter.delete(pvm_lpar.LPAR.schema_type,
+                                      root_id=lpar_uuid)
                 LOG.info(_LI('Virtual machine delete status: %s')
                          % resp.status)
                 return resp
@@ -361,13 +365,13 @@ def get_cnas(adapter, instance, host_uuid):
     :param adapter: The pypowervm adapter.
     :param instance: The nova instance.
     :param host_uuid: The host system UUID.
-    :returns The ClientNetworkAdapter wrappers that represent the CNAs on the
+    :returns The CNA wrappers that represent the ClientNetworkAdapters on the
              VM.
     """
-    cna_resp = adapter.read(pvm_lpar.LPAR_ROOT,
+    cna_resp = adapter.read(pvm_lpar.LPAR.schema_type,
                             root_id=get_pvm_uuid(instance),
-                            child_type=pvm_net.VADPT_ROOT)
-    return pvm_net.CNA.load_from_response(cna_resp)
+                            child_type=pvm_net.CNA.schema_type)
+    return pvm_net.CNA.wrap(cna_resp)
 
 
 def crt_vif(adapter, instance, host_uuid, vif):
@@ -415,7 +419,7 @@ class UUIDCache(object):
             # Try to look it up
             searchstring = "(PartitionName=='%s')" % name
             try:
-                resp = self._adapter.read(pvm_consts.LPAR,
+                resp = self._adapter.read(pvm_lpar.LPAR.schema_type,
                                           suffix_type='search',
                                           suffix_parm=searchstring)
             except pvm_exc.Error as e:
