@@ -14,7 +14,31 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo.config import cfg
+import oslo_log.log as logging
+
+from nova import image
+from nova.i18n import _LI, _LE
+import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_drv
+
+import pypowervm.wrappers.storage as pvm_stg
+
+ssp_opts = [
+    cfg.StrOpt('ssp_name',
+               default='',
+               help='Shared Storage Pool to use for storage operations.')
+]
+
+
+LOG = logging.getLogger(__name__)
+CONF = cfg.CONF
+CONF.register_opts(ssp_opts)
+
+
+class SSPNotFound(disk.AbstractDiskException):
+    msg_fmt = _LE('Unable to locate the Shared Storage Pool \'%(ssp_name)s\' '
+                  'for this operation.')
 
 
 class SSPDiskAdapter(disk_drv.DiskAdapter):
@@ -29,11 +53,22 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
     """
 
     def __init__(self, connection):
-        """Initialize the SSPDiskAdapter
+        """Initialize the SSPDiskAdapter.
 
         :param connection: connection information for the underlying driver
         """
         super(SSPDiskAdapter, self).__init__(connection)
+        self.adapter = connection['adapter']
+        self.host_uuid = connection['host_uuid']
+        self.vios_name = connection['vios_name']
+        self.vios_uuid = connection['vios_uuid']
+        self.ssp_name = CONF.ssp_name
+        # Make sure _fetch_ssp_wrap knows it has to bootstrap by name
+        self._ssp_wrap = None
+        self._fetch_ssp_wrap()  # Sets self._ssp_wrap
+        self.image_api = image.API()
+        LOG.info(_LI('SSP Storage driver initialized: '
+                     'SSP: \'%s\'') % self.ssp_name)
 
     @property
     def capacity(self):
@@ -100,3 +135,41 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :param size: the new size in gb.
         """
         raise NotImplementedError()
+
+    def _fetch_ssp_wrap(self):
+        """Return the SSP EntryWrapper associated with the configured name.
+
+        The SSP EntryWrapper is 'cached' locally.
+
+        In a bootstrap scenario, the ssp_name from the config is used to
+        perform a search query.
+
+        Otherwise, the server is rechecked using etag to ensure the cached
+        wrapper is current.
+        """
+        try:
+            if self._ssp_wrap is None:
+                # Not yet loaded - search by name
+                resp = self.adapter.search(pvm_stg.SSP,
+                                           name=self.ssp_name)
+                wraps = pvm_stg.SSP.wrap(resp)
+                if len(wraps) != 1:
+                    raise SSPNotFound(cluster_name=self.ssp_name)
+                self._ssp_wrap = wraps[0]
+            else:
+                # Already loaded.  Refetch with etag
+                resp = self.adapter.read(pvm_stg.SSP.schema_type,
+                                         root_id=self._ssp_wrap.uuid,
+                                         etag=self._ssp_wrap.etag)
+                # If etag mismatch, update the wrapper
+                if resp.status != 304:
+                    self._ssp_wrap = pvm_stg.SSP.wrap(resp)
+        # TODO(IBM): If the SSP doesn't exist when the driver is loaded, we
+        # raise SSPNotFound; but if it gets removed at some point while
+        # live, we'll (re)raise the 404 HttpError from the REST API.  Do we
+        # need a crisper way to distinguish these two scenarios?  Do we want to
+        # meld them together so both raise SSPNotFound?
+        except Exception as e:
+            LOG.exception(e.message)
+            raise e
+        return self._ssp_wrap

@@ -37,7 +37,6 @@ from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import managed_system as pvm_ms
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
-from nova_powervm.virt.powervm.disk import localdisk as disk_lcl
 from nova_powervm.virt.powervm import host as pvm_host
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
@@ -53,6 +52,12 @@ CONF = cfg.CONF
 # The connection strategy is defined above.
 VOLUME_DRIVER_MAPPINGS = {
     'fibre_channel': vol_attach.FC_STRATEGY_MAPPING[CONF.fc_attach_strategy]
+}
+
+DISK_ADPT_NS = 'nova_powervm.virt.powervm.disk'
+DISK_ADPT_MAPPINGS = {
+    'localdisk': 'localdisk.LocalStorage',
+    'ssp': 'ssp.SSPDiskAdapter'
 }
 
 
@@ -75,8 +80,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # Initialize the UUID Cache. Lets not prime it at this time.
         vm.UUIDCache(self.adapter)
         self._get_vios_uuid()
-        # Initialize the disk adapter
-        self._get_blockdev_driver()
+        # Initialize the disk adapter.  Sets self.disk_drv
+        self._get_disk_adapter()
         self.image_api = image.API()
 
         # Initialize the volume drivers
@@ -93,13 +98,14 @@ class PowerVMDriver(driver.ComputeDriver):
         self.adapter = pvm_apt.Adapter(self.session,
                                        helpers=log_hlp.log_helper)
 
-    def _get_blockdev_driver(self):
-        # TODO(IBM): load driver from conf
+    def _get_disk_adapter(self):
         conn_info = {'adapter': self.adapter,
                      'host_uuid': self.host_uuid,
                      'vios_name': CONF.vios_name,
                      'vios_uuid': self.vios_uuid}
-        self.disk_dvr = disk_lcl.LocalStorage(conn_info)
+
+        self.disk_dvr = importutils.import_object_ns(
+            DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.disk_driver], conn_info)
 
     def _get_vios_uuid(self):
         self.vios_uuid = vios.get_vios_uuid(self.adapter, CONF.vios_name)

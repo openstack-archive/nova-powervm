@@ -18,6 +18,7 @@
 import logging
 
 import mock
+from oslo_config import cfg
 
 from nova import exception as exc
 from nova import objects
@@ -64,6 +65,7 @@ class TestPowerVMDriver(test.TestCase):
         self.ms_entry = entries[0]
         self.wrapper = pvm_ms.System.wrap(self.ms_entry)
 
+        cfg.CONF.set_override('disk_driver', 'localdisk')
         self.drv_fix = self.useFixture(fx.PowerVMComputeDriver())
         self.drv = self.drv_fix.drv
         self.apt = self.drv_fix.pypvm.apt

@@ -15,12 +15,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import abc
 
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import units
-import six
 
 from nova import exception as nova_exc
 from nova.i18n import _LI, _LE
@@ -29,6 +27,7 @@ from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import vios
 
@@ -44,14 +43,7 @@ CONF = cfg.CONF
 CONF.register_opts(localdisk_opts)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractLocalStorageException(Exception):
-    def __init__(self, **kwds):
-        msg = self.msg_fmt % kwds
-        super(AbstractLocalStorageException, self).__init__(msg)
-
-
-class VGNotFound(AbstractLocalStorageException):
+class VGNotFound(disk.AbstractDiskException):
     msg_fmt = _LE('Unable to locate the volume group \'%(vg_name)s\' '
                   'for this operation.')
 
@@ -86,7 +78,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         vg_wrap = self._get_vg_wrap()
 
         # Subtract available from capacity
-        return (float(vg_wrap.capacity) - float(vg_wrap.available_size))
+        return float(vg_wrap.capacity) - float(vg_wrap.available_size)
 
     def delete_disks(self, context, instance, mappings):
         # All of local disk is done against the volume group.  So reload
@@ -236,10 +228,12 @@ class LocalStorage(disk_dvr.DiskAdapter):
             LOG.exception()
             raise
 
-    def _get_disk_name(self, disk_type, instance):
+    @staticmethod
+    def _get_disk_name(disk_type, instance):
         return disk_type[:6] + '_' + instance.uuid[:8]
 
-    def _get_vg_uuid(self, adapter, vios_uuid, name):
+    @staticmethod
+    def _get_vg_uuid(adapter, vios_uuid, name):
         try:
             resp = adapter.read(pvm_vios.VIOS.schema_type, root_id=vios_uuid,
                                 child_type=pvm_stg.VG.schema_type)

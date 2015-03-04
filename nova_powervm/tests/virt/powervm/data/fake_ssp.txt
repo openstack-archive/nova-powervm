@@ -1,0 +1,78 @@
+####################################################
+# THIS IS AN AUTOMATICALLY GENERATED FILE
+# DO NOT EDIT. ANY EDITS WILL BE LOST ON NEXT UPDATE
+#
+# To update file, run: create_httpresp.py -refresh ssp.txt
+#
+####################################################
+INFO{
+{'comment': None, 'status': 200, 'pw': 'Passw0rd', 'reason': 'OK', 'host': '9.1.2.3', 'user': 'hscroot', 'path': 'SharedStoragePool/e357a79a-7a3d-35b6-8405-55ab6a2d0de7'}
+END OF SECTION}
+HEADERS{
+{'content-length': '3571', 'content-type': 'application/atom+xml', 'x-powered-by': 'Servlet/3.0', 'set-cookie': 'JSESSIONID=0000PVgSCJDHjFlKfpACJQ2Ny5Y:c8963131-fc5d-48ff-a2f4-346b019f3f2c; Path=/; Secure; HttpOnly', 'x-hmc-schema-version': 'V1_2_0', 'expires': 'Thu, 01 Jan 1970 00:00:00 GMT', 'last-modified': 'Fri, 06 Feb 2015 04:43:12 GMT', 'x-transaction-id': 'XT10009019', 'etag': '-1833924453', 'cache-control': 'no-transform, must-revalidate, proxy-revalidate, no-cache=set-cookie', 'date': 'Fri, 06 Feb 2015 04:43:12 GMT', 'x-transactionrecord-uuid': 'd718eebb-de51-4777-a665-bc75c71e2797'}
+END OF SECTION}
+BODY{
+
+<entry xmlns="http://www.w3.org/2005/Atom" xmlns:ns2="http://a9.com/-/spec/opensearch/1.1/" xmlns:ns3="http://www.w3.org/1999/xhtml">
+    <id>e357a79a-7a3d-35b6-8405-55ab6a2d0de7</id>
+    <title>SharedStoragePool</title>
+    <published>2015-02-06T04:43:12.194Z</published>
+    <link rel="SELF" href="https://9.1.2.3:12443/rest/api/uom/SharedStoragePool/e357a79a-7a3d-35b6-8405-55ab6a2d0de7"/>
+    <link rel="MANAGEMENT_CONSOLE" href="https://9.1.2.3:12443/rest/api/uom/ManagementConsole/6c1b9d4a-afc1-3cef-ae54-1977d908fda4"/>
+    <author>
+        <name>IBM Power Systems Management Console</name>
+    </author>
+    <etag:etag xmlns:etag="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/">-1833924453</etag:etag>
+    <content type="application/vnd.ibm.powervm.uom+xml; type=SharedStoragePool">
+        <SharedStoragePool:SharedStoragePool xmlns:SharedStoragePool="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns="http://www.ibm.com/xmlns/systems/power/firmware/uom/mc/2012_10/" xmlns:ns2="http://www.w3.org/XML/1998/namespace/k2" schemaVersion="V1_2_0">
+    <Metadata>
+        <Atom>
+            <AtomID>e357a79a-7a3d-35b6-8405-55ab6a2d0de7</AtomID>
+            <AtomCreated>1423194349238</AtomCreated>
+        </Atom>
+    </Metadata>
+    <LogicalUnits kxe="false" kb="CUD" schemaVersion="V1_2_0">
+        <Metadata>
+            <Atom/>
+        </Metadata>
+        <LogicalUnit schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <ThinDevice kb="CUR" kxe="false">true</ThinDevice>
+            <UniqueDeviceID kxe="false" kb="ROR">27cfc907d2abf511e4b2d540f2e95daf301a02b0904778d755df5a46fe25e500d8</UniqueDeviceID>
+            <UnitCapacity kb="COR" kxe="false">1</UnitCapacity>
+            <LogicalUnitType kb="COD" kxe="false">VirtualIO_Disk</LogicalUnitType>
+            <UnitName kb="CUR" kxe="false">neolu1</UnitName>
+        </LogicalUnit>
+    </LogicalUnits>
+    <MultiDataTierConfigured kb="CUD" kxe="false">false</MultiDataTierConfigured>
+    <MultiFailureGroupConfigured kb="CUD" kxe="false">false</MultiFailureGroupConfigured>
+    <PhysicalVolumes kb="CUR" kxe="false" schemaVersion="V1_2_0">
+        <Metadata>
+            <Atom/>
+        </Metadata>
+        <PhysicalVolume schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <Description kb="CUD" kxe="false">MPIO IBM 2076 FC Disk</Description>
+            <UniqueDeviceID kxe="false" kb="ROR">01M0lCTTIxNDUxMjQ2MDA1MDc2ODAyODI4NjFEODgwMDAwMDAwMDAwMDAwMw==</UniqueDeviceID>
+            <VolumeCapacity kb="CUR" kxe="false">51200</VolumeCapacity>
+            <VolumeName kb="CUR" kxe="false">hdisk3</VolumeName>
+            <VolumeState kb="ROR" kxe="false">active</VolumeState>
+            <IsFibreChannelBacked kb="ROR" kxe="false">true</IsFibreChannelBacked>
+        </PhysicalVolume>
+    </PhysicalVolumes>
+    <Capacity kxe="false" kb="CUR">49.88</Capacity>
+    <FreeSpace kxe="false" kb="CUR">48.98</FreeSpace>
+    <OverCommitSpace kb="CUR" kxe="false">0.000000</OverCommitSpace>
+    <TotalLogicalUnitSize kb="CUR" kxe="false">1</TotalLogicalUnitSize>
+    <AlertThreshold kxe="false" kb="CUD">35%</AlertThreshold>
+    <StoragePoolName kb="CUR" kxe="false">neossp1</StoragePoolName>
+    <UniqueDeviceID kb="ROR" kxe="false">24cfc907d2abf511e4b2d540f2e95daf30000000000972FB370000000054D14EB8</UniqueDeviceID>
+</SharedStoragePool:SharedStoragePool>
+    </content>
+</entry>
+
+END OF SECTION}

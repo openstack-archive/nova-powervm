@@ -59,7 +59,11 @@ pvm_opts = [
                default='vscsi',
                help='The Fibre Channel Volume Strategy defines how FC Cinder '
                     'volumes should be attached to the Virtual Machine.  The '
-                    'options are: npiv or vscsi.')
+                    'options are: npiv or vscsi.'),
+    cfg.StrOpt('disk_driver',
+               default='localdisk',
+               help='The disk driver to use for PowerVM disks. '
+               'Valid options are: localdisk, ssp')
 ]
 
 
