@@ -19,17 +19,17 @@ import mock
 from nova import test
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
-from nova_powervm.virt.powervm.disk import blockdev
+from nova_powervm.virt.powervm.disk import driver as disk_dvr
 
 
-class TestStorageAdapter(test.TestCase):
+class TestDiskAdapter(test.TestCase):
     """Unit Tests for the generic storage driver."""
 
     def setUp(self):
-        super(TestStorageAdapter, self).setUp()
+        super(TestDiskAdapter, self).setUp()
         self.useFixture(fx.ImageAPI())
 
-        self.st_adpt = blockdev.StorageAdapter(None)
+        self.st_adpt = disk_dvr.DiskAdapter(None)
 
     def test_capacity(self):
         """These are arbitrary capacity numbers."""
@@ -40,4 +40,4 @@ class TestStorageAdapter(test.TestCase):
         # Test if there is an ID, that we get a file adapter back
         img_meta = {'id': 'test_id'}
         temp = self.st_adpt._get_image_upload(mock.Mock(), img_meta)
-        self.assertIsInstance(temp, blockdev.IterableToFileAdapter)
+        self.assertIsInstance(temp, disk_dvr.IterableToFileAdapter)

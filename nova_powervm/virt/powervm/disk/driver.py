@@ -51,7 +51,7 @@ class IterableToFileAdapter(object):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class StorageAdapter(object):
+class DiskAdapter(object):
 
     def __init__(self, connection):
         """Initialize the DiskAdapter
@@ -84,10 +84,6 @@ class StorageAdapter(object):
         method will get the appropriate file adapter (IterableToFileAdapter)
         built for the invoker.
 
-        Also handles the scenario where a disk is requested, but the boot
-        volume is via cinder.  In that case, a stream is still returned.  But
-        it consists of zero bytes.
-
         :param context: User context
         :param image_meta: The image metadata.
         :return: The stream to send to pypowervm.
@@ -95,10 +91,10 @@ class StorageAdapter(object):
         chunks = self.image_api.download(context, image_meta['id'])
         return IterableToFileAdapter(chunks)
 
-    def disconnect_image_volume(self, context, instance, lpar_uuid):
-        """Disconnects the storage adapters from the image volume.
+    def disconnect_image_disk(self, context, instance, lpar_uuid,
+                              disk_type=None):
+        """Disconnects the storage adapters from the image disk.
 
-        :param context: nova context for operation
         :param context: nova context for operation
         :param instance: instance to delete the image for.
         :param lpar_uuid: The UUID for the pypowervm LPAR element.
@@ -109,23 +105,24 @@ class StorageAdapter(object):
         """
         pass
 
-    def delete_volumes(self, context, instance, mappings):
+    def delete_disks(self, context, instance, mappings):
         """Removes the disks specified by the mappings.
 
         :param context: nova context for operation
         :param instance: instance to delete the image for.
         :param mappings: The mappings that had been used to identify the
                          backing storage.  List of pypowervm VSCSIMappings or
-                         VFCMappings. Typically derived from disconnect_volume.
+                         VFCMappings. Typically derived from
+                         disconnect_image_disk.
         """
         pass
 
-    def create_volume_from_image(self, context, instance, image, disk_size,
-                                 image_type=BOOT_DISK):
-        """Creates a Volume and copies the specified image to it
+    def create_disk_from_image(self, context, instance, image, disk_size,
+                               image_type=BOOT_DISK):
+        """Creates a disk and copies the specified image to it.
 
         :param context: nova context used to retrieve image from glance
-        :param instance: instance to create the volume for
+        :param instance: instance to create the disk for.
         :param image_id: image_id reference used to locate image in glance
         :param disk_size: The size of the disk to create in GB.  If smaller
                           than the image, it will be ignored (as the disk
@@ -137,16 +134,15 @@ class StorageAdapter(object):
         """
         pass
 
-    def connect_volume(self, context, instance, volume_info, lpar_uuid,
-                       **kwds):
+    def connect_disk(self, context, instance, disk_info, lpar_uuid, **kwds):
         pass
 
-    def extend_volume(self, context, instance, volume_info, size):
-        """Extends the disk
+    def extend_disk(self, context, instance, disk_info, size):
+        """Extends the disk.
 
-        :param context: nova context for operation
-        :param instance: instance to create the volume for
-        :param volume_info: dictionary with volume info
-        :param size: the new size in gb
+        :param context: nova context for operation.
+        :param instance: instance to extend the disk for.
+        :param disk_info: dictionary with disk info.
+        :param size: the new size in gb.
         """
         raise NotImplementedError()

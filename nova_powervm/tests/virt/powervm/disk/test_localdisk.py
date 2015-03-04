@@ -26,7 +26,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
-from nova_powervm.virt.powervm.disk import blockdev
+from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm.disk import localdisk as ld
 
 
@@ -65,16 +65,15 @@ class TestLocalDisk(test.TestCase):
                 '_get_vg_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_disk_name')
-    @mock.patch('nova_powervm.virt.powervm.disk.blockdev.'
+    @mock.patch('nova_powervm.virt.powervm.disk.driver.'
                 'IterableToFileAdapter')
     @mock.patch('nova.image.API')
-    def test_create_volume_from_image(self, mock_img_api, mock_file_adpt,
-                                      mock_get_dname, mock_vg_uuid,
-                                      mock_upload_lv):
+    def create_disk_from_image(self, mock_img_api, mock_file_adpt,
+                               mock_get_dname, mock_vg_uuid, mock_upload_lv):
         mock_img = {'id': 'fake_id', 'size': 50}
         mock_get_dname.return_value = 'fake_vol'
 
-        vol_name = self.get_ls(self.apt).create_volume_from_image(
+        vol_name = self.get_ls(self.apt).create_disk_from_image(
             None, None, mock_img, 20)
         mock_upload_lv.assert_called_with(mock.ANY, mock.ANY, mock.ANY,
                                           mock.ANY, 'fake_vol', 50,
@@ -103,8 +102,8 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
-    def test_disconnect_volume(self, mock_vg_uuid):
-        """Tests the disconnect_volume method."""
+    def test_disconnect_image_disk(self, mock_vg_uuid):
+        """Tests the disconnect_image_disk method."""
 
         # Set up the mock data.
         resp = mock.MagicMock(name='resp')
@@ -122,13 +121,13 @@ class TestLocalDisk(test.TestCase):
         self.apt.update.side_effect = validate_update
 
         local = self.get_ls(self.apt)
-        local.disconnect_volume(mock.MagicMock(), mock.MagicMock(), '2')
+        local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2')
         self.assertEqual(1, self.apt.update.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
-    def test_disconnect_volume_disktype(self, mock_vg_uuid):
-        """Tests the disconnect_volume method."""
+    def test_disconnect_image_disk_disktype(self, mock_vg_uuid):
+        """Tests the disconnect_image_disk method."""
 
         # Set up the mock data.
         resp = mock.MagicMock(name='resp')
@@ -146,15 +145,15 @@ class TestLocalDisk(test.TestCase):
         self.apt.update.side_effect = validate_update
 
         local = self.get_ls(self.apt)
-        local.disconnect_volume(mock.MagicMock(), mock.MagicMock(), '2',
-                                disk_type=blockdev.BOOT_DISK)
+        local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2',
+                                    disk_type=disk_dvr.BOOT_DISK)
         self.assertEqual(1, self.apt.update.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_wrap')
-    def test_delete_volumes(self, mock_vg, mock_vg_uuid):
+    def test_delete_disks(self, mock_vg, mock_vg_uuid):
         # Mocks
         self.apt.side_effect = [self.vg_to_vio]
 
@@ -167,8 +166,7 @@ class TestLocalDisk(test.TestCase):
 
         # Invoke the call
         local = self.get_ls(self.apt)
-        local.delete_volumes(mock.MagicMock(), mock.MagicMock(),
-                             [scsi_mapping])
+        local.delete_disks(mock.MagicMock(), mock.MagicMock(), [scsi_mapping])
 
         # Validate the call
         self.assertEqual(1, self.apt.update.call_count)
@@ -178,7 +176,7 @@ class TestLocalDisk(test.TestCase):
                 '_get_vg_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_disk_name')
-    def test_extend_volume(self, mock_dsk_name, mock_vg_uuid, mock_vg):
+    def test_extend_disk(self, mock_dsk_name, mock_vg_uuid, mock_vg):
         local = self.get_ls(self.apt)
 
         inst = objects.Instance(**powervm.TEST_INSTANCE)
@@ -191,11 +189,11 @@ class TestLocalDisk(test.TestCase):
         mock_vg.wrap.return_value = resp
 
         mock_dsk_name.return_value = 'NOMATCH'
-        self.assertRaises(nova_exc.DiskNotFound, local.extend_volume,
+        self.assertRaises(nova_exc.DiskNotFound, local.extend_disk,
                           'context', inst, dict(type='boot'), 10)
 
         mock_dsk_name.return_value = 'disk_name'
-        local.extend_volume('context', inst, dict(type='boot'), 1000)
+        local.extend_disk('context', inst, dict(type='boot'), 1000)
 
         # Validate the call
         self.assertEqual(1, self.apt.update.call_count)

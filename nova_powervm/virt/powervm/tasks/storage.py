@@ -20,34 +20,34 @@ from oslo_log import log as logging
 from taskflow import task
 from taskflow.types import failure as task_fail
 
-from nova_powervm.virt.powervm.disk import blockdev
+from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import vios
 
 LOG = logging.getLogger(__name__)
 
 
-class CreateVolumeForImg(task.Task):
-    """The Task to create the volume from an Image in the storage."""
+class CreateDiskForImg(task.Task):
+    """The Task to create the disk from an image in the storage."""
 
-    def __init__(self, block_dvr, context, instance, image_meta,
-                 disk_size=0, image_type=blockdev.BOOT_DISK):
+    def __init__(self, disk_dvr, context, instance, image_meta,
+                 disk_size=0, image_type=disk_dvr.BOOT_DISK):
         """Create the Task.
 
-        Provides the 'vol_dev_info' for other tasks.  Comes from the block_dvr
-        create_volume_from_image method.
+        Provides the 'disk_dev_info' for other tasks.  Comes from the disk_dvr
+        create_disk_from_image method.
 
-        :param block_dvr: The storage driver.
+        :param disk_dvr: The storage driver.
         :param context: The context passed into the spawn method.
         :param instance: The nova instance.
         :param image_meta: The image metadata.
-        :param disk_size: The size of volume to create. If the size is
-            smaller than the image, the image size will be used.
-        :param image_type: The image type. See disk/blockdev.py
+        :param disk_size: The size of disk to create. If the size is smaller
+                          than the image, the image size will be used.
+        :param image_type: The image type. See disk/driver.py
         """
-        super(CreateVolumeForImg, self).__init__(name='crt_vol_from_img',
-                                                 provides='vol_dev_info')
-        self.block_dvr = block_dvr
+        super(CreateDiskForImg, self).__init__(name='crt_disk_from_img',
+                                               provides='disk_dev_info')
+        self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
         self.image_meta = image_meta
@@ -56,7 +56,7 @@ class CreateVolumeForImg(task.Task):
 
     def execute(self):
         LOG.info(_LI('Creating disk for instance: %s') % self.instance.name)
-        return self.block_dvr.create_volume_from_image(
+        return self.disk_dvr.create_disk_from_image(
             self.context, self.instance, self.image_meta, self.disk_size,
             image_type=self.image_type)
 
@@ -66,39 +66,39 @@ class CreateVolumeForImg(task.Task):
         LOG.warn(_LW('Image for instance %s to be deleted') %
                  self.instance.name)
         if result is None or isinstance(result, task_fail.Failure):
-            # No result means no volume to clean up.
+            # No result means no disk to clean up.
             return
         # TODO(thorst) no mappings at this point...how to delete.
-        # block_dvr.delete_volumes(context, instance, result)
+        # disk_dvr.delete_disks(context, instance, result)
 
 
-class ConnectVol(task.Task):
-    """The task to connect the volume to the instance."""
+class ConnectDisk(task.Task):
+    """The task to connect the disk to the instance."""
 
-    def __init__(self, block_dvr, context, instance):
-        """Create the Task for the connect volume to instance method.
+    def __init__(self, disk_dvr, context, instance):
+        """Create the Task for the connect disk to instance method.
 
         Requires LPAR info through requirement of lpar_wrap.
 
-        Requires volume info through requirement of vol_dev_info (provided by
-        tf_crt_vol_from_img)
+        Requires disk info through requirement of disk_dev_info (provided by
+        crt_disk_from_img)
 
-        :param block_dvr: The storage driver.
+        :param disk_dvr: The disk driver.
         :param context: The context passed into the spawn method.
         :param instance: The nova instance.
         """
-        super(ConnectVol, self).__init__(name='connect_vol',
-                                         requires=['lpar_wrap',
-                                                   'vol_dev_info'])
-        self.block_dvr = block_dvr
+        super(ConnectDisk, self).__init__(name='connect_disk',
+                                          requires=['lpar_wrap',
+                                                    'disk_dev_info'])
+        self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
 
-    def execute(self, lpar_wrap, vol_dev_info):
+    def execute(self, lpar_wrap, disk_dev_info):
         LOG.info(_LI('Connecting disk to instance: %s') %
                  self.instance.name)
-        self.block_dvr.connect_volume(self.context, self.instance,
-                                      vol_dev_info, lpar_wrap.uuid)
+        self.disk_dvr.connect_disk(self.context, self.instance, disk_dev_info,
+                                   lpar_wrap.uuid)
 
 
 class CreateCfgDrive(task.Task):
@@ -170,7 +170,7 @@ class ConnectCfgDrive(task.Task):
         LOG.info(_LI('Attaching Config Drive to instance: %s') %
                  self.instance.name)
         vios.add_vscsi_mapping(self.adapter, self.vios_uuid, self.vios_name,
-                               cfg_drv_vscsi_map.element)
+                               cfg_drv_vscsi_map)
 
 
 class DeleteVOpt(task.Task):
@@ -203,14 +203,14 @@ class DeleteVOpt(task.Task):
 class Detach(task.Task):
     """The task to detach the storage from the instance."""
 
-    def __init__(self, block_dvr, context, instance, lpar_uuid,
+    def __init__(self, disk_dvr, context, instance, lpar_uuid,
                  disk_type=None):
         """Creates the Task to detach the storage adapters.
 
         Provides the stor_adpt_mappings.  A list of pypowervm
         VSCSIMappings or VFCMappings (depending on the storage adapter).
 
-        :param block_dvr: The StorageAdapter for the VM.
+        :param disk_dvr: The DiskAdapter for the VM.
         :param context: The nova context.
         :param instance: The nova instance.
         :param lpar_uuid: The UUID of the lpar.
@@ -218,7 +218,7 @@ class Detach(task.Task):
         """
         super(Detach, self).__init__(name='detach_storage',
                                      provides='stor_adpt_mappings')
-        self.block_dvr = block_dvr
+        self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
         self.lpar_uuid = lpar_uuid
@@ -227,30 +227,30 @@ class Detach(task.Task):
     def execute(self):
         LOG.info(_LI('Detaching disk storage adapters for instance %s')
                  % self.instance.name)
-        return self.block_dvr.disconnect_volume(self.context, self.instance,
-                                                self.lpar_uuid,
-                                                disk_type=self.disk_type)
+        return self.disk_dvr.disconnect_image_disk(self.context, self.instance,
+                                                   self.lpar_uuid,
+                                                   disk_type=self.disk_type)
 
 
 class Delete(task.Task):
     """The task to delete the backing storage."""
 
-    def __init__(self, block_dvr, context, instance):
+    def __init__(self, disk_dvr, context, instance):
         """Creates the Task to delete the storage from the system.
 
         Requires the stor_adpt_mappings.
 
-        :param block_dvr: The StorageAdapter for the VM.
+        :param disk_dvr: The DiskAdapter for the VM.
         :param context: The nova context.
         :param instance: The nova instance.
         """
         req = ['stor_adpt_mappings']
         super(Delete, self).__init__(name='dlt_storage', requires=req)
-        self.block_dvr = block_dvr
+        self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
 
     def execute(self, stor_adpt_mappings):
         LOG.info(_LI('Deleting storage for instance %s.') % self.instance.name)
-        self.block_dvr.delete_volumes(self.context, self.instance,
-                                      stor_adpt_mappings)
+        self.disk_dvr.delete_disks(self.context, self.instance,
+                                   stor_adpt_mappings)

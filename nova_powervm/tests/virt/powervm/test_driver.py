@@ -275,7 +275,7 @@ class TestPowerVMDriver(test.TestCase):
         boot_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=12)
         self.drv.migrate_disk_and_power_off(
             'context', inst, host, boot_flav, 'network_info')
-        self.drv.block_dvr.extend_volume.assert_called_with(
+        self.drv.disk_dvr.extend_disk.assert_called_with(
             'context', inst, dict(type='boot'), 12)
 
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
@@ -288,15 +288,15 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the PowerVM driver rescue operation."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
-        self.drv.block_dvr = mock.Mock()
+        self.drv.disk_dvr = mock.Mock()
 
         # Invoke the method.
         self.drv.rescue('context', inst, mock.MagicMock(),
                         mock.MagicMock(), 'rescue_psswd')
 
         self.assertTrue(mock_task_vm.power_off.called)
-        self.assertTrue(self.drv.block_dvr.create_volume_from_image.called)
-        self.assertTrue(self.drv.block_dvr.connect_volume.called)
+        self.assertTrue(self.drv.disk_dvr.create_disk_from_image.called)
+        self.assertTrue(self.drv.disk_dvr.connect_disk.called)
         # TODO(IBM): Power on not called until bootmode=sms is supported
         # self.assertTrue(mock_task_pwr.power_on.called)
 
@@ -310,14 +310,14 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the PowerVM driver rescue operation."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
-        self.drv.block_dvr = mock.Mock()
+        self.drv.disk_dvr = mock.Mock()
 
         # Invoke the method.
         self.drv.unrescue(inst, 'network_info')
 
         self.assertTrue(mock_task_vm.power_off.called)
-        self.assertTrue(self.drv.block_dvr.disconnect_volume.called)
-        self.assertTrue(self.drv.block_dvr.delete_volumes.called)
+        self.assertTrue(self.drv.disk_dvr.disconnect_image_disk.called)
+        self.assertTrue(self.drv.disk_dvr.delete_disks.called)
         self.assertTrue(mock_task_pwr.power_on.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')

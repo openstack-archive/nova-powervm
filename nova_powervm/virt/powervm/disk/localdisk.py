@@ -29,7 +29,7 @@ from pypowervm.jobs import upload_lv
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.virt.powervm.disk import blockdev
+from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import vios
 
 localdisk_opts = [
@@ -52,11 +52,11 @@ class AbstractLocalStorageException(Exception):
 
 
 class VGNotFound(AbstractLocalStorageException):
-    msg_fmt = _LE('Unable to locate the volume group \'%(vg_name)s\''
-                  ' for this operation.')
+    msg_fmt = _LE('Unable to locate the volume group \'%(vg_name)s\' '
+                  'for this operation.')
 
 
-class LocalStorage(blockdev.StorageAdapter):
+class LocalStorage(disk_dvr.DiskAdapter):
     def __init__(self, connection):
         super(LocalStorage, self).__init__(connection)
         self.adapter = connection['adapter']
@@ -88,7 +88,7 @@ class LocalStorage(blockdev.StorageAdapter):
         # Subtract available from capacity
         return (float(vg_wrap.capacity) - float(vg_wrap.available_size))
 
-    def delete_volumes(self, context, instance, mappings):
+    def delete_disks(self, context, instance, mappings):
         # All of local disk is done against the volume group.  So reload
         # that (to get new etag) and then do an update against it.
         vg_wrap = self._get_vg_wrap()
@@ -109,7 +109,7 @@ class LocalStorage(blockdev.StorageAdapter):
         # resides in the scsi map from the volume group.
         existing_vds = vg_wrap.virtual_disks
         for removal in removals:
-            LOG.info(_LI('Deleting volume: %s') % removal.name,
+            LOG.info(_LI('Deleting disk: %s') % removal.name,
                      instance=instance)
             existing_vds.remove(removal)
 
@@ -119,7 +119,8 @@ class LocalStorage(blockdev.StorageAdapter):
             root_id=self.vios_uuid, child_type=pvm_stg.VG.schema_type,
             child_id=self.vg_uuid)
 
-    def disconnect_volume(self, context, instance, lpar_uuid, disk_type=None):
+    def disconnect_image_disk(self, context, instance, lpar_uuid,
+                              disk_type=None):
         # Quick read the VIOS, using specific extended attribute group
         vios_resp = self.adapter.read(
             pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
@@ -142,7 +143,7 @@ class LocalStorage(blockdev.StorageAdapter):
             disk_maps = existing_maps
         # Remove each map
         for scsi_map in disk_maps:
-            LOG.info(_LI('Disconnecting volume: %s')
+            LOG.info(_LI('Disconnecting disk: %s')
                      % scsi_map.backing_storage.name, instance=instance)
             existing_vios_mappings.remove(scsi_map)
 
@@ -154,9 +155,9 @@ class LocalStorage(blockdev.StorageAdapter):
         # Return the mappings that we just removed.
         return disk_maps
 
-    def create_volume_from_image(self, context, instance, image, disk_size,
-                                 image_type=blockdev.BOOT_DISK):
-        LOG.info(_LI('Create volume.'))
+    def create_disk_from_image(self, context, instance, image, disk_size,
+                               image_type=disk_dvr.BOOT_DISK):
+        LOG.info(_LI('Create disk.'))
 
         # Transfer the image
         stream = self._get_image_upload(context, image)
@@ -180,9 +181,8 @@ class LocalStorage(blockdev.StorageAdapter):
 
         return {'device_name': vol_name}
 
-    def connect_volume(self, context, instance, volume_info, lpar_uuid,
-                       **kwds):
-        vol_name = volume_info.get('device_name')
+    def connect_disk(self, context, instance, disk_info, lpar_uuid, **kwds):
+        vol_name = disk_info.get('device_name')
 
         # Create the mapping structure
         scsi_map = pvm_vios.VSCSIMapping.bld_to_vdisk(self.adapter,
@@ -192,13 +192,13 @@ class LocalStorage(blockdev.StorageAdapter):
         vios.add_vscsi_mapping(self.adapter, self.vios_uuid, self.vios_name,
                                scsi_map)
 
-    def extend_volume(self, context, instance, volume_info, size):
-        """Extends the disk
+    def extend_disk(self, context, instance, disk_info, size):
+        """Extends the disk.
 
-        :param context: nova context for operation
-        :param instance: instance to create the volume for
-        :param volume_info: dictionary with volume info
-        :param size: the new size in gb
+        :param context: nova context for operation.
+        :param instance: instance to extend the disk for.
+        :param disk_info: dictionary with disk info.
+        :param size: the new size in gb.
         """
         def _extend():
             # Get the volume group
@@ -226,8 +226,8 @@ class LocalStorage(blockdev.StorageAdapter):
                 root_id=self.vios_uuid, child_type=pvm_stg.VG.schema_type,
                 child_id=self.vg_uuid, xag=None)
 
-        # Get the volume name based on the instance and type
-        vol_name = self._get_disk_name(volume_info['type'], instance)
+        # Get the disk name based on the instance and type
+        vol_name = self._get_disk_name(disk_info['type'], instance)
         LOG.info(_LI('Extending disk: %s') % vol_name)
         try:
             _extend()

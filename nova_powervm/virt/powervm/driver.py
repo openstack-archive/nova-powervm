@@ -35,8 +35,8 @@ from pypowervm import util as pvm_util
 from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import managed_system as pvm_ms
 
-from nova_powervm.virt.powervm.disk import blockdev
-from nova_powervm.virt.powervm.disk import localdisk as blk_lcl
+from nova_powervm.virt.powervm.disk import driver as disk_dvr
+from nova_powervm.virt.powervm.disk import localdisk as disk_lcl
 from nova_powervm.virt.powervm import host as pvm_host
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
@@ -90,7 +90,7 @@ class PowerVMDriver(driver.ComputeDriver):
                      'host_uuid': self.host_uuid,
                      'vios_name': CONF.vios_name,
                      'vios_uuid': self.vios_uuid}
-        self.block_dvr = blk_lcl.LocalStorage(conn_info)
+        self.disk_dvr = disk_lcl.LocalStorage(conn_info)
 
     def _get_vios_uuid(self):
         self.vios_uuid = vios.get_vios_uuid(self.adapter, CONF.vios_name)
@@ -178,15 +178,15 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.Create(self.adapter, self.host_uuid, instance,
                               flavor))
 
-        # Only add the image volume if there is an image ID.
+        # Only add the image disk if this is from Glance.
         if not is_boot_from_volume:
             # Creates the boot image.
-            flow.add(tf_stg.CreateVolumeForImg(
-                self.block_dvr, context, instance, image_meta,
+            flow.add(tf_stg.CreateDiskForImg(
+                self.disk_dvr, context, instance, image_meta,
                 disk_size=flavor.root_gb))
 
-            # Connects up the volume to the LPAR
-            flow.add(tf_stg.ConnectVol(self.block_dvr, context, instance))
+            # Connects up the disk to the LPAR
+            flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance))
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
@@ -252,11 +252,11 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Detach the storage adapters
         flow.add(
-            tf_stg.Detach(self.block_dvr, context, instance, pvm_inst_uuid))
+            tf_stg.Detach(self.disk_dvr, context, instance, pvm_inst_uuid))
 
         # Delete the storage devices
         if destroy_disks:
-            flow.add(tf_stg.Delete(self.block_dvr, context, instance))
+            flow.add(tf_stg.Delete(self.disk_dvr, context, instance))
 
         # Last step is to delete the LPAR from the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
@@ -312,12 +312,12 @@ class PowerVMDriver(driver.ComputeDriver):
                                 pvm_inst_uuid, instance))
 
         # Creates the boot image.
-        flow.add(tf_stg.CreateVolumeForImg(
-            self.block_dvr, context, instance, image_meta,
-            image_type=blockdev.RESCUE_DISK))
+        flow.add(tf_stg.CreateDiskForImg(
+            self.disk_dvr, context, instance, image_meta,
+            image_type=disk_dvr.RESCUE_DISK))
 
-        # Connects up the volume to the LPAR
-        flow.add(tf_stg.ConnectVol(self.block_dvr, context, instance))
+        # Connects up the disk to the LPAR
+        flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance))
 
         # Last step is to power on the system.
         # TODO(IBM): Currently, sending the bootmode=sms options causes
@@ -351,12 +351,12 @@ class PowerVMDriver(driver.ComputeDriver):
                                 pvm_inst_uuid, instance))
 
         # Detach the storage adapter for the rescue image
-        flow.add(tf_stg.Detach(self.block_dvr, context, instance,
+        flow.add(tf_stg.Detach(self.disk_dvr, context, instance,
                                pvm_inst_uuid,
-                               disk_type=[blockdev.RESCUE_DISK]))
+                               disk_type=[disk_dvr.RESCUE_DISK]))
 
         # Delete the storage devices for the rescue image
-        flow.add(tf_stg.Delete(self.block_dvr, context, instance))
+        flow.add(tf_stg.Delete(self.disk_dvr, context, instance))
 
         # Last step is to power on the system.
         flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
@@ -407,8 +407,8 @@ class PowerVMDriver(driver.ComputeDriver):
         data = pvm_host.build_host_resource_from_ms(self.host_wrapper)
 
         # Add the disk information
-        data["local_gb"] = self.block_dvr.capacity
-        data["local_gb_used"] = self.block_dvr.capacity_used
+        data["local_gb"] = self.disk_dvr.capacity
+        data["local_gb_used"] = self.disk_dvr.capacity_used
 
         return data
 
@@ -515,8 +515,8 @@ class PowerVMDriver(driver.ComputeDriver):
             if flav_obj.root_gb > instance.root_gb:
                 vm.power_off(self.adapter, instance, self.host_uuid)
                 # Resize the root disk
-                self.block_dvr.extend_volume(
-                    context, instance, dict(type='boot'), flav_obj.root_gb)
+                self.disk_dvr.extend_disk(context, instance, dict(type='boot'),
+                                          flav_obj.root_gb)
 
             # Do any VM resource changes
             self._resize_vm(context, instance, flav_obj, retry_interval)
