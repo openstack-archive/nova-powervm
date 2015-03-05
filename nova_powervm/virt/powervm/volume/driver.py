@@ -24,10 +24,56 @@ class PowerVMVolumeDriver(object):
     This is built similarly to the LibvirtBaseVolumeDriver.
     """
 
-    def connect_volume(self, connection_info, disk_info):
-        """Connects the volume."""
-        pass
+    def connect_volume(self, adapter, instance, connection_info, disk_dev):
+        """Connects the volume.
 
-    def disconnect_volume(self, connection_info, disk_dev):
-        """Disconnect the volume."""
-        pass
+        :param adapter: The pypowervm adapter.
+        :param instance: The nova instance that the volume should connect to.
+        :param connection_info: Comes from the BDM.  Example connection_info:
+                {
+                'driver_volume_type':'fibre_channel',
+                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                'data':{
+                   'initiator_target_map':{
+                      '21000024FF649105':['500507680210E522'],
+                      '21000024FF649104':['500507680210E522'],
+                      '21000024FF649107':['500507680210E522'],
+                      '21000024FF649106':['500507680210E522']
+                   },
+                   'target_discovered':False,
+                   'qos_specs':None,
+                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                   'target_lun':0,
+                   'access_mode':'rw',
+                   'target_wwn':'500507680210E522'
+                }
+        :param disk_dev: The name of the device on the backing storage device.
+        """
+        raise NotImplementedError()
+
+    def disconnect_volume(self, adapter, instance, connection_info, disk_dev):
+        """Disconnect the volume.
+
+        :param adapter: The pypowervm adapter.
+        :param instance: The nova instance that the volume should connect to.
+        :param connection_info: Comes from the BDM.  Example connection_info:
+                {
+                'driver_volume_type':'fibre_channel',
+                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                'data':{
+                   'initiator_target_map':{
+                      '21000024FF649105':['500507680210E522'],
+                      '21000024FF649104':['500507680210E522'],
+                      '21000024FF649107':['500507680210E522'],
+                      '21000024FF649106':['500507680210E522']
+                   },
+                   'target_discovered':False,
+                   'qos_specs':None,
+                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                   'target_lun':0,
+                   'access_mode':'rw',
+                   'target_wwn':'500507680210E522'
+                }
+        :param disk_dev: The name of the device on the backing storage device.
+        """
+        raise NotImplementedError()

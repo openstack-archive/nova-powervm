@@ -24,8 +24,9 @@ from nova.virt import configdrive
 from nova.virt import driver
 import time
 
-from oslo.config import cfg
+from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_utils import importutils
 import taskflow.engines
 from taskflow.patterns import linear_flow as lf
 
@@ -45,6 +46,11 @@ from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
+
+
+VOLUME_DRIVER_MAPPINGS = {
+    'fibre_channel': 'nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver'
+}
 
 
 class PowerVMDriver(driver.ComputeDriver):
@@ -69,6 +75,9 @@ class PowerVMDriver(driver.ComputeDriver):
         # Initialize the disk adapter
         self._get_blockdev_driver()
         self.image_api = image.API()
+
+        # Initialize the volume drivers
+        self.vol_drvs = _inst_dict(VOLUME_DRIVER_MAPPINGS)
 
         # Volume connector constants
         self._pfc_wwpns = None
@@ -188,6 +197,16 @@ class PowerVMDriver(driver.ComputeDriver):
             # Connects up the disk to the LPAR
             flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance))
 
+        # Determine if there are volumes to connect.  If so, add a connection
+        # for each type.
+        bdms = self._extract_bdm(block_device_info)
+        if bdms is not None:
+            for bdm in bdms:
+                drv_type = bdm.get('connection_info').get('driver_volume_type')
+                vol_drv = self.vol_drvs.get(drv_type)
+                flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, context,
+                                              instance, bdm))
+
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
             flow.add(tf_stg.CreateCfgDrive(self.adapter, self.host_uuid,
@@ -242,21 +261,30 @@ class PowerVMDriver(driver.ComputeDriver):
         flow = lf.Flow("destroy")
 
         # Power Off the LPAR
-        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
-                                pvm_inst_uuid, instance))
+        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid, pvm_inst_uuid,
+                                instance))
 
         # Delete the virtual optical
         flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid,
-                                   self.vios_uuid, instance,
+                                   self.vios_uuid, instance, pvm_inst_uuid))
+
+        # Determine if there are volumes to disconnect.  If so, remove each
+        # volume
+        bdms = self._extract_bdm(block_device_info)
+        if bdms is not None:
+            for bdm in bdms:
+                drv_type = bdm.get('connection_info').get('driver_volume_type')
+                vol_drv = self.vol_drvs.get(drv_type)
+                flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv,
+                                                 context, instance, bdm))
+
+        # Detach the disk storage adapters
+        flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
                                    pvm_inst_uuid))
 
-        # Detach the storage adapters
-        flow.add(
-            tf_stg.Detach(self.disk_dvr, context, instance, pvm_inst_uuid))
-
-        # Delete the storage devices
+        # Delete the storage disks
         if destroy_disks:
-            flow.add(tf_stg.Delete(self.disk_dvr, context, instance))
+            flow.add(tf_stg.DeleteDisk(self.disk_dvr, context, instance))
 
         # Last step is to delete the LPAR from the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
@@ -268,12 +296,12 @@ class PowerVMDriver(driver.ComputeDriver):
         engine.run()
 
     def attach_volume(self, connection_info, instance, mountpoint):
-        """Attach the disk to the instance at mountpoint using info."""
+        """Attach the volume to the instance at mountpoint using info."""
         self._log_operation('attach_volume', instance)
         # TODO(IBM): Implement attach volume
 
     def detach_volume(self, connection_info, instance, mountpoint):
-        """Detach the disk attached to the instance."""
+        """Detach the volume attached to the instance."""
         self._log_operation('detach_volume', instance)
         # TODO(IBM): Implement detach volume
 
@@ -350,13 +378,13 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
                                 pvm_inst_uuid, instance))
 
-        # Detach the storage adapter for the rescue image
-        flow.add(tf_stg.Detach(self.disk_dvr, context, instance,
-                               pvm_inst_uuid,
-                               disk_type=[disk_dvr.RESCUE_DISK]))
+        # Detach the disk adapter for the rescue image
+        flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
+                                   pvm_inst_uuid,
+                                   disk_type=[disk_dvr.RESCUE_DISK]))
 
-        # Delete the storage devices for the rescue image
-        flow.add(tf_stg.Delete(self.disk_dvr, context, instance))
+        # Delete the storage disk for the rescue image
+        flow.add(tf_stg.DeleteDisk(self.disk_dvr, context, instance))
 
         # Last step is to power on the system.
         flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
@@ -698,3 +726,56 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         # TODO(IBM): Implement post migration
         pass
+
+    def _extract_bdm(self, block_device_info):
+        """Returns the block device mapping out of the block device info.
+
+        The block device mapping is a list of dictionaries.  Each dictionary
+        represents one volume connection.
+
+        Example:
+        [
+          {
+             'connection_info' {
+                'driver_volume_type':'fibre_channel',
+                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                'data':{
+                   'initiator_target_map':{
+                      '21000024FF649105':['500507680210E522'],
+                      '21000024FF649104':['500507680210E522'],
+                      '21000024FF649107':['500507680210E522'],
+                      '21000024FF649106':['500507680210E522']
+                   },
+                   'target_discovered':False,
+                   'qos_specs':None,
+                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                   'target_lun':0,
+                   'access_mode':'rw',
+                   'target_wwn':'500507680210E522'
+                }
+             },
+             'mount_device':'/dev/vda',
+             'delete_on_termination':False
+          }
+       ]
+        """
+        if block_device_info is None:
+            return []
+        return block_device_info.get('block_device_mapping', [])
+
+
+def _inst_dict(input_dict):
+    """Converts a dictionary with class names to one with instances.
+
+    :param input_dict: A dictionary with keys, whose values are class
+                       names.
+    :returns: A dictionary with the same keys.  But the values are instances
+              of the class.  No parameters are passed in  to the inits.
+    """
+    response = dict()
+
+    for key in input_dict.keys():
+        class_inst = importutils.import_class(input_dict[key])
+        response[key] = class_inst()
+
+    return response

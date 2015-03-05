@@ -27,6 +27,70 @@ from nova_powervm.virt.powervm import vios
 LOG = logging.getLogger(__name__)
 
 
+class ConnectVolume(task.Task):
+    """The task to connect a volume to an instance."""
+
+    def __init__(self, adapter, vol_drv, context, instance, bdm):
+        """Create the task.
+
+        :param adapter: The pypowervm adapter.
+        :param vol_drv: The volume driver (see volume folder).  Ties the
+                        storage to a connection type (ex. vSCSI or NPIV).
+        :param context: The context passed into the driver method.
+        :param instance: The nova instance.
+        :param bdm: The block device mapping.
+        """
+        self.adapter = adapter
+        self.vol_drv = vol_drv
+        self.context = context
+        self.instance = instance
+        self.bdm = bdm
+        self.vol_id = self.bdm['connection_info']['volume_id']
+        super(ConnectVolume, self).__init__(name='connect_vol_%s' %
+                                            self.vol_id)
+
+    def execute(self):
+        disk_dev = self.bdm['mount_device'].rpartition("/")[2]
+
+        LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s') %
+                 {'vol': self.vol_id, 'inst': self.instance.name})
+        return self.vol_drv.connect_volume(self.adapter, self.instance,
+                                           self.bdm['connection_info'],
+                                           disk_dev)
+
+
+class DisconnectVolume(task.Task):
+    """The task to disconnect a volume from an instance."""
+
+    def __init__(self, adapter, vol_drv, context, instance, bdm):
+        """Create the task.
+
+        :param adapter: The pypowervm adapter.
+        :param vol_drv: The volume driver (see volume folder).  Ties the
+                        storage to a connection type (ex. vSCSI or NPIV).
+        :param context: The context passed into the driver method.
+        :param instance: The nova instance.
+        :param bdm: The block device mapping.
+        """
+        self.adapter = adapter
+        self.vol_drv = vol_drv
+        self.context = context
+        self.instance = instance
+        self.bdm = bdm
+        self.vol_id = self.bdm['connection_info']['volume_id']
+        super(DisconnectVolume, self).__init__(name='disconnect_vol_%s' %
+                                               self.vol_id)
+
+    def execute(self):
+        disk_dev = self.bdm['mount_device'].rpartition("/")[2]
+
+        LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s') %
+                 {'vol': self.vol_id, 'inst': self.instance.name})
+        return self.vol_drv.disconnect_volume(self.adapter, self.instance,
+                                              self.bdm['connection_info'],
+                                              disk_dev)
+
+
 class CreateDiskForImg(task.Task):
     """The Task to create the disk from an image in the storage."""
 
@@ -38,7 +102,7 @@ class CreateDiskForImg(task.Task):
         create_disk_from_image method.
 
         :param disk_dvr: The storage driver.
-        :param context: The context passed into the spawn method.
+        :param context: The context passed into the driver method.
         :param instance: The nova instance.
         :param image_meta: The image metadata.
         :param disk_size: The size of disk to create. If the size is smaller
@@ -200,8 +264,8 @@ class DeleteVOpt(task.Task):
         media_builder.dlt_vopt(self.lpar_uuid)
 
 
-class Detach(task.Task):
-    """The task to detach the storage from the instance."""
+class DetachDisk(task.Task):
+    """The task to detach the disk storage from the instance."""
 
     def __init__(self, disk_dvr, context, instance, lpar_uuid,
                  disk_type=None):
@@ -216,8 +280,8 @@ class Detach(task.Task):
         :param lpar_uuid: The UUID of the lpar.
         :param disk_type: List of disk types to detach. None means deatch all.
         """
-        super(Detach, self).__init__(name='detach_storage',
-                                     provides='stor_adpt_mappings')
+        super(DetachDisk, self).__init__(name='detach_storage',
+                                         provides='stor_adpt_mappings')
         self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
@@ -232,11 +296,11 @@ class Detach(task.Task):
                                                    disk_type=self.disk_type)
 
 
-class Delete(task.Task):
+class DeleteDisk(task.Task):
     """The task to delete the backing storage."""
 
     def __init__(self, disk_dvr, context, instance):
-        """Creates the Task to delete the storage from the system.
+        """Creates the Task to delete the disk storage from the system.
 
         Requires the stor_adpt_mappings.
 
@@ -245,12 +309,13 @@ class Delete(task.Task):
         :param instance: The nova instance.
         """
         req = ['stor_adpt_mappings']
-        super(Delete, self).__init__(name='dlt_storage', requires=req)
+        super(DeleteDisk, self).__init__(name='dlt_storage', requires=req)
         self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
 
     def execute(self, stor_adpt_mappings):
-        LOG.info(_LI('Deleting storage for instance %s.') % self.instance.name)
+        LOG.info(_LI('Deleting storage disk for instance %s.') %
+                 self.instance.name)
         self.disk_dvr.delete_disks(self.context, self.instance,
                                    stor_adpt_mappings)

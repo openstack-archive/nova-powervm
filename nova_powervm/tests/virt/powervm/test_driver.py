@@ -40,6 +40,11 @@ LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
 
+class FakeClass():
+    """Used for the test_inst_dict."""
+    pass
+
+
 class TestPowerVMDriver(test.TestCase):
     def setUp(self):
         super(TestPowerVMDriver, self).setUp()
@@ -167,6 +172,50 @@ class TestPowerVMDriver(test.TestCase):
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
+                'connect_volume')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                'create_cfg_drv_vopt')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_validate_vopt_vg')
+    @mock.patch('nova_powervm.virt.powervm.vios.add_vscsi_mapping')
+    @mock.patch('nova.virt.configdrive.required_by')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('pypowervm.jobs.power.power_on')
+    def test_spawn_with_bdms(self, mock_pwron, mock_get_flv,
+                             mock_cfg_drv, mock_val_vopt, mock_vios_vscsi,
+                             mock_cfg_vopt, mock_crt, mock_plug_vifs,
+                             mock_vscsi_connect):
+
+        """Validates the PowerVM spawn w/ config drive operations."""
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        my_flavor = inst.get_flavor()
+        mock_get_flv.return_value = my_flavor
+        mock_cfg_drv.return_value = True
+        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
+        resp.entry = pvm_lpar.LPAR._bld().entry
+        mock_crt.return_value = resp
+
+        # Create some fake BDMs
+        block_device_info = self._fake_bdms()
+
+        # Invoke the method.
+        self.drv.spawn('context', inst, mock.Mock(),
+                       'injected_files', 'admin_password',
+                       block_device_info=block_device_info)
+
+        # Create LPAR was called
+        mock_crt.assert_called_with(self.apt, self.drv.host_uuid,
+                                    inst, my_flavor)
+        # Power on was called
+        self.assertTrue(mock_pwron.called)
+
+        # Check that the connect volume was called
+        self.assertEqual(2, mock_vscsi_connect.call_count)
+
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
@@ -204,6 +253,8 @@ class TestPowerVMDriver(test.TestCase):
         # Validate the rollbacks were called
         self.assertTrue(mock_dlt.called)
 
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
+                'disconnect_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -213,7 +264,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy(self, mock_get_flv, mock_pvmuuid, mock_val_vopt,
-                     mock_dlt_vopt, mock_pwroff, mock_dlt):
+                     mock_dlt_vopt, mock_pwroff, mock_dlt,
+                     mock_disconnect_volume):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
@@ -221,8 +273,12 @@ class TestPowerVMDriver(test.TestCase):
         inst.task_state = None
         mock_get_flv.return_value = inst.get_flavor()
 
+        # BDMs
+        mock_bdms = self._fake_bdms()
+
         # Invoke the method.
-        self.drv.destroy('context', inst, mock.Mock())
+        self.drv.destroy('context', inst, mock.Mock(),
+                         block_device_info=mock_bdms)
 
         # Power off was called
         self.assertTrue(mock_pwroff.called)
@@ -232,6 +288,9 @@ class TestPowerVMDriver(test.TestCase):
 
         # Validate that the vopt delete was called
         self.assertTrue(mock_dlt_vopt.called)
+
+        # Validate that the volume detach was called
+        self.assertEqual(2, mock_disconnect_volume.call_count)
 
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
@@ -349,8 +408,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs(
-        self, mock_vm_get, mock_vm_crt):
+    def test_plug_vifs(self, mock_vm_get, mock_vm_crt):
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         # Mock up the CNA response
@@ -371,3 +429,42 @@ class TestPowerVMDriver(test.TestCase):
         # The create should have only been called once.  The other was already
         # existing.
         self.assertEqual(1, mock_vm_crt.call_count)
+
+    def test_extract_bdm(self):
+        """Tests the _extract_bdm method."""
+        self.assertEqual([], self.drv._extract_bdm(None))
+        self.assertEqual([], self.drv._extract_bdm({'fake': 'val'}))
+
+        fake_bdi = {'block_device_mapping': ['content']}
+        self.assertListEqual(['content'], self.drv._extract_bdm(fake_bdi))
+
+    def test_inst_dict(self):
+        """Tests the _inst_dict method."""
+        class_name = 'nova_powervm.tests.virt.powervm.test_driver.FakeClass'
+        inst_dict = driver._inst_dict({'test': class_name})
+
+        self.assertEqual(1, len(inst_dict.keys()))
+        self.assertIsInstance(inst_dict['test'], FakeClass)
+
+    def _fake_bdms(self):
+        block_device_info = {
+            'block_device_mapping': [
+                {
+                    'connection_info': {
+                        'driver_volume_type': 'fibre_channel',
+                        'volume_id': 'fake_vol_uuid',
+                        'target_lun': 0
+                    },
+                    'mount_device': '/dev/vda'
+                },
+                {
+                    'connection_info': {
+                        'driver_volume_type': 'fibre_channel',
+                        'volume_id': 'fake_vol_uuid2',
+                        'target_lun': 1
+                    },
+                    'mount_device': '/dev/vdb'
+                }
+            ]
+        }
+        return block_device_info
