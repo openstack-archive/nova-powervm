@@ -68,8 +68,9 @@ class TestLocalDisk(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.disk.driver.'
                 'IterableToFileAdapter')
     @mock.patch('nova.image.API')
-    def create_disk_from_image(self, mock_img_api, mock_file_adpt,
-                               mock_get_dname, mock_vg_uuid, mock_upload_lv):
+    def test_create_disk_from_image(self, mock_img_api, mock_file_adpt,
+                                    mock_get_dname, mock_vg_uuid,
+                                    mock_upload_lv):
         mock_img = {'id': 'fake_id', 'size': 50}
         mock_get_dname.return_value = 'fake_vol'
 
@@ -147,6 +148,21 @@ class TestLocalDisk(test.TestCase):
         local = self.get_ls(self.apt)
         local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2',
                                     disk_type=disk_dvr.BOOT_DISK)
+        self.assertEqual(1, self.apt.update.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
+                '_get_vg_uuid')
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
+                '_client_lpar_href')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_entry')
+    def test_connect_disk(self, mock_vios_entry, mock_lpar_href, mock_vg_uuid):
+        mock_vg_uuid.return_value = 'vg_UUID'
+        mock_lpar_href.return_value = 'client_lpar_href'
+        mock_vios_entry.return_value = (
+            pvm_vios.VIOS.wrap(self.vio_to_vg).entry, 'etag')
+        ls = self.get_ls(self.apt)
+        ls.connect_disk(mock.MagicMock(), mock.MagicMock(),
+                        dict(device_name='hdisk1'), 'lpar_UUID')
         self.assertEqual(1, self.apt.update.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
