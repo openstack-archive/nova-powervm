@@ -216,6 +216,10 @@ class TestPowerVMDriver(test.TestCase):
         # Check that the connect volume was called
         self.assertEqual(2, mock_vscsi_connect.call_count)
 
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
+                'connect_volume')
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
+                'disconnect_volume')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
@@ -225,7 +229,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.jobs.power.power_off')
     def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_get_flv,
                                 mock_cfg_drv, mock_dlt, mock_crt,
-                                mock_plug_vifs):
+                                mock_plug_vifs, mock_discon_vol,
+                                mock_con_vol):
         """Validates the PowerVM driver operations.  Will do a rollback."""
 
         # Set up the mocks to the tasks.
@@ -236,22 +241,27 @@ class TestPowerVMDriver(test.TestCase):
         resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
         resp.entry = pvm_lpar.LPAR._bld().entry
         mock_crt.return_value = resp
+        block_device_info = self._fake_bdms()
 
         # Make sure power on fails.
         mock_pwron.side_effect = exc.Forbidden()
 
         # Invoke the method.
         self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', inst,
-                          mock.Mock(), 'injected_files', 'admin_password')
+                          mock.Mock(), 'injected_files', 'admin_password',
+                          block_device_info=block_device_info)
 
         # Create LPAR was called
         mock_crt.assert_called_with(self.apt, self.drv.host_uuid,
                                     inst, my_flavor)
+        self.assertEqual(2, mock_con_vol.call_count)
+
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
         # Validate the rollbacks were called
         self.assertTrue(mock_dlt.called)
+        self.assertEqual(2, mock_discon_vol.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
                 'disconnect_volume')
@@ -294,6 +304,50 @@ class TestPowerVMDriver(test.TestCase):
 
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
+
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
+                'connect_volume')
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
+                'disconnect_volume')
+    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                'dlt_vopt')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_validate_vopt_vg')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    def test_destroy_rollback(self, mock_get_flv, mock_pvmuuid, mock_val_vopt,
+                              mock_dlt_vopt, mock_pwroff, mock_dlt,
+                              mock_disconnect_volume, mock_connect_volume):
+
+        """Validates the basic PowerVM destroy rollback mechanism works."""
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.task_state = None
+        mock_get_flv.return_value = inst.get_flavor()
+
+        # BDMs
+        mock_bdms = self._fake_bdms()
+
+        # Fire a failure in the power off.
+        mock_dlt.side_effect = exc.Forbidden()
+
+        # Invoke the method.
+        self.assertRaises(exc.Forbidden, self.drv.destroy, 'context', inst,
+                          mock.Mock(), block_device_info=mock_bdms)
+
+        # Validate that the vopt delete was called
+        self.assertTrue(mock_dlt_vopt.called)
+
+        # Validate that the volume detach was called
+        self.assertEqual(2, mock_disconnect_volume.call_count)
+
+        # Delete LPAR was called
+        mock_dlt.assert_called_with(self.apt, mock.ANY)
+
+        # Validate the rollbacks were called.
+        self.assertEqual(2, mock_connect_volume.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
