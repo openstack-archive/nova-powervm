@@ -73,12 +73,14 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
     @property
     def capacity(self):
         """Capacity of the storage in gigabytes."""
-        raise NotImplementedError()
+        ssp = self._fetch_ssp_wrap()
+        return float(ssp.capacity)
 
     @property
     def capacity_used(self):
         """Capacity of the storage in gigabytes that is used."""
-        raise NotImplementedError()
+        ssp = self._fetch_ssp_wrap()
+        return float(ssp.capacity) - float(ssp.free_space)
 
     def disconnect_image_disk(self, context, instance, lpar_uuid,
                               disk_type=None):

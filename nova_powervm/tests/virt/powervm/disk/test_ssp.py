@@ -45,20 +45,39 @@ class TestSSPDiskAdapter(test.TestCase):
         self.pypvm = self.useFixture(fx.PyPowerVM())
         self.apt = self.pypvm.apt
 
-    def get_ssp_stor(self, adpt):
-        apt = self.apt
-        resp = self.ssp_resp
-        # Mock up Adapter.search() results.
-        # Need to coerce the ssp_resp - which contains a single entry - into
-        # looking like a feed (Adapter.search always returns a feed).
-        resp.feed = pvm_adp.Feed({}, [resp.entry])
-        resp.entry = None
-        apt.search.return_value = resp
-        ssp_stor = ssp.SSPDiskAdapter({'adapter': adpt,
+        # Adapter.search always returns a feed.
+        self.apt.search.return_value = self._bld_resp(
+            entry_or_list=[self.ssp_resp.entry])
+
+        # Default Adapter.read to 304 - we'll always get self.ssp_resp
+        self.apt.read.return_value = self._bld_resp(status=304)
+
+    def _get_ssp_stor(self):
+        ssp_stor = ssp.SSPDiskAdapter({'adapter': self.apt,
                                        'host_uuid': 'host_uuid',
                                        'vios_name': 'vios_name',
                                        'vios_uuid': 'vios_uuid'})
         return ssp_stor
+
+    def _bld_resp(self, status=200, entry_or_list=None):
+        """Build a pypowervm.adapter.Response for mocking Adapter.search/read.
+
+        :param status: HTTP status of the Response.
+        :param entry_or_list: pypowervm.adapter.Entry or list thereof.  If
+                              None, the Response has no content.  If an Entry,
+                              the Response looks like it got back <entry/>.  If
+                              a list of Entry, the Response looks like it got
+                              back <feed/>.
+        :return: pypowervm.adapter.Response suitable for mocking
+                 pypowervm.adapter.Adapter.search or read.
+        """
+        resp = pvm_adp.Response('meth', 'path', status, 'reason', {})
+        if entry_or_list is not None:
+            if isinstance(entry_or_list, list):
+                resp.feed = pvm_adp.Feed({}, entry_or_list)
+            else:
+                resp.entry = entry_or_list
+        return resp
 
     def test_init(self):
         """Bootstrap SSPStorage, testing first call to _fetch_ssp_wrap.
@@ -66,28 +85,26 @@ class TestSSPDiskAdapter(test.TestCase):
         Driver init should search for SSP by name.
         """
         # Invoke __init__ => initial _fetch_ssp_wrap()
-        self.get_ssp_stor(self.apt)
+        self._get_ssp_stor()
         # Init should call _fetch_ssp_wrap() once.  First _fetch_ssp_wrap()
         # does a search, but not a read.
         self.assertEqual(1, self.apt.search.call_count)
         self.assertEqual(0, self.apt.read.call_count)
 
-    def test_fetch_ssp_wrap_304(self):
+    def test_fetch_ssp_wrap_not_modified(self):
         """_fetch_ssp_wrap with etag match."""
         # Save original SSP wrapper for later comparison
         orig_ssp_wrap = pvm_stg.SSP.wrap(self.ssp_resp)
         # Prime _ssp_wrap
-        ssp_stor = self.get_ssp_stor(self.apt)
+        ssp_stor = self._get_ssp_stor()
         # Verify baseline call counts
         self.assertEqual(1, self.apt.search.call_count)
         self.assertEqual(0, self.apt.read.call_count)
-        # Build a 304 response.  Expect _fetch_ssp_wrap to invoke read (not
-        # search), detect the 304, and return the already-saved wrapper.
-        # (No exception proves we didn't try to extract and wrap the
-        # nonexistent feed/entry from this Response.)
-        resp = pvm_adp.Response('meth', 'path', 304, 'reason', {})
-        self.apt.read.return_value = resp
-        # _fetch_ssp_wrap() with etag match
+        # Default read already mocked to no-content 304 (Not Modified).
+        # Expect _fetch_ssp_wrap to invoke read (not search), detect the 304,
+        # and return the already-saved wrapper. (No exception proves we didn't
+        # try to extract and wrap the nonexistent feed/entry from this
+        # Response.)
         ssp_wrap = ssp_stor._fetch_ssp_wrap()
         # This second _fetch_ssp_wrap() should call read, but not search.
         self.assertEqual(1, self.apt.search.call_count)
@@ -97,18 +114,25 @@ class TestSSPDiskAdapter(test.TestCase):
     def test_fetch_ssp_wrap_etag_mismatch(self):
         """_fetch_ssp_wrap with etag mismatch (refetch)."""
         # Prime _ssp_wrap
-        ssp_stor = self.get_ssp_stor(self.apt)
+        ssp_stor = self._get_ssp_stor()
         # Verify baseline call counts
         self.assertEqual(1, self.apt.search.call_count)
         self.assertEqual(0, self.apt.read.call_count)
         # Build a Response with a different SSP so we can tell when refetched
-        resp = pvm_adp.Response('meth', 'path', 200, 'reason', {})
         new_ssp = pvm_stg.SSP.bld('newssp', [])
-        resp.entry = new_ssp.entry
-        self.apt.read.return_value = resp
+        self.apt.read.return_value = self._bld_resp(
+            entry_or_list=new_ssp.entry)
         # _fetch_ssp_wrap() with etag mismatch
         ssp_wrap = ssp_stor._fetch_ssp_wrap()
         # This _fetch_ssp_wrap() should also call read, but not search.
         self.assertEqual(1, self.apt.search.call_count)
         self.assertEqual(1, self.apt.read.call_count)
         self.assertEqual(ssp_wrap.name, new_ssp.name)
+
+    def test_capacity(self):
+        ssp_stor = self._get_ssp_stor()
+        self.assertEqual(49.88, ssp_stor.capacity)
+
+    def test_capacity_used(self):
+        ssp_stor = self._get_ssp_stor()
+        self.assertEqual((49.88 - 48.98), ssp_stor.capacity_used)
