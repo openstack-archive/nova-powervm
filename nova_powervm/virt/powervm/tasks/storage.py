@@ -46,17 +46,30 @@ class ConnectVolume(task.Task):
         self.instance = instance
         self.bdm = bdm
         self.vol_id = self.bdm['connection_info']['volume_id']
+        self.disk_dev = self.bdm['mount_device'].rpartition("/")[2]
         super(ConnectVolume, self).__init__(name='connect_vol_%s' %
                                             self.vol_id)
 
     def execute(self):
-        disk_dev = self.bdm['mount_device'].rpartition("/")[2]
-
         LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s') %
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.connect_volume(self.adapter, self.instance,
                                            self.bdm['connection_info'],
-                                           disk_dev)
+                                           self.disk_dev)
+
+    def revert(self, result, flow_failures):
+        # The parameters have to match the execute method, plus the response +
+        # failures even if only a subset are used.
+        if result is None or isinstance(result, task_fail.Failure):
+            # No result means no disk to clean up.
+            return
+
+        LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
+                     'disconnected') %
+                 {'vol': self.vol_id, 'inst': self.instance.name})
+        return self.vol_drv.disconnect_volume(self.adapter, self.instance,
+                                              self.bdm['connection_info'],
+                                              self.disk_dev)
 
 
 class DisconnectVolume(task.Task):
@@ -78,17 +91,30 @@ class DisconnectVolume(task.Task):
         self.instance = instance
         self.bdm = bdm
         self.vol_id = self.bdm['connection_info']['volume_id']
+        self.disk_dev = self.bdm['mount_device'].rpartition("/")[2]
         super(DisconnectVolume, self).__init__(name='disconnect_vol_%s' %
                                                self.vol_id)
 
     def execute(self):
-        disk_dev = self.bdm['mount_device'].rpartition("/")[2]
-
         LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s') %
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.disconnect_volume(self.adapter, self.instance,
                                               self.bdm['connection_info'],
-                                              disk_dev)
+                                              self.disk_dev)
+
+    def revert(self, result, flow_failures):
+        # The parameters have to match the execute method, plus the response +
+        # failures even if only a subset are used.
+        if result is None or isinstance(result, task_fail.Failure):
+            # No result means no disk to clean up.
+            return
+
+        LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
+                     're-connected') %
+                 {'vol': self.vol_id, 'inst': self.instance.name})
+        return self.vol_drv.connect_volume(self.adapter, self.instance,
+                                           self.bdm['connection_info'],
+                                           self.disk_dev)
 
 
 class CreateDiskForImg(task.Task):

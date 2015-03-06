@@ -55,7 +55,8 @@ class PowerVMVolumeDriver(object):
         """Disconnect the volume.
 
         :param adapter: The pypowervm adapter.
-        :param instance: The nova instance that the volume should connect to.
+        :param instance: The nova instance that the volume should disconnect
+                         from.
         :param connection_info: Comes from the BDM.  Example connection_info:
                 {
                 'driver_volume_type':'fibre_channel',

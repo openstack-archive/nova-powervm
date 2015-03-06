@@ -765,12 +765,12 @@ class PowerVMDriver(driver.ComputeDriver):
 
 
 def _inst_dict(input_dict):
-    """Converts a dictionary with class names to one with instances.
+    """Builds a dictionary with instances as values based on the input classes.
 
     :param input_dict: A dictionary with keys, whose values are class
                        names.
     :returns: A dictionary with the same keys.  But the values are instances
-              of the class.  No parameters are passed in  to the inits.
+              of the class.  No parameters are passed in  to the init methods.
     """
     response = dict()
 
