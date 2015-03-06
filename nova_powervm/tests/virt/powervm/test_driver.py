@@ -68,6 +68,9 @@ class TestPowerVMDriver(test.TestCase):
         self.drv = self.drv_fix.drv
         self.apt = self.drv_fix.pypvm.apt
 
+        self.fc_vol_drv = self.drv.vol_drvs['fibre_channel']
+        self.disk_dvr = self.drv.disk_dvr
+
     def test_driver_create(self):
         """Validates that a driver of the PowerVM type can just be
         initialized.
@@ -172,8 +175,6 @@ class TestPowerVMDriver(test.TestCase):
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
-                'connect_volume')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -186,8 +187,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.jobs.power.power_on')
     def test_spawn_with_bdms(self, mock_pwron, mock_get_flv,
                              mock_cfg_drv, mock_val_vopt, mock_vios_vscsi,
-                             mock_cfg_vopt, mock_crt, mock_plug_vifs,
-                             mock_vscsi_connect):
+                             mock_cfg_vopt, mock_crt, mock_plug_vifs):
 
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
@@ -214,12 +214,8 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_pwron.called)
 
         # Check that the connect volume was called
-        self.assertEqual(2, mock_vscsi_connect.call_count)
+        self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
-                'connect_volume')
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
-                'disconnect_volume')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
@@ -229,8 +225,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.jobs.power.power_off')
     def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_get_flv,
                                 mock_cfg_drv, mock_dlt, mock_crt,
-                                mock_plug_vifs, mock_discon_vol,
-                                mock_con_vol):
+                                mock_plug_vifs):
         """Validates the PowerVM driver operations.  Will do a rollback."""
 
         # Set up the mocks to the tasks.
@@ -254,17 +249,15 @@ class TestPowerVMDriver(test.TestCase):
         # Create LPAR was called
         mock_crt.assert_called_with(self.apt, self.drv.host_uuid,
                                     inst, my_flavor)
-        self.assertEqual(2, mock_con_vol.call_count)
+        self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
         # Validate the rollbacks were called
         self.assertTrue(mock_dlt.called)
-        self.assertEqual(2, mock_discon_vol.call_count)
+        self.assertEqual(2, self.fc_vol_drv.disconnect_volume.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
-                'disconnect_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -274,8 +267,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy(self, mock_get_flv, mock_pvmuuid, mock_val_vopt,
-                     mock_dlt_vopt, mock_pwroff, mock_dlt,
-                     mock_disconnect_volume):
+                     mock_dlt_vopt, mock_pwroff, mock_dlt):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
@@ -300,15 +292,11 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_dlt_vopt.called)
 
         # Validate that the volume detach was called
-        self.assertEqual(2, mock_disconnect_volume.call_count)
+        self.assertEqual(2, self.fc_vol_drv.disconnect_volume.call_count)
 
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
 
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
-                'connect_volume')
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver.'
-                'disconnect_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -318,8 +306,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy_rollback(self, mock_get_flv, mock_pvmuuid, mock_val_vopt,
-                              mock_dlt_vopt, mock_pwroff, mock_dlt,
-                              mock_disconnect_volume, mock_connect_volume):
+                              mock_dlt_vopt, mock_pwroff, mock_dlt):
 
         """Validates the basic PowerVM destroy rollback mechanism works."""
         # Set up the mocks to the tasks.
@@ -341,13 +328,13 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_dlt_vopt.called)
 
         # Validate that the volume detach was called
-        self.assertEqual(2, mock_disconnect_volume.call_count)
+        self.assertEqual(2, self.fc_vol_drv.disconnect_volume.call_count)
 
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
 
         # Validate the rollbacks were called.
-        self.assertEqual(2, mock_connect_volume.call_count)
+        self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
