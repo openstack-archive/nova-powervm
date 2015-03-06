@@ -27,7 +27,9 @@ import pypowervm.wrappers.storage as pvm_stg
 ssp_opts = [
     cfg.StrOpt('ssp_name',
                default='',
-               help='Shared Storage Pool to use for storage operations.')
+               help='Shared Storage Pool to use for storage operations.  If '
+                    'none specified, the host is queried; if a single '
+                    'Shared Storage Pool is found, it is used.')
 ]
 
 
@@ -36,9 +38,24 @@ CONF = cfg.CONF
 CONF.register_opts(ssp_opts)
 
 
-class SSPNotFound(disk.AbstractDiskException):
-    msg_fmt = _LE('Unable to locate the Shared Storage Pool \'%(ssp_name)s\' '
-                  'for this operation.')
+class SSPNotFoundByName(disk.AbstractDiskException):
+    msg_fmt = _LE("Unable to locate the Shared Storage Pool '%(ssp_name)s' "
+                  "for this operation.")
+
+
+class NoConfigNoSSPFound(disk.AbstractDiskException):
+    msg_fmt = _LE('Unable to locate any Shared Storage Pool for this '
+                  'operation.')
+
+
+class TooManySSPsFound(disk.AbstractDiskException):
+    msg_fmt = _LE("Unexpectedly found %(ssp_count)d Shared Storage Pools "
+                  "matching name '%(ssp_name)s'.")
+
+
+class NoConfigTooManySSPs(disk.AbstractDiskException):
+    msg_fmt = _LE("No ssp_name specified.  Refusing to select one of the "
+                  "%(ssp_count)d Shared Storage Pools found.")
 
 
 class SSPDiskAdapter(disk_drv.DiskAdapter):
@@ -151,12 +168,26 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         try:
             if self._ssp_wrap is None:
-                # Not yet loaded - search by name
-                resp = self.adapter.search(pvm_stg.SSP,
-                                           name=self.ssp_name)
-                wraps = pvm_stg.SSP.wrap(resp)
-                if len(wraps) != 1:
-                    raise SSPNotFound(cluster_name=self.ssp_name)
+                # Not yet loaded.
+                # Did config provide a name?
+                if self.ssp_name:
+                    resp = self.adapter.search(pvm_stg.SSP,
+                                               name=self.ssp_name)
+                    wraps = pvm_stg.SSP.wrap(resp)
+                    if len(wraps) == 0:
+                        raise SSPNotFoundByName(ssp_name=self.ssp_name)
+                    if len(wraps) > 1:
+                        raise TooManySSPsFound(ssp_count=len(wraps),
+                                               ssp_name=self.ssp_name)
+                else:
+                    # Otherwise, pull the entire feed of SSPs and, if exactly
+                    # one result, use it.
+                    resp = self.adapter.read(pvm_stg.SSP.schema_type)
+                    wraps = pvm_stg.SSP.wrap(resp)
+                    if len(wraps) == 0:
+                        raise NoConfigNoSSPFound()
+                    if len(wraps) > 1:
+                        raise NoConfigTooManySSPs(ssp_count=len(wraps))
                 self._ssp_wrap = wraps[0]
             else:
                 # Already loaded.  Refetch with etag
@@ -167,10 +198,10 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                 if resp.status != 304:
                     self._ssp_wrap = pvm_stg.SSP.wrap(resp)
         # TODO(IBM): If the SSP doesn't exist when the driver is loaded, we
-        # raise SSPNotFound; but if it gets removed at some point while
-        # live, we'll (re)raise the 404 HttpError from the REST API.  Do we
-        # need a crisper way to distinguish these two scenarios?  Do we want to
-        # meld them together so both raise SSPNotFound?
+        # raise one of the custom exceptions; but if it gets removed at some
+        # point while live, we'll (re)raise the 404 HttpError from the REST
+        # API.  Do we need a crisper way to distinguish these two scenarios?
+        # Do we want to trap the 404 and raise a custom "SSPVanished"?
         except Exception as e:
             LOG.exception(e.message)
             raise e

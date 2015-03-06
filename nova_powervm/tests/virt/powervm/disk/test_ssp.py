@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_config import cfg
+
 from nova import test
 import os
 import pypowervm.adapter as pvm_adp
@@ -45,6 +47,8 @@ class TestSSPDiskAdapter(test.TestCase):
         self.pypvm = self.useFixture(fx.PyPowerVM())
         self.apt = self.pypvm.apt
 
+        # By default, assume the config supplied an SSP name
+        cfg.CONF.set_override('ssp_name', 'ssp1')
         # Adapter.search always returns a feed.
         self.apt.search.return_value = self._bld_resp(
             entry_or_list=[self.ssp_resp.entry])
@@ -72,14 +76,18 @@ class TestSSPDiskAdapter(test.TestCase):
                  pypowervm.adapter.Adapter.search or read.
         """
         resp = pvm_adp.Response('meth', 'path', status, 'reason', {})
-        if entry_or_list is not None:
+        resp.entry = None
+        resp.feed = None
+        if entry_or_list is None:
+            resp.feed = pvm_adp.Feed({}, [])
+        else:
             if isinstance(entry_or_list, list):
                 resp.feed = pvm_adp.Feed({}, entry_or_list)
             else:
                 resp.entry = entry_or_list
         return resp
 
-    def test_init(self):
+    def test_init_green_with_config(self):
         """Bootstrap SSPStorage, testing first call to _fetch_ssp_wrap.
 
         Driver init should search for SSP by name.
@@ -87,9 +95,49 @@ class TestSSPDiskAdapter(test.TestCase):
         # Invoke __init__ => initial _fetch_ssp_wrap()
         self._get_ssp_stor()
         # Init should call _fetch_ssp_wrap() once.  First _fetch_ssp_wrap()
-        # does a search, but not a read.
+        # WITH a configured name does a search, but not a read.
         self.assertEqual(1, self.apt.search.call_count)
         self.assertEqual(0, self.apt.read.call_count)
+
+    def test_init_green_no_config(self):
+        """No SSP name specified in config; one SSP on host - success."""
+        cfg.CONF.clear_override('ssp_name')
+        self.apt.read.return_value = self._bld_resp(
+            entry_or_list=[self.ssp_resp.entry])
+        self._get_ssp_stor()
+        # Init should call _fetch_ssp_wrap() once.  First _fetch_ssp_wrap()
+        # WITHOUT a configured name does a feed GET (read), not a search.
+        self.assertEqual(0, self.apt.search.call_count)
+        self.assertEqual(1, self.apt.read.call_count)
+        self.apt.read.assert_called_with('SharedStoragePool')
+
+    def test_init_SSPNotFoundByName(self):
+        """Empty feed comes back from search - no SSP by that name."""
+        self.apt.search.return_value = self._bld_resp(status=204)
+        self.assertRaises(ssp.SSPNotFoundByName, self._get_ssp_stor)
+
+    def test_init_TooManySSPsFound(self):
+        """Search-by-name returns more than one result."""
+        ssp1 = pvm_stg.SSP.bld('newssp1', [])
+        ssp2 = pvm_stg.SSP.bld('newssp2', [])
+        self.apt.search.return_value = self._bld_resp(
+            entry_or_list=[ssp1.entry, ssp2.entry])
+        self.assertRaises(ssp.TooManySSPsFound, self._get_ssp_stor)
+
+    def test_init_NoConfigNoSSPFound(self):
+        """No SSP name specified in config, no SSPs on host."""
+        cfg.CONF.clear_override('ssp_name')
+        self.apt.read.return_value = self._bld_resp(status=204)
+        self.assertRaises(ssp.NoConfigNoSSPFound, self._get_ssp_stor)
+
+    def test_init_NoConfigTooManySSPs(self):
+        """No SSP name specified in config, more than one SSP on host."""
+        cfg.CONF.clear_override('ssp_name')
+        ssp1 = pvm_stg.SSP.bld('newssp1', [])
+        ssp2 = pvm_stg.SSP.bld('newssp2', [])
+        self.apt.read.return_value = self._bld_resp(
+            entry_or_list=[ssp1.entry, ssp2.entry])
+        self.assertRaises(ssp.NoConfigTooManySSPs, self._get_ssp_stor)
 
     def test_fetch_ssp_wrap_not_modified(self):
         """_fetch_ssp_wrap with etag match."""
