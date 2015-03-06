@@ -21,7 +21,7 @@ from nova.i18n import _LI
 from nova.virt import configdrive
 import os
 
-from oslo.config import cfg
+from oslo_config import cfg
 from oslo_log import log as logging
 
 from pypowervm.jobs import upload_lv

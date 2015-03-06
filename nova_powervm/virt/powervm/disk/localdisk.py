@@ -17,9 +17,9 @@
 
 import abc
 
-from oslo.config import cfg
-from oslo.utils import units
+from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_utils import units
 import six
 
 from nova import exception as nova_exc
