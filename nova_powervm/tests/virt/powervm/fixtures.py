@@ -56,6 +56,34 @@ class ImageAPI(fixtures.Fixture):
         self.addCleanup(self.img_api)
 
 
+class DiskAdapter(fixtures.Fixture):
+    """Mock out the DiskAdapter."""
+
+    def __init__(self):
+        pass
+
+    def setUp(self):
+        super(DiskAdapter, self).setUp()
+        self._std_disk_adpt = mock.patch('nova_powervm.virt.powervm.disk.'
+                                         'localdisk.LocalStorage')
+        self.std_disk_adpt = self._std_disk_adpt.start()
+        self.addCleanup(self._std_disk_adpt.stop)
+
+
+class VolumeAdapter(fixtures.Fixture):
+    """Mock out the VolumeAdapter."""
+
+    def __init__(self):
+        pass
+
+    def setUp(self):
+        super(VolumeAdapter, self).setUp()
+        self._std_vol_adpt = mock.patch('nova_powervm.virt.powervm.volume.'
+                                        'vscsi.VscsiVolumeDriver')
+        self.std_vol_adpt = self._std_vol_adpt.start()
+        self.addCleanup(self._std_vol_adpt.stop)
+
+
 class PowerVMComputeDriver(fixtures.Fixture):
     """Construct a fake compute driver."""
 
@@ -78,3 +106,10 @@ class PowerVMComputeDriver(fixtures.Fixture):
         self._init_host()
         self.drv.adapter = self.pypvm.apt
         self.drv.image_api = mock.Mock()
+
+        # Set up the mock volume and disk drivers.
+        vol_adpt = self.useFixture(VolumeAdapter())
+        self.drv.vol_drvs['fibre_channel'] = vol_adpt.std_vol_adpt
+
+        disk_adpt = self.useFixture(DiskAdapter())
+        self.drv.disk_dvr = disk_adpt.std_disk_adpt
