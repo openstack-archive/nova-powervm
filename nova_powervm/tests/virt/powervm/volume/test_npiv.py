@@ -14,8 +14,24 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# Defines the various volume connectors that can be used.
-FC_STRATEGY_MAPPING = {
-    'npiv': 'nova_powervm.virt.powervm.volume.npiv.NPIVVolumeDriver',
-    'vscsi': 'nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver'
-}
+import mock
+
+from nova import test
+
+from nova_powervm.virt.powervm.volume import npiv
+
+
+class TestNPIVDriver(test.TestCase):
+    """Tests the NPIV Volume Connector Driver."""
+
+    def setUp(self):
+        super(TestNPIVDriver, self).setUp()
+
+    @mock.patch('pypowervm.jobs.wwpn.build_wwpn_pair')
+    def test_wwpns(self, mock_build_wwpns):
+        mock_build_wwpns.return_value = ['aa', 'bb']
+
+        vol_drv = npiv.NPIVVolumeDriver()
+        wwpns = vol_drv.wwpns(mock.ANY, 'host_uuid', mock.ANY)
+
+        self.assertListEqual(['aa', 'bb'], wwpns)

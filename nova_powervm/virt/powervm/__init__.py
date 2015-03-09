@@ -54,7 +54,12 @@ pvm_opts = [
                help='The user id for authentication into the API.'),
     cfg.StrOpt('pvm_pass',
                default='',
-               help='The password for authentication into the API.')
+               help='The password for authentication into the API.'),
+    cfg.StrOpt('fc_attach_strategy',
+               default='vscsi',
+               help='The Fibre Channel Volume Strategy defines how FC Cinder '
+                    'volumes should be attached to the Virtual Machine.  The '
+                    'options are: npiv or vscsi.')
 ]
 
 

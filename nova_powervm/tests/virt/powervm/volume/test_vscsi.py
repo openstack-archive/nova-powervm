@@ -14,8 +14,24 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# Defines the various volume connectors that can be used.
-FC_STRATEGY_MAPPING = {
-    'npiv': 'nova_powervm.virt.powervm.volume.npiv.NPIVVolumeDriver',
-    'vscsi': 'nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver'
-}
+import mock
+
+from nova import test
+
+from nova_powervm.virt.powervm.volume import vscsi
+
+
+class TestVSCSIDriver(test.TestCase):
+    """Tests the vSCSI Volume Connector Driver."""
+
+    def setUp(self):
+        super(TestVSCSIDriver, self).setUp()
+
+    @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')
+    def test_wwpns(self, mock_vio_wwpns):
+        mock_vio_wwpns.return_value = ['aa', 'bb']
+
+        vol_drv = vscsi.VscsiVolumeDriver()
+        wwpns = vol_drv.wwpns(mock.ANY, 'host_uuid', mock.ANY)
+
+        self.assertListEqual(['aa', 'bb'], wwpns)

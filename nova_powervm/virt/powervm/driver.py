@@ -43,13 +43,17 @@ from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
+from nova_powervm.virt.powervm import volume as vol_attach
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 
+# Defines, for all cinder volume types, which volume driver to use.  Currently
+# only supports Fibre Channel, which has multiple options for connections.
+# The connection strategy is defined above.
 VOLUME_DRIVER_MAPPINGS = {
-    'fibre_channel': 'nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver'
+    'fibre_channel': vol_attach.FC_STRATEGY_MAPPING[CONF.fc_attach_strategy]
 }
 
 
@@ -78,9 +82,6 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Initialize the volume drivers
         self.vol_drvs = _inst_dict(VOLUME_DRIVER_MAPPINGS)
-
-        # Volume connector constants
-        self._pfc_wwpns = None
 
         LOG.info(_LI("The compute driver has been initialized."))
 
@@ -508,14 +509,15 @@ class PowerVMDriver(driver.ComputeDriver):
             }
 
         """
-        # Check system data
-        if self._pfc_wwpns is None:
-            self._pfc_wwpns = vios.get_physical_wwpns(self.adapter,
-                                                      self.host_uuid)
-
+        # The host ID
         connector = {'host': CONF.host}
-        if self._pfc_wwpns is not None:
-            connector["wwpns"] = self._pfc_wwpns
+
+        # The WWPNs in case of FC connection.
+        wwpn_list = self.vol_drvs['fibre_channel'].wwpns(self.adapter,
+                                                         self.host_uuid,
+                                                         instance)
+        if wwpn_list is not None:
+            connector["wwpns"] = wwpn_list
         return connector
 
     def migrate_disk_and_power_off(self, context, instance, dest,

@@ -78,3 +78,22 @@ class PowerVMVolumeDriver(object):
         :param disk_dev: The name of the device on the backing storage device.
         """
         raise NotImplementedError()
+
+
+class FibreChannelVolumeDriver(PowerVMVolumeDriver):
+    """Defines a Fibre Channel specific volume driver.
+
+    Fibre Channel has a few additional attributes for the volume driver.
+    This class defines the additional attributes so that the multiple FC
+    sub classes can support them.
+    """
+
+    def wwpns(self, adapter, host_uuid, instance):
+        """Builds the WWPNs of the adapters that will connect the ports.
+
+        :param adapter: The pypowervm API adapter.
+        :param host_uuid: The UUID of the host for the pypowervm adapter.
+        :param instance: The nova instance.
+        :returns: The list of WWPNs that need to be included in the zone set.
+        """
+        raise NotImplementedError()

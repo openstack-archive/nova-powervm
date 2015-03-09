@@ -14,8 +14,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from pypowervm.jobs import wwpn as pvm_wwpn
 
-class NPIVVolumeDriver(object):
+from nova_powervm.virt.powervm.volume import driver as v_driver
+
+
+class NPIVVolumeDriver(v_driver.FibreChannelVolumeDriver):
     """The NPIV implementation of the Volume Driver.
 
     NPIV stands for N_Port ID Virtualization.  It is a means of providing
@@ -34,3 +38,14 @@ class NPIVVolumeDriver(object):
     def disconnect_volume(self, adapter, instance, connection_info, disk_dev):
         """Disconnect the volume."""
         pass
+
+    def wwpns(self, adapter, host_uuid, instance):
+        """Builds the WWPNs of the adapters that will connect the ports.
+
+        :param adapter: The pypowervm API adapter.
+        :param host_uuid: The UUID of the host for the pypowervm adapter.
+        :param instance: The nova instance.
+        :returns: The list of WWPNs that need to be included in the zone set.
+        """
+        # The return object needs to be a list for the volume connector.
+        return list(pvm_wwpn.build_wwpn_pair(adapter, host_uuid))

@@ -78,11 +78,9 @@ class TestPowerVMDriver(test.TestCase):
         test_drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         self.assertIsNotNone(test_drv)
 
-    @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')
-    def test_get_volume_connector(self, mock_vio_wwpns):
-        mock_vio_wwpns.return_value = ['aa', 'bb']
+    def test_get_volume_connector(self):
         vol_connector = self.drv.get_volume_connector(None)
-        self.assertListEqual(['aa', 'bb'], vol_connector['wwpns'])
+        self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
 
     @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
