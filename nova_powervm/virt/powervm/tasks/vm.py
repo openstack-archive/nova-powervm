@@ -46,9 +46,8 @@ class Get(task.Task):
         self.instance = instance
 
     def execute(self):
-        lpar_wrap = vm.get_instance_wrapper(
-            self.adapter, self.instance, self.host_uuid)
-        return lpar_wrap
+        return vm.get_instance_wrapper(self.adapter, self.instance,
+                                       self.host_uuid)
 
 
 class Create(task.Task):

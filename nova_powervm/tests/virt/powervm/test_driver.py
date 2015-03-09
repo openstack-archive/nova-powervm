@@ -262,10 +262,11 @@ class TestPowerVMDriver(test.TestCase):
                 'dlt_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    def test_destroy(self, mock_get_flv, mock_pvmuuid, mock_val_vopt,
-                     mock_dlt_vopt, mock_pwroff, mock_dlt):
+    def test_destroy(self, mock_get_flv, mock_pvmuuid, mock_inst_wrap,
+                     mock_val_vopt, mock_dlt_vopt, mock_pwroff, mock_dlt):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
@@ -301,10 +302,12 @@ class TestPowerVMDriver(test.TestCase):
                 'dlt_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    def test_destroy_rollback(self, mock_get_flv, mock_pvmuuid, mock_val_vopt,
-                              mock_dlt_vopt, mock_pwroff, mock_dlt):
+    def test_destroy_rollback(self, mock_get_flv, mock_pvmuuid, mock_inst_wrap,
+                              mock_val_vopt, mock_dlt_vopt, mock_pwroff,
+                              mock_dlt):
 
         """Validates the basic PowerVM destroy rollback mechanism works."""
         # Set up the mocks to the tasks.
@@ -491,16 +494,20 @@ class TestPowerVMDriver(test.TestCase):
                 {
                     'connection_info': {
                         'driver_volume_type': 'fibre_channel',
-                        'volume_id': 'fake_vol_uuid',
-                        'target_lun': 0
+                        'data': {
+                            'volume_id': 'fake_vol_uuid',
+                            'target_lun': 0
+                        }
                     },
                     'mount_device': '/dev/vda'
                 },
                 {
                     'connection_info': {
                         'driver_volume_type': 'fibre_channel',
-                        'volume_id': 'fake_vol_uuid2',
-                        'target_lun': 1
+                        'data': {
+                            'volume_id': 'fake_vol_uuid2',
+                            'target_lun': 1
+                        }
                     },
                     'mount_device': '/dev/vdb'
                 }

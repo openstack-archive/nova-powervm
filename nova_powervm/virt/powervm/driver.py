@@ -205,7 +205,8 @@ class PowerVMDriver(driver.ComputeDriver):
                 drv_type = bdm.get('connection_info').get('driver_volume_type')
                 vol_drv = self.vol_drvs.get(drv_type)
                 flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, context,
-                                              instance, bdm))
+                                              instance, bdm, self.host_uuid,
+                                              self.vios_uuid))
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
@@ -276,7 +277,10 @@ class PowerVMDriver(driver.ComputeDriver):
                 drv_type = bdm.get('connection_info').get('driver_volume_type')
                 vol_drv = self.vol_drvs.get(drv_type)
                 flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv,
-                                                 context, instance, bdm))
+                                                 context, instance, bdm,
+                                                 self.host_uuid,
+                                                 self.vios_uuid,
+                                                 pvm_inst_uuid))
 
         # Detach the disk storage adapters
         flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
@@ -512,11 +516,21 @@ class PowerVMDriver(driver.ComputeDriver):
         connector = {'host': CONF.host}
 
         # The WWPNs in case of FC connection.
-        wwpn_list = self.vol_drvs['fibre_channel'].wwpns(self.adapter,
-                                                         self.host_uuid,
-                                                         instance)
-        if wwpn_list is not None:
-            connector["wwpns"] = wwpn_list
+        if self.vol_drvs['fibre_channel'] is not None:
+            # Override the host name.
+            # TODO(IBM) See if there is a way to support a FC host name that
+            # is independent of overall host name.
+            connector['host'] = self.vol_drvs['fibre_channel'].host_name(
+                self.adapter, self.host_uuid, instance)
+
+            # TODO(IBM) WWPNs should be resolved from instance if previously
+            # invoked (ex. Destroy)
+            # Set the WWPNs
+            wwpn_list = self.vol_drvs['fibre_channel'].wwpns(self.adapter,
+                                                             self.host_uuid,
+                                                             instance)
+            if wwpn_list is not None:
+                connector["wwpns"] = wwpn_list
         return connector
 
     def migrate_disk_and_power_off(self, context, instance, dest,

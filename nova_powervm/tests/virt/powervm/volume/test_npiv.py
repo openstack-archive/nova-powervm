@@ -26,12 +26,34 @@ class TestNPIVAdapter(test.TestCase):
 
     def setUp(self):
         super(TestNPIVAdapter, self).setUp()
+        self.vol_drv = npiv.NPIVVolumeAdapter()
+
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VFCMapping.bld')
+    @mock.patch('nova_powervm.virt.powervm.vios.add_vfc_mapping')
+    def test_connect_volume(self, mock_add_vfc, mock_vfc_map_bld):
+        con_info = {'data': {'initiator_target_map': {'a': None,
+                                                      'b': None}}}
+        self.vol_drv.connect_volume(None, 'host_uuid', 'vios_uuid', 'vm_uuid',
+                                    None, con_info, '/sda')
+        self.assertEqual(1, mock_add_vfc.call_count)
 
     @mock.patch('pypowervm.jobs.wwpn.build_wwpn_pair')
     def test_wwpns(self, mock_build_wwpns):
         mock_build_wwpns.return_value = ['aa', 'bb']
 
-        vol_drv = npiv.NPIVVolumeAdapter()
-        wwpns = vol_drv.wwpns(mock.ANY, 'host_uuid', mock.ANY)
+        wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', mock.ANY)
 
         self.assertListEqual(['aa', 'bb'], wwpns)
+
+    def test_wwpn_match(self):
+        self.assertTrue(self.vol_drv._wwpn_match(['a', 'b'], ['b', 'a']))
+        self.assertTrue(self.vol_drv._wwpn_match(set(['a', 'b']),
+                                                 ['b', 'a']))
+        self.assertTrue(self.vol_drv._wwpn_match(set(['A', 'B']),
+                                                 ['b', 'a']))
+        self.assertFalse(self.vol_drv._wwpn_match(set(['a', 'b']),
+                                                  ['b', 'a', 'c']))
+        self.assertFalse(self.vol_drv._wwpn_match(set(['a', 'b', 'c']),
+                                                  ['b', 'a']))
+        self.assertFalse(self.vol_drv._wwpn_match(['a', 'b', 'c'],
+                                                  ['b', 'a']))

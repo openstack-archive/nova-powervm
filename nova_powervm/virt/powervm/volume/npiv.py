@@ -15,7 +15,9 @@
 #    under the License.
 
 from pypowervm.jobs import wwpn as pvm_wwpn
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 
@@ -31,13 +33,106 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     Server only passes through communication directly to the VM itself.
     """
 
-    def connect_volume(self, adapter, instance, connection_info, disk_dev):
-        """Connects the volume."""
-        pass
+    def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, instance,
+                       connection_info, disk_dev):
+        """Connects the volume.
 
-    def disconnect_volume(self, adapter, instance, connection_info, disk_dev):
-        """Disconnect the volume."""
-        pass
+        :param adapter: The pypowervm adapter.
+        :param host_uuid: The pypowervm UUID of the host.
+        :param vios_uuid: The pypowervm UUID of the VIOS.
+        :param vm_uuid: The powervm UUID of the VM.
+        :param instance: The nova instance that the volume should connect to.
+        :param connection_info: Comes from the BDM.  Example connection_info:
+                {
+                'driver_volume_type':'fibre_channel',
+                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                'data':{
+                   'initiator_target_map':{
+                      '21000024FF649105':['500507680210E522'],
+                      '21000024FF649104':['500507680210E522'],
+                      '21000024FF649107':['500507680210E522'],
+                      '21000024FF649106':['500507680210E522']
+                   },
+                   'target_discovered':False,
+                   'qos_specs':None,
+                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                   'target_lun':0,
+                   'access_mode':'rw',
+                   'target_wwn':'500507680210E522'
+                }
+        :param disk_dev: The name of the device on the backing storage device.
+        """
+        c_wwpns = connection_info['data']['initiator_target_map'].keys()
+
+        # TODO(thorst) Update ports to non-hardcoded value.
+        vfc_map = pvm_vios.VFCMapping.bld(adapter, host_uuid, vm_uuid,
+                                          'fcs0', c_wwpns)
+        # TODO(thorst) change the vios name to proper value
+        vios.add_vfc_mapping(adapter, vios_uuid, 'temp', vfc_map)
+
+    def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
+                          instance, connection_info, disk_dev):
+        """Disconnect the volume.
+
+        :param adapter: The pypowervm adapter.
+        :param host_uuid: The pypowervm UUID of the host.
+        :param vios_uuid: The pypowervm UUID of the VIOS.
+        :param vm_uuid: The powervm UUID of the VM.
+        :param instance: The nova instance that the volume should disconnect
+                         from.
+        :param connection_info: Comes from the BDM.  Example connection_info:
+                {
+                'driver_volume_type':'fibre_channel',
+                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                'data':{
+                   'initiator_target_map':{
+                      '21000024FF649105':['500507680210E522'],
+                      '21000024FF649104':['500507680210E522'],
+                      '21000024FF649107':['500507680210E522'],
+                      '21000024FF649106':['500507680210E522']
+                   },
+                   'target_discovered':False,
+                   'qos_specs':None,
+                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
+                   'target_lun':0,
+                   'access_mode':'rw',
+                   'target_wwn':'500507680210E522'
+                }
+        :param disk_dev: The name of the device on the backing storage device.
+        """
+        vios_resp = adapter.read(
+            pvm_vios.VIOS.schema_type, root_id=vios_uuid,
+            xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
+        vios_w = pvm_vios.VIOS.wrap(vios_resp)
+
+        # Find the existing mappings....
+        existing_fc_maps = vios_w.vfc_mappings
+        lpar_fc_maps = []
+
+        # Find the corresponding FC mapping for this connection_info
+        for existing_fc_map in existing_fc_maps:
+            # Set of two WWPNs
+            wwpns1 = existing_fc_map.client_adapter.wwpns
+
+            # List of two WWPNs
+            wwpns2 = connection_info['data']['initiator_target_map'].keys()
+            if self._wwpn_match(wwpns1, wwpns2):
+                lpar_fc_maps.append(existing_fc_map)
+
+        # Remove each mapping from the existing map set
+        for removal_map in lpar_fc_maps:
+            vios_w.vfc_mappings.remove(removal_map)
+
+        # Now perform the update of the VIOS
+        adapter.update(vios_w, vios_w.etag, pvm_vios.VIOS.schema_type,
+                       root_id=vios_w.uuid,
+                       xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
+
+    def _wwpn_match(self, list1, list2):
+        """Determines if two sets/lists of WWPNs match."""
+        set1 = set([x.lower() for x in list1])
+        set2 = set([x.lower() for x in list2])
+        return set1 == set2
 
     def wwpns(self, adapter, host_uuid, instance):
         """Builds the WWPNs of the adapters that will connect the ports.
@@ -49,3 +144,13 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         """
         # The return object needs to be a list for the volume connector.
         return list(pvm_wwpn.build_wwpn_pair(adapter, host_uuid))
+
+    def host_name(self, adapter, host_uuid, instance):
+        """Derives the host name that should be used for the storage device.
+
+        :param adapter: The pypowervm API adapter.
+        :param host_uuid: The UUID of the host for the pypowervm adapter.
+        :param instance: The nova instance.
+        :returns: The host name.
+        """
+        return instance.name

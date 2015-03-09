@@ -154,12 +154,11 @@ class TestLocalDisk(test.TestCase):
                 '_get_vg_uuid')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
                 '_client_lpar_href')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_entry')
-    def test_connect_disk(self, mock_vios_entry, mock_lpar_href, mock_vg_uuid):
+    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_wrap')
+    def test_connect_disk(self, mock_vios_wrap, mock_lpar_href, mock_vg_uuid):
         mock_vg_uuid.return_value = 'vg_UUID'
         mock_lpar_href.return_value = 'client_lpar_href'
-        mock_vios_entry.return_value = (
-            pvm_vios.VIOS.wrap(self.vio_to_vg).entry, 'etag')
+        mock_vios_wrap.return_value = pvm_vios.VIOS.wrap(self.vio_to_vg)
         ls = self.get_ls(self.apt)
         ls.connect_disk(mock.MagicMock(), mock.MagicMock(),
                         dict(device_name='hdisk1'), 'lpar_UUID')
