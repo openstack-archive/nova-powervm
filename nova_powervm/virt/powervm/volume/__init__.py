@@ -16,6 +16,6 @@
 
 # Defines the various volume connectors that can be used.
 FC_STRATEGY_MAPPING = {
-    'npiv': 'nova_powervm.virt.powervm.volume.npiv.NPIVVolumeDriver',
-    'vscsi': 'nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeDriver'
+    'npiv': 'nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter',
+    'vscsi': 'nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter'
 }

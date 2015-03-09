@@ -19,8 +19,8 @@ from pypowervm.jobs import wwpn as pvm_wwpn
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 
-class NPIVVolumeDriver(v_driver.FibreChannelVolumeDriver):
-    """The NPIV implementation of the Volume Driver.
+class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
+    """The NPIV implementation of the Volume Adapter.
 
     NPIV stands for N_Port ID Virtualization.  It is a means of providing
     more efficient connections between virtual machines and Fibre Channel

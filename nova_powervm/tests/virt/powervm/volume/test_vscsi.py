@@ -21,17 +21,17 @@ from nova import test
 from nova_powervm.virt.powervm.volume import vscsi
 
 
-class TestVSCSIDriver(test.TestCase):
-    """Tests the vSCSI Volume Connector Driver."""
+class TestVSCSIAdapter(test.TestCase):
+    """Tests the vSCSI Volume Connector Adapter."""
 
     def setUp(self):
-        super(TestVSCSIDriver, self).setUp()
+        super(TestVSCSIAdapter, self).setUp()
 
     @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')
     def test_wwpns(self, mock_vio_wwpns):
         mock_vio_wwpns.return_value = ['aa', 'bb']
 
-        vol_drv = vscsi.VscsiVolumeDriver()
+        vol_drv = vscsi.VscsiVolumeAdapter()
         wwpns = vol_drv.wwpns(mock.ANY, 'host_uuid', mock.ANY)
 
         self.assertListEqual(['aa', 'bb'], wwpns)

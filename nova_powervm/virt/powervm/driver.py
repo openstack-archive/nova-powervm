@@ -48,7 +48,6 @@ from nova_powervm.virt.powervm import volume as vol_attach
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
-
 # Defines, for all cinder volume types, which volume driver to use.  Currently
 # only supports Fibre Channel, which has multiple options for connections.
 # The connection strategy is defined above.

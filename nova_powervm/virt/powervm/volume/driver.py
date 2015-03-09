@@ -15,11 +15,13 @@
 #    under the License.
 
 
-class PowerVMVolumeDriver(object):
-    """The basic operations for a Cinder Backed Volume Driver.
+class PowerVMVolumeAdapter(object):
+    """The volume adapter connects a Cinder volume to a VM.
 
     The role of the volume driver is to perform the connection between the
     compute node and the backing physical fabric.
+
+    This volume adapter is a generic adapter for all volume types to extend.
 
     This is built similarly to the LibvirtBaseVolumeDriver.
     """
@@ -80,10 +82,10 @@ class PowerVMVolumeDriver(object):
         raise NotImplementedError()
 
 
-class FibreChannelVolumeDriver(PowerVMVolumeDriver):
-    """Defines a Fibre Channel specific volume driver.
+class FibreChannelVolumeAdapter(PowerVMVolumeAdapter):
+    """Defines a Fibre Channel specific volume adapter.
 
-    Fibre Channel has a few additional attributes for the volume driver.
+    Fibre Channel has a few additional attributes for the volume adapter.
     This class defines the additional attributes so that the multiple FC
     sub classes can support them.
     """

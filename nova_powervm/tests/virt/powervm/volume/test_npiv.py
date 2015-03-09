@@ -21,17 +21,17 @@ from nova import test
 from nova_powervm.virt.powervm.volume import npiv
 
 
-class TestNPIVDriver(test.TestCase):
-    """Tests the NPIV Volume Connector Driver."""
+class TestNPIVAdapter(test.TestCase):
+    """Tests the NPIV Volume Connector Adapter."""
 
     def setUp(self):
-        super(TestNPIVDriver, self).setUp()
+        super(TestNPIVAdapter, self).setUp()
 
     @mock.patch('pypowervm.jobs.wwpn.build_wwpn_pair')
     def test_wwpns(self, mock_build_wwpns):
         mock_build_wwpns.return_value = ['aa', 'bb']
 
-        vol_drv = npiv.NPIVVolumeDriver()
+        vol_drv = npiv.NPIVVolumeAdapter()
         wwpns = vol_drv.wwpns(mock.ANY, 'host_uuid', mock.ANY)
 
         self.assertListEqual(['aa', 'bb'], wwpns)

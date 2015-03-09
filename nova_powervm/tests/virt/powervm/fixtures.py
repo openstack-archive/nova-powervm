@@ -79,7 +79,7 @@ class VolumeAdapter(fixtures.Fixture):
     def setUp(self):
         super(VolumeAdapter, self).setUp()
         self._std_vol_adpt = mock.patch('nova_powervm.virt.powervm.volume.'
-                                        'vscsi.VscsiVolumeDriver')
+                                        'vscsi.VscsiVolumeAdapter')
         self.std_vol_adpt = self._std_vol_adpt.start()
         self.addCleanup(self._std_vol_adpt.stop)
 

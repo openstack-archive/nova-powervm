@@ -18,8 +18,8 @@ from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 
-class VscsiVolumeDriver(v_driver.FibreChannelVolumeDriver):
-    """The vSCSI implementation of the Volume Driver.
+class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
+    """The vSCSI implementation of the Volume Adapter.
 
     vSCSI is the internal mechanism to link a given hdisk on the Virtual
     I/O Server to a Virtual Machine.  This volume driver will take the
@@ -27,7 +27,7 @@ class VscsiVolumeDriver(v_driver.FibreChannelVolumeDriver):
     """
 
     def __init__(self):
-        super(VscsiVolumeDriver, self).__init__()
+        super(VscsiVolumeAdapter, self).__init__()
         self._pfc_wwpns = None
 
     def connect_volume(self, adapter, instance, connection_info, disk_dev):
