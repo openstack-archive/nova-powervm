@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import fixtures
+import mock
 from oslo_config import cfg
 
 from nova import test
@@ -27,6 +29,25 @@ from nova_powervm.virt.powervm.disk import ssp
 
 
 SSP = 'fake_ssp.txt'
+
+
+class SSPFixture(fixtures.Fixture):
+    """Patch out PyPowerVM SSP EntryWrapper search and refresh."""
+
+    def __init__(self):
+        pass
+
+    def setUp(self):
+        super(SSPFixture, self).setUp()
+        self._search_patcher = mock.patch(
+            'pypowervm.wrappers.storage.SSP.search')
+        self._refresh_patcher = mock.patch(
+            'pypowervm.wrappers.storage.SSP.refresh')
+        self.mock_search = self._search_patcher.start()
+        self.mock_refresh = self._refresh_patcher.start()
+
+        self.addCleanup(self._search_patcher.stop)
+        self.addCleanup(self._refresh_patcher.stop)
 
 
 class TestSSPDiskAdapter(test.TestCase):
@@ -47,14 +68,18 @@ class TestSSPDiskAdapter(test.TestCase):
         self.pypvm = self.useFixture(fx.PyPowerVM())
         self.apt = self.pypvm.apt
 
-        # By default, assume the config supplied an SSP name
-        cfg.CONF.set_override('ssp_name', 'ssp1')
-        # Adapter.search always returns a feed.
-        self.apt.search.return_value = self._bld_resp(
+        self.sspfx = self.useFixture(SSPFixture())
+
+        self.mock_search = self.sspfx.mock_search
+        # EntryWrapper.search always returns a feed.
+        self.mock_search.return_value = self._bld_resp(
             entry_or_list=[self.ssp_resp.entry])
 
-        # Default Adapter.read to 304 - we'll always get self.ssp_resp
-        self.apt.read.return_value = self._bld_resp(status=304)
+        self.mock_refresh = self.sspfx.mock_refresh
+        self.mock_refresh.return_value = pvm_stg.SSP.wrap(self.ssp_resp)
+
+        # By default, assume the config supplied an SSP name
+        cfg.CONF.set_override('ssp_name', 'ssp1')
 
     def _get_ssp_stor(self):
         ssp_stor = ssp.SSPDiskAdapter({'adapter': self.apt,
@@ -96,8 +121,10 @@ class TestSSPDiskAdapter(test.TestCase):
         self._get_ssp_stor()
         # Init should call _fetch_ssp_wrap() once.  First _fetch_ssp_wrap()
         # WITH a configured name does a search, but not a read.
-        self.assertEqual(1, self.apt.search.call_count)
+        # Refresh shouldn't be invoked.
+        self.assertEqual(1, self.mock_search.call_count)
         self.assertEqual(0, self.apt.read.call_count)
+        self.assertEqual(0, self.mock_refresh.call_count)
 
     def test_init_green_no_config(self):
         """No SSP name specified in config; one SSP on host - success."""
@@ -107,20 +134,22 @@ class TestSSPDiskAdapter(test.TestCase):
         self._get_ssp_stor()
         # Init should call _fetch_ssp_wrap() once.  First _fetch_ssp_wrap()
         # WITHOUT a configured name does a feed GET (read), not a search.
-        self.assertEqual(0, self.apt.search.call_count)
+        # Refresh shouldn't be invoked.
+        self.assertEqual(0, self.mock_search.call_count)
         self.assertEqual(1, self.apt.read.call_count)
+        self.assertEqual(0, self.mock_refresh.call_count)
         self.apt.read.assert_called_with('SharedStoragePool')
 
     def test_init_SSPNotFoundByName(self):
         """Empty feed comes back from search - no SSP by that name."""
-        self.apt.search.return_value = self._bld_resp(status=204)
+        self.mock_search.return_value = self._bld_resp(status=204)
         self.assertRaises(ssp.SSPNotFoundByName, self._get_ssp_stor)
 
     def test_init_TooManySSPsFound(self):
         """Search-by-name returns more than one result."""
         ssp1 = pvm_stg.SSP.bld('newssp1', [])
         ssp2 = pvm_stg.SSP.bld('newssp2', [])
-        self.apt.search.return_value = self._bld_resp(
+        self.mock_search.return_value = self._bld_resp(
             entry_or_list=[ssp1.entry, ssp2.entry])
         self.assertRaises(ssp.TooManySSPsFound, self._get_ssp_stor)
 
@@ -139,43 +168,21 @@ class TestSSPDiskAdapter(test.TestCase):
             entry_or_list=[ssp1.entry, ssp2.entry])
         self.assertRaises(ssp.NoConfigTooManySSPs, self._get_ssp_stor)
 
-    def test_fetch_ssp_wrap_not_modified(self):
-        """_fetch_ssp_wrap with etag match."""
+    def test_fetch_ssp_wrap_refresh(self):
+        """_fetch_ssp_wrap with cached wrapper."""
         # Save original SSP wrapper for later comparison
         orig_ssp_wrap = pvm_stg.SSP.wrap(self.ssp_resp)
         # Prime _ssp_wrap
         ssp_stor = self._get_ssp_stor()
         # Verify baseline call counts
-        self.assertEqual(1, self.apt.search.call_count)
-        self.assertEqual(0, self.apt.read.call_count)
-        # Default read already mocked to no-content 304 (Not Modified).
-        # Expect _fetch_ssp_wrap to invoke read (not search), detect the 304,
-        # and return the already-saved wrapper. (No exception proves we didn't
-        # try to extract and wrap the nonexistent feed/entry from this
-        # Response.)
+        self.assertEqual(1, self.mock_search.call_count)
+        self.assertEqual(0, self.mock_refresh.call_count)
         ssp_wrap = ssp_stor._fetch_ssp_wrap()
-        # This second _fetch_ssp_wrap() should call read, but not search.
-        self.assertEqual(1, self.apt.search.call_count)
-        self.assertEqual(1, self.apt.read.call_count)
+        # This second _fetch_ssp_wrap() should call refresh, not read or search
+        self.assertEqual(1, self.mock_search.call_count)
+        self.assertEqual(0, self.apt.read.call_count)
+        self.assertEqual(1, self.mock_refresh.call_count)
         self.assertEqual(ssp_wrap.name, orig_ssp_wrap.name)
-
-    def test_fetch_ssp_wrap_etag_mismatch(self):
-        """_fetch_ssp_wrap with etag mismatch (refetch)."""
-        # Prime _ssp_wrap
-        ssp_stor = self._get_ssp_stor()
-        # Verify baseline call counts
-        self.assertEqual(1, self.apt.search.call_count)
-        self.assertEqual(0, self.apt.read.call_count)
-        # Build a Response with a different SSP so we can tell when refetched
-        new_ssp = pvm_stg.SSP.bld('newssp', [])
-        self.apt.read.return_value = self._bld_resp(
-            entry_or_list=new_ssp.entry)
-        # _fetch_ssp_wrap() with etag mismatch
-        ssp_wrap = ssp_stor._fetch_ssp_wrap()
-        # This _fetch_ssp_wrap() should also call read, but not search.
-        self.assertEqual(1, self.apt.search.call_count)
-        self.assertEqual(1, self.apt.read.call_count)
-        self.assertEqual(ssp_wrap.name, new_ssp.name)
 
     def test_capacity(self):
         ssp_stor = self._get_ssp_stor()

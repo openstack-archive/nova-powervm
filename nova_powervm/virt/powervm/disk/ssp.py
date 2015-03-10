@@ -163,16 +163,15 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         In a bootstrap scenario, the ssp_name from the config is used to
         perform a search query.
 
-        Otherwise, the server is rechecked using etag to ensure the cached
-        wrapper is current.
+        Otherwise, the cached wrapper is refreshed.
         """
         try:
             if self._ssp_wrap is None:
                 # Not yet loaded.
                 # Did config provide a name?
                 if self.ssp_name:
-                    resp = self.adapter.search(pvm_stg.SSP,
-                                               name=self.ssp_name)
+                    resp = pvm_stg.SSP.search(self.adapter,
+                                              name=self.ssp_name)
                     wraps = pvm_stg.SSP.wrap(resp)
                     if len(wraps) == 0:
                         raise SSPNotFoundByName(ssp_name=self.ssp_name)
@@ -190,13 +189,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                         raise NoConfigTooManySSPs(ssp_count=len(wraps))
                 self._ssp_wrap = wraps[0]
             else:
-                # Already loaded.  Refetch with etag
-                resp = self.adapter.read(pvm_stg.SSP.schema_type,
-                                         root_id=self._ssp_wrap.uuid,
-                                         etag=self._ssp_wrap.etag)
-                # If etag mismatch, update the wrapper
-                if resp.status != 304:
-                    self._ssp_wrap = pvm_stg.SSP.wrap(resp)
+                # Already loaded.  Refresh.
+                self._ssp_wrap = self._ssp_wrap.refresh(self.adapter)
         # TODO(IBM): If the SSP doesn't exist when the driver is loaded, we
         # raise one of the custom exceptions; but if it gets removed at some
         # point while live, we'll (re)raise the 404 HttpError from the REST
