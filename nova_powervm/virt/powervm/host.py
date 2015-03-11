@@ -25,7 +25,7 @@ from oslo_serialization import jsonutils
 LOG = logging.getLogger(__name__)
 
 # Power VM hypervisor info
-IBM_POWERVM_HYPERVISOR_VERSION = '7.1'
+IBM_POWERVM_HYPERVISOR_VERSION = '710'
 
 # The types of LPARS that are supported.
 POWERVM_SUPPORTED_INSTANCES = jsonutils.dumps([(arch.PPC64,
