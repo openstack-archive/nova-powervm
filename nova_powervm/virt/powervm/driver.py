@@ -208,10 +208,11 @@ class PowerVMDriver(driver.ComputeDriver):
         bdms = self._extract_bdm(block_device_info)
         if bdms is not None:
             for bdm in bdms:
-                drv_type = bdm.get('connection_info').get('driver_volume_type')
+                conn_info = bdm.get('connection_info')
+                drv_type = conn_info.get('driver_volume_type')
                 vol_drv = self.vol_drvs.get(drv_type)
-                flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, context,
-                                              instance, bdm, self.host_uuid,
+                flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
+                                              conn_info, self.host_uuid,
                                               self.vios_uuid))
 
         # If the config drive is needed, add those steps.
@@ -280,10 +281,11 @@ class PowerVMDriver(driver.ComputeDriver):
         bdms = self._extract_bdm(block_device_info)
         if bdms is not None:
             for bdm in bdms:
-                drv_type = bdm.get('connection_info').get('driver_volume_type')
+                conn_info = bdm.get('connection_info')
+                drv_type = conn_info.get('driver_volume_type')
                 vol_drv = self.vol_drvs.get(drv_type)
                 flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv,
-                                                 context, instance, bdm,
+                                                 instance, conn_info,
                                                  self.host_uuid,
                                                  self.vios_uuid,
                                                  pvm_inst_uuid))
@@ -305,15 +307,49 @@ class PowerVMDriver(driver.ComputeDriver):
         engine = taskflow.engines.load(flow)
         engine.run()
 
-    def attach_volume(self, connection_info, instance, mountpoint):
+    def attach_volume(self, context, connection_info, instance, mountpoint,
+                      disk_bus=None, device_type=None, encryption=None):
         """Attach the volume to the instance at mountpoint using info."""
         self._log_operation('attach_volume', instance)
-        # TODO(IBM): Implement attach volume
 
-    def detach_volume(self, connection_info, instance, mountpoint):
+        # Define the flow
+        flow = lf.Flow("attach_volume")
+
+        # Get the LPAR Wrapper
+        flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
+
+        # Determine if there are volumes to connect.  If so, add a connection
+        # for each type.
+        drv_type = connection_info.get('driver_volume_type')
+        vol_drv = self.vol_drvs.get(drv_type)
+        flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
+                                      connection_info, self.host_uuid,
+                                      self.vios_uuid))
+
+        # Build the engine & run!
+        engine = taskflow.engines.load(flow)
+        engine.run()
+
+    def detach_volume(self, connection_info, instance, mountpoint,
+                      encryption=None):
         """Detach the volume attached to the instance."""
         self._log_operation('detach_volume', instance)
-        # TODO(IBM): Implement detach volume
+
+        # Define the flow
+        flow = lf.Flow("detach_volume")
+
+        # Determine if there are volumes to connect.  If so, add a connection
+        # for each type.
+        drv_type = connection_info.get('driver_volume_type')
+        vol_drv = self.vol_drvs.get(drv_type)
+        pvm_inst_uuid = vm.get_pvm_uuid(instance)
+        flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv, instance,
+                                         connection_info, self.host_uuid,
+                                         self.vios_uuid, pvm_inst_uuid))
+
+        # Build the engine & run!
+        engine = taskflow.engines.load(flow)
+        engine.run()
 
     def snapshot(self, context, instance, image_id, update_task_state):
         """Snapshots the specified instance.

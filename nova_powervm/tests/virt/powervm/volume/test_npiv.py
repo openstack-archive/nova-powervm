@@ -34,7 +34,7 @@ class TestNPIVAdapter(test.TestCase):
         con_info = {'data': {'initiator_target_map': {'a': None,
                                                       'b': None}}}
         self.vol_drv.connect_volume(None, 'host_uuid', 'vios_uuid', 'vm_uuid',
-                                    None, con_info, '/sda')
+                                    None, con_info)
         self.assertEqual(1, mock_add_vfc.call_count)
 
     @mock.patch('pypowervm.jobs.wwpn.build_wwpn_pair')

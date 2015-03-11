@@ -298,6 +298,45 @@ class TestPowerVMDriver(test.TestCase):
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
 
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
+                'connect_volume')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    def test_attach_volume(self, mock_inst_wrap, mock_conn_volume):
+
+        """Validates the basic PowerVM destroy."""
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.task_state = None
+
+        # BDMs
+        mock_bdm = self._fake_bdms()['block_device_mapping'][0]
+
+        # Invoke the method.
+        self.drv.attach_volume('context', mock_bdm['connection_info'],
+                               inst, mock.Mock())
+
+        # Verify the connect volume was invoked
+        self.assertEqual(1, mock_conn_volume.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
+                'disconnect_volume')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_detach_volume(self, mock_pvmuuid, mock_disconn_volume):
+
+        """Validates the basic PowerVM destroy."""
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.task_state = None
+
+        # BDMs
+        mock_bdm = self._fake_bdms()['block_device_mapping'][0]
+
+        # Invoke the method.
+        self.drv.detach_volume(mock_bdm['connection_info'], inst, mock.Mock())
+
+        # Verify the connect volume was invoked
+        self.assertEqual(1, mock_disconn_volume.call_count)
+
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
