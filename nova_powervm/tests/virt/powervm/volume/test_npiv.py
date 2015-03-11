@@ -39,11 +39,31 @@ class TestNPIVAdapter(test.TestCase):
 
     @mock.patch('pypowervm.jobs.wwpn.build_wwpn_pair')
     def test_wwpns(self, mock_build_wwpns):
+        """Tests that new WWPNs get generated properly."""
+        # Mock Data
+        inst = mock.MagicMock()
+        inst.system_metadata = {npiv.WWPN_SYSTEM_METADATA_KEY: None}
         mock_build_wwpns.return_value = ['aa', 'bb']
 
-        wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', mock.ANY)
+        # invoke
+        wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', inst)
 
+        # Check
         self.assertListEqual(['aa', 'bb'], wwpns)
+        self.assertEqual('aa bb',
+                         inst.system_metadata[npiv.WWPN_SYSTEM_METADATA_KEY])
+
+    def test_wwpns_on_sys_meta(self):
+        """Tests that previously stored WWPNs are returned."""
+        # Mock
+        inst = mock.MagicMock()
+        inst.system_metadata = {npiv.WWPN_SYSTEM_METADATA_KEY: 'a b'}
+
+        # Invoke
+        wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', inst)
+
+        # Verify
+        self.assertListEqual(['a', 'b'], wwpns)
 
     def test_wwpn_match(self):
         self.assertTrue(self.vol_drv._wwpn_match(['a', 'b'], ['b', 'a']))
