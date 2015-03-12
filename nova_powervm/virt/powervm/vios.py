@@ -70,7 +70,14 @@ def get_vios_uuid(adapter, name):
     return uuid
 
 
-def get_vios_entry(adapter, vios_uuid, vios_name):
+def get_vios_wrap(adapter, vios_uuid, vios_name):
+    """Returns the Virtual I/O Server wrapper.
+
+    :param adapter: The pypowervm API adapter.
+    :param vios_uuid: The UUID of the Virtual IO Server.
+    :param vios_name: The name of the VIOS (for logging purposes).
+    :return: The pypowervm VIOS wrapper.
+    """
     try:
         resp = adapter.read(pvm_vios.VIOS.schema_type, root_id=vios_uuid)
     except pvm_exc.Error as e:
@@ -83,7 +90,7 @@ def get_vios_entry(adapter, vios_uuid, vios_name):
         LOG.exception(e)
         raise
 
-    return resp.entry, resp.headers['etag']
+    return pvm_vios.VIOS.wrap(resp)
 
 
 def get_physical_wwpns(adapter, ms_uuid):
@@ -138,12 +145,20 @@ def get_vscsi_mappings(adapter, lpar_uuid, vio_wrapper, mapping_type):
 
 
 def add_vscsi_mapping(adapter, vios_uuid, vios_name, scsi_map):
-    # Get the VIOS Entry
-    vios_entry, etag = get_vios_entry(adapter, vios_uuid, vios_name)
-    # Wrap the entry
-    vios_wrap = pvm_vios.VIOS.wrap(vios_entry)
+    # Get the VIOS Wrapper
+    vios_wrap = get_vios_wrap(adapter, vios_uuid, vios_name)
     # Add the new mapping to the end
     vios_wrap.scsi_mappings.append(scsi_map)
     # Write it back to the VIOS
-    adapter.update(vios_wrap, etag, pvm_vios.VIOS.schema_type, vios_uuid,
-                   xag=None)
+    adapter.update(vios_wrap, vios_wrap.etag, pvm_vios.VIOS.schema_type,
+                   vios_uuid, xag=None)
+
+
+def add_vfc_mapping(adapter, vios_uuid, vios_name, vfc_map):
+    # Get the VIOS Wrapper
+    vios_wrap = get_vios_wrap(adapter, vios_uuid, vios_name)
+    # Add the new mapping to the end
+    vios_wrap.vfc_mappings.append(vfc_map)
+    # Write it back to the VIOS
+    adapter.update(vios_wrap, vios_wrap.etag, pvm_vios.VIOS.schema_type,
+                   vios_uuid, xag=None)

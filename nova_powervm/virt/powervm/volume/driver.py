@@ -26,10 +26,14 @@ class PowerVMVolumeAdapter(object):
     This is built similarly to the LibvirtBaseVolumeDriver.
     """
 
-    def connect_volume(self, adapter, instance, connection_info, disk_dev):
+    def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, instance,
+                       connection_info, disk_dev):
         """Connects the volume.
 
         :param adapter: The pypowervm adapter.
+        :param host_uuid: The pypowervm UUID of the host.
+        :param vios_uuid: The pypowervm UUID of the VIOS.
+        :param vm_uuid: The powervm UUID of the VM.
         :param instance: The nova instance that the volume should connect to.
         :param connection_info: Comes from the BDM.  Example connection_info:
                 {
@@ -53,10 +57,14 @@ class PowerVMVolumeAdapter(object):
         """
         raise NotImplementedError()
 
-    def disconnect_volume(self, adapter, instance, connection_info, disk_dev):
+    def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
+                          instance, connection_info, disk_dev):
         """Disconnect the volume.
 
         :param adapter: The pypowervm adapter.
+        :param host_uuid: The pypowervm UUID of the host.
+        :param vios_uuid: The pypowervm UUID of the VIOS.
+        :param vm_uuid: The powervm UUID of the VM.
         :param instance: The nova instance that the volume should disconnect
                          from.
         :param connection_info: Comes from the BDM.  Example connection_info:
@@ -97,5 +105,15 @@ class FibreChannelVolumeAdapter(PowerVMVolumeAdapter):
         :param host_uuid: The UUID of the host for the pypowervm adapter.
         :param instance: The nova instance.
         :returns: The list of WWPNs that need to be included in the zone set.
+        """
+        raise NotImplementedError()
+
+    def host_name(self, adapter, host_uuid, instance):
+        """Derives the host name that should be used for the storage device.
+
+        :param adapter: The pypowervm API adapter.
+        :param host_uuid: The UUID of the host for the pypowervm adapter.
+        :param instance: The nova instance.
+        :returns: The host name.
         """
         raise NotImplementedError()
