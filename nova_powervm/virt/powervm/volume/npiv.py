@@ -20,6 +20,8 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
+WWPN_SYSTEM_METADATA_KEY = 'npiv_adpt_wwpns'
+
 
 class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     """The NPIV implementation of the Volume Adapter.
@@ -142,8 +144,22 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         :param instance: The nova instance.
         :returns: The list of WWPNs that need to be included in the zone set.
         """
+        # TODO(IBM) Rather than look if in system metadata, could perhaps
+        # check if the instance exists on the hypervisor and look up WWPNs
+        # straight from system.
+
+        # The WWPNs should be persisted on the instance metadata.
+        wwpn_key = instance.system_metadata.get(WWPN_SYSTEM_METADATA_KEY)
+        if wwpn_key is not None:
+            return wwpn_key.split(' ')
+
+        # If it was not on the instance metadata, we should generate the new
+        # WWPNs and then put it on the instance metadata.
+        wwpns = list(pvm_wwpn.build_wwpn_pair(adapter, host_uuid))
+        instance.system_metadata[WWPN_SYSTEM_METADATA_KEY] = " ".join(wwpns)
+
         # The return object needs to be a list for the volume connector.
-        return list(pvm_wwpn.build_wwpn_pair(adapter, host_uuid))
+        return wwpns
 
     def host_name(self, adapter, host_uuid, instance):
         """Derives the host name that should be used for the storage device.
