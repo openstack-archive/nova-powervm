@@ -14,13 +14,20 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import log as logging
+
+from nova.compute import task_states
+from nova.i18n import _LI
 from pypowervm.jobs import wwpn as pvm_wwpn
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
+LOG = logging.getLogger(__name__)
+
 WWPN_SYSTEM_METADATA_KEY = 'npiv_adpt_wwpns'
+
+TASK_STATES_FOR_DISCONNECT = [task_states.DELETING, task_states.SPAWNING]
 
 
 class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
@@ -63,13 +70,40 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                    'target_wwn':'500507680210E522'
                 }
         """
+        # # List of connector's WWPNs
         c_wwpns = connection_info['data']['initiator_target_map'].keys()
+
+        # Read the VIOS and determine if there is already a NPIV mapping in
+        # place for these WWPNs.
+        vios_resp = adapter.read(pvm_vios.VIOS.schema_type, root_id=vios_uuid,
+                                 xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
+        vios_w = pvm_vios.VIOS.wrap(vios_resp)
+
+        existing_fc_maps = vios_w.vfc_mappings
+        for existing_fc_map in existing_fc_maps:
+            # If there is no client adapter, then it is not a mapping to
+            # utilize
+            if existing_fc_map.client_adapter is None:
+                continue
+
+            # Get the set of existing WWPNs
+            e_wwpns = existing_fc_map.client_adapter.wwpns
+
+            # If the existing WWPNs match off the initiator_target_map, no
+            # new mapping is required.
+            if self._wwpn_match(e_wwpns, c_wwpns):
+                return
 
         # TODO(thorst) Update ports to non-hardcoded value.
         vfc_map = pvm_vios.VFCMapping.bld(adapter, host_uuid, vm_uuid,
                                           'fcs0', c_wwpns)
-        # TODO(thorst) change the vios name to proper value
-        vios.add_vfc_mapping(adapter, vios_uuid, 'temp', vfc_map)
+
+        # Run the update to the VIOS
+        LOG.info(_LI("Adding NPIV mapping for instance %s") % instance.name)
+        existing_fc_maps.append(vfc_map)
+        adapter.update(vios_w, vios_w.etag, pvm_vios.VIOS.schema_type,
+                       root_id=vios_w.uuid,
+                       xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
 
     def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
                           instance, connection_info):
@@ -100,24 +134,36 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                    'target_wwn':'500507680210E522'
                 }
         """
-        vios_resp = adapter.read(
-            pvm_vios.VIOS.schema_type, root_id=vios_uuid,
-            xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
+        # We should only delete the NPIV mappings if we are running through a
+        # VM deletion.  VM deletion occurs when the task state is deleting.
+        # However, it can also occur during a 'roll-back' of the spawn.
+        # Disconnect of the volumes will only be called during a roll back
+        # of the spawn.
+        if instance.task_state not in TASK_STATES_FOR_DISCONNECT:
+            # NPIV should only remove the VFC mapping upon a destroy of the VM
+            return
+
+        # List of connector's WWPNs
+        c_wwpns = connection_info['data']['initiator_target_map'].keys()
+
+        # Read the VIOS for the existing mappings.
+        vios_resp = adapter.read(pvm_vios.VIOS.schema_type, root_id=vios_uuid,
+                                 xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
         vios_w = pvm_vios.VIOS.wrap(vios_resp)
 
-        # Find the existing mappings....
+        # Find the existing mappings.
         existing_fc_maps = vios_w.vfc_mappings
         lpar_fc_maps = []
 
-        # Find the corresponding FC mapping for this connection_info
+        # Find the corresponding FC mapping for this connection_info.  Once
+        # found, we remove the mapping and update the VIOS.
         for existing_fc_map in existing_fc_maps:
-            # Set of two WWPNs
-            wwpns1 = existing_fc_map.client_adapter.wwpns
+            # The existing WWPNs
+            e_wwpns = existing_fc_map.client_adapter.wwpns
 
-            # List of two WWPNs
-            wwpns2 = connection_info['data']['initiator_target_map'].keys()
-            if self._wwpn_match(wwpns1, wwpns2):
+            if self._wwpn_match(c_wwpns, e_wwpns):
                 lpar_fc_maps.append(existing_fc_map)
+                break
 
         # Remove each mapping from the existing map set
         for removal_map in lpar_fc_maps:
