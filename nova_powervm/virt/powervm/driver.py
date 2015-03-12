@@ -213,7 +213,7 @@ class PowerVMDriver(driver.ComputeDriver):
                 vol_drv = self.vol_drvs.get(drv_type)
                 flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
                                               conn_info, self.host_uuid,
-                                              self.vios_uuid))
+                                              self.vios_uuid, CONF.vios_name))
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
@@ -288,7 +288,8 @@ class PowerVMDriver(driver.ComputeDriver):
                                                  instance, conn_info,
                                                  self.host_uuid,
                                                  self.vios_uuid,
-                                                 pvm_inst_uuid))
+                                                 pvm_inst_uuid,
+                                                 CONF.vios_name))
 
         # Detach the disk storage adapters
         flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
@@ -324,7 +325,7 @@ class PowerVMDriver(driver.ComputeDriver):
         vol_drv = self.vol_drvs.get(drv_type)
         flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
                                       connection_info, self.host_uuid,
-                                      self.vios_uuid))
+                                      self.vios_uuid, CONF.vios_name))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)
@@ -345,7 +346,8 @@ class PowerVMDriver(driver.ComputeDriver):
         pvm_inst_uuid = vm.get_pvm_uuid(instance)
         flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv, instance,
                                          connection_info, self.host_uuid,
-                                         self.vios_uuid, pvm_inst_uuid))
+                                         self.vios_uuid, pvm_inst_uuid,
+                                         CONF.vios_name))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)

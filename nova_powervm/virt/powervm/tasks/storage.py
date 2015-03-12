@@ -31,7 +31,7 @@ class ConnectVolume(task.Task):
     """The task to connect a volume to an instance."""
 
     def __init__(self, adapter, vol_drv, instance, connection_info, host_uuid,
-                 vios_uuid):
+                 vios_uuid, vios_name):
         """Create the task.
 
         Requires LPAR info through requirement of lpar_wrap.
@@ -44,6 +44,7 @@ class ConnectVolume(task.Task):
                                 mapping.
         :param host_uuid: The pypowervm UUID of the host.
         :param vios_uuid: The pypowervm UUID of the VIOS.
+        :param vios_name: The name of the VIOS.
         """
         self.adapter = adapter
         self.vol_drv = vol_drv
@@ -52,6 +53,7 @@ class ConnectVolume(task.Task):
         self.vol_id = self.connection_info['data']['volume_id']
         self.host_uuid = host_uuid
         self.vios_uuid = vios_uuid
+        self.vios_name = vios_name
 
         super(ConnectVolume, self).__init__(name='connect_vol_%s' %
                                             self.vol_id,
@@ -62,6 +64,7 @@ class ConnectVolume(task.Task):
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
                                            self.vios_uuid, lpar_wrap.uuid,
+                                           self.vios_name,
                                            self.instance,
                                            self.connection_info)
 
@@ -86,7 +89,7 @@ class DisconnectVolume(task.Task):
     """The task to disconnect a volume from an instance."""
 
     def __init__(self, adapter, vol_drv, instance, connection_info,
-                 host_uuid, vios_uuid, vm_uuid):
+                 host_uuid, vios_uuid, vm_uuid, vios_name):
         """Create the task.
 
         Requires LPAR info through requirement of lpar_wrap.
@@ -100,6 +103,7 @@ class DisconnectVolume(task.Task):
         :param host_uuid: The pypowervm UUID of the host.
         :param vios_uuid: The pypowervm UUID of the VIOS.
         :param vm_uuid: The pypowervm UUID of the VM.
+        :param vios_name: The name of the VIOS.
         """
         self.adapter = adapter
         self.vol_drv = vol_drv
@@ -109,6 +113,7 @@ class DisconnectVolume(task.Task):
         self.host_uuid = host_uuid
         self.vios_uuid = vios_uuid
         self.vm_uuid = vm_uuid
+        self.vios_name = vios_name
 
         super(DisconnectVolume, self).__init__(name='disconnect_vol_%s' %
                                                self.vol_id)
@@ -133,6 +138,7 @@ class DisconnectVolume(task.Task):
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
                                            self.vios_uuid, self.vm_uuid,
+                                           self.vios_name,
                                            self.instance,
                                            self.connection_info)
 
