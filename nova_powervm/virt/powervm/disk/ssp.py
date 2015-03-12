@@ -188,6 +188,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                     if len(wraps) > 1:
                         raise NoConfigTooManySSPs(ssp_count=len(wraps))
                 self._ssp_wrap = wraps[0]
+                self.ssp_name = self._ssp_wrap.name
             else:
                 # Already loaded.  Refresh.
                 self._ssp_wrap = self._ssp_wrap.refresh(self.adapter)
