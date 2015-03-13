@@ -30,7 +30,7 @@ LOG = logging.getLogger(__name__)
 class ConnectVolume(task.Task):
     """The task to connect a volume to an instance."""
 
-    def __init__(self, adapter, vol_drv, context, instance, bdm, host_uuid,
+    def __init__(self, adapter, vol_drv, instance, connection_info, host_uuid,
                  vios_uuid):
         """Create the task.
 
@@ -39,19 +39,17 @@ class ConnectVolume(task.Task):
         :param adapter: The pypowervm adapter.
         :param vol_drv: The volume driver (see volume folder).  Ties the
                         storage to a connection type (ex. vSCSI or NPIV).
-        :param context: The context passed into the driver method.
         :param instance: The nova instance.
-        :param bdm: The block device mapping.
+        :param connection_info: The connection info from the block device
+                                mapping.
         :param host_uuid: The pypowervm UUID of the host.
         :param vios_uuid: The pypowervm UUID of the VIOS.
         """
         self.adapter = adapter
         self.vol_drv = vol_drv
-        self.context = context
         self.instance = instance
-        self.bdm = bdm
-        self.vol_id = self.bdm['connection_info']['data']['volume_id']
-        self.disk_dev = self.bdm['mount_device'].rpartition("/")[2]
+        self.connection_info = connection_info
+        self.vol_id = self.connection_info['data']['volume_id']
         self.host_uuid = host_uuid
         self.vios_uuid = vios_uuid
 
@@ -65,8 +63,7 @@ class ConnectVolume(task.Task):
         return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
                                            self.vios_uuid, lpar_wrap.uuid,
                                            self.instance,
-                                           self.bdm['connection_info'],
-                                           self.disk_dev)
+                                           self.connection_info)
 
     def revert(self, lpar_wrap, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
@@ -81,15 +78,14 @@ class ConnectVolume(task.Task):
         return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
                                               self.vios_uuid, lpar_wrap.uuid,
                                               self.instance,
-                                              self.bdm['connection_info'],
-                                              self.disk_dev)
+                                              self.connection_info)
 
 
 class DisconnectVolume(task.Task):
     """The task to disconnect a volume from an instance."""
 
-    def __init__(self, adapter, vol_drv, context, instance, bdm, host_uuid,
-                 vios_uuid, vm_uuid):
+    def __init__(self, adapter, vol_drv, instance, connection_info,
+                 host_uuid, vios_uuid, vm_uuid):
         """Create the task.
 
         Requires LPAR info through requirement of lpar_wrap.
@@ -97,27 +93,24 @@ class DisconnectVolume(task.Task):
         :param adapter: The pypowervm adapter.
         :param vol_drv: The volume driver (see volume folder).  Ties the
                         storage to a connection type (ex. vSCSI or NPIV).
-        :param context: The context passed into the driver method.
         :param instance: The nova instance.
-        :param bdm: The block device mapping.
+        :param connection_info: The connection info from the block device
+                                mapping.
         :param host_uuid: The pypowervm UUID of the host.
         :param vios_uuid: The pypowervm UUID of the VIOS.
         :param vm_uuid: The pypowervm UUID of the VM.
         """
         self.adapter = adapter
         self.vol_drv = vol_drv
-        self.context = context
         self.instance = instance
-        self.bdm = bdm
-        self.vol_id = self.bdm['connection_info']['data']['volume_id']
-        self.disk_dev = self.bdm['mount_device'].rpartition("/")[2]
+        self.connection_info = connection_info
+        self.vol_id = self.connection_info['data']['volume_id']
         self.host_uuid = host_uuid
         self.vios_uuid = vios_uuid
         self.vm_uuid = vm_uuid
 
         super(DisconnectVolume, self).__init__(name='disconnect_vol_%s' %
-                                               self.vol_id,
-                                               requires=[])
+                                               self.vol_id)
 
     def execute(self):
         LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s') %
@@ -125,8 +118,7 @@ class DisconnectVolume(task.Task):
         return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
                                               self.vios_uuid, self.vm_uuid,
                                               self.instance,
-                                              self.bdm['connection_info'],
-                                              self.disk_dev)
+                                              self.connection_info)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
@@ -141,8 +133,7 @@ class DisconnectVolume(task.Task):
         return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
                                            self.vios_uuid, self.vm_uuid,
                                            self.instance,
-                                           self.bdm['connection_info'],
-                                           self.disk_dev)
+                                           self.connection_info)
 
 
 class CreateDiskForImg(task.Task):

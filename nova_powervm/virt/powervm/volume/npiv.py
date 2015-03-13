@@ -36,7 +36,7 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     """
 
     def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, instance,
-                       connection_info, disk_dev):
+                       connection_info):
         """Connects the volume.
 
         :param adapter: The pypowervm adapter.
@@ -62,7 +62,6 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                    'access_mode':'rw',
                    'target_wwn':'500507680210E522'
                 }
-        :param disk_dev: The name of the device on the backing storage device.
         """
         c_wwpns = connection_info['data']['initiator_target_map'].keys()
 
@@ -73,7 +72,7 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         vios.add_vfc_mapping(adapter, vios_uuid, 'temp', vfc_map)
 
     def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
-                          instance, connection_info, disk_dev):
+                          instance, connection_info):
         """Disconnect the volume.
 
         :param adapter: The pypowervm adapter.
@@ -100,7 +99,6 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                    'access_mode':'rw',
                    'target_wwn':'500507680210E522'
                 }
-        :param disk_dev: The name of the device on the backing storage device.
         """
         vios_resp = adapter.read(
             pvm_vios.VIOS.schema_type, root_id=vios_uuid,

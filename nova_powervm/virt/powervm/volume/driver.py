@@ -27,7 +27,7 @@ class PowerVMVolumeAdapter(object):
     """
 
     def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, instance,
-                       connection_info, disk_dev):
+                       connection_info):
         """Connects the volume.
 
         :param adapter: The pypowervm adapter.
@@ -53,12 +53,11 @@ class PowerVMVolumeAdapter(object):
                    'access_mode':'rw',
                    'target_wwn':'500507680210E522'
                 }
-        :param disk_dev: The name of the device on the backing storage device.
         """
         raise NotImplementedError()
 
     def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
-                          instance, connection_info, disk_dev):
+                          instance, connection_info):
         """Disconnect the volume.
 
         :param adapter: The pypowervm adapter.
@@ -85,7 +84,6 @@ class PowerVMVolumeAdapter(object):
                    'access_mode':'rw',
                    'target_wwn':'500507680210E522'
                 }
-        :param disk_dev: The name of the device on the backing storage device.
         """
         raise NotImplementedError()
 
