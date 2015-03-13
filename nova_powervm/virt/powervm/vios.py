@@ -152,13 +152,3 @@ def add_vscsi_mapping(adapter, vios_uuid, vios_name, scsi_map):
     # Write it back to the VIOS
     adapter.update(vios_wrap, vios_wrap.etag, pvm_vios.VIOS.schema_type,
                    vios_uuid, xag=None)
-
-
-def add_vfc_mapping(adapter, vios_uuid, vios_name, vfc_map):
-    # Get the VIOS Wrapper
-    vios_wrap = get_vios_wrap(adapter, vios_uuid, vios_name)
-    # Add the new mapping to the end
-    vios_wrap.vfc_mappings.append(vfc_map)
-    # Write it back to the VIOS
-    adapter.update(vios_wrap, vios_wrap.etag, pvm_vios.VIOS.schema_type,
-                   vios_uuid, xag=None)

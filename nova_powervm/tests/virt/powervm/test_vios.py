@@ -14,8 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import mock
-
 from nova import test
 import os
 from pypowervm.tests.wrappers.util import pvmhttp
@@ -55,27 +53,3 @@ class TestVios(test.TestCase):
         vios_w = vios.get_vios_wrap(self.adpt, 'vios_uuid', 'vios_name')
         self.assertIsNotNone(vios_w)
         self.assertIsInstance(vios_w, pvm_vios.VIOS)
-
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VStorageMapping.'
-                '_crt_related_href')
-    def test_add_vfc_mappings(self, mock_rel_href):
-        # Mock data
-        self.adpt.read.return_value = self.vios_feed_resp.feed.entries[0]
-        mock_rel_href.return_value = 'href'
-        vfc_map = pvm_vios.VFCMapping.bld(self.adpt, 'host_uuid',
-                                          'client_lpar_uuid', 'fcs0',
-                                          ['aa', 'bb'])
-
-        # Validate that the vfc_mapping is proper size
-        def validate_update(*kargs, **kwargs):
-            vios_w = kargs[0]
-            self.assertIsNotNone(vios_w)
-            self.assertEqual(1, len(vios_w.vfc_mappings))
-
-        self.adpt.update.side_effect = validate_update
-
-        # Function call
-        vios.add_vfc_mapping(self.adpt, 'vios_uuid', 'vios_name', vfc_map)
-
-        # Make sure update is invoked
-        self.assertEqual(1, self.adpt.update.call_count)

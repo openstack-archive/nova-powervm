@@ -16,9 +16,15 @@
 
 import mock
 
+from nova.compute import task_states
 from nova import test
+import os
+from pypowervm.tests.wrappers.util import pvmhttp
 
+from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.volume import npiv
+
+VIOS_FEED = 'fake_vios_feed.txt'
 
 
 class TestNPIVAdapter(test.TestCase):
@@ -28,14 +34,71 @@ class TestNPIVAdapter(test.TestCase):
         super(TestNPIVAdapter, self).setUp()
         self.vol_drv = npiv.NPIVVolumeAdapter()
 
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VFCMapping.bld')
-    @mock.patch('nova_powervm.virt.powervm.vios.add_vfc_mapping')
-    def test_connect_volume(self, mock_add_vfc, mock_vfc_map_bld):
+        # Fixtures
+        self.adpt_fix = self.useFixture(fx.PyPowerVM())
+        self.adpt = self.adpt_fix.apt
+
+        # Find directory for response file(s)
+        data_dir = os.path.dirname(os.path.abspath(__file__))
+        data_dir = os.path.join(data_dir, '../data')
+
+        def resp(file_name):
+            file_path = os.path.join(data_dir, file_name)
+            return pvmhttp.load_pvm_resp(file_path).get_response()
+        self.vios_feed_resp = resp(VIOS_FEED)
+
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VStorageMapping.'
+                '_client_lpar_href')
+    def test_connect_volume(self, mock_href):
+        # Mock Data
         con_info = {'data': {'initiator_target_map': {'a': None,
                                                       'b': None}}}
-        self.vol_drv.connect_volume(None, 'host_uuid', 'vios_uuid', 'vm_uuid',
-                                    None, con_info)
-        self.assertEqual(1, mock_add_vfc.call_count)
+        mock_href.return_value = 'fake_uri'
+        self.adpt.read.return_value = self.vios_feed_resp.feed.entries[0]
+
+        # A validation function on the update.
+        def validate_update(*kargs, **kwargs):
+            vios_w = kargs[0]
+            self.assertEqual(1, len(vios_w.vfc_mappings))
+
+        self.adpt.update.side_effect = validate_update
+
+        # Invoke
+        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vios_uuid',
+                                    'vm_uuid', mock.MagicMock(), con_info)
+
+        # Verify
+        self.assertEqual(1, self.adpt.update.call_count)
+
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
+    def test_connect_volume_no_map(self, mock_vio_wrap):
+        """Tests that if the VFC Mapping exists, another is not added."""
+        # Mock Data
+        con_info = {'data': {'initiator_target_map': {'a': None,
+                                                      'b': None}}}
+
+        mock_mapping = mock.MagicMock()
+        mock_mapping.client_adapter.wwpns = set(['a', 'b'])
+
+        mock_vios = mock.MagicMock()
+        mock_vios.vfc_mappings = [mock_mapping]
+
+        mock_vio_wrap.return_value = mock_vios
+
+        # Invoke
+        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vios_uuid',
+                                    'vm_uuid', mock.MagicMock(), con_info)
+
+        # Verify
+        self.assertEqual(0, self.adpt.update.call_count)
+
+    def test_disconnect_volume_no_op(self):
+        """Tests that the deletion doesn't go through on certain states."""
+        inst = mock.MagicMock()
+        inst.task_state = task_states.RESUMING
+        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vios_uuid',
+                                       'vm_uuid', inst, mock.ANY)
+        self.assertEqual(0, self.adpt.read.call_count)
 
     @mock.patch('pypowervm.jobs.wwpn.build_wwpn_pair')
     def test_wwpns(self, mock_build_wwpns):

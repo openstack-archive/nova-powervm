@@ -75,6 +75,7 @@ class ConnectVolume(task.Task):
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
                      'disconnected') %
                  {'vol': self.vol_id, 'inst': self.instance.name})
+
         return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
                                               self.vios_uuid, lpar_wrap.uuid,
                                               self.instance,
