@@ -115,15 +115,14 @@ class TestLocalDisk(test.TestCase):
 
         def validate_update(*kargs, **kwargs):
             # Make sure that the mappings are only 1 (the remaining vopt)
-            self.assertEqual([pvm_vios.XAGEnum.VIOS_SCSI_MAPPING],
-                             kwargs['xag'])
             vio = kargs[0]
             self.assertEqual(1, len(vio.scsi_mappings))
-        self.apt.update.side_effect = validate_update
+            return vio.entry
+        self.apt.update_by_path.side_effect = validate_update
 
         local = self.get_ls(self.apt)
         local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2')
-        self.assertEqual(1, self.apt.update.call_count)
+        self.assertEqual(1, self.apt.update_by_path.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
@@ -139,36 +138,38 @@ class TestLocalDisk(test.TestCase):
 
         def validate_update(*kargs, **kwargs):
             # No mappings will be removed since the names don't match
-            self.assertEqual([pvm_vios.XAGEnum.VIOS_SCSI_MAPPING],
-                             kwargs['xag'])
             vio = kargs[0]
             self.assertEqual(2, len(vio.scsi_mappings))
-        self.apt.update.side_effect = validate_update
+            return vio.entry
+        self.apt.update_by_path.side_effect = validate_update
 
         local = self.get_ls(self.apt)
         local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2',
                                     disk_type=disk_dvr.BOOT_DISK)
-        self.assertEqual(1, self.apt.update.call_count)
+        self.assertEqual(1, self.apt.update_by_path.call_count)
 
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.update')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
                 '_client_lpar_href')
     @mock.patch('nova_powervm.virt.powervm.vios.get_vios_wrap')
-    def test_connect_disk(self, mock_vios_wrap, mock_lpar_href, mock_vg_uuid):
+    def test_connect_disk(self, mock_vios_wrap, mock_lpar_href, mock_vg_uuid,
+                          mock_update):
         mock_vg_uuid.return_value = 'vg_UUID'
         mock_lpar_href.return_value = 'client_lpar_href'
         mock_vios_wrap.return_value = pvm_vios.VIOS.wrap(self.vio_to_vg)
         ls = self.get_ls(self.apt)
         ls.connect_disk(mock.MagicMock(), mock.MagicMock(),
                         dict(device_name='hdisk1'), 'lpar_UUID')
-        self.assertEqual(1, self.apt.update.call_count)
+        self.assertEqual(1, mock_update.call_count)
 
+    @mock.patch('pypowervm.wrappers.storage.VG.update')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_wrap')
-    def test_delete_disks(self, mock_vg, mock_vg_uuid):
+    def test_delete_disks(self, mock_vg, mock_vg_uuid, mock_update):
         # Mocks
         self.apt.side_effect = [self.vg_to_vio]
 
@@ -184,7 +185,7 @@ class TestLocalDisk(test.TestCase):
         local.delete_disks(mock.MagicMock(), mock.MagicMock(), [scsi_mapping])
 
         # Validate the call
-        self.assertEqual(1, self.apt.update.call_count)
+        self.assertEqual(1, mock_update.call_count)
 
     @mock.patch('pypowervm.wrappers.storage.VG')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
@@ -211,5 +212,5 @@ class TestLocalDisk(test.TestCase):
         local.extend_disk('context', inst, dict(type='boot'), 1000)
 
         # Validate the call
-        self.assertEqual(1, self.apt.update.call_count)
+        self.assertEqual(1, resp.update.call_count)
         self.assertEqual(vdisk.capacity, 1000)

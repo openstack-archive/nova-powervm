@@ -168,9 +168,7 @@ class ConfigDrivePowerVM(object):
             vopt_repo = pvm_stg.VMediaRepos.bld('vopt',
                                                 str(CONF.vopt_media_rep_size))
             found_vg.vmedia_repos = [vopt_repo]
-            self.adapter.update(found_vg, resp.headers['etag'],
-                                pvm_vios.VIOS.schema_type, self.vios_uuid,
-                                pvm_stg.VG.schema_type, found_vg.uuid)
+            found_vg = found_vg.update(self.adapter)
 
         return found_vg.uuid
 
@@ -191,9 +189,7 @@ class ConfigDrivePowerVM(object):
             vio.scsi_mappings.remove(scsi_map)
 
         # Remove the mappings
-        self.adapter.update(vio, vio.etag, pvm_vios.VIOS.schema_type,
-                            root_id=vio.uuid,
-                            xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
+        vio.update(self.adapter, xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
 
         # Next delete the media from the volume group...
         # The mappings above have the backing storage.  Just need to load
@@ -209,7 +205,4 @@ class ConfigDrivePowerVM(object):
             optical_medias.remove(scsi_map.backing_storage)
 
         # Now we can do an update...and be done with it.
-        self.adapter.update(
-            volgrp, volgrp.etag, pvm_vios.VIOS.schema_type,
-            root_id=self.vios_uuid, child_type=pvm_stg.VG.schema_type,
-            child_id=self.vg_uuid)
+        volgrp.update(self.adapter)

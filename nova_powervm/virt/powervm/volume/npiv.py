@@ -101,9 +101,7 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         # Run the update to the VIOS
         LOG.info(_LI("Adding NPIV mapping for instance %s") % instance.name)
         existing_fc_maps.append(vfc_map)
-        adapter.update(vios_w, vios_w.etag, pvm_vios.VIOS.schema_type,
-                       root_id=vios_w.uuid,
-                       xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
+        vios_w.update(adapter, xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
 
     def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
                           instance, connection_info):
@@ -170,9 +168,7 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
             vios_w.vfc_mappings.remove(removal_map)
 
         # Now perform the update of the VIOS
-        adapter.update(vios_w, vios_w.etag, pvm_vios.VIOS.schema_type,
-                       root_id=vios_w.uuid,
-                       xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
+        vios_w.update(adapter, xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
 
     def _wwpn_match(self, list1, list2):
         """Determines if two sets/lists of WWPNs match."""

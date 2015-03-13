@@ -19,7 +19,6 @@ import mock
 from nova import test
 import os
 from pypowervm.tests.wrappers.util import pvmhttp
-from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import media as m
@@ -100,10 +99,12 @@ class TestConfigDrivePowerVM(test.TestCase):
 
     def test_validate_opt_vg(self):
         self.apt.read.return_value = self.vol_grp_resp
+        vg_update = self.vol_grp_resp.feed.entries[0]
+        self.apt.update_by_path.return_value = vg_update
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host',
                                               'fake_vios')
         self.assertEqual('1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f',
-                         cfg_dr_builder._validate_vopt_vg())
+                         cfg_dr_builder.vg_uuid)
 
     def test_validate_opt_vg_fail(self):
         self.apt.read.return_value = self.vol_grp_novg_resp
@@ -124,26 +125,23 @@ class TestConfigDrivePowerVM(test.TestCase):
         # Make sure that the first update is a VIO and doesn't have the vopt
         # mapping
         def validate_update(*kargs, **kwargs):
-            if kwargs.get('child_type') is not None:
+            wrap = kargs[0]
+            if wrap.schema_type == 'VolumeGroup':
                 # This is the VG update.  Make sure there are no optical medias
                 # anymore.
-                vg = kargs[0]
-                self.assertEqual(0, len(vg.vmedia_repos[0].optical_media))
-            elif kwargs.get('xag') is not None:
-                # This is the VIOS call.  Make sure the xag is set and the
-                # mapping was removed.  Originally 2, one for vopt and
-                # local disk.  Should now be 1.
-                self.assertEqual([pvm_vios.XAGEnum.VIOS_SCSI_MAPPING],
-                                 kwargs['xag'])
-                vio = kargs[0]
-                self.assertEqual(1, len(vio.scsi_mappings))
+                self.assertEqual(0, len(wrap.vmedia_repos[0].optical_media))
+            elif wrap.schema_type == 'VirtualIOServer':
+                # This is the VIOS call.  Make sure the mapping was removed.
+                # Originally 2, one for vopt and local disk.  Should now be 1.
+                self.assertEqual(1, len(wrap.scsi_mappings))
             else:
                 self.fail("Shouldn't hit here")
+            return wrap.entry
 
-        self.apt.update.side_effect = validate_update
+        self.apt.update_by_path.side_effect = validate_update
 
         # Invoke the operation
         cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host', 'fake_vios')
         cfg_dr.dlt_vopt('fake_lpar_uuid')
 
-        self.assertEqual(2, self.apt.update.call_count)
+        self.assertEqual(2, self.apt.update_by_path.call_count)

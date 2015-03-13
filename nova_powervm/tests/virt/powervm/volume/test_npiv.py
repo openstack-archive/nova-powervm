@@ -60,15 +60,16 @@ class TestNPIVAdapter(test.TestCase):
         def validate_update(*kargs, **kwargs):
             vios_w = kargs[0]
             self.assertEqual(1, len(vios_w.vfc_mappings))
+            return vios_w.entry
 
-        self.adpt.update.side_effect = validate_update
+        self.adpt.update_by_path.side_effect = validate_update
 
         # Invoke
         self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vios_uuid',
                                     'vm_uuid', mock.MagicMock(), con_info)
 
         # Verify
-        self.assertEqual(1, self.adpt.update.call_count)
+        self.assertEqual(1, self.adpt.update_by_path.call_count)
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
     def test_connect_volume_no_map(self, mock_vio_wrap):
