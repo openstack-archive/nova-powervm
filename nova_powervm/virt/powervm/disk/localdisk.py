@@ -106,10 +106,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
             existing_vds.remove(removal)
 
         # Now update the volume group to remove the storage.
-        self.adapter.update(
-            vg_wrap, vg_wrap.etag, pvm_vios.VIOS.schema_type,
-            root_id=self.vios_uuid, child_type=pvm_stg.VG.schema_type,
-            child_id=self.vg_uuid)
+        vg_wrap.update(self.adapter)
 
     def disconnect_image_disk(self, context, instance, lpar_uuid,
                               disk_type=None):
@@ -140,9 +137,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
             existing_vios_mappings.remove(scsi_map)
 
         # Update the VIOS
-        self.adapter.update(vios_w, vios_w.etag, pvm_vios.VIOS.schema_type,
-                            root_id=vios_w.uuid,
-                            xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
+        vios_w.update(self.adapter, xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
 
         # Return the mappings that we just removed.
         return disk_maps
@@ -213,10 +208,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
             disk_found.capacity = size
 
             # Post it to the VIOS
-            self.adapter.update(
-                vg_wrap, vg_wrap.etag, pvm_vios.VIOS.schema_type,
-                root_id=self.vios_uuid, child_type=pvm_stg.VG.schema_type,
-                child_id=self.vg_uuid, xag=None)
+            vg_wrap.update(self.adapter)
 
         # Get the disk name based on the instance and type
         vol_name = self._get_disk_name(disk_info['type'], instance)
