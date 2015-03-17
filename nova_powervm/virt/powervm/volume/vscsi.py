@@ -15,11 +15,16 @@
 #    under the License.
 
 from oslo_config import cfg
+from oslo_log import log as logging
 
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
+from pypowervm.jobs import hdisk
+from pypowervm.wrappers import virtual_io_server as pvm_vios
+
 CONF = cfg.CONF
+LOG = logging.getLogger(__name__)
 
 
 class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
@@ -34,14 +39,15 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         super(VscsiVolumeAdapter, self).__init__()
         self._pfc_wwpns = None
 
-    def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, instance,
-                       connection_info):
+    def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, vios_name,
+                       instance, connection_info):
         """Connects the volume.
 
         :param adapter: The pypowervm adapter.
         :param host_uuid: The pypowervm UUID of the host.
         :param vios_uuid: The pypowervm UUID of the VIOS.
         :param vm_uuid: The powervm UUID of the VM.
+        :param vios_name: The name of the VIOS.
         :param instance: The nova instance that the volume should connect to.
         :param connection_info: Comes from the BDM.  Example connection_info:
                 {
@@ -62,7 +68,22 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                    'target_wwn':'500507680210E522'
                 }
         """
-        pass
+        """Connects the volume."""
+        it_map = connection_info['data']['initiator_target_map']
+
+        lun = connection_info['target_lun']
+        i_wwpns = it_map.keys()
+        t_wwpns = []
+        # Build single list of targets
+        for it_list in it_map.values():
+                t_wwpns.extend(it_list)
+
+        itls = hdisk.build_itls(i_wwpns, t_wwpns, lun)
+        status, devname, udid = hdisk.discover_hdisk(adapter, vios_uuid,
+                                                     itls)
+        vscsi_map = pvm_vios.VSCSIMapping.bld_to_pv(adapter, host_uuid,
+                                                    vm_uuid, devname)
+        vios.add_vscsi_mapping(adapter, vios_uuid, vios_name, vscsi_map)
 
     def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
                           instance, connection_info):

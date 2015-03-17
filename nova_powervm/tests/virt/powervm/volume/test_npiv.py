@@ -66,7 +66,8 @@ class TestNPIVAdapter(test.TestCase):
 
         # Invoke
         self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vios_uuid',
-                                    'vm_uuid', mock.MagicMock(), con_info)
+                                    'vm_uuid', 'vios_name',
+                                    mock.MagicMock(), con_info)
 
         # Verify
         self.assertEqual(1, self.adpt.update_by_path.call_count)
@@ -88,7 +89,8 @@ class TestNPIVAdapter(test.TestCase):
 
         # Invoke
         self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vios_uuid',
-                                    'vm_uuid', mock.MagicMock(), con_info)
+                                    'vm_uuid', 'vios_name', mock.MagicMock(),
+                                    con_info)
 
         # Verify
         self.assertEqual(0, self.adpt.update.call_count)

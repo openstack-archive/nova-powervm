@@ -42,14 +42,15 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     Server only passes through communication directly to the VM itself.
     """
 
-    def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, instance,
-                       connection_info):
+    def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, vios_name,
+                       instance, connection_info):
         """Connects the volume.
 
         :param adapter: The pypowervm adapter.
         :param host_uuid: The pypowervm UUID of the host.
         :param vios_uuid: The pypowervm UUID of the VIOS.
         :param vm_uuid: The powervm UUID of the VM.
+        :param vios_name: The name of the VIOS.
         :param instance: The nova instance that the volume should connect to.
         :param connection_info: Comes from the BDM.  Example connection_info:
                 {
