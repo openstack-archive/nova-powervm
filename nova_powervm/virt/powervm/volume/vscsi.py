@@ -71,12 +71,12 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """Connects the volume."""
         it_map = connection_info['data']['initiator_target_map']
 
-        lun = connection_info['target_lun']
+        lun = connection_info['data']['target_lun']
         i_wwpns = it_map.keys()
         t_wwpns = []
         # Build single list of targets
         for it_list in it_map.values():
-                t_wwpns.extend(it_list)
+            t_wwpns.extend(it_list)
 
         itls = hdisk.build_itls(i_wwpns, t_wwpns, lun)
         status, devname, udid = hdisk.discover_hdisk(adapter, vios_uuid,
