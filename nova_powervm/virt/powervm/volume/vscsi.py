@@ -20,7 +20,7 @@ from oslo_log import log as logging
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
-from pypowervm.jobs import hdisk
+from pypowervm.tasks import hdisk
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 CONF = cfg.CONF

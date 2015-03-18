@@ -16,7 +16,7 @@
 
 from nova.i18n import _LI
 from nova.i18n import _LW
-from pypowervm.jobs import power
+from pypowervm.tasks import power
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from oslo_log import log as logging

@@ -27,8 +27,8 @@ class TestVSCSIAdapter(test.TestCase):
     def setUp(self):
         super(TestVSCSIAdapter, self).setUp()
 
-    @mock.patch('pypowervm.jobs.hdisk.build_itls')
-    @mock.patch('pypowervm.jobs.hdisk.discover_hdisk')
+    @mock.patch('pypowervm.tasks.hdisk.build_itls')
+    @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.bld_to_pv')
     @mock.patch('nova_powervm.virt.powervm.vios.add_vscsi_mapping')
     def test_connect_volume(self, mock_add_vscsi_mapping, mock_bld_to_pv,

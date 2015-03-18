@@ -23,7 +23,7 @@ from oslo_utils import units
 from nova import exception as nova_exc
 from nova.i18n import _LI, _LE
 from pypowervm import exceptions as pvm_exc
-from pypowervm.jobs import upload_lv
+from pypowervm.tasks import upload_lv
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 

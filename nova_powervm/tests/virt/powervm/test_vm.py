@@ -151,7 +151,7 @@ class TestVM(test.TestCase):
         self.assertEqual(lpar_list[0], 'z3-9-5-126-127-00000001')
         self.assertEqual(len(lpar_list), 21)
 
-    @mock.patch('pypowervm.jobs.vterm.close_vterm')
+    @mock.patch('pypowervm.tasks.vterm.close_vterm')
     def test_dlt_lpar(self, mock_vterm):
         """Performs a delete LPAR test."""
         vm.dlt_lpar(self.apt, '12345')
@@ -203,7 +203,7 @@ class TestVM(test.TestCase):
         self.assertTrue(mock_crt_sp.called)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.jobs.cna.crt_cna')
+    @mock.patch('pypowervm.tasks.cna.crt_cna')
     def test_crt_vif(self, mock_crt_cna, mock_pvm_uuid):
         """Tests that a VIF can be created."""
 

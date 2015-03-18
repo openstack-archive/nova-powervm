@@ -18,7 +18,7 @@ from oslo_log import log as logging
 
 from nova.compute import task_states
 from nova.i18n import _LI
-from pypowervm.jobs import wwpn as pvm_wwpn
+from pypowervm.tasks import wwpn as pvm_wwpn
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm.volume import driver as v_driver

@@ -60,7 +60,7 @@ class TestLocalDisk(test.TestCase):
                                  'vios_uuid': 'vios_uuid'})
         return local
 
-    @mock.patch('pypowervm.jobs.upload_lv.upload_new_vdisk')
+    @mock.patch('pypowervm.tasks.upload_lv.upload_new_vdisk')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'

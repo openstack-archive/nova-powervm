@@ -22,9 +22,9 @@ from nova import exception
 from nova.i18n import _LI, _LE
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
-from pypowervm.jobs import cna
-from pypowervm.jobs import power
-from pypowervm.jobs import vterm
+from pypowervm.tasks import cna
+from pypowervm.tasks import power
+from pypowervm.tasks import vterm
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net

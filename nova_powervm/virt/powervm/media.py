@@ -24,7 +24,7 @@ import os
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from pypowervm.jobs import upload_lv
+from pypowervm.tasks import upload_lv
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 

@@ -103,7 +103,7 @@ class TestNPIVAdapter(test.TestCase):
                                        'vm_uuid', inst, mock.ANY)
         self.assertEqual(0, self.adpt.read.call_count)
 
-    @mock.patch('pypowervm.jobs.wwpn.build_wwpn_pair')
+    @mock.patch('pypowervm.tasks.wwpn.build_wwpn_pair')
     def test_wwpns(self, mock_build_wwpns):
         """Tests that new WWPNs get generated properly."""
         # Mock Data
