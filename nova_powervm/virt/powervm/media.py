@@ -52,16 +52,19 @@ class NoMediaRepoVolumeGroupFound(AbstractMediaException):
 
 class ConfigDrivePowerVM(object):
 
-    def __init__(self, adapter, host_uuid, vios_uuid):
+    def __init__(self, adapter, host_uuid, vios_map):
         """Creates the config drive manager for PowerVM.
 
         :param adapter: The pypowervm adapter to communicate with the system.
         :param host_uuid: The UUID of the host system.
-        :param vios_uuid: The VIOS UUID that contains the media repo.
+        :param vios_map: The map of VIOSes provided by the get_vios_name_map
+                         method.
         """
         self.adapter = adapter
         self.host_uuid = host_uuid
-        self.vios_uuid = vios_uuid
+
+        # TODO(IBM) Determine the appropriate VIOS down in _validate_vopt_vg
+        self.vios_uuid = vios_map.values()[0]
         self.vg_uuid = self._validate_vopt_vg()
 
     def _create_cfg_dr_iso(self, instance, injected_files, network_info,

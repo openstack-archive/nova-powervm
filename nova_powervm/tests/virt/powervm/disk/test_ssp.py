@@ -82,10 +82,11 @@ class TestSSPDiskAdapter(test.TestCase):
         cfg.CONF.set_override('ssp_name', 'ssp1')
 
     def _get_ssp_stor(self):
-        ssp_stor = ssp.SSPDiskAdapter({'adapter': self.apt,
-                                       'host_uuid': 'host_uuid',
-                                       'vios_name': 'vios_name',
-                                       'vios_uuid': 'vios_uuid'})
+        with mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map') as\
+                mock_vio_name_map:
+            mock_vio_name_map.return_value = {'vio_name': 'vio_uuid'}
+            ssp_stor = ssp.SSPDiskAdapter({'adapter': self.apt,
+                                           'host_uuid': 'host_uuid'})
         return ssp_stor
 
     def _bld_resp(self, status=200, entry_or_list=None):

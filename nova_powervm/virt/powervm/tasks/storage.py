@@ -30,8 +30,7 @@ LOG = logging.getLogger(__name__)
 class ConnectVolume(task.Task):
     """The task to connect a volume to an instance."""
 
-    def __init__(self, adapter, vol_drv, instance, connection_info, host_uuid,
-                 vios_uuid, vios_name):
+    def __init__(self, adapter, vol_drv, instance, connection_info, host_uuid):
         """Create the task.
 
         Requires LPAR info through requirement of lpar_wrap.
@@ -43,8 +42,6 @@ class ConnectVolume(task.Task):
         :param connection_info: The connection info from the block device
                                 mapping.
         :param host_uuid: The pypowervm UUID of the host.
-        :param vios_uuid: The pypowervm UUID of the VIOS.
-        :param vios_name: The name of the VIOS.
         """
         self.adapter = adapter
         self.vol_drv = vol_drv
@@ -52,8 +49,6 @@ class ConnectVolume(task.Task):
         self.connection_info = connection_info
         self.vol_id = self.connection_info['data']['volume_id']
         self.host_uuid = host_uuid
-        self.vios_uuid = vios_uuid
-        self.vios_name = vios_name
 
         super(ConnectVolume, self).__init__(name='connect_vol_%s' %
                                             self.vol_id,
@@ -63,9 +58,7 @@ class ConnectVolume(task.Task):
         LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s') %
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
-                                           self.vios_uuid, lpar_wrap.uuid,
-                                           self.vios_name,
-                                           self.instance,
+                                           lpar_wrap.uuid, self.instance,
                                            self.connection_info)
 
     def revert(self, lpar_wrap, result, flow_failures):
@@ -80,8 +73,7 @@ class ConnectVolume(task.Task):
                  {'vol': self.vol_id, 'inst': self.instance.name})
 
         return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
-                                              self.vios_uuid, lpar_wrap.uuid,
-                                              self.instance,
+                                              lpar_wrap.uuid, self.instance,
                                               self.connection_info)
 
 
@@ -89,7 +81,7 @@ class DisconnectVolume(task.Task):
     """The task to disconnect a volume from an instance."""
 
     def __init__(self, adapter, vol_drv, instance, connection_info,
-                 host_uuid, vios_uuid, vm_uuid, vios_name):
+                 host_uuid, vm_uuid):
         """Create the task.
 
         Requires LPAR info through requirement of lpar_wrap.
@@ -101,9 +93,7 @@ class DisconnectVolume(task.Task):
         :param connection_info: The connection info from the block device
                                 mapping.
         :param host_uuid: The pypowervm UUID of the host.
-        :param vios_uuid: The pypowervm UUID of the VIOS.
         :param vm_uuid: The pypowervm UUID of the VM.
-        :param vios_name: The name of the VIOS.
         """
         self.adapter = adapter
         self.vol_drv = vol_drv
@@ -111,9 +101,7 @@ class DisconnectVolume(task.Task):
         self.connection_info = connection_info
         self.vol_id = self.connection_info['data']['volume_id']
         self.host_uuid = host_uuid
-        self.vios_uuid = vios_uuid
         self.vm_uuid = vm_uuid
-        self.vios_name = vios_name
 
         super(DisconnectVolume, self).__init__(name='disconnect_vol_%s' %
                                                self.vol_id)
@@ -122,8 +110,7 @@ class DisconnectVolume(task.Task):
         LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s') %
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
-                                              self.vios_uuid, self.vm_uuid,
-                                              self.instance,
+                                              self.vm_uuid, self.instance,
                                               self.connection_info)
 
     def revert(self, result, flow_failures):
@@ -137,9 +124,7 @@ class DisconnectVolume(task.Task):
                      're-connected') %
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
-                                           self.vios_uuid, self.vm_uuid,
-                                           self.vios_name,
-                                           self.instance,
+                                           self.vm_uuid, self.instance,
                                            self.connection_info)
 
 
@@ -220,7 +205,7 @@ class ConnectDisk(task.Task):
 class CreateCfgDrive(task.Task):
     """The task to create the configuration drive."""
 
-    def __init__(self, adapter, host_uuid, vios_uuid, instance, injected_files,
+    def __init__(self, adapter, host_uuid, vios_map, instance, injected_files,
                  network_info, admin_pass):
         """Create the Task that creates the config drive.
 
@@ -230,7 +215,8 @@ class CreateCfgDrive(task.Task):
 
         :param adapter: The adapter for the pypowervm API
         :param host_uuid: The host UUID of the system.
-        :param vios_uuid: The VIOS UUID the drive should be put on.
+        :param vios_map: The map of VIOSes provided by the get_vios_name_map
+                         method.
         :param instance: The nova instance
         :param injected_files: A list of file paths that will be injected into
                                the ISO.
@@ -242,7 +228,7 @@ class CreateCfgDrive(task.Task):
                                              provides='cfg_drv_vscsi_map')
         self.adapter = adapter
         self.host_uuid = host_uuid
-        self.vios_uuid = vios_uuid
+        self.vios_map = vios_map
         self.instance = instance
         self.injected_files = injected_files
         self.network_info = network_info
@@ -252,7 +238,7 @@ class CreateCfgDrive(task.Task):
         LOG.info(_LI('Creating Config Drive for instance: %s') %
                  self.instance.name)
         media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid,
-                                                 self.vios_uuid)
+                                                 self.vios_map)
         vscsi_map = media_builder.create_cfg_drv_vopt(self.instance,
                                                       self.injected_files,
                                                       self.network_info,
@@ -264,47 +250,52 @@ class CreateCfgDrive(task.Task):
 class ConnectCfgDrive(task.Task):
     """The task to connect the cfg drive to the instance."""
 
-    def __init__(self, adapter, instance, vios_uuid, vios_name):
+    def __init__(self, adapter, instance, vios_map):
         """Create the Task that connects the cfg drive to the instance.
 
         Requires the 'cfg_drv_vscsi_map'.
 
         :param adapter: The adapter for the pypowervm API
         :param instance: The nova instance
-        :param vios_uuid: The VIOS UUID the drive should be put on.
-        :param vios_name: The name of the VIOS that this will be put on.
+        :param vios_map: The map of VIOSes provided by the get_vios_name_map
+                         method.
         """
         name = 'cfg_drive_scsi_connect'
         reqs = ['cfg_drv_vscsi_map']
         super(ConnectCfgDrive, self).__init__(name=name, requires=reqs)
         self.adapter = adapter
         self.instance = instance
-        self.vios_uuid = vios_uuid
-        self.vios_name = vios_name
+        self.vios_map = vios_map
 
     def execute(self, cfg_drv_vscsi_map):
         LOG.info(_LI('Attaching Config Drive to instance: %s') %
                  self.instance.name)
-        vios.add_vscsi_mapping(self.adapter, self.vios_uuid, self.vios_name,
+
+        # TODO(IBM) Should derive the VIOS from the CreateCfgDrive.
+        vios_name = self.vios_map.keys()[0]
+        vios_uuid = self.vios_map[vios_name]
+
+        vios.add_vscsi_mapping(self.adapter, vios_uuid, vios_name,
                                cfg_drv_vscsi_map)
 
 
 class DeleteVOpt(task.Task):
     """The task to delete the virtual optical."""
 
-    def __init__(self, adapter, host_uuid, vios_uuid, instance, lpar_uuid):
+    def __init__(self, adapter, host_uuid, vios_map, instance, lpar_uuid):
         """Creates the Task to delete the instances virtual optical media.
 
         :param adapter: The adapter for the pypowervm API
         :param host_uuid: The host UUID of the system.
-        :param vios_uuid: The VIOS UUID the media is being deleted from.
+        :param vios_map: The map of VIOSes provided by the get_vios_name_map
+                         method.
         :param instance: The nova instance.
         :param lpar_uuid: The UUID of the lpar that has media.
         """
         super(DeleteVOpt, self).__init__(name='vopt_delete')
         self.adapter = adapter
         self.host_uuid = host_uuid
-        self.vios_uuid = vios_uuid
+        self.vios_map = vios_map
         self.instance = instance
         self.lpar_uuid = lpar_uuid
 
@@ -312,7 +303,7 @@ class DeleteVOpt(task.Task):
         LOG.info(_LI('Deleting Virtual Optical Media for instance %s')
                  % self.instance.name)
         media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid,
-                                                 self.vios_uuid)
+                                                 self.vios_map)
         media_builder.dlt_vopt(self.lpar_uuid)
 
 

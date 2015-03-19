@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
 from nova import test
 import os
 from pypowervm.tests.wrappers.util import pvmhttp
@@ -40,6 +41,13 @@ class TestVios(test.TestCase):
             file_path = os.path.join(data_dir, file_name)
             return pvmhttp.load_pvm_resp(file_path).get_response()
         self.vios_feed_resp = resp(VIOS_FEED)
+
+    def test_get_vios_name_map(self):
+        self.adpt.read.return_value = self.vios_feed_resp
+        expected = {'IOServer - SN2125D4A':
+                    '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'}
+        self.assertEqual(expected,
+                         vios.get_vios_name_map(self.adpt, 'host_uuid'))
 
     def test_get_physical_wwpns(self):
         self.adpt.read.return_value = self.vios_feed_resp

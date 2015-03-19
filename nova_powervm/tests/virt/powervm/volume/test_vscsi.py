@@ -30,16 +30,18 @@ class TestVSCSIAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
     @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.bld_to_pv')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
     @mock.patch('nova_powervm.virt.powervm.vios.add_vscsi_mapping')
-    def test_connect_volume(self, mock_add_vscsi_mapping, mock_bld_to_pv,
-                            mock_discover_hdisk, mock_build_itls):
+    def test_connect_volume(self, mock_add_vscsi_mapping, mock_vio_name_map,
+                            mock_bld_to_pv, mock_discover_hdisk,
+                            mock_build_itls):
         con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
                                                       'i2': ['t2']},
                     'target_lun': '1'}}
         mock_discover_hdisk.return_value = '1' '2' '3'
+        mock_vio_name_map.return_value = {'vio_name': 'vio_uuid'}
         vscsi.VscsiVolumeAdapter().connect_volume(None, 'host_uuid',
-                                                  'vios_uuid', 'vm_uuid',
-                                                  'vios_name', None, con_info)
+                                                  'vm_uuid', None, con_info)
         self.assertEqual(1, mock_add_vscsi_mapping.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')

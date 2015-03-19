@@ -79,7 +79,10 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_host_uuid()
         # Initialize the UUID Cache. Lets not prime it at this time.
         vm.UUIDCache(self.adapter)
-        self._get_vios_uuid()
+
+        # Get the map of the VIOS names to UUIDs
+        self.vios_map = vios.get_vios_name_map(self.adapter, self.host_uuid)
+
         # Initialize the disk adapter.  Sets self.disk_drv
         self._get_disk_adapter()
         self.image_api = image.API()
@@ -99,17 +102,10 @@ class PowerVMDriver(driver.ComputeDriver):
                                        helpers=log_hlp.log_helper)
 
     def _get_disk_adapter(self):
-        conn_info = {'adapter': self.adapter,
-                     'host_uuid': self.host_uuid,
-                     'vios_name': CONF.vios_name,
-                     'vios_uuid': self.vios_uuid}
+        conn_info = {'adapter': self.adapter, 'host_uuid': self.host_uuid}
 
         self.disk_dvr = importutils.import_object_ns(
             DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.disk_driver], conn_info)
-
-    def _get_vios_uuid(self):
-        self.vios_uuid = vios.get_vios_uuid(self.adapter, CONF.vios_name)
-        LOG.info(_LI("VIOS UUID is:%s") % self.vios_uuid)
 
     def _get_host_uuid(self):
         # Need to get a list of the hosts, then find the matching one
@@ -212,17 +208,16 @@ class PowerVMDriver(driver.ComputeDriver):
                 drv_type = conn_info.get('driver_volume_type')
                 vol_drv = self.vol_drvs.get(drv_type)
                 flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
-                                              conn_info, self.host_uuid,
-                                              self.vios_uuid, CONF.vios_name))
+                                              conn_info, self.host_uuid))
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
             flow.add(tf_stg.CreateCfgDrive(self.adapter, self.host_uuid,
-                                           self.vios_uuid, instance,
+                                           self.vios_map, instance,
                                            injected_files, network_info,
                                            admin_password))
             flow.add(tf_stg.ConnectCfgDrive(self.adapter, instance,
-                                            self.vios_uuid, CONF.vios_name))
+                                            self.vios_map))
 
         # Plug the VIFs
         vif_plug_info = {'instance': instance, 'network_info': network_info}
@@ -274,7 +269,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Delete the virtual optical
         flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid,
-                                   self.vios_uuid, instance, pvm_inst_uuid))
+                                   self.vios_map, instance, pvm_inst_uuid))
 
         # Determine if there are volumes to disconnect.  If so, remove each
         # volume
@@ -287,9 +282,7 @@ class PowerVMDriver(driver.ComputeDriver):
                 flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv,
                                                  instance, conn_info,
                                                  self.host_uuid,
-                                                 self.vios_uuid,
-                                                 pvm_inst_uuid,
-                                                 CONF.vios_name))
+                                                 pvm_inst_uuid))
 
         # Detach the disk storage adapters
         flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
@@ -324,8 +317,7 @@ class PowerVMDriver(driver.ComputeDriver):
         drv_type = connection_info.get('driver_volume_type')
         vol_drv = self.vol_drvs.get(drv_type)
         flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
-                                      connection_info, self.host_uuid,
-                                      self.vios_uuid, CONF.vios_name))
+                                      connection_info, self.host_uuid))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)
@@ -346,8 +338,7 @@ class PowerVMDriver(driver.ComputeDriver):
         pvm_inst_uuid = vm.get_pvm_uuid(instance)
         flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv, instance,
                                          connection_info, self.host_uuid,
-                                         self.vios_uuid, pvm_inst_uuid,
-                                         CONF.vios_name))
+                                         pvm_inst_uuid))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)

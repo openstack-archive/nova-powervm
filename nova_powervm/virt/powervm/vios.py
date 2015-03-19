@@ -26,16 +26,9 @@ from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-vios_opts = [
-    cfg.StrOpt('vios_name',
-               default='',
-               help='VIOS to use for I/O operations.')
-]
-
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
-CONF.register_opts(vios_opts)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -48,6 +41,25 @@ class AbstractVIOSException(Exception):
 class VIOSNotFound(AbstractVIOSException):
     msg_fmt = _LE('Unable to locate the Virtual I/O Server \'%(vios_name)s\''
                   ' for this operation.')
+
+
+def get_vios_name_map(adapter, host_uuid):
+    """Returns the map of VIOS names to UUIDs.
+
+    :param adapter: The pypowervm adapter for the query.
+    :param host_uuid: The host servers UUID.
+    :return: A dictionary with all of the Virtual I/O Servers on the system.
+             The format is:
+             {
+                 'vio_name': 'vio_uuid',
+                 'vio2_name': 'vio2_uuid',
+                 etc...
+             }
+    """
+    vio_feed_resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
+                                 child_type=pvm_vios.VIOS.schema_type)
+    wrappers = pvm_vios.VIOS.wrap(vio_feed_resp)
+    return {wrapper.name: wrapper.uuid for wrapper in wrappers}
 
 
 def get_vios_uuid(adapter, name):

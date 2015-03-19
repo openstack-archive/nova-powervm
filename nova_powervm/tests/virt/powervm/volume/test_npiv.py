@@ -47,14 +47,17 @@ class TestNPIVAdapter(test.TestCase):
             return pvmhttp.load_pvm_resp(file_path).get_response()
         self.vios_feed_resp = resp(VIOS_FEED)
 
+    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VStorageMapping.'
                 '_client_lpar_href')
-    def test_connect_volume(self, mock_href):
+    def test_connect_volume(self, mock_href, mock_vio_name_map):
         # Mock Data
         con_info = {'data': {'initiator_target_map': {'a': None,
                                                       'b': None}}}
         mock_href.return_value = 'fake_uri'
         self.adpt.read.return_value = self.vios_feed_resp.feed.entries[0]
+
+        mock_vio_name_map.return_value = {'vios_name': 'vios_uuid'}
 
         # A validation function on the update.
         def validate_update(*kargs, **kwargs):
@@ -65,15 +68,15 @@ class TestNPIVAdapter(test.TestCase):
         self.adpt.update_by_path.side_effect = validate_update
 
         # Invoke
-        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vios_uuid',
-                                    'vm_uuid', 'vios_name',
+        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vm_uuid',
                                     mock.MagicMock(), con_info)
 
         # Verify
         self.assertEqual(1, self.adpt.update_by_path.call_count)
 
+    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
-    def test_connect_volume_no_map(self, mock_vio_wrap):
+    def test_connect_volume_no_map(self, mock_vio_wrap, mock_vio_name_map):
         """Tests that if the VFC Mapping exists, another is not added."""
         # Mock Data
         con_info = {'data': {'initiator_target_map': {'a': None,
@@ -87,10 +90,11 @@ class TestNPIVAdapter(test.TestCase):
 
         mock_vio_wrap.return_value = mock_vios
 
+        mock_vio_name_map.return_value = {'vios_name': 'vios_uuid'}
+
         # Invoke
-        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vios_uuid',
-                                    'vm_uuid', 'vios_name', mock.MagicMock(),
-                                    con_info)
+        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vm_uuid',
+                                    mock.MagicMock(), con_info)
 
         # Verify
         self.assertEqual(0, self.adpt.update.call_count)
@@ -99,8 +103,8 @@ class TestNPIVAdapter(test.TestCase):
         """Tests that the deletion doesn't go through on certain states."""
         inst = mock.MagicMock()
         inst.task_state = task_states.RESUMING
-        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vios_uuid',
-                                       'vm_uuid', inst, mock.ANY)
+        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid',
+                                       inst, mock.ANY)
         self.assertEqual(0, self.adpt.read.call_count)
 
     @mock.patch('pypowervm.tasks.wwpn.build_wwpn_pair')

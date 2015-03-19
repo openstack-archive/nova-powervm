@@ -39,15 +39,13 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         super(VscsiVolumeAdapter, self).__init__()
         self._pfc_wwpns = None
 
-    def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, vios_name,
-                       instance, connection_info):
+    def connect_volume(self, adapter, host_uuid, vm_uuid, instance,
+                       connection_info):
         """Connects the volume.
 
         :param adapter: The pypowervm adapter.
         :param host_uuid: The pypowervm UUID of the host.
-        :param vios_uuid: The pypowervm UUID of the VIOS.
         :param vm_uuid: The powervm UUID of the VM.
-        :param vios_name: The name of the VIOS.
         :param instance: The nova instance that the volume should connect to.
         :param connection_info: Comes from the BDM.  Example connection_info:
                 {
@@ -68,7 +66,14 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                    'target_wwn':'500507680210E522'
                 }
         """
-        """Connects the volume."""
+        # TODO(IBM) Need to find the right Virtual I/O Server via the i_wwpns.
+        # This will require querying the full Virtual I/O Server.  This is a
+        # temporary work around for single VIOS/single FC port.
+        vio_map = vios.get_vios_name_map(adapter, host_uuid)
+        vios_name = vio_map.keys()[0]
+        vios_uuid = vio_map[vios_name]
+
+        # Get the initiators
         it_map = connection_info['data']['initiator_target_map']
 
         lun = connection_info['data']['target_lun']
@@ -85,13 +90,12 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                                                     vm_uuid, devname)
         vios.add_vscsi_mapping(adapter, vios_uuid, vios_name, vscsi_map)
 
-    def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
-                          instance, connection_info):
+    def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
+                          connection_info):
         """Disconnect the volume.
 
         :param adapter: The pypowervm adapter.
         :param host_uuid: The pypowervm UUID of the host.
-        :param vios_uuid: The pypowervm UUID of the VIOS.
         :param vm_uuid: The powervm UUID of the VM.
         :param instance: The nova instance that the volume should disconnect
                          from.
@@ -114,6 +118,13 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                    'target_wwn':'500507680210E522'
                 }
         """
+        # TODO(IBM) Need to find the right Virtual I/O Server via the i_wwpns.
+        # This will require querying the full Virtual I/O Server.  This is a
+        # temporary work around for single VIOS/single FC port.
+        #         vio_map = vios.get_vios_name_map(adapter, host_uuid)
+        #         vios_name = vio_map.keys()[0]
+        #         vios_uuid = vio_map[vios_name]
+
         pass
 
     def wwpns(self, adapter, host_uuid, instance):

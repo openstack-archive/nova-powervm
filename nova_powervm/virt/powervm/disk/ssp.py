@@ -21,6 +21,7 @@ from nova import image
 from nova.i18n import _LI, _LE
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_drv
+from nova_powervm.virt.powervm import vios
 
 import pypowervm.wrappers.storage as pvm_stg
 
@@ -77,8 +78,12 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         super(SSPDiskAdapter, self).__init__(connection)
         self.adapter = connection['adapter']
         self.host_uuid = connection['host_uuid']
-        self.vios_name = connection['vios_name']
-        self.vios_uuid = connection['vios_uuid']
+
+        # TODO(IBM) Query the VIOSes to find the one containing the SSP.
+        # This is a temporary method to find the VIOS.
+        vios_map = vios.get_vios_name_map(self.adapter, self.host_uuid)
+        self.vios_name, self.vios_uuid = vios_map.items()[0]
+
         self.ssp_name = CONF.ssp_name
         # Make sure _fetch_ssp_wrap knows it has to bootstrap by name
         self._ssp_wrap = None

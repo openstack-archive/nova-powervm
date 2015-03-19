@@ -21,6 +21,7 @@ from nova.i18n import _LI
 from pypowervm.tasks import wwpn as pvm_wwpn
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 LOG = logging.getLogger(__name__)
@@ -42,8 +43,8 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     Server only passes through communication directly to the VM itself.
     """
 
-    def connect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid, vios_name,
-                       instance, connection_info):
+    def connect_volume(self, adapter, host_uuid, vm_uuid, instance,
+                       connection_info):
         """Connects the volume.
 
         :param adapter: The pypowervm adapter.
@@ -71,7 +72,15 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                    'target_wwn':'500507680210E522'
                 }
         """
-        # # List of connector's WWPNs
+        # TODO(IBM) Need to find the right Virtual I/O Server via a load
+        # balancing algorithm and WWPN port definition.
+        # This will require querying the full Virtual I/O Server.  This is a
+        # temporary work around for single VIOS/single FC port.
+        vio_map = vios.get_vios_name_map(adapter, host_uuid)
+        vios_name = vio_map.keys()[0]
+        vios_uuid = vio_map[vios_name]
+
+        # List of connector's WWPNs
         c_wwpns = connection_info['data']['initiator_target_map'].keys()
 
         # Read the VIOS and determine if there is already a NPIV mapping in
@@ -104,13 +113,12 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         existing_fc_maps.append(vfc_map)
         vios_w.update(adapter, xag=[pvm_vios.XAGEnum.VIOS_FC_MAPPING])
 
-    def disconnect_volume(self, adapter, host_uuid, vios_uuid, vm_uuid,
-                          instance, connection_info):
+    def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
+                          connection_info):
         """Disconnect the volume.
 
         :param adapter: The pypowervm adapter.
         :param host_uuid: The pypowervm UUID of the host.
-        :param vios_uuid: The pypowervm UUID of the VIOS.
         :param vm_uuid: The powervm UUID of the VM.
         :param instance: The nova instance that the volume should disconnect
                          from.
@@ -141,6 +149,14 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         if instance.task_state not in TASK_STATES_FOR_DISCONNECT:
             # NPIV should only remove the VFC mapping upon a destroy of the VM
             return
+
+        # TODO(IBM) Need to find the right Virtual I/O Server via the
+        # connector.
+        # This will require querying the full Virtual I/O Server.  This is a
+        # temporary work around for single VIOS/single FC port.
+        vio_map = vios.get_vios_name_map(adapter, host_uuid)
+        vios_name = vio_map.keys()[0]
+        vios_uuid = vio_map[vios_name]
 
         # List of connector's WWPNs
         c_wwpns = connection_info['data']['initiator_target_map'].keys()

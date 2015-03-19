@@ -53,8 +53,12 @@ class LocalStorage(disk_dvr.DiskAdapter):
         super(LocalStorage, self).__init__(connection)
         self.adapter = connection['adapter']
         self.host_uuid = connection['host_uuid']
-        self.vios_name = connection['vios_name']
-        self.vios_uuid = connection['vios_uuid']
+
+        # TODO(IBM) Query the VIOSes to find the one containing the VG.
+        # This is a temporary method to find the VIOS.
+        vios_map = vios.get_vios_name_map(self.adapter, self.host_uuid)
+        self.vios_name, self.vios_uuid = vios_map.items()[0]
+
         self.vg_name = CONF.volume_group_name
         self.vg_uuid = self._get_vg_uuid(self.adapter, self.vios_uuid,
                                          CONF.volume_group_name)
