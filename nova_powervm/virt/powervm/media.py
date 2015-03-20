@@ -16,8 +16,7 @@
 
 import abc
 from nova.api.metadata import base as instance_metadata
-from nova.i18n import _LE
-from nova.i18n import _LI
+from nova.i18n import _LE, _LI, _LW
 from nova.virt import configdrive
 import os
 
@@ -25,6 +24,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from pypowervm.tasks import upload_lv
+from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -52,20 +52,26 @@ class NoMediaRepoVolumeGroupFound(AbstractMediaException):
 
 class ConfigDrivePowerVM(object):
 
-    def __init__(self, adapter, host_uuid, vios_map):
+    _cur_vios_uuid = None
+    _cur_vios_name = None
+    _cur_vg_uuid = None
+
+    def __init__(self, adapter, host_uuid):
         """Creates the config drive manager for PowerVM.
 
         :param adapter: The pypowervm adapter to communicate with the system.
         :param host_uuid: The UUID of the host system.
-        :param vios_map: The map of VIOSes provided by the get_vios_name_map
-                         method.
         """
         self.adapter = adapter
         self.host_uuid = host_uuid
 
-        # TODO(IBM) Determine the appropriate VIOS down in _validate_vopt_vg
-        self.vios_uuid = vios_map.values()[0]
-        self.vg_uuid = self._validate_vopt_vg()
+        # The validate will use the cached static variables for the VIOS info.
+        # Once validate is done, set the class variables to the updated cache.
+        self._validate_vopt_vg()
+
+        self.vios_uuid = ConfigDrivePowerVM._cur_vios_uuid
+        self.vios_name = ConfigDrivePowerVM._cur_vios_name
+        self.vg_uuid = ConfigDrivePowerVM._cur_vg_uuid
 
     def _create_cfg_dr_iso(self, instance, injected_files, network_info,
                            admin_pass=None):
@@ -141,25 +147,81 @@ class ConfigDrivePowerVM(object):
     def _validate_vopt_vg(self):
         """Will ensure that the virtual optical media repository exists.
 
-        This method will be expensive the first time it is run.  Should be
-        quick on subsequent restarts.  Should be called on startup.
+        This method will connect to one of the Virtual I/O Servers on the
+        system and ensure that there is a root_vg that the optical media (which
+        is temporary) exists.
 
-        :return vg_uuid: The Volume Group UUID holding the media repo.
+        If the volume group on an I/O Server goes down (perhaps due to
+        maintenance), the system will rescan to determine if there is another
+        I/O Server that can host the request.
+
+        The very first invocation may be expensive.  It may also be expensive
+        to call if a Virtual I/O Server unexpectantly goes down.
+
+        If there are no Virtual I/O Servers that can support the media, then
+        an exception will be thrown.
         """
-        resp = self.adapter.read(pvm_vios.VIOS.schema_type, self.vios_uuid,
-                                 pvm_stg.VG.schema_type)
-        found_vg = None
-        for vg_entry in resp.feed.entries:
-            vol_grp = pvm_stg.VG.wrap(vg_entry)
-            if vol_grp.name == CONF.vopt_media_volume_group:
-                found_vg = vol_grp
-                break
 
+        # TODO(IBM) Add thread safety here in case two calls into this are
+        # done at once.
+
+        # If our static variables were set, then we should validate that the
+        # repo is still running.  Otherwise, we need to reset the variables
+        # (as it could be down for maintenance).
+        if ConfigDrivePowerVM._cur_vg_uuid is not None:
+            vio_uuid = ConfigDrivePowerVM._cur_vios_uuid
+            vg_uuid = ConfigDrivePowerVM._cur_vg_uuid
+            try:
+                vg_resp = self.adapter.read(pvm_vios.VIOS.schema_type,
+                                            vio_uuid, pvm_stg.VG.schema_type,
+                                            vg_uuid)
+                if vg_resp is not None:
+                    return
+            except Exception:
+                pass
+
+            LOG.log(_LI("An error occurred querying the virtual optical media "
+                        "repository.  Attempting to re-establish connection "
+                        "with a virtual optical media repository"))
+
+        # If we're hitting this, either it's our first time booting up, or the
+        # previously used Volume Group went offline (ex. VIOS went down for
+        # maintenance).
+        #
+        # Since it doesn't matter which VIOS we use for the media repo, we
+        # should query all Virtual I/O Servers and see if an appropriate
+        # media repository exists.
+        vios_resp = self.adapter.read(pvm_ms.System.schema_type,
+                                      root_id=self.host_uuid,
+                                      child_type=pvm_vios.VIOS.schema_type)
+        vio_wraps = pvm_vios.VIOS.wrap(vios_resp)
+
+        # First loop through the VIOSes to see if any have the right VG
+        found_vg = None
+        found_vios = None
+        for vio_wrap in vio_wraps:
+            try:
+                vg_resp = self.adapter.read(pvm_vios.VIOS.schema_type,
+                                            root_id=vio_wrap.uuid,
+                                            child_type=pvm_stg.VG.schema_type)
+                vg_wraps = pvm_stg.VG.wrap(vg_resp)
+                for vg_wrap in vg_wraps:
+                    if vg_wrap.name == CONF.vopt_media_volume_group:
+                        found_vg = vg_wrap
+                        found_vios = vio_wrap
+                        break
+            except Exception:
+                LOG.warn(_LW('Unable to read volume groups for Virtual '
+                             'I/O Server %s') % vio_wrap.name)
+                pass
+
+        # If we didn't find a volume group...
         if found_vg is None:
             if CONF.vopt_media_volume_group == 'rootvg':
                 # If left at the default of rootvg, we should create it.
                 # TODO(IBM) Need to implement.  Need implementation in
                 # pypowervm api.
+                found_vios = vio_wraps[0]  # Use first VIOS (when implemented)
                 raise NoMediaRepoVolumeGroupFound(
                     vol_grp=CONF.vopt_media_volume_group)
             else:
@@ -173,7 +235,11 @@ class ConfigDrivePowerVM(object):
             found_vg.vmedia_repos = [vopt_repo]
             found_vg = found_vg.update(self.adapter)
 
-        return found_vg.uuid
+        # At this point, we know that we've successfully set up the volume
+        # group.  Save to the static class variables.
+        ConfigDrivePowerVM._cur_vg_uuid = found_vg.uuid
+        ConfigDrivePowerVM._cur_vios_uuid = found_vios.uuid
+        ConfigDrivePowerVM._cur_vios_name = found_vios.name
 
     def dlt_vopt(self, lpar_uuid):
         """Deletes the virtual optical and scsi mappings for a VM."""

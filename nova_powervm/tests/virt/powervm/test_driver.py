@@ -41,7 +41,7 @@ LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
 
-class FakeClass():
+class FakeClass(object):
     """Used for the test_inst_dict."""
     pass
 

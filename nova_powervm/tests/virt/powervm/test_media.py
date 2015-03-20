@@ -29,6 +29,8 @@ VOL_GRP_NOVG_DATA = 'fake_volume_group_no_vg.txt'
 VOL_GRP_WITH_VIOS = 'fake_volume_group_with_vio_data.txt'
 VIOS_WITH_VOL_GRP = 'fake_vios_with_volume_group_data.txt'
 
+VIOS_NO_VG = 'fake_vios_feed_no_vg.txt'
+
 
 class TestConfigDrivePowerVM(test.TestCase):
     """Unit Tests for the ConfigDrivePowerVM class."""
@@ -50,10 +52,15 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.vg_to_vio = resp(VOL_GRP_WITH_VIOS)
         self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
 
+        self.vio_feed_no_vg = resp(VIOS_NO_VG)
+
         self.pypvm = self.useFixture(fx.PyPowerVM())
         self.apt = self.pypvm.apt
 
-        self.fake_vio_map = {'vios_name': 'vios_uuid'}
+        # Wipe out the static variables, so that the revalidate is called
+        m.ConfigDrivePowerVM._cur_vios_uuid = None
+        m.ConfigDrivePowerVM._cur_vios_name = None
+        m.ConfigDrivePowerVM._cur_vg_uuid = None
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
@@ -61,8 +68,7 @@ class TestConfigDrivePowerVM(test.TestCase):
     @mock.patch('nova.virt.configdrive.ConfigDriveBuilder.make_drive')
     def test_crt_cfg_dr_iso(self, mock_mkdrv, mock_meta, mock_vopt_valid):
         """Validates that the image creation method works."""
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'host_uuid',
-                                              self.fake_vio_map)
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'host_uuid')
         mock_instance = mock.MagicMock()
         mock_instance.name = 'fake-instance'
         mock_files = mock.MagicMock()
@@ -90,8 +96,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         mock_size.return_value = 10000
 
         # Run
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host',
-                                              self.fake_vio_map)
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
         resp = cfg_dr_builder.create_cfg_drv_vopt(mock.MagicMock(),
                                                   mock.MagicMock(),
                                                   mock.MagicMock(),
@@ -103,16 +108,15 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.apt.read.return_value = self.vol_grp_resp
         vg_update = self.vol_grp_resp.feed.entries[0]
         self.apt.update_by_path.return_value = vg_update
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host',
-                                              self.fake_vio_map)
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
         self.assertEqual('1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f',
                          cfg_dr_builder.vg_uuid)
 
     def test_validate_opt_vg_fail(self):
-        self.apt.read.return_value = self.vol_grp_novg_resp
+        self.apt.read.side_effect = [self.vio_feed_no_vg,
+                                     self.vol_grp_novg_resp]
         self.assertRaises(m.NoMediaRepoVolumeGroupFound,
-                          m.ConfigDrivePowerVM, self.apt, 'fake_host',
-                          self.fake_vio_map)
+                          m.ConfigDrivePowerVM, self.apt, 'fake_host')
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
@@ -143,7 +147,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.apt.update_by_path.side_effect = validate_update
 
         # Invoke the operation
-        cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host', self.fake_vio_map)
+        cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
         cfg_dr.dlt_vopt('fake_lpar_uuid')
 
         self.assertEqual(2, self.apt.update_by_path.call_count)
