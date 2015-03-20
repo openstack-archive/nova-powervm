@@ -87,7 +87,7 @@ class TestConfigDrivePowerVM(test.TestCase):
     @mock.patch('os.path.getsize')
     @mock.patch('os.remove')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_upload_lv')
+                '_upload_vopt')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
                 'bld_to_vopt')

@@ -24,7 +24,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from pypowervm.tasks import scsi_mapper as tsk_map
-from pypowervm.tasks import upload_lv
+from pypowervm.tasks import storage as tsk_stg
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -126,7 +126,7 @@ class ConfigDrivePowerVM(object):
 
         # Upload the media
         file_size = os.path.getsize(iso_path)
-        self._upload_lv(iso_path, file_name, file_size)
+        self._upload_vopt(iso_path, file_name, file_size)
 
         # Delete the media
         os.remove(iso_path)
@@ -140,10 +140,10 @@ class ConfigDrivePowerVM(object):
 
         tsk_map.add_vscsi_mapping(self.adapter, self.vios_uuid, mapping)
 
-    def _upload_lv(self, iso_path, file_name, file_size):
+    def _upload_vopt(self, iso_path, file_name, file_size):
         with open(iso_path, 'rb') as d_stream:
-            upload_lv.upload_vopt(self.adapter, self.vios_uuid, d_stream,
-                                  file_name, file_size)
+            tsk_stg.upload_vopt(self.adapter, self.vios_uuid, d_stream,
+                                file_name, file_size)
 
     def _validate_vopt_vg(self):
         """Will ensure that the virtual optical media repository exists.

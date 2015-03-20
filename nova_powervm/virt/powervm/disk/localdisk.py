@@ -24,7 +24,7 @@ from nova import exception as nova_exc
 from nova.i18n import _LI, _LE
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import scsi_mapper as tsk_map
-from pypowervm.tasks import upload_lv
+from pypowervm.tasks import storage as tsk_stg
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -165,7 +165,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # resize the disk, create a new partition, etc...
         # If the image is bigger than disk, API should make the disk big
         # enough to support the image (up to 1 Gb boundary).
-        vdisk, f_uuid = upload_lv.upload_new_vdisk(
+        vdisk, f_uuid = tsk_stg.upload_new_vdisk(
             self.adapter, self.vios_uuid, self.vg_uuid, stream, vol_name,
             image['size'], d_size=disk_bytes)
 
