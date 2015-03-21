@@ -21,6 +21,7 @@ from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 from pypowervm.tasks import hdisk
+from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 CONF = cfg.CONF
@@ -88,7 +89,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                                                      itls)
         vscsi_map = pvm_vios.VSCSIMapping.bld_to_pv(adapter, host_uuid,
                                                     vm_uuid, devname)
-        vios.add_vscsi_mapping(adapter, vios_uuid, vios_name, vscsi_map)
+        tsk_map.add_vscsi_mapping(adapter, vios_uuid, vscsi_map)
 
     def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
                           connection_info):

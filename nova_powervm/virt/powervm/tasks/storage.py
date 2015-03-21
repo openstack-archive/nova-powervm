@@ -22,7 +22,6 @@ from taskflow.types import failure as task_fail
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import media
-from nova_powervm.virt.powervm import vios
 
 LOG = logging.getLogger(__name__)
 
@@ -169,8 +168,10 @@ class CreateDiskForImg(task.Task):
         if result is None or isinstance(result, task_fail.Failure):
             # No result means no disk to clean up.
             return
-        # TODO(thorst) no mappings at this point...how to delete.
-        # disk_dvr.delete_disks(context, instance, result)
+
+        # Run the delete.  The result is a single disk.  Wrap into list
+        # as the method works with plural disks.
+        self.disk_dvr.delete_disks(self.context, self.instance, [result])
 
 
 class ConnectDisk(task.Task):
@@ -196,10 +197,15 @@ class ConnectDisk(task.Task):
         self.instance = instance
 
     def execute(self, lpar_wrap, disk_dev_info):
-        LOG.info(_LI('Connecting disk to instance: %s') %
-                 self.instance.name)
+        LOG.info(_LI('Connecting disk to instance: %s') % self.instance.name)
         self.disk_dvr.connect_disk(self.context, self.instance, disk_dev_info,
                                    lpar_wrap.uuid)
+
+    def revert(self, lpar_wrap, disk_dev_info, result, flow_failures):
+        LOG.warn(_LW('Disk image being disconnected from instance %s') %
+                 self.instance.name)
+        self.disk_dvr.disconnect_image_disk(self.context, self.instance,
+                                            lpar_wrap.uuid)
 
 
 class CreateAndConnectCfgDrive(task.Task):
@@ -235,16 +241,9 @@ class CreateAndConnectCfgDrive(task.Task):
         LOG.info(_LI('Creating Config Drive for instance: %s') %
                  self.instance.name)
         self.mb = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
-        vscsi_map = self.mb.create_cfg_drv_vopt(self.instance,
-                                                self.injected_files,
-                                                self.network_info,
-                                                lpar_wrap.uuid,
-                                                admin_pass=self.ad_pass)
-
-        LOG.info(_LI('Connecting Config Drive to instance: %s') %
-                 self.instance.name)
-        vios.add_vscsi_mapping(self.adapter, self.mb.vios_uuid,
-                               self.mb.vios_name, vscsi_map)
+        self.mb.create_cfg_drv_vopt(self.instance, self.injected_files,
+                                    self.network_info, lpar_wrap.uuid,
+                                    admin_pass=self.ad_pass)
 
     def revert(self, lpar_wrap, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
@@ -253,8 +252,6 @@ class CreateAndConnectCfgDrive(task.Task):
         # No media builder, nothing to do
         if self.mb is None:
             return
-
-        # TODO(IBM) Call into pypowervm to remove the scsi map
 
         # Delete the virtual optical media
         self.mb.dlt_vopt(lpar_wrap.uuid)
@@ -298,7 +295,7 @@ class DetachDisk(task.Task):
         :param context: The nova context.
         :param instance: The nova instance.
         :param lpar_uuid: The UUID of the lpar.
-        :param disk_type: List of disk types to detach. None means deatch all.
+        :param disk_type: List of disk types to detach. None means detach all.
         """
         super(DetachDisk, self).__init__(name='detach_storage',
                                          provides='stor_adpt_mappings')

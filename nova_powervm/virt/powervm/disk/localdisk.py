@@ -23,6 +23,7 @@ from oslo_utils import units
 from nova import exception as nova_exc
 from nova.i18n import _LI, _LE
 from pypowervm import exceptions as pvm_exc
+from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import upload_lv
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -30,6 +31,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import vios
+from nova_powervm.virt.powervm import vm
 
 localdisk_opts = [
     cfg.StrOpt('volume_group_name',
@@ -67,87 +69,84 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
     @property
     def capacity(self):
-        """Capacity of the storage in gigabytes
-
-        """
+        """Capacity of the storage in gigabytes."""
         vg_wrap = self._get_vg_wrap()
 
         return float(vg_wrap.capacity)
 
     @property
     def capacity_used(self):
-        """Capacity of the storage in gigabytes that is used
-
-        """
+        """Capacity of the storage in gigabytes that is used."""
         vg_wrap = self._get_vg_wrap()
 
         # Subtract available from capacity
         return float(vg_wrap.capacity) - float(vg_wrap.available_size)
 
-    def delete_disks(self, context, instance, mappings):
+    def delete_disks(self, context, instance, storage_elems):
+        """Removes the disks specified by the mappings.
+
+        :param context: nova context for operation
+        :param instance: instance to delete the disk for.
+        :param storage_elems: A list of the storage elements that are to be
+                              deleted.  Derived from the return value from
+                              disconnect_image_disk.
+        """
         # All of local disk is done against the volume group.  So reload
         # that (to get new etag) and then do an update against it.
         vg_wrap = self._get_vg_wrap()
 
-        # The mappings are from the VIOS and they don't 100% line up with
-        # the elements from the VG.  Need to find the matching ones based on
-        # the UDID of the disk.
-        # TODO(thorst) I think this should be handled down in pypowervm.  Have
-        # the wrapper strip out self references.
-        removals = []
-        for scsi_map in mappings:
-            for vdisk in vg_wrap.virtual_disks:
-                if vdisk.udid == scsi_map.backing_storage.udid:
-                    removals.append(vdisk)
-                    break
-
         # We know that the mappings are VSCSIMappings.  Remove the storage that
         # resides in the scsi map from the volume group.
         existing_vds = vg_wrap.virtual_disks
-        for removal in removals:
+        for removal in storage_elems:
             LOG.info(_LI('Deleting disk: %s') % removal.name,
                      instance=instance)
-            existing_vds.remove(removal)
+
+            # Can't just call direct on remove, because attribs are off.
+            # May want to evaluate change in pypowervm for this.
+            match = None
+            for existing_vd in existing_vds:
+                if existing_vd.name == removal.name:
+                    match = existing_vd
+                    break
+
+            if match is not None:
+                existing_vds.remove(match)
 
         # Now update the volume group to remove the storage.
         vg_wrap.update(self.adapter)
 
     def disconnect_image_disk(self, context, instance, lpar_uuid,
                               disk_type=None):
-        # Quick read the VIOS, using specific extended attribute group
-        vios_resp = self.adapter.read(
-            pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
-            xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
-        vios_w = pvm_vios.VIOS.wrap(vios_resp)
+        """Disconnects the storage adapters from the image disk.
 
-        # Find the existing mappings, and then pull them off the VIOS
-        existing_vios_mappings = vios_w.scsi_mappings
-        existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid,
-                                                vios_w, pvm_stg.VDisk)
-        # If disks were specified, only remove those.
-        if disk_type:
-            # Get the list of disk names
-            disks = [self._get_disk_name(dt, instance) for dt in disk_type]
-            # Build the lists of disk maps from the disk names
-            disk_maps = [scsi_map for scsi_map in existing_maps
-                         if scsi_map.backing_storage.name in disks]
-        else:
-            # Otherwise, remove them all
-            disk_maps = existing_maps
-        # Remove each map
-        for scsi_map in disk_maps:
-            LOG.info(_LI('Disconnecting disk: %s')
-                     % scsi_map.backing_storage.name, instance=instance)
-            existing_vios_mappings.remove(scsi_map)
-
-        # Update the VIOS
-        vios_w.update(self.adapter, xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
-
-        # Return the mappings that we just removed.
-        return disk_maps
+        :param context: nova context for operation
+        :param instance: instance to disconnect the image for.
+        :param lpar_uuid: The UUID for the pypowervm LPAR element.
+        :param disk_type: The list of disk types to remove or None which means
+            to remove all disks from the VM.
+        :return: A list of all the backing storage elements that were
+                 disconnected from the I/O Server and VM.
+        """
+        partition_id = vm.get_vm_id(self.adapter, lpar_uuid)
+        return tsk_map.remove_vdisk_mapping(self.adapter, self.vios_uuid,
+                                            partition_id,
+                                            disk_prefixes=disk_type)
 
     def create_disk_from_image(self, context, instance, image, disk_size,
                                image_type=disk_dvr.BOOT_DISK):
+        """Creates a disk and copies the specified image to it.
+
+        :param context: nova context used to retrieve image from glance
+        :param instance: instance to create the disk for.
+        :param image_id: image_id reference used to locate image in glance
+        :param disk_size: The size of the disk to create in GB.  If smaller
+                          than the image, it will be ignored (as the disk
+                          must be at least as big as the image).  Must be an
+                          int.
+        :param image_type: the image type. See disk constants above.
+        :returns: The backing pypowervm storage object that was created.
+        """
         LOG.info(_LI('Create disk.'))
 
         # Transfer the image
@@ -166,22 +165,28 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # resize the disk, create a new partition, etc...
         # If the image is bigger than disk, API should make the disk big
         # enough to support the image (up to 1 Gb boundary).
-        upload_lv.upload_new_vdisk(self.adapter, self.vios_uuid, self.vg_uuid,
-                                   stream, vol_name, image['size'],
-                                   d_size=disk_bytes)
+        vdisk, f_uuid = upload_lv.upload_new_vdisk(
+            self.adapter, self.vios_uuid, self.vg_uuid, stream, vol_name,
+            image['size'], d_size=disk_bytes)
 
-        return {'device_name': vol_name}
+        return vdisk
 
-    def connect_disk(self, context, instance, disk_info, lpar_uuid, **kwds):
-        vol_name = disk_info.get('device_name')
+    def connect_disk(self, context, instance, disk_info, lpar_uuid):
+        """Connects the disk image to the Virtual Machine.
 
+        :param context: nova context for the transaction.
+        :param instance: nova instance to connect the disk to.
+        :param disk_info: The pypowervm storage element returned from
+                          create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
+                          or PV.
+        :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
+        """
         # Create the mapping structure
-        scsi_map = pvm_vios.VSCSIMapping.bld_to_vdisk(self.adapter,
-                                                      self.host_uuid,
-                                                      lpar_uuid, vol_name)
+        scsi_map = pvm_vios.VSCSIMapping.bld_to_vdisk(
+            self.adapter, self.host_uuid, lpar_uuid, disk_info.name)
+
         # Add the mapping to the VIOS
-        vios.add_vscsi_mapping(self.adapter, self.vios_uuid, self.vios_name,
-                               scsi_map)
+        tsk_map.add_vscsi_mapping(self.adapter, self.vios_uuid, scsi_map)
 
     def extend_disk(self, context, instance, disk_info, size):
         """Extends the disk.
