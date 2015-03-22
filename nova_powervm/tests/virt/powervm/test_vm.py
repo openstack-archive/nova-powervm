@@ -166,41 +166,45 @@ class TestVM(test.TestCase):
         self.assertEqual(1, mock_vterm.call_count)
         self.assertEqual(2, self.apt.delete.call_count)
 
-    @mock.patch('pypowervm.wrappers.logical_partition.crt_shared_procs')
-    @mock.patch('pypowervm.wrappers.logical_partition.crt_lpar')
-    def test_crt_lpar(self, mock_crt_lpar, mock_crt_sp):
+    def test_build_attr(self):
+        """Perform tests against _build_attrs."""
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
+        lpar_attrs = {'memory': 2048,
+                      'name': 'instance-00000001',
+                      'vcpu': 1}
 
-        # Create a side effect that can validate the input into the create
-        # call.
-        def validate_of_create_sp(*kargs, **kwargs):
-            self.assertEqual(64, kwargs.get('uncapped_weight'))
+        flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
+        test_attrs = dict(lpar_attrs, **{'dedicated_proc': 'true'})
+        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
-            proc_units = kargs[0]
-            self.assertEqual('0.10', proc_units)
+        flavor.extra_specs = {'powervm:dedicated_proc': 'true',
+                              'powervm:dedicated_sharing_mode':
+                                  'share_idle_procs_active'}
+        test_attrs = dict(lpar_attrs,
+                          **{'dedicated_proc': 'true',
+                             'sharing_mode': 'sre idle procs active'})
+        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
-            vcpus = kargs[1]
-            self.assertEqual('1', vcpus)
-        mock_crt_sp.side_effect = validate_of_create_sp
+        flavor.extra_specs = {'powervm:uncapped': 'true'}
+        test_attrs = dict(lpar_attrs, **{'sharing_mode': 'uncapped'})
+        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
-        def validate_of_create_lpar(*kargs, **kwargs):
-            instance_name = kargs[0]
-            self.assertEqual('instance-00000001', instance_name)
-            _type = kargs[1]
-            self.assertEqual('AIX/Linux', _type)
-            # sprocs = kargs[2]
-            mem = kargs[3]
-            self.assertEqual('2048', mem)
+    @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
+    @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder')
+    def test_crt_lpar(self, mock_bldr, mock_stdz):
+        instance = objects.Instance(**powervm.TEST_INSTANCE)
+        flavor = instance.get_flavor()
+        flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
 
-            self.assertEqual('2048', kwargs.get('min_mem'))
-            self.assertEqual('2048', kwargs.get('max_mem'))
-            self.assertEqual('64', kwargs.get('max_io_slots'))
-        mock_crt_lpar.side_effect = validate_of_create_lpar
-
-        vm.crt_lpar(self.apt, 'host_uuid', instance, flavor)
+        host_wrapper = mock.Mock()
+        vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
         self.assertTrue(self.apt.create.called)
-        self.assertTrue(mock_crt_sp.called)
+
+        flavor.extra_specs = {'powervm:BADATTR': 'true'}
+        host_wrapper = mock.Mock()
+        self.assertRaises(exception.InvalidAttribute, vm.crt_lpar,
+                          self.apt, host_wrapper, instance, flavor)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('pypowervm.tasks.cna.crt_cna')

@@ -53,26 +53,26 @@ class Get(task.Task):
 class Create(task.Task):
     """The task for creating a VM."""
 
-    def __init__(self, adapter, host_uuid, instance, flavor):
+    def __init__(self, adapter, host_wrapper, instance, flavor):
         """Creates the Task for creating a VM.
 
         Provides the 'lpar_wrap' for other tasks.
 
         :param adapter: The adapter for the pypowervm API
-        :param host_uuid: The host UUID
+        :param host_wrapper: The managed system wrapper
         :param instance: The nova instance.
         :param flavor: The nova flavor.
         """
         super(Create, self).__init__(name='crt_lpar',
                                      provides='lpar_wrap')
         self.adapter = adapter
-        self.host_uuid = host_uuid
+        self.host_wrapper = host_wrapper
         self.instance = instance
         self.flavor = flavor
 
     def execute(self):
         LOG.info(_LI('Creating instance: %s') % self.instance.name)
-        resp = vm.crt_lpar(self.adapter, self.host_uuid, self.instance,
+        resp = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
                            self.flavor)
         return pvm_lpar.LPAR.wrap(resp)
 

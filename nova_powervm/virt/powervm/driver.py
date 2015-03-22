@@ -186,7 +186,7 @@ class PowerVMDriver(driver.ComputeDriver):
         flow = lf.Flow("spawn")
 
         # Create the LPAR
-        flow.add(tf_vm.Create(self.adapter, self.host_uuid, instance,
+        flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
                               flavor))
 
         # Only add the image disk if this is from Glance.
@@ -625,7 +625,7 @@ class PowerVMDriver(driver.ComputeDriver):
                 entry = vm.get_instance_wrapper(self.adapter, instance,
                                                 self.host_uuid)
 
-            vm.update(self.adapter, self.host_uuid,
+            vm.update(self.adapter, self.host_wrapper,
                       instance, flav_obj, entry=entry)
 
         # Update the VM

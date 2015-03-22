@@ -138,7 +138,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         mock_crt.assert_called_with(
-            self.apt, self.drv.host_uuid, inst, my_flavor)
+            self.apt, self.drv.host_wrapper, inst, my_flavor)
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
@@ -171,7 +171,7 @@ class TestPowerVMDriver(test.TestCase):
                        'injected_files', 'admin_password')
 
         # Create LPAR was called
-        mock_crt.assert_called_with(self.apt, self.drv.host_uuid,
+        mock_crt.assert_called_with(self.apt, self.drv.host_wrapper,
                                     inst, my_flavor)
         # Power on was called
         self.assertTrue(mock_pwron.called)
@@ -209,7 +209,7 @@ class TestPowerVMDriver(test.TestCase):
                        block_device_info=block_device_info)
 
         # Create LPAR was called
-        mock_crt.assert_called_with(self.apt, self.drv.host_uuid,
+        mock_crt.assert_called_with(self.apt, self.drv.host_wrapper,
                                     inst, my_flavor)
         # Power on was called
         self.assertTrue(mock_pwron.called)
@@ -248,7 +248,7 @@ class TestPowerVMDriver(test.TestCase):
                           block_device_info=block_device_info)
 
         # Create LPAR was called
-        mock_crt.assert_called_with(self.apt, self.drv.host_uuid,
+        mock_crt.assert_called_with(self.apt, self.drv.host_wrapper,
                                     inst, my_flavor)
         self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
@@ -411,7 +411,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_pwr_off.assert_called_with(
             self.drv.adapter, inst, self.drv.host_uuid, entry=mock.ANY)
         mock_update.assert_called_with(
-            self.drv.adapter, self.drv.host_uuid, inst, new_flav,
+            self.drv.adapter, self.drv.host_wrapper, inst, new_flav,
             entry=mock.ANY)
 
         # Boot disk resize

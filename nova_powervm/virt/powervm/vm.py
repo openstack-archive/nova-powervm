@@ -25,6 +25,7 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import cna
 from pypowervm.tasks import power
 from pypowervm.tasks import vterm
+from pypowervm.utils import lpar_builder as lpar_bldr
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
@@ -58,6 +59,53 @@ POWERVM_TO_NOVA_STATE = {
 
 POWERVM_STARTABLE_STATE = ("not activated")
 POWERVM_STOPABLE_STATE = ("running", "starting", "open firmware")
+
+PVM_UNCAPPED = 'powervm:uncapped'
+PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
+DED_SHARING_MODES_MAP = {
+    'share_idle_procs': pvm_lpar.DedicatedSharingModesEnum.SHARE_IDLE_PROCS,
+    'keep_idle_procs': pvm_lpar.DedicatedSharingModesEnum.KEEP_IDLE_PROCS,
+    'share_idle_procs_active':
+        pvm_lpar.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ACTIVE,
+    'share_idle_procs_always':
+        pvm_lpar.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ALWAYS
+}
+# Flavor extra_specs for memory and processor properties
+POWERVM_ATTRS = ['powervm:min_mem',
+                 'powervm:max_mem',
+                 'powervm:min_vcpu',
+                 'powervm:max_vcpu',
+                 'powervm:proc_units',
+                 'powervm:min_proc_units',
+                 'powervm:max_proc_units',
+                 'powervm:dedicated_proc',
+                 'powervm:uncapped',
+                 'powervm:dedicated_sharing_mode',
+                 'powervm:processor_compatibility',
+                 'powervm:srr_capability',
+                 'powervm:shared_weight',
+                 'powervm:availability_priority']
+
+# Map of PowerVM extra specs to the lpar builder attributes.
+# '' is used for attributes that are not implemented yet.
+# None means there is no direct attribute mapping and must
+# be handled individually
+ATTRS_MAP = {
+    'powervm:min_mem': 'min_mem',
+    'powervm:max_mem': 'max_mem',
+    'powervm:min_vcpu': 'min_vcpu',
+    'powervm:max_vcpu': 'max_vcpu',
+    'powervm:proc_units': 'proc_units',
+    'powervm:min_proc_units': 'min_proc_units',
+    'powervm:max_proc_units': 'max_proc_units',
+    'powervm:dedicated_proc': 'dedicated_proc',
+    'powervm:uncapped': None,
+    'powervm:dedicated_sharing_mode': None,
+    'powervm:processor_compatibility': '',
+    'powervm:srr_capability': '',
+    'powervm:shared_weight': 'uncapped_weight',
+    'powervm:availability_priority': ''
+}
 
 
 def _translate_vm_state(pvm_state):
@@ -203,82 +251,120 @@ def get_instance_wrapper(adapter, instance, host_uuid):
     return pvm_lpar.LPAR.wrap(resp)
 
 
-def calc_proc_units(vcpu):
-    return (vcpu * CONF.proc_units_factor)
+def _build_attrs(instance, flavor):
+    """Builds LPAR attributes that are used by the LPAR builder.
+
+    This method translates instance and flavor values to those
+    that can be used by the LPAR builder.
+
+    :param instance: the VM instance
+    :param flavor: the instance flavor
+    :returns: a dict that can be used by the LPAR builder
+    """
+    attrs = {}
+
+    attrs[lpar_bldr.NAME] = instance.name
+    attrs[lpar_bldr.MEM] = flavor.memory_mb
+    attrs[lpar_bldr.VCPU] = flavor.vcpus
+
+    # Loop through the extra specs and process powervm keys
+    for key in flavor.extra_specs.keys():
+        if not key.startswith('powervm:'):
+            # Skip since it's not ours
+            continue
+
+        # Check if this is a valid attribute
+        if key not in POWERVM_ATTRS:
+            exc = exception.InvalidAttribute(attr=key)
+            LOG.exception(exc)
+            raise exc
+
+        # Look for the mapping to the lpar builder
+        bldr_key = ATTRS_MAP.get(key)
+        # Check for no direct mapping, handle them individually
+        if bldr_key is None:
+            # Map uncapped to sharing mode
+            if key == PVM_UNCAPPED:
+                attrs[lpar_bldr.SHARING_MODE] = (
+                    pvm_lpar.SharingModesEnum.UNCAPPED
+                    if flavor.extra_specs[key].lower() == 'true' else
+                    pvm_lpar.SharingModesEnum.CAPPED)
+            elif key == PVM_DED_SHAR_MODE:
+                # Dedicated sharing modes...map directly
+                mode = DED_SHARING_MODES_MAP.get(flavor.extra_specs[key])
+                if mode is not None:
+                    attrs[lpar_bldr.SHARING_MODE] = mode
+                else:
+                    attr = key + '=' + flavor.extra_specs[key]
+                    exc = exception.InvalidAttribute(attr=attr)
+                    LOG.exception(exc)
+                    raise exc
+            # TODO(IBM): Handle other attributes
+            else:
+                # There was no mapping or we didn't handle it.
+                exc = exception.InvalidAttribute(attr=key)
+                LOG.exception(exc)
+                raise exc
+
+        else:
+            # We found a mapping
+            attrs[bldr_key] = flavor.extra_specs[key]
+
+    return attrs
 
 
-def _format_lpar_resources(flavor):
-    mem = str(flavor.memory_mb)
-    vcpus = str(flavor.vcpus)
-    proc_units = '%.2f' % calc_proc_units(flavor.vcpus)
-    proc_weight = CONF.uncapped_proc_weight
+def _crt_lpar_builder(host_wrapper, instance, flavor):
+    """Create an LPAR builder loaded with the instance and flavor attributes
 
-    return mem, vcpus, proc_units, proc_weight
+    :param host_wrapper: The host wrapper
+    :param instance: The nova instance.
+    :param flavor: The nova flavor.
+    :returns: The LPAR builder.
+    """
+
+    attrs = _build_attrs(instance, flavor)
+
+    stdz = lpar_bldr.DefaultStandardize(
+        attrs, host_wrapper, proc_units_factor=CONF.proc_units_factor)
+
+    return lpar_bldr.LPARBuilder(attrs, stdz)
 
 
-def crt_lpar(adapter, host_uuid, instance, flavor):
+def crt_lpar(adapter, host_wrapper, instance, flavor):
     """Create an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
-    :param host_uuid: (TEMPORARY) The host UUID
+    :param host_wrapper: The host wrapper
     :param instance: The nova instance.
     :param flavor: The nova flavor.
     :returns: The LPAR response from the API.
     """
 
-    mem, vcpus, proc_units, proc_weight = _format_lpar_resources(flavor)
-
-    sprocs = pvm_lpar.crt_shared_procs(proc_units, vcpus,
-                                       uncapped_weight=proc_weight)
-    lpar_elem = pvm_lpar.crt_lpar(instance.name,
-                                  pvm_lpar.LPARTypeEnum.AIXLINUX,
-                                  sprocs,
-                                  mem,
-                                  min_mem=mem,
-                                  max_mem=mem,
-                                  max_io_slots='64')
+    lpar = _crt_lpar_builder(host_wrapper, instance, flavor).build()
 
     return adapter.create(
-        lpar_elem, pvm_ms.System.schema_type, root_id=host_uuid,
+        lpar.element, pvm_ms.System.schema_type, root_id=host_wrapper.uuid,
         child_type=pvm_lpar.LPAR.schema_type)
 
 
-def update(adapter, host_uuid, instance, flavor, entry=None):
+def update(adapter, host_wrapper, instance, flavor, entry=None):
     """Update an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
-    :param host_uuid: (TEMPORARY) The host UUID
+    :param host_wrapper: The host wrapper
     :param instance: The nova instance.
     :param flavor: The nova flavor.
     :param entry: The instance pvm entry, if available, otherwise it will
         be fetched.
     """
 
-    # Get the resource values
-    mem, vcpus, proc_units, proc_weight = _format_lpar_resources(flavor)
-
     if not entry:
-        entry = get_instance_wrapper(adapter, instance, host_uuid)
-    uuid = entry.uuid
+        entry = get_instance_wrapper(adapter, instance, host_wrapper.uuid)
 
-    # Set the memory fields
-    entry.desired_mem = mem
-    entry.max_mem = mem
-    entry.min_mem = mem
-    # VCPU
-    entry.desired_vcpus = vcpus
-    entry.max_vcpus = vcpus
-    entry.min_vcpus = vcpus
-    # Proc Units
-    entry.desired_proc_units = proc_units
-    entry.max_proc_units = proc_units
-    entry.min_proc_units = proc_units
-    # Proc weight
-    entry.uncapped_weight = str(proc_weight)
+    _crt_lpar_builder(host_wrapper, instance, flavor).rebuild(entry)
+
     # Write out the new specs
-    adapter.update(entry.element, entry.etag, pvm_ms.System.schema_type,
-                   root_id=host_uuid, child_type=pvm_lpar.LPAR.schema_type,
-                   child_id=uuid)
+    entry.update(adapter)
 
 
 def dlt_lpar(adapter, lpar_uuid):
