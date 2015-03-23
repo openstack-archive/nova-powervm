@@ -202,12 +202,12 @@ class ConnectDisk(task.Task):
                                    lpar_wrap.uuid)
 
 
-class CreateCfgDrive(task.Task):
+class CreateAndConnectCfgDrive(task.Task):
     """The task to create the configuration drive."""
 
-    def __init__(self, adapter, host_uuid, vios_map, instance, injected_files,
+    def __init__(self, adapter, host_uuid, instance, injected_files,
                  network_info, admin_pass):
-        """Create the Task that creates the config drive.
+        """Create the Task that create and connect the config drive.
 
         Requires the 'lpar_wrap'.
         Provides the 'cfg_drv_vscsi_map' which is an element to later map
@@ -215,95 +215,72 @@ class CreateCfgDrive(task.Task):
 
         :param adapter: The adapter for the pypowervm API
         :param host_uuid: The host UUID of the system.
-        :param vios_map: The map of VIOSes provided by the get_vios_name_map
-                         method.
         :param instance: The nova instance
         :param injected_files: A list of file paths that will be injected into
                                the ISO.
         :param network_info: The network_info from the nova spawn method.
         :param admin_pass: Optional password to inject for the VM.
         """
-        super(CreateCfgDrive, self).__init__(name='cfg_drive',
-                                             requires=['lpar_wrap'],
-                                             provides='cfg_drv_vscsi_map')
+        super(CreateAndConnectCfgDrive, self).__init__(name='cfg_drive',
+                                                       requires=['lpar_wrap'])
         self.adapter = adapter
         self.host_uuid = host_uuid
-        self.vios_map = vios_map
         self.instance = instance
         self.injected_files = injected_files
         self.network_info = network_info
         self.ad_pass = admin_pass
+        self.mb = None
 
     def execute(self, lpar_wrap):
         LOG.info(_LI('Creating Config Drive for instance: %s') %
                  self.instance.name)
-        media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid,
-                                                 self.vios_map)
-        vscsi_map = media_builder.create_cfg_drv_vopt(self.instance,
-                                                      self.injected_files,
-                                                      self.network_info,
-                                                      lpar_wrap.uuid,
-                                                      admin_pass=self.ad_pass)
-        return vscsi_map
+        self.mb = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
+        vscsi_map = self.mb.create_cfg_drv_vopt(self.instance,
+                                                self.injected_files,
+                                                self.network_info,
+                                                lpar_wrap.uuid,
+                                                admin_pass=self.ad_pass)
 
-
-class ConnectCfgDrive(task.Task):
-    """The task to connect the cfg drive to the instance."""
-
-    def __init__(self, adapter, instance, vios_map):
-        """Create the Task that connects the cfg drive to the instance.
-
-        Requires the 'cfg_drv_vscsi_map'.
-
-        :param adapter: The adapter for the pypowervm API
-        :param instance: The nova instance
-        :param vios_map: The map of VIOSes provided by the get_vios_name_map
-                         method.
-        """
-        name = 'cfg_drive_scsi_connect'
-        reqs = ['cfg_drv_vscsi_map']
-        super(ConnectCfgDrive, self).__init__(name=name, requires=reqs)
-        self.adapter = adapter
-        self.instance = instance
-        self.vios_map = vios_map
-
-    def execute(self, cfg_drv_vscsi_map):
-        LOG.info(_LI('Attaching Config Drive to instance: %s') %
+        LOG.info(_LI('Connecting Config Drive to instance: %s') %
                  self.instance.name)
+        vios.add_vscsi_mapping(self.adapter, self.mb.vios_uuid,
+                               self.mb.vios_name, vscsi_map)
 
-        # TODO(IBM) Should derive the VIOS from the CreateCfgDrive.
-        vios_name = self.vios_map.keys()[0]
-        vios_uuid = self.vios_map[vios_name]
+    def revert(self, lpar_wrap, result, flow_failures):
+        # The parameters have to match the execute method, plus the response +
+        # failures even if only a subset are used.
 
-        vios.add_vscsi_mapping(self.adapter, vios_uuid, vios_name,
-                               cfg_drv_vscsi_map)
+        # No media builder, nothing to do
+        if self.mb is None:
+            return
+
+        # TODO(IBM) Call into pypowervm to remove the scsi map
+
+        # Delete the virtual optical media
+        self.mb.dlt_vopt(lpar_wrap.uuid)
 
 
 class DeleteVOpt(task.Task):
     """The task to delete the virtual optical."""
 
-    def __init__(self, adapter, host_uuid, vios_map, instance, lpar_uuid):
+    def __init__(self, adapter, host_uuid, instance, lpar_uuid):
         """Creates the Task to delete the instances virtual optical media.
 
         :param adapter: The adapter for the pypowervm API
         :param host_uuid: The host UUID of the system.
-        :param vios_map: The map of VIOSes provided by the get_vios_name_map
-                         method.
         :param instance: The nova instance.
         :param lpar_uuid: The UUID of the lpar that has media.
         """
         super(DeleteVOpt, self).__init__(name='vopt_delete')
         self.adapter = adapter
         self.host_uuid = host_uuid
-        self.vios_map = vios_map
         self.instance = instance
         self.lpar_uuid = lpar_uuid
 
     def execute(self):
         LOG.info(_LI('Deleting Virtual Optical Media for instance %s')
                  % self.instance.name)
-        media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid,
-                                                 self.vios_map)
+        media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
         media_builder.dlt_vopt(self.lpar_uuid)
 
 

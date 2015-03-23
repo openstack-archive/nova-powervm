@@ -212,12 +212,11 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):
-            flow.add(tf_stg.CreateCfgDrive(self.adapter, self.host_uuid,
-                                           self.vios_map, instance,
-                                           injected_files, network_info,
-                                           admin_password))
-            flow.add(tf_stg.ConnectCfgDrive(self.adapter, instance,
-                                            self.vios_map))
+            flow.add(tf_stg.CreateAndConnectCfgDrive(self.adapter,
+                                                     self.host_uuid,
+                                                     instance, injected_files,
+                                                     network_info,
+                                                     admin_password))
 
         # Plug the VIFs
         vif_plug_info = {'instance': instance, 'network_info': network_info}
@@ -268,8 +267,8 @@ class PowerVMDriver(driver.ComputeDriver):
                                 instance))
 
         # Delete the virtual optical
-        flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid,
-                                   self.vios_map, instance, pvm_inst_uuid))
+        flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
+                                   pvm_inst_uuid))
 
         # Determine if there are volumes to disconnect.  If so, remove each
         # volume
