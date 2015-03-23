@@ -20,6 +20,8 @@ from nova import test
 
 from nova_powervm.virt.powervm.volume import vscsi
 
+from pypowervm.tasks import hdisk
+
 
 class TestVSCSIAdapter(test.TestCase):
     """Tests the vSCSI Volume Connector Adapter."""
@@ -36,13 +38,16 @@ class TestVSCSIAdapter(test.TestCase):
                             mock_add_vscsi_mapping, mock_discover_hdisk,
                             mock_build_itls):
         con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
-                                                      'i2': ['t2']},
-                    'target_lun': '1'}}
-        mock_discover_hdisk.return_value = '1' '2' '3'
-        mock_vio_name_map.return_value = {'vio_name': 'vio_uuid'}
+                                                      'i2': ['t2', 't3']},
+                    'target_lun': '1', 'volume_id': 'id'}}
+        mock_discover_hdisk.return_value = (hdisk.LUA_STATUS_DEVICE_AVAILABLE,
+                                            'devname', 'udid')
+        mock_vio_name_map.return_value = {'vio_name': 'vio_uuid',
+                                          'vio_name1': 'vio_uuid1'}
         vscsi.VscsiVolumeAdapter().connect_volume(None, 'host_uuid',
                                                   'vm_uuid', None, con_info)
-        self.assertEqual(1, mock_add_vscsi_mapping.call_count)
+        # Confirm mapping called twice for two defined VIOS
+        self.assertEqual(2, mock_add_vscsi_mapping.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')
     def test_wwpns(self, mock_vio_wwpns):
