@@ -70,3 +70,41 @@ pvm_opts = [
 CONF = cfg.CONF
 CONF.register_opts(pvm_opts)
 CONF.import_opt('host', 'nova.netconf')
+
+
+# NPIV Options will go in separate section.  Only applicable if the
+# 'fc_attach_strategy' is set to 'npiv'.  Otherwise this section can be
+# ignored.
+npiv_opts = [
+    cfg.IntOpt('ports_per_fabric', default=1,
+               help='The number of physical ports that should be connected '
+                    'directly to the Virtual Machine, per fabric.  '
+                    'Example: 2 fabrics and ports_per_fabric set to 2 will '
+                    'result in 4 NPIV ports being created, two per fabric. '
+                    'If multiple Virtual I/O Servers are available, will '
+                    'attempt to span ports across I/O Servers.'),
+    cfg.StrOpt('fabrics', default='',
+               help='Unique identifier for each physical FC fabric that is '
+                    'available.  This is a comma separated list.  If there '
+                    'are two fabrics for multi-pathing, then this could be '
+                    'set to A,B.'
+                    'The fabric identifiers are used for the '
+                    '\'fabric_<identifier>_port_wwpns\' key.')
+]
+CONF.register_opts(npiv_opts, group='npiv')
+
+# At this point, the fabrics should be specified.  Iterate over those to
+# determine the port_wwpns per fabric.
+if CONF.npiv.fabrics is not None:
+    port_wwpn_keys = []
+    help_text = ('A comma delimited list of all the physical FC port WWPNs '
+                 'that support the specified fabric.  Is tied to the NPIV '
+                 'fabrics key.')
+
+    fabrics = CONF.npiv.fabrics.split(',')
+    for fabric in fabrics:
+        opt = cfg.StrOpt('fabric_%s_port_wwpns' % fabric,
+                         default='', help=help_text)
+        port_wwpn_keys.append(opt)
+
+    CONF.register_opts(port_wwpn_keys, group='npiv')
