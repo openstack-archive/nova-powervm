@@ -32,11 +32,6 @@ class TestNPIVAdapter(test.TestCase):
 
     def setUp(self):
         super(TestNPIVAdapter, self).setUp()
-        self.vol_drv = npiv.NPIVVolumeAdapter()
-
-        # Fixtures
-        self.adpt_fix = self.useFixture(fx.PyPowerVM())
-        self.adpt = self.adpt_fix.apt
 
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))
@@ -46,33 +41,80 @@ class TestNPIVAdapter(test.TestCase):
             file_path = os.path.join(data_dir, file_name)
             return pvmhttp.load_pvm_resp(file_path).get_response()
         self.vios_feed_resp = resp(VIOS_FEED)
+        self.wwpn1 = '21000024FF649104'
+        self.wwpn2 = '21000024FF649107'
 
-    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VStorageMapping.'
-                '_client_lpar_href')
-    def test_connect_volume(self, mock_href, mock_vio_name_map):
-        # Mock Data
-        con_info = {'data': {'initiator_target_map': {'a': None,
-                                                      'b': None}}}
-        mock_href.return_value = 'fake_uri'
-        self.adpt.read.return_value = self.vios_feed_resp.feed.entries[0]
+        # Set up the mocks for the internal volume driver
+        name = 'nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+        self.mock_port_count_p = mock.patch(name + '_ports_per_fabric')
+        self.mock_port_count = self.mock_port_count_p.start()
+        self.mock_port_count.return_value = 1
 
-        mock_vio_name_map.return_value = {'vios_name': 'vios_uuid'}
+        self.mock_fabric_names_p = mock.patch(name + '_fabric_names')
+        self.mock_fabric_names = self.mock_fabric_names_p.start()
+        self.mock_fabric_names.return_value = ['A']
 
-        # A validation function on the update.
-        def validate_update(*kargs, **kwargs):
-            vios_w = kargs[0]
-            self.assertEqual(1, len(vios_w.vfc_mappings))
-            return vios_w.entry
+        self.mock_fabric_ports_p = mock.patch(name + '_fabric_ports')
+        self.mock_fabric_ports = self.mock_fabric_ports_p.start()
+        self.mock_fabric_ports.return_value = [self.wwpn1, self.wwpn2]
 
-        self.adpt.update_by_path.side_effect = validate_update
+        # The volume driver, that uses the mocking
+        self.vol_drv = npiv.NPIVVolumeAdapter()
 
+        # Fixtures
+        self.adpt_fix = self.useFixture(fx.PyPowerVM())
+        self.adpt = self.adpt_fix.apt
+
+    def tearDown(self):
+        super(TestNPIVAdapter, self).tearDown()
+
+        self.mock_port_count_p.stop()
+        self.mock_fabric_names_p.stop()
+        self.mock_fabric_ports_p.stop()
+
+    @mock.patch('pypowervm.tasks.wwpn.add_npiv_port_mappings')
+    def test_connect_volume(self, mock_add_p_maps):
         # Invoke
         self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                    mock.MagicMock(), con_info)
+                                    mock.MagicMock(), mock.MagicMock())
 
         # Verify
-        self.assertEqual(1, self.adpt.update_by_path.call_count)
+        self.assertEqual(1, mock_add_p_maps.call_count)
+
+    @mock.patch('pypowervm.tasks.wwpn.remove_npiv_port_mappings')
+    def test_disconnect_volume(self, mock_remove_p_maps):
+        # Mock Data
+        inst = mock.MagicMock()
+        inst.task_state = 'deleting'
+
+        # Invoke
+        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid',
+                                       inst, mock.MagicMock())
+
+        # Verify
+        self.assertEqual(1, mock_remove_p_maps.call_count)
+
+    @mock.patch('pypowervm.tasks.wwpn.remove_npiv_port_mappings')
+    def test_disconnect_volume_no_op(self, mock_remove_p_maps):
+        """Tests that when the task state is not set, connections are left."""
+        # Mock Data
+        inst = mock.MagicMock()
+        inst.task_state = None
+
+        # Invoke
+        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid',
+                                       inst, mock.MagicMock())
+
+        # Verify
+        self.assertEqual(0, mock_remove_p_maps.call_count)
+
+    def test_disconnect_volume_no_op_other_state(self):
+        """Tests that the deletion doesn't go through on certain states."""
+        inst = mock.MagicMock()
+        inst.task_state = task_states.RESUMING
+        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid',
+                                       inst, mock.ANY)
+        self.assertEqual(0, self.adpt.read.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
@@ -99,51 +141,34 @@ class TestNPIVAdapter(test.TestCase):
         # Verify
         self.assertEqual(0, self.adpt.update.call_count)
 
-    def test_disconnect_volume_no_op(self):
-        """Tests that the deletion doesn't go through on certain states."""
-        inst = mock.MagicMock()
-        inst.task_state = task_states.RESUMING
-        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                       inst, mock.ANY)
-        self.assertEqual(0, self.adpt.read.call_count)
-
     @mock.patch('pypowervm.tasks.wwpn.build_wwpn_pair')
     def test_wwpns(self, mock_build_wwpns):
         """Tests that new WWPNs get generated properly."""
         # Mock Data
-        inst = mock.MagicMock()
-        inst.system_metadata = {npiv.WWPN_SYSTEM_METADATA_KEY: None}
+        inst = mock.Mock()
+        meta_key = self.vol_drv._sys_meta_fabric_key('A')
+        inst.system_metadata = {meta_key: None}
         mock_build_wwpns.return_value = ['aa', 'bb']
 
+        self.adpt.read.return_value = self.vios_feed_resp
+
         # invoke
-        wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', inst)
+        wwpns = self.vol_drv.wwpns(self.adpt, 'host_uuid', inst)
 
         # Check
         self.assertListEqual(['aa', 'bb'], wwpns)
-        self.assertEqual('aa bb',
-                         inst.system_metadata[npiv.WWPN_SYSTEM_METADATA_KEY])
+        self.assertEqual('21000024FF649104,AA,BB',
+                         inst.system_metadata[meta_key])
 
     def test_wwpns_on_sys_meta(self):
         """Tests that previously stored WWPNs are returned."""
         # Mock
         inst = mock.MagicMock()
-        inst.system_metadata = {npiv.WWPN_SYSTEM_METADATA_KEY: 'a b'}
+        inst.system_metadata = {self.vol_drv._sys_meta_fabric_key('A'):
+                                'phys1,a,b,phys2,c,d'}
 
         # Invoke
         wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', inst)
 
         # Verify
-        self.assertListEqual(['a', 'b'], wwpns)
-
-    def test_wwpn_match(self):
-        self.assertTrue(self.vol_drv._wwpn_match(['a', 'b'], ['b', 'a']))
-        self.assertTrue(self.vol_drv._wwpn_match(set(['a', 'b']),
-                                                 ['b', 'a']))
-        self.assertTrue(self.vol_drv._wwpn_match(set(['A', 'B']),
-                                                 ['b', 'a']))
-        self.assertFalse(self.vol_drv._wwpn_match(set(['a', 'b']),
-                                                  ['b', 'a', 'c']))
-        self.assertFalse(self.vol_drv._wwpn_match(set(['a', 'b', 'c']),
-                                                  ['b', 'a']))
-        self.assertFalse(self.vol_drv._wwpn_match(['a', 'b', 'c'],
-                                                  ['b', 'a']))
+        self.assertListEqual(['a b', 'c d'], wwpns)
