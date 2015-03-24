@@ -179,3 +179,6 @@ class Delete(task.Task):
     def execute(self):
         LOG.info(_LI('Deleting instance %s from system.') % self.instance.name)
         vm.dlt_lpar(self.adapter, self.lpar_uuid)
+        # Delete the lpar from the cache so if it gets rebuilt it won't
+        # have the old lpar uuid.
+        vm.UUIDCache.get_cache().remove(self.instance.name)
