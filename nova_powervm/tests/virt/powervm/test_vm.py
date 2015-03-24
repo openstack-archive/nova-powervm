@@ -174,20 +174,44 @@ class TestVM(test.TestCase):
                       'name': 'instance-00000001',
                       'vcpu': 1}
 
+        # Test dedicated procs
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
         test_attrs = dict(lpar_attrs, **{'dedicated_proc': 'true'})
         self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
+        # Test dedicated procs, min/max vcpu and sharing mode
         flavor.extra_specs = {'powervm:dedicated_proc': 'true',
                               'powervm:dedicated_sharing_mode':
-                                  'share_idle_procs_active'}
+                                  'share_idle_procs_active',
+                              'powervm:min_vcpu': '1',
+                              'powervm:max_vcpu': '3'}
         test_attrs = dict(lpar_attrs,
                           **{'dedicated_proc': 'true',
-                             'sharing_mode': 'sre idle procs active'})
+                             'sharing_mode': 'sre idle procs active',
+                             'min_vcpu': '1', 'max_vcpu': '3'})
         self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
+        # Test shared proc sharing mode
         flavor.extra_specs = {'powervm:uncapped': 'true'}
         test_attrs = dict(lpar_attrs, **{'sharing_mode': 'uncapped'})
+        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
+
+        # Test availability priority
+        flavor.extra_specs = {'powervm:availability_priority': '150'}
+        test_attrs = dict(lpar_attrs, **{'avail_priority': '150'})
+        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
+
+        # Test min, max proc units
+        flavor.extra_specs = {'powervm:min_proc_units': '0.5',
+                              'powervm:max_proc_units': '2.0'}
+        test_attrs = dict(lpar_attrs, **{'min_proc_units': '0.5',
+                                         'max_proc_units': '2.0'})
+        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
+
+        # Test min, max mem
+        flavor.extra_specs = {'powervm:min_mem': '1024',
+                              'powervm:max_mem': '4096'}
+        test_attrs = dict(lpar_attrs, **{'min_mem': '1024', 'max_mem': '4096'})
         self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')

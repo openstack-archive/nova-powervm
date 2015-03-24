@@ -104,7 +104,7 @@ ATTRS_MAP = {
     'powervm:processor_compatibility': '',
     'powervm:srr_capability': '',
     'powervm:shared_weight': 'uncapped_weight',
-    'powervm:availability_priority': ''
+    'powervm:availability_priority': 'avail_priority'
 }
 
 
