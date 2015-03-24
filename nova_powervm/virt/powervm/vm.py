@@ -309,8 +309,18 @@ def _build_attrs(instance, flavor):
         else:
             # We found a mapping
             attrs[bldr_key] = flavor.extra_specs[key]
-
     return attrs
+
+
+def get_vm_id(adapter, lpar_uuid):
+    """Returns the client LPAR ID for a given UUID.
+
+    :param adapter: The pypowervm adapter.
+    :param lpar_uuid: The UUID for the LPAR.
+    :returns: The system id (an integer value).
+    """
+    return adapter.read(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid,
+                        suffix_type='quick', suffix_parm='PartitionID').body
 
 
 def _crt_lpar_builder(host_wrapper, instance, flavor):

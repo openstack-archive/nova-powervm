@@ -19,6 +19,7 @@ import mock
 from nova import test
 import os
 from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.wrappers import storage as pvm_stor
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import media as m
@@ -87,22 +88,21 @@ class TestConfigDrivePowerVM(test.TestCase):
     @mock.patch('os.remove')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_upload_lv')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
                 'bld_to_vopt')
-    def test_crt_cfg_drv_vopt(self, mock_vio_w, mock_upld, mock_rm,
-                              mock_size, mock_validate, mock_cfg_iso):
+    def test_crt_cfg_drv_vopt(self, mock_vio_w, mock_add_map, mock_upld,
+                              mock_rm, mock_size, mock_validate, mock_cfg_iso):
         # Mock Returns
         mock_cfg_iso.return_value = '/tmp/cfgdrv/fake.iso', 'fake.iso'
         mock_size.return_value = 10000
 
         # Run
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
-        resp = cfg_dr_builder.create_cfg_drv_vopt(mock.MagicMock(),
-                                                  mock.MagicMock(),
-                                                  mock.MagicMock(),
-                                                  'fake_lpar')
-        self.assertIsNotNone(resp)
+        cfg_dr_builder.create_cfg_drv_vopt(mock.MagicMock(), mock.MagicMock(),
+                                           mock.MagicMock(), 'fake_lpar')
         self.assertTrue(mock_upld.called)
+        self.assertTrue(mock_add_map.called)
 
     def test_validate_opt_vg(self):
         self.apt.read.return_value = self.vol_grp_resp
@@ -118,31 +118,28 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertRaises(m.NoMediaRepoVolumeGroupFound,
                           m.ConfigDrivePowerVM, self.apt, 'fake_host')
 
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_vopt_mapping')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
-    def test_dlt_vopt(self, mock_vop_valid):
+    def test_dlt_vopt(self, mock_vop_valid, mock_remove_map):
 
         # Set up the mock data.
         resp = mock.MagicMock(name='resp')
         type(resp).body = mock.PropertyMock(return_value='2')
-        self.apt.read.side_effect = [self.vio_to_vg, resp,
-                                     self.vg_to_vio]
+        self.apt.read.side_effect = [resp, self.vg_to_vio]
+
+        # We tell it to remove all the optical medias.
+        vg = pvm_stor.VG.wrap(self.vg_to_vio)
+        mock_remove_map.return_value = vg.vmedia_repos[0].optical_media
 
         # Make sure that the first update is a VIO and doesn't have the vopt
         # mapping
         def validate_update(*kargs, **kwargs):
-            wrap = kargs[0]
-            if wrap.schema_type == 'VolumeGroup':
-                # This is the VG update.  Make sure there are no optical medias
-                # anymore.
-                self.assertEqual(0, len(wrap.vmedia_repos[0].optical_media))
-            elif wrap.schema_type == 'VirtualIOServer':
-                # This is the VIOS call.  Make sure the mapping was removed.
-                # Originally 2, one for vopt and local disk.  Should now be 1.
-                self.assertEqual(1, len(wrap.scsi_mappings))
-            else:
-                self.fail("Shouldn't hit here")
-            return wrap.entry
+            vol_grp = kargs[0]
+            # This is the VG update.  Make sure there are no optical medias
+            # anymore.
+            self.assertEqual(0, len(vol_grp.vmedia_repos[0].optical_media))
+            return vol_grp.entry
 
         self.apt.update_by_path.side_effect = validate_update
 
@@ -150,4 +147,4 @@ class TestConfigDrivePowerVM(test.TestCase):
         cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
         cfg_dr.dlt_vopt('fake_lpar_uuid')
 
-        self.assertEqual(2, self.apt.update_by_path.call_count)
+        self.assertEqual(1, self.apt.update_by_path.call_count)

@@ -96,24 +96,23 @@ class DiskAdapter(object):
         """Disconnects the storage adapters from the image disk.
 
         :param context: nova context for operation
-        :param instance: instance to delete the image for.
+        :param instance: instance to disconnect the image for.
         :param lpar_uuid: The UUID for the pypowervm LPAR element.
         :param disk_type: The list of disk types to remove or None which means
             to remove all disks from the VM.
-        :return: A list of Mappings (either pypowervm VSCSIMappings or
-                 VFCMappings)
+        :return: A list of all the backing storage elements that were
+                 disconnected from the I/O Server and VM.
         """
         pass
 
-    def delete_disks(self, context, instance, mappings):
+    def delete_disks(self, context, instance, storage_elems):
         """Removes the disks specified by the mappings.
 
         :param context: nova context for operation
-        :param instance: instance to delete the image for.
-        :param mappings: The mappings that had been used to identify the
-                         backing storage.  List of pypowervm VSCSIMappings or
-                         VFCMappings. Typically derived from
-                         disconnect_image_disk.
+        :param instance: instance to delete the disk for.
+        :param storage_elems: A list of the storage elements that are to be
+                              deleted.  Derived from the return value from
+                              disconnect_image_disk.
         """
         pass
 
@@ -129,12 +128,20 @@ class DiskAdapter(object):
                           must be at least as big as the image).  Must be an
                           int.
         :param image_type: the image type. See disk constants above.
-        :returns: dictionary with the name of the created
-                  disk device in 'device_name' key
+        :returns: The backing pypowervm storage object that was created.
         """
         pass
 
-    def connect_disk(self, context, instance, disk_info, lpar_uuid, **kwds):
+    def connect_disk(self, context, instance, disk_info, lpar_uuid):
+        """Connects the disk image to the Virtual Machine.
+
+        :param context: nova context for the transaction.
+        :param instance: nova instance to connect the disk to.
+        :param disk_info: The pypowervm storage element returned from
+                          create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
+                          or PV.
+        :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
+        """
         pass
 
     def extend_disk(self, context, instance, disk_info, size):

@@ -23,14 +23,15 @@ import os
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import upload_lv
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.virt.powervm import vios
-
 import six
+
+from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 
@@ -111,7 +112,7 @@ class ConfigDrivePowerVM(object):
 
     def create_cfg_drv_vopt(self, instance, injected_files, network_info,
                             lpar_uuid, admin_pass=None):
-        """Creates the config drive virtual optical.  Does not attach to VM.
+        """Creates the config drive virtual optical and attach to VM.
 
         :param instance: The VM instance from OpenStack.
         :param injected_files: A list of file paths that will be injected into
@@ -119,9 +120,6 @@ class ConfigDrivePowerVM(object):
         :param network_info: The network_info from the nova spawn method.
         :param lpar_uuid: The UUID of the client LPAR
         :param admin_pass: Optional password to inject for the VM.
-
-        :returns: The VSCSIMapping wrapper that can be added to the VIOS
-                  to attach it to the VM.
         """
         iso_path, file_name = self._create_cfg_dr_iso(instance, injected_files,
                                                       network_info, admin_pass)
@@ -136,8 +134,11 @@ class ConfigDrivePowerVM(object):
         # Now that it is uploaded, create the vSCSI mappings that link this to
         # the VM.  Don't run the upload as these are batched in a single call
         # to the VIOS later.
-        return pvm_vios.VSCSIMapping.bld_to_vopt(self.adapter, self.host_uuid,
-                                                 lpar_uuid, file_name)
+        mapping = pvm_vios.VSCSIMapping.bld_to_vopt(self.adapter,
+                                                    self.host_uuid,
+                                                    lpar_uuid, file_name)
+
+        tsk_map.add_vscsi_mapping(self.adapter, self.vios_uuid, mapping)
 
     def _upload_lv(self, iso_path, file_name, file_size):
         with open(iso_path, 'rb') as d_stream:
@@ -243,35 +244,23 @@ class ConfigDrivePowerVM(object):
 
     def dlt_vopt(self, lpar_uuid):
         """Deletes the virtual optical and scsi mappings for a VM."""
+        partition_id = vm.get_vm_id(self.adapter, lpar_uuid)
 
-        # Read the SCSI mappings from the VIOS.
-        vio_rsp = self.adapter.read(
-            pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
-            xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
-        vio = pvm_vios.VIOS.wrap(vio_rsp)
+        # Remove the SCSI mappings to all vOpt Media.  This returns the media
+        # devices that were removed from the bus.
+        media_elems = tsk_map.remove_vopt_mapping(self.adapter, self.vios_uuid,
+                                                  partition_id)
 
-        # Get the mappings to this VM
-        existing_maps = vios.get_vscsi_mappings(self.adapter, lpar_uuid, vio,
-                                                pvm_stg.VOptMedia)
-
-        for scsi_map in existing_maps:
-            vio.scsi_mappings.remove(scsi_map)
-
-        # Remove the mappings
-        vio.update(self.adapter, xag=[pvm_vios.XAGEnum.VIOS_SCSI_MAPPING])
-
-        # Next delete the media from the volume group...
-        # The mappings above have the backing storage.  Just need to load
-        # the volume group (there is a new etag after the VIOS update)
-        # and find the matching ones.
+        # Next delete the media from the volume group.  To do so, remove the
+        # media from the volume group, which triggers a delete.
         vg_rsp = self.adapter.read(pvm_vios.VIOS.schema_type,
                                    root_id=self.vios_uuid,
                                    child_type=pvm_stg.VG.schema_type,
                                    child_id=self.vg_uuid)
         volgrp = pvm_stg.VG.wrap(vg_rsp)
         optical_medias = volgrp.vmedia_repos[0].optical_media
-        for scsi_map in existing_maps:
-            optical_medias.remove(scsi_map.backing_storage)
+        for media_elem in media_elems:
+            optical_medias.remove(media_elem)
 
         # Now we can do an update...and be done with it.
         volgrp.update(self.adapter)
