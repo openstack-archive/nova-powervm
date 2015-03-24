@@ -214,16 +214,21 @@ class TestVM(test.TestCase):
         test_attrs = dict(lpar_attrs, **{'min_mem': '1024', 'max_mem': '4096'})
         self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
+    @mock.patch('pypowervm.wrappers.entry_wrapper.EntryWrapper.wrap')
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
     @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder')
-    def test_crt_lpar(self, mock_bldr, mock_stdz):
+    def test_crt_lpar(self, mock_bldr, mock_stdz, mock_entrywrap, mock_cache):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
 
         host_wrapper = mock.Mock()
+        singleton = mock.Mock()
+        mock_cache.get_cache.return_value = singleton
         vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
         self.assertTrue(self.apt.create.called)
+        singleton.add.assert_called_with(instance.name, mock.ANY)
 
         flavor.extra_specs = {'powervm:BADATTR': 'true'}
         host_wrapper = mock.Mock()

@@ -73,6 +73,17 @@ class TestPowerVMDriver(test.TestCase):
         self.fc_vol_drv = self.drv.vol_drvs['fibre_channel']
         self.disk_dvr = self.drv.disk_dvr
 
+        self.crt_lpar_p = mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
+        self.crt_lpar = self.crt_lpar_p.start()
+
+        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
+        resp.entry = pvm_lpar.LPAR._bld().entry
+        self.crt_lpar.return_value = pvm_lpar.LPAR.wrap(resp)
+
+    def tearDown(self):
+        super(TestPowerVMDriver, self).tearDown()
+        self.crt_lpar_p.stop()
+
     def test_driver_create(self):
         """Validates that a driver of the PowerVM type can just be
         initialized.
@@ -115,12 +126,11 @@ class TestPowerVMDriver(test.TestCase):
             self.assertEqual(fake_lpar_list, inst_list)
 
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_ops(self, mock_pwron, mock_get_flv, mock_cfg_drv,
-                       mock_crt, mock_plug_vifs):
+                       mock_plug_vifs):
 
         """Validates the PowerVM driver operations."""
         # Set up the mocks to the tasks.
@@ -128,22 +138,18 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
-        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
-        resp.entry = pvm_lpar.LPAR._bld().entry
-        mock_crt.return_value = resp
 
         # Invoke the method.
         self.drv.spawn('context', inst, mock.Mock(),
                        'injected_files', 'admin_password')
 
         # Create LPAR was called
-        mock_crt.assert_called_with(
+        self.crt_lpar.assert_called_with(
             self.apt, self.drv.host_wrapper, inst, my_flavor)
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'create_cfg_drv_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -154,7 +160,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_cfg(self, mock_pwron, mock_get_flv,
                             mock_cfg_drv, mock_val_vopt, mock_vios_vscsi,
-                            mock_cfg_vopt, mock_crt, mock_plug_vifs):
+                            mock_cfg_vopt, mock_plug_vifs):
 
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
@@ -162,22 +168,18 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = True
-        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
-        resp.entry = pvm_lpar.LPAR._bld().entry
-        mock_crt.return_value = resp
 
         # Invoke the method.
         self.drv.spawn('context', inst, mock.Mock(),
                        'injected_files', 'admin_password')
 
         # Create LPAR was called
-        mock_crt.assert_called_with(self.apt, self.drv.host_wrapper,
-                                    inst, my_flavor)
+        self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
+                                         inst, my_flavor)
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'create_cfg_drv_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -188,7 +190,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_bdms(self, mock_pwron, mock_get_flv,
                              mock_cfg_drv, mock_val_vopt, mock_vios_vscsi,
-                             mock_cfg_vopt, mock_crt, mock_plug_vifs):
+                             mock_cfg_vopt, mock_plug_vifs):
 
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
@@ -196,9 +198,6 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = True
-        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
-        resp.entry = pvm_lpar.LPAR._bld().entry
-        mock_crt.return_value = resp
 
         # Create some fake BDMs
         block_device_info = self._fake_bdms()
@@ -209,8 +208,8 @@ class TestPowerVMDriver(test.TestCase):
                        block_device_info=block_device_info)
 
         # Create LPAR was called
-        mock_crt.assert_called_with(self.apt, self.drv.host_wrapper,
-                                    inst, my_flavor)
+        self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
+                                         inst, my_flavor)
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
@@ -218,15 +217,13 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     @mock.patch('pypowervm.tasks.power.power_off')
     def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_get_flv,
-                                mock_cfg_drv, mock_dlt, mock_crt,
-                                mock_plug_vifs):
+                                mock_cfg_drv, mock_dlt, mock_plug_vifs):
         """Validates the PowerVM driver operations.  Will do a rollback."""
 
         # Set up the mocks to the tasks.
@@ -234,9 +231,6 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
-        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
-        resp.entry = pvm_lpar.LPAR._bld().entry
-        mock_crt.return_value = resp
         block_device_info = self._fake_bdms()
 
         # Make sure power on fails.
@@ -248,8 +242,8 @@ class TestPowerVMDriver(test.TestCase):
                           block_device_info=block_device_info)
 
         # Create LPAR was called
-        mock_crt.assert_called_with(self.apt, self.drv.host_wrapper,
-                                    inst, my_flavor)
+        self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
+                                         inst, my_flavor)
         self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
         # Power on was called

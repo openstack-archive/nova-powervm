@@ -352,9 +352,16 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
 
     lpar = _crt_lpar_builder(host_wrapper, instance, flavor).build()
 
-    return adapter.create(
+    resp = adapter.create(
         lpar.element, pvm_ms.System.schema_type, root_id=host_wrapper.uuid,
         child_type=pvm_lpar.LPAR.schema_type)
+
+    lpar_w = pvm_lpar.LPAR.wrap(resp)
+
+    # Add the uuid to the cache.
+    UUIDCache.get_cache().add(instance.name, lpar_w.uuid)
+
+    return lpar_w
 
 
 def update(adapter, host_wrapper, instance, flavor, entry=None):

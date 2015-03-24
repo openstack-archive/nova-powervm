@@ -17,7 +17,6 @@
 from nova.i18n import _LI
 from nova.i18n import _LW
 from pypowervm.tasks import power
-from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from oslo_log import log as logging
 from taskflow import task
@@ -72,9 +71,9 @@ class Create(task.Task):
 
     def execute(self):
         LOG.info(_LI('Creating instance: %s') % self.instance.name)
-        resp = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
+        wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
                            self.flavor)
-        return pvm_lpar.LPAR.wrap(resp)
+        return wrap
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
