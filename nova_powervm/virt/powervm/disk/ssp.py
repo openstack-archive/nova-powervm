@@ -21,16 +21,16 @@ from nova import image
 from nova.i18n import _LI, _LE
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_drv
-from nova_powervm.virt.powervm import vios
 
+import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
 
 ssp_opts = [
-    cfg.StrOpt('ssp_name',
+    cfg.StrOpt('cluster_name',
                default='',
-               help='Shared Storage Pool to use for storage operations.  If '
-                    'none specified, the host is queried; if a single '
-                    'Shared Storage Pool is found, it is used.')
+               help='Cluster hosting the Shared Storage Pool to use for '
+                    'storage operations.  If none specified, the host is '
+                    'queried; if a single Cluster is found, it is used.')
 ]
 
 
@@ -39,24 +39,23 @@ CONF = cfg.CONF
 CONF.register_opts(ssp_opts)
 
 
-class SSPNotFoundByName(disk.AbstractDiskException):
-    msg_fmt = _LE("Unable to locate the Shared Storage Pool '%(ssp_name)s' "
-                  "for this operation.")
+class ClusterNotFoundByName(disk.AbstractDiskException):
+    msg_fmt = _LE("Unable to locate the Cluster '%(clust_name)s' for this "
+                  "operation.")
 
 
-class NoConfigNoSSPFound(disk.AbstractDiskException):
-    msg_fmt = _LE('Unable to locate any Shared Storage Pool for this '
-                  'operation.')
+class NoConfigNoClusterFound(disk.AbstractDiskException):
+    msg_fmt = _LE('Unable to locate any Cluster for this operation.')
 
 
-class TooManySSPsFound(disk.AbstractDiskException):
-    msg_fmt = _LE("Unexpectedly found %(ssp_count)d Shared Storage Pools "
-                  "matching name '%(ssp_name)s'.")
+class TooManyClustersFound(disk.AbstractDiskException):
+    msg_fmt = _LE("Unexpectedly found %(clust_count)d Clusters "
+                  "matching name '%(clust_name)s'.")
 
 
-class NoConfigTooManySSPs(disk.AbstractDiskException):
-    msg_fmt = _LE("No ssp_name specified.  Refusing to select one of the "
-                  "%(ssp_count)d Shared Storage Pools found.")
+class NoConfigTooManyClusters(disk.AbstractDiskException):
+    msg_fmt = _LE("No cluster_name specified.  Refusing to select one of the "
+                  "%(clust_count)d Clusters found.")
 
 
 class SSPDiskAdapter(disk_drv.DiskAdapter):
@@ -79,29 +78,26 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         self.adapter = connection['adapter']
         self.host_uuid = connection['host_uuid']
 
-        # TODO(IBM) Query the VIOSes to find the one containing the SSP.
-        # This is a temporary method to find the VIOS.
-        vios_map = vios.get_vios_name_map(self.adapter, self.host_uuid)
-        self.vios_name, self.vios_uuid = vios_map.items()[0]
+        self._cluster = self._fetch_cluster(CONF.cluster_name)
+        self.clust_name = self._cluster.name
 
-        self.ssp_name = CONF.ssp_name
-        # Make sure _fetch_ssp_wrap knows it has to bootstrap by name
-        self._ssp_wrap = None
-        self._fetch_ssp_wrap()  # Sets self._ssp_wrap
+        # _ssp @property method will fetch and cache the SSP.
+        self.ssp_name = self._ssp.name
+
         self.image_api = image.API()
-        LOG.info(_LI('SSP Storage driver initialized: '
-                     'SSP: \'%s\'') % self.ssp_name)
+        LOG.info(_LI("SSP Storage driver initialized. "
+                     "Cluster '%(clust_name)s'; SSP '%(ssp_name)s'")
+                 % {'clust_name': self.clust_name, 'ssp_name': self.ssp_name})
 
     @property
     def capacity(self):
         """Capacity of the storage in gigabytes."""
-        ssp = self._fetch_ssp_wrap()
-        return float(ssp.capacity)
+        return float(self._ssp.capacity)
 
     @property
     def capacity_used(self):
         """Capacity of the storage in gigabytes that is used."""
-        ssp = self._fetch_ssp_wrap()
+        ssp = self._ssp
         return float(ssp.capacity) - float(ssp.free_space)
 
     def disconnect_image_disk(self, context, instance, lpar_uuid,
@@ -167,49 +163,81 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         raise NotImplementedError()
 
-    def _fetch_ssp_wrap(self):
-        """Return the SSP EntryWrapper associated with the configured name.
+    def _fetch_cluster(self, clust_name):
+        """Bootstrap fetch the Cluster associated with the configured name.
 
-        The SSP EntryWrapper is 'cached' locally.
-
-        In a bootstrap scenario, the ssp_name from the config is used to
-        perform a search query.
-
-        Otherwise, the cached wrapper is refreshed.
+        :param clust_name: The cluster_name from the config, used to perform a
+        search query.  If '' or None (no cluster_name was specified in the
+        config), we query all clusters on the host and, if exactly one is
+        found, we use it.
+        :return: The Cluster EntryWrapper.
+        :raise ClusterNotFoundByName: If clust_name was nonempty but no such
+                                      Cluster was found on the host.
+        :raise TooManyClustersFound: If clust_name was nonempty but matched
+                                     more than one Cluster on the host.
+        :raise NoConfigNoClusterFound: If clust_name was empty and no Cluster
+                                       was found on the host.
+        :raise NoConfigTooManyClusters: If clust_name was empty, but more than
+                                        one Cluster was found on the host.
         """
         try:
-            if self._ssp_wrap is None:
-                # Not yet loaded.
-                # Did config provide a name?
-                if self.ssp_name:
-                    resp = pvm_stg.SSP.search(self.adapter,
-                                              name=self.ssp_name)
-                    wraps = pvm_stg.SSP.wrap(resp)
-                    if len(wraps) == 0:
-                        raise SSPNotFoundByName(ssp_name=self.ssp_name)
-                    if len(wraps) > 1:
-                        raise TooManySSPsFound(ssp_count=len(wraps),
-                                               ssp_name=self.ssp_name)
-                else:
-                    # Otherwise, pull the entire feed of SSPs and, if exactly
-                    # one result, use it.
-                    resp = self.adapter.read(pvm_stg.SSP.schema_type)
-                    wraps = pvm_stg.SSP.wrap(resp)
-                    if len(wraps) == 0:
-                        raise NoConfigNoSSPFound()
-                    if len(wraps) > 1:
-                        raise NoConfigTooManySSPs(ssp_count=len(wraps))
-                self._ssp_wrap = wraps[0]
-                self.ssp_name = self._ssp_wrap.name
+            # Did config provide a name?
+            if clust_name:
+                resp = pvm_clust.Cluster.search(self.adapter, name=clust_name)
+                wraps = pvm_clust.Cluster.wrap(resp)
+                if len(wraps) == 0:
+                    raise ClusterNotFoundByName(clust_name=clust_name)
+                if len(wraps) > 1:
+                    raise TooManyClustersFound(clust_count=len(wraps),
+                                               clust_name=clust_name)
             else:
-                # Already loaded.  Refresh.
-                self._ssp_wrap = self._ssp_wrap.refresh(self.adapter)
-        # TODO(IBM): If the SSP doesn't exist when the driver is loaded, we
-        # raise one of the custom exceptions; but if it gets removed at some
-        # point while live, we'll (re)raise the 404 HttpError from the REST
-        # API.  Do we need a crisper way to distinguish these two scenarios?
-        # Do we want to trap the 404 and raise a custom "SSPVanished"?
+                # Otherwise, pull the entire feed of Clusters and, if
+                # exactly one result, use it.
+                resp = self.adapter.read(pvm_clust.Cluster.schema_type)
+                wraps = pvm_clust.Cluster.wrap(resp)
+                if len(wraps) == 0:
+                    raise NoConfigNoClusterFound()
+                if len(wraps) > 1:
+                    raise NoConfigTooManyClusters(clust_count=len(wraps))
+            clust_wrap = wraps[0]
         except Exception as e:
             LOG.exception(e.message)
             raise e
+        return clust_wrap
+
+    def _refresh_cluster(self):
+        """Refetch the Cluster from the host.
+
+        This should be necessary only when the node list is needed and may have
+        changed.
+
+        :return: The refreshed self._cluster.
+        """
+        # TODO(IBM): If the Cluster doesn't exist when the driver is loaded, we
+        # raise one of the custom exceptions; but if it gets removed at some
+        # point while live, we'll (re)raise the 404 HttpError from the REST
+        # API.  Do we need a crisper way to distinguish these two scenarios?
+        # Do we want to trap the 404 and raise a custom "ClusterVanished"?
+        self._cluster = self._cluster.refresh(self.adapter)
+        return self._cluster
+
+    @property
+    def _ssp(self):
+        """Fetch or refresh the SSP corresponding to the Cluster.
+
+        This must be invoked after a successful _fetch_cluster.
+
+        :return: The fetched or refreshed SSP EntryWrapper.
+        """
+        # TODO(IBM): Smarter refreshing (i.e. don't do it every time).
+        if getattr(self, '_ssp_wrap', None) is None:
+            resp = self.adapter.read_by_href(self._cluster.ssp_uri)
+            self._ssp_wrap = pvm_stg.SSP.wrap(resp)
+        else:
+            self._ssp_wrap = self._ssp_wrap.refresh(self.adapter)
         return self._ssp_wrap
+
+    @property
+    def _vios_uuids(self):
+        """Return a list of the UUIDs of our cluster's VIOSes."""
+        return [n.vios_uuid for n in self._cluster.nodes]

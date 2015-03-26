@@ -22,6 +22,7 @@ from nova import test
 import os
 import pypowervm.adapter as pvm_adp
 from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.wrappers import cluster as pvm_clust
 from pypowervm.wrappers import storage as pvm_stg
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -29,6 +30,7 @@ from nova_powervm.virt.powervm.disk import ssp
 
 
 SSP = 'fake_ssp.txt'
+CLUST = 'fake_cluster.txt'
 
 
 class SSPFixture(fixtures.Fixture):
@@ -40,14 +42,19 @@ class SSPFixture(fixtures.Fixture):
     def setUp(self):
         super(SSPFixture, self).setUp()
         self._search_patcher = mock.patch(
-            'pypowervm.wrappers.storage.SSP.search')
-        self._refresh_patcher = mock.patch(
-            'pypowervm.wrappers.storage.SSP.refresh')
+            'pypowervm.wrappers.cluster.Cluster.search')
         self.mock_search = self._search_patcher.start()
-        self.mock_refresh = self._refresh_patcher.start()
-
         self.addCleanup(self._search_patcher.stop)
-        self.addCleanup(self._refresh_patcher.stop)
+
+        self._clust_refresh_patcher = mock.patch(
+            'pypowervm.wrappers.cluster.Cluster.refresh')
+        self.mock_clust_refresh = self._clust_refresh_patcher.start()
+        self.addCleanup(self._clust_refresh_patcher.stop)
+
+        self._ssp_refresh_patcher = mock.patch(
+            'pypowervm.wrappers.storage.SSP.refresh')
+        self.mock_ssp_refresh = self._ssp_refresh_patcher.start()
+        self.addCleanup(self._ssp_refresh_patcher.stop)
 
 
 class TestSSPDiskAdapter(test.TestCase):
@@ -65,28 +72,36 @@ class TestSSPDiskAdapter(test.TestCase):
             return pvmhttp.load_pvm_resp(file_path).get_response()
 
         self.ssp_resp = resp(SSP)
+        self.clust_resp = resp(CLUST)
         self.pypvm = self.useFixture(fx.PyPowerVM())
         self.apt = self.pypvm.apt
 
         self.sspfx = self.useFixture(SSPFixture())
 
+        # For _fetch_cluster() with configured name
         self.mock_search = self.sspfx.mock_search
         # EntryWrapper.search always returns a feed.
         self.mock_search.return_value = self._bld_resp(
-            entry_or_list=[self.ssp_resp.entry])
+            entry_or_list=[self.clust_resp.entry])
 
-        self.mock_refresh = self.sspfx.mock_refresh
-        self.mock_refresh.return_value = pvm_stg.SSP.wrap(self.ssp_resp)
+        # For _refresh_cluster()
+        self.mock_clust_refresh = self.sspfx.mock_clust_refresh
+        self.mock_clust_refresh.return_value = pvm_clust.Cluster.wrap(
+            self.clust_resp)
 
-        # By default, assume the config supplied an SSP name
-        cfg.CONF.set_override('ssp_name', 'ssp1')
+        # For _fetch_ssp() fresh
+        self.apt.read_by_href.return_value = self.ssp_resp
+
+        # For _fetch_ssp() refresh
+        self.mock_ssp_refresh = self.sspfx.mock_ssp_refresh
+        self.mock_ssp_refresh.return_value = pvm_stg.SSP.wrap(self.ssp_resp)
+
+        # By default, assume the config supplied a Cluster name
+        cfg.CONF.set_override('cluster_name', 'clust1')
 
     def _get_ssp_stor(self):
-        with mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map') as\
-                mock_vio_name_map:
-            mock_vio_name_map.return_value = {'vio_name': 'vio_uuid'}
-            ssp_stor = ssp.SSPDiskAdapter({'adapter': self.apt,
-                                           'host_uuid': 'host_uuid'})
+        ssp_stor = ssp.SSPDiskAdapter({'adapter': self.apt,
+                                       'host_uuid': 'host_uuid'})
         return ssp_stor
 
     def _bld_resp(self, status=200, entry_or_list=None):
@@ -114,76 +129,105 @@ class TestSSPDiskAdapter(test.TestCase):
         return resp
 
     def test_init_green_with_config(self):
-        """Bootstrap SSPStorage, testing first call to _fetch_ssp_wrap.
+        """Bootstrap SSPStorage, testing call to _fetch_cluster.
 
-        Driver init should search for SSP by name.
+        Driver init should search for cluster by name.
         """
-        # Invoke __init__ => initial _fetch_ssp_wrap()
+        # Invoke __init__ => _fetch_cluster()
         self._get_ssp_stor()
-        # Init should call _fetch_ssp_wrap() once.  First _fetch_ssp_wrap()
-        # WITH a configured name does a search, but not a read.
+        # _fetch_cluster() WITH configured name does a search, but not a read.
         # Refresh shouldn't be invoked.
         self.assertEqual(1, self.mock_search.call_count)
         self.assertEqual(0, self.apt.read.call_count)
-        self.assertEqual(0, self.mock_refresh.call_count)
+        self.assertEqual(0, self.mock_clust_refresh.call_count)
 
     def test_init_green_no_config(self):
-        """No SSP name specified in config; one SSP on host - success."""
-        cfg.CONF.clear_override('ssp_name')
+        """No cluster name specified in config; one cluster on host - ok."""
+        cfg.CONF.clear_override('cluster_name')
         self.apt.read.return_value = self._bld_resp(
-            entry_or_list=[self.ssp_resp.entry])
+            entry_or_list=[self.clust_resp.entry])
         self._get_ssp_stor()
-        # Init should call _fetch_ssp_wrap() once.  First _fetch_ssp_wrap()
-        # WITHOUT a configured name does a feed GET (read), not a search.
+        # _fetch_cluster() WITHOUT a configured name does a feed GET (read),
+        # not a search.
         # Refresh shouldn't be invoked.
         self.assertEqual(0, self.mock_search.call_count)
         self.assertEqual(1, self.apt.read.call_count)
-        self.assertEqual(0, self.mock_refresh.call_count)
-        self.apt.read.assert_called_with('SharedStoragePool')
+        self.assertEqual(0, self.mock_clust_refresh.call_count)
+        self.apt.read.assert_called_with('Cluster')
 
-    def test_init_SSPNotFoundByName(self):
-        """Empty feed comes back from search - no SSP by that name."""
+    def test_init_ClusterNotFoundByName(self):
+        """Empty feed comes back from search - no cluster by that name."""
         self.mock_search.return_value = self._bld_resp(status=204)
-        self.assertRaises(ssp.SSPNotFoundByName, self._get_ssp_stor)
+        self.assertRaises(ssp.ClusterNotFoundByName, self._get_ssp_stor)
 
-    def test_init_TooManySSPsFound(self):
+    def test_init_TooManyClustersFound(self):
         """Search-by-name returns more than one result."""
-        ssp1 = pvm_stg.SSP.bld('newssp1', [])
-        ssp2 = pvm_stg.SSP.bld('newssp2', [])
+        clust1 = pvm_clust.Cluster.bld('newclust1',
+                                       pvm_stg.PV.bld('hdisk1'),
+                                       pvm_clust.Node.bld('vios1'))
+        clust2 = pvm_clust.Cluster.bld('newclust2',
+                                       pvm_stg.PV.bld('hdisk2'),
+                                       pvm_clust.Node.bld('vios2'))
         self.mock_search.return_value = self._bld_resp(
-            entry_or_list=[ssp1.entry, ssp2.entry])
-        self.assertRaises(ssp.TooManySSPsFound, self._get_ssp_stor)
+            entry_or_list=[clust1.entry, clust2.entry])
+        self.assertRaises(ssp.TooManyClustersFound, self._get_ssp_stor)
 
-    def test_init_NoConfigNoSSPFound(self):
-        """No SSP name specified in config, no SSPs on host."""
-        cfg.CONF.clear_override('ssp_name')
+    def test_init_NoConfigNoClusterFound(self):
+        """No cluster name specified in config, no clusters on host."""
+        cfg.CONF.clear_override('cluster_name')
         self.apt.read.return_value = self._bld_resp(status=204)
-        self.assertRaises(ssp.NoConfigNoSSPFound, self._get_ssp_stor)
+        self.assertRaises(ssp.NoConfigNoClusterFound, self._get_ssp_stor)
 
-    def test_init_NoConfigTooManySSPs(self):
+    def test_init_NoConfigTooManyClusters(self):
         """No SSP name specified in config, more than one SSP on host."""
-        cfg.CONF.clear_override('ssp_name')
-        ssp1 = pvm_stg.SSP.bld('newssp1', [])
-        ssp2 = pvm_stg.SSP.bld('newssp2', [])
+        cfg.CONF.clear_override('cluster_name')
+        clust1 = pvm_clust.Cluster.bld('newclust1',
+                                       pvm_stg.PV.bld('hdisk1'),
+                                       pvm_clust.Node.bld('vios1'))
+        clust2 = pvm_clust.Cluster.bld('newclust2',
+                                       pvm_stg.PV.bld('hdisk2'),
+                                       pvm_clust.Node.bld('vios2'))
         self.apt.read.return_value = self._bld_resp(
-            entry_or_list=[ssp1.entry, ssp2.entry])
-        self.assertRaises(ssp.NoConfigTooManySSPs, self._get_ssp_stor)
+            entry_or_list=[clust1.entry, clust2.entry])
+        self.assertRaises(ssp.NoConfigTooManyClusters, self._get_ssp_stor)
 
-    def test_fetch_ssp_wrap_refresh(self):
-        """_fetch_ssp_wrap with cached wrapper."""
-        # Save original SSP wrapper for later comparison
-        orig_ssp_wrap = pvm_stg.SSP.wrap(self.ssp_resp)
-        # Prime _ssp_wrap
+    def test_refresh_cluster(self):
+        """_refresh_cluster with cached wrapper."""
+        # Save original cluster wrapper for later comparison
+        orig_clust_wrap = pvm_clust.Cluster.wrap(self.clust_resp)
+        # Prime _clust_wrap
         ssp_stor = self._get_ssp_stor()
         # Verify baseline call counts
         self.assertEqual(1, self.mock_search.call_count)
-        self.assertEqual(0, self.mock_refresh.call_count)
-        ssp_wrap = ssp_stor._fetch_ssp_wrap()
-        # This second _fetch_ssp_wrap() should call refresh, not read or search
+        self.assertEqual(0, self.mock_clust_refresh.call_count)
+        clust_wrap = ssp_stor._refresh_cluster()
+        # This should call refresh
         self.assertEqual(1, self.mock_search.call_count)
         self.assertEqual(0, self.apt.read.call_count)
-        self.assertEqual(1, self.mock_refresh.call_count)
+        self.assertEqual(1, self.mock_clust_refresh.call_count)
+        self.assertEqual(clust_wrap.name, orig_clust_wrap.name)
+
+    def test_fetch_ssp(self):
+        # For later comparison
+        orig_ssp_wrap = pvm_stg.SSP.wrap(self.ssp_resp)
+        # Verify baseline call counts
+        self.assertEqual(0, self.apt.read_by_href.call_count)
+        self.assertEqual(0, self.mock_ssp_refresh.call_count)
+        # This should prime self._ssp_wrap: calls read_by_href but not refresh.
+        ssp_stor = self._get_ssp_stor()
+        self.assertEqual(1, self.apt.read_by_href.call_count)
+        self.assertEqual(0, self.mock_ssp_refresh.call_count)
+        # Accessing the @property will trigger refresh
+        ssp_wrap = ssp_stor._ssp
+        self.assertEqual(1, self.apt.read_by_href.call_count)
+        self.assertEqual(1, self.mock_ssp_refresh.call_count)
         self.assertEqual(ssp_wrap.name, orig_ssp_wrap.name)
+
+    def test_vios_uuids(self):
+        ssp_stor = self._get_ssp_stor()
+        vios_uuids = ssp_stor._vios_uuids
+        self.assertEqual(['58C9EB1D-7213-4956-A011-77D43CC4ACCC',
+                          '6424120D-CA95-437D-9C18-10B06F4B3400'], vios_uuids)
 
     def test_capacity(self):
         ssp_stor = self._get_ssp_stor()
