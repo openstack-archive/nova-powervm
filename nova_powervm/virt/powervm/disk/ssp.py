@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import random
+
 from oslo_config import cfg
 import oslo_log.log as logging
 
@@ -22,6 +24,7 @@ from nova.i18n import _LI, _LE
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_drv
 
+from pypowervm.tasks import storage as tsk_stg
 import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
 
@@ -125,21 +128,38 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         raise NotImplementedError()
 
-    def create_disk_from_image(self, context, instance, image, disk_size,
+    def create_disk_from_image(self, context, instance, image, disk_size_gb,
                                image_type=disk_drv.DiskTypeEnum.BOOT):
         """Creates a disk and copies the specified image to it.
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
-        :param image_id: image_id reference used to locate image in glance
-        :param disk_size: The size of the disk to create in GB.  If smaller
-                          than the image, it will be ignored (as the disk
-                          must be at least as big as the image).  Must be an
-                          int.
-        :param image_type: the image type. See disk constants above.
+        :param image: image metadata dict:
+                      { 'id': reference used to locate image in glance,
+                        'size': size in bytes of the image. }
+        :param disk_size_gb: The size of the disk to create in GB.  If smaller
+                             than the image, it will be ignored (as the disk
+                             must be at least as big as the image).  Must be an
+                             int.
+        :param image_type: The image type. See disk_drv.DiskTypeEnum.
         :returns: The backing pypowervm storage object that was created.
         """
-        raise NotImplementedError()
+        LOG.info(_LI('SSP: Create %(image_type)s disk from image %(image_id)s '
+                     'for instance %(instance_uuid)s.') %
+                 dict(image_type=image_type, image_id=image['id'],
+                      instance_uuid=instance.uuid))
+
+        stream = self._get_image_upload(context, image)
+        lu_name = self._get_disk_name(image_type, instance)
+
+        # Disk size to API is in bytes.  Input from method is in Gb
+        disk_bytes = self._disk_gb_to_bytes(disk_size_gb, floor=image['size'])
+
+        lu, f_wrap = tsk_stg.upload_new_lu(
+            self.adapter, self._any_vios_uuid, self._ssp, stream, lu_name,
+            image['size'], d_size=disk_bytes)
+
+        return lu
 
     def connect_disk(self, context, instance, disk_info, lpar_uuid):
         """Connects the disk image to the Virtual Machine.
@@ -241,3 +261,12 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
     def _vios_uuids(self):
         """Return a list of the UUIDs of our cluster's VIOSes."""
         return [n.vios_uuid for n in self._cluster.nodes]
+
+    @property
+    def _any_vios_uuid(self):
+        """Pick one of the Cluster's VIOSes and return its UUID.
+
+        Use when it doesn't matter which VIOS an operation is invoked against.
+        Currently picks at random; may later be changed to use round-robin.
+        """
+        return random.choice(self._vios_uuids)

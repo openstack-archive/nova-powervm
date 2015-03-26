@@ -84,7 +84,7 @@ class TestLocalDisk(test.TestCase):
                                     mock_get_dname, mock_upload_vdisk):
         mock_img = {'id': 'fake_id', 'size': 50}
         mock_get_dname.return_value = 'fake_vol'
-        mock_upload_vdisk.return_value = ('vdisk', 'f_uuid')
+        mock_upload_vdisk.return_value = ('vdisk', None)
 
         vdisk = self.get_ls(self.apt).create_disk_from_image(
             None, None, mock_img, 20)

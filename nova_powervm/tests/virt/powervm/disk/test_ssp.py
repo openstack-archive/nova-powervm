@@ -228,6 +228,15 @@ class TestSSPDiskAdapter(test.TestCase):
         vios_uuids = ssp_stor._vios_uuids
         self.assertEqual(['58C9EB1D-7213-4956-A011-77D43CC4ACCC',
                           '6424120D-CA95-437D-9C18-10B06F4B3400'], vios_uuids)
+        s = set()
+        for i in range(1000):
+            u = ssp_stor._any_vios_uuid
+            # Make sure we got a good value
+            self.assertIn(u, vios_uuids)
+            s.add(u)
+        # Make sure we hit all the values over 1000 iterations.  This isn't
+        # guaranteed to work, but the odds of failure should be infinitesimal.
+        self.assertEqual(set(vios_uuids), s)
 
     def test_capacity(self):
         ssp_stor = self._get_ssp_stor()
@@ -236,3 +245,32 @@ class TestSSPDiskAdapter(test.TestCase):
     def test_capacity_used(self):
         ssp_stor = self._get_ssp_stor()
         self.assertEqual((49.88 - 48.98), ssp_stor.capacity_used)
+
+    @mock.patch('pypowervm.tasks.storage.upload_new_lu')
+    @mock.patch('nova_powervm.virt.powervm.disk.driver.'
+                'IterableToFileAdapter')
+    @mock.patch('nova.image.API')
+    def test_create_disk_from_image(self, mock_img_api, mock_it2fadp,
+                                    mock_upload_lu):
+        b1G = 1024 * 1024 * 1024
+        b2G = 2 * b1G
+        ssp_stor = self._get_ssp_stor()
+
+        class Instance(object):
+            uuid = 'instance_uuid'
+
+        def verify_upload_new_lu(adap, vios_uuid, ssp1, stream, lu_name,
+                                 f_size, d_size):
+            self.assertIn(vios_uuid, ssp_stor._vios_uuids)
+            self.assertEqual(ssp_stor._ssp_wrap, ssp1)
+            # 'boot'[:6] + '_' + 'instance_uuid'[:8], per _get_disk_name
+            self.assertEqual('boot_instance', lu_name)
+            self.assertEqual(b2G, f_size)
+            # Disk size gets 'corrected' for file size
+            self.assertEqual(b2G, d_size)
+            return 'new_lu', None
+
+        mock_upload_lu.side_effect = verify_upload_new_lu
+        img = dict(id='image_id', size=b2G)
+        lu = ssp_stor.create_disk_from_image(None, Instance(), img, 1)
+        self.assertEqual('new_lu', lu)

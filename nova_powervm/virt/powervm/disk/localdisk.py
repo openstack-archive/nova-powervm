@@ -18,7 +18,6 @@
 
 from oslo_config import cfg
 from oslo_log import log as logging
-from oslo_utils import units
 
 from nova import exception as nova_exc
 from nova.i18n import _LI, _LE
@@ -154,18 +153,14 @@ class LocalStorage(disk_dvr.DiskAdapter):
         vol_name = self._get_disk_name(image_type, instance)
 
         # Disk size to API is in bytes.  Input from method is in Gb
-        disk_bytes = disk_size * units.Gi
-        if disk_bytes < image['size']:
-            # If the image is bigger than the disk, then change the disk size
-            # to match the image (so that the image fits).
-            disk_bytes = image['size']
+        disk_bytes = self._disk_gb_to_bytes(disk_size, floor=image['size'])
 
         # This method will create a new disk at our specified size.  It will
         # then put the image in the disk.  If the disk is bigger, user can
         # resize the disk, create a new partition, etc...
         # If the image is bigger than disk, API should make the disk big
         # enough to support the image (up to 1 Gb boundary).
-        vdisk, f_uuid = tsk_stg.upload_new_vdisk(
+        vdisk, f_wrap = tsk_stg.upload_new_vdisk(
             self.adapter, self.vios_uuid, self.vg_uuid, stream, vol_name,
             image['size'], d_size=disk_bytes)
 
@@ -228,10 +223,6 @@ class LocalStorage(disk_dvr.DiskAdapter):
             # TODO(IBM): Handle etag mismatch and retry
             LOG.exception()
             raise
-
-    @staticmethod
-    def _get_disk_name(disk_type, instance):
-        return disk_type[:6] + '_' + instance.uuid[:8]
 
     @staticmethod
     def _get_vg_uuid(adapter, vios_uuid, name):

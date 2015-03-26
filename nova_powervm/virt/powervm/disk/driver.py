@@ -17,6 +17,7 @@
 
 import abc
 
+from oslo_utils import units
 import six
 
 from nova import image
@@ -92,6 +93,26 @@ class DiskAdapter(object):
         """
         chunks = self.image_api.download(context, image_meta['id'])
         return IterableToFileAdapter(chunks)
+
+    @staticmethod
+    def _get_disk_name(disk_type, instance):
+        return disk_type[:6] + '_' + instance.uuid[:8]
+
+    @staticmethod
+    def _disk_gb_to_bytes(size_gb, floor=None):
+        """Convert a GB size (usually of a disk) to bytes, with a minimum.
+
+        :param size_gb: GB size to convert
+        :param floor: The minimum value to return.  If specified, and the
+                      converted size_gb is smaller, this value will be returned
+                      instead.
+        :return: A size in bytes.
+        """
+        disk_bytes = size_gb * units.Gi
+        if floor is not None:
+            if disk_bytes < floor:
+                disk_bytes = floor
+        return disk_bytes
 
     def disconnect_image_disk(self, context, instance, lpar_uuid,
                               disk_type=None):
