@@ -21,8 +21,10 @@ import six
 
 from nova import image
 
-BOOT_DISK = 'boot'
-RESCUE_DISK = 'rescue'
+
+class DiskTypeEnum(object):
+    BOOT = 'boot'
+    RESCUE = 'rescue'
 
 
 class IterableToFileAdapter(object):
@@ -117,7 +119,7 @@ class DiskAdapter(object):
         pass
 
     def create_disk_from_image(self, context, instance, image, disk_size,
-                               image_type=BOOT_DISK):
+                               image_type=DiskTypeEnum.BOOT):
         """Creates a disk and copies the specified image to it.
 
         :param context: nova context used to retrieve image from glance

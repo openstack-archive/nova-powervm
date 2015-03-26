@@ -136,11 +136,12 @@ class TestLocalDisk(test.TestCase):
         # Invoke
         local = self.get_ls(self.apt)
         local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2',
-                                    disk_type=[disk_dvr.BOOT_DISK])
+                                    disk_type=[disk_dvr.DiskTypeEnum.BOOT])
 
         # Validate
         mock_remove.assert_called_once_with(mock.ANY, mock.ANY, '2',
-                                            disk_prefixes=[disk_dvr.BOOT_DISK])
+                                            disk_prefixes=[
+                                                disk_dvr.DiskTypeEnum.BOOT])
         self.assertEqual(1, mock_remove.call_count)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')

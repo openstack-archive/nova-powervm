@@ -130,7 +130,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         raise NotImplementedError()
 
     def create_disk_from_image(self, context, instance, image, disk_size,
-                               image_type=disk_drv.BOOT_DISK):
+                               image_type=disk_drv.DiskTypeEnum.BOOT):
         """Creates a disk and copies the specified image to it.
 
         :param context: nova context used to retrieve image from glance

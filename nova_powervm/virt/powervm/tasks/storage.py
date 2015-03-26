@@ -131,7 +131,7 @@ class CreateDiskForImg(task.Task):
     """The Task to create the disk from an image in the storage."""
 
     def __init__(self, disk_dvr, context, instance, image_meta,
-                 disk_size=0, image_type=disk_dvr.BOOT_DISK):
+                 disk_size=0, image_type=disk_dvr.DiskTypeEnum.BOOT):
         """Create the Task.
 
         Provides the 'disk_dev_info' for other tasks.  Comes from the disk_dvr
