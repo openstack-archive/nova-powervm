@@ -26,6 +26,7 @@ from nova import image
 class DiskTypeEnum(object):
     BOOT = 'boot'
     RESCUE = 'rescue'
+    IMAGE = 'image'
 
 
 class IterableToFileAdapter(object):
@@ -99,6 +100,10 @@ class DiskAdapter(object):
         return disk_type[:6] + '_' + instance.uuid[:8]
 
     @staticmethod
+    def _get_image_name(image):
+        return DiskTypeEnum.IMAGE + '_' + image['id'].replace('-', '_')
+
+    @staticmethod
     def _disk_gb_to_bytes(size_gb, floor=None):
         """Convert a GB size (usually of a disk) to bytes, with a minimum.
 
@@ -145,7 +150,7 @@ class DiskAdapter(object):
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
-        :param image_id: image_id reference used to locate image in glance
+        :param image_id: image_id reference used to locate the image in glance
         :param disk_size: The size of the disk to create in GB.  If smaller
                           than the image, it will be ignored (as the disk
                           must be at least as big as the image).  Must be an

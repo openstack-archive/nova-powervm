@@ -130,35 +130,72 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
     def create_disk_from_image(self, context, instance, image, disk_size_gb,
                                image_type=disk_drv.DiskTypeEnum.BOOT):
-        """Creates a disk and copies the specified image to it.
+        """Creates a boot disk and links the specified image to it.
+
+        If the specified image has not already been uploaded, an Image LU is
+        created for it.  A Disk LU is then created for the instance and linked
+        to the Image LU.
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
         :param image: image metadata dict:
-                      { 'id': reference used to locate image in glance,
+                      { 'id': reference used to locate the image in glance,
                         'size': size in bytes of the image. }
         :param disk_size_gb: The size of the disk to create in GB.  If smaller
                              than the image, it will be ignored (as the disk
                              must be at least as big as the image).  Must be an
                              int.
         :param image_type: The image type. See disk_drv.DiskTypeEnum.
-        :returns: The backing pypowervm storage object that was created.
+        :returns: The backing pypowervm LU storage object that was created.
         """
         LOG.info(_LI('SSP: Create %(image_type)s disk from image %(image_id)s '
                      'for instance %(instance_uuid)s.') %
                  dict(image_type=image_type, image_id=image['id'],
                       instance_uuid=instance.uuid))
 
+        # TODO(IBM): There's an optimization to be had here if we can create
+        # both the image LU and the boot LU in the same ssp.update() call.
+        # This will require some nontrivial refactoring, though, as the LUs are
+        # created down inside of upload_new_lu and crt_lu_linked_clone.
+
+        image_lu = self._get_or_upload_image_lu(context, image)
+
+        boot_lu_name = self._get_disk_name(image_type, instance)
+
+        ssp, boot_lu = tsk_stg.crt_lu_linked_clone(
+            self.adapter, self._ssp, self._cluster, image_lu, boot_lu_name,
+            disk_size_gb)
+
+        return boot_lu
+
+    def _get_or_upload_image_lu(self, context, image):
+        """Ensures our SSP has an LU containing the specified image.
+
+        If an LU of type IMAGE corresponding to the input image metadata
+        already exists in our SSP, return it.  Otherwise, create it, prime it
+        with the image contents from glance, and return it.
+
+        :param context: nova context used to retrieve image from glance
+        :param image: image metadata dict:
+                      { 'id': reference used to locate the image in glance,
+                        'size': size in bytes of the image. }
+        :return: A pypowervm LU ElementWrapper representing the image.
+        """
+        # Key off of the name to see whether we already have the image
+        luname = self._get_image_name(image)
+        ssp = self._ssp
+        for lu in ssp.logical_units:
+            if lu.lu_type == pvm_stg.LUTypeEnum.IMAGE and lu.name == luname:
+                LOG.info(_LI('SSP: Using already-uploaded image LU %s.') %
+                         luname)
+                return lu
+
+        # We don't have it yet.  Create it and upload the glance image to it.
+        # Make the image LU only as big as the image.
         stream = self._get_image_upload(context, image)
-        lu_name = self._get_disk_name(image_type, instance)
-
-        # Disk size to API is in bytes.  Input from method is in Gb
-        disk_bytes = self._disk_gb_to_bytes(disk_size_gb, floor=image['size'])
-
-        lu, f_wrap = tsk_stg.upload_new_lu(
-            self.adapter, self._any_vios_uuid, self._ssp, stream, lu_name,
-            image['size'], d_size=disk_bytes)
-
+        LOG.info(_LI('SSP: Uploading new image LU %s.') % luname)
+        lu, f_wrap = tsk_stg.upload_new_lu(self.adapter, self._any_vios_uuid,
+                                           ssp, stream, luname, image['size'])
         return lu
 
     def connect_disk(self, context, instance, disk_info, lpar_uuid):
