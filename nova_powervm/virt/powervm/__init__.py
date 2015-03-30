@@ -69,7 +69,10 @@ pvm_opts = [
 
 CONF = cfg.CONF
 CONF.register_opts(pvm_opts)
+
+# Options imported from other regions
 CONF.import_opt('host', 'nova.netconf')
+CONF.import_opt('my_ip', 'nova.netconf')
 
 
 # NPIV Options will go in separate section.  Only applicable if the

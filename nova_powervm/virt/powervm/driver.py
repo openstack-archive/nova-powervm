@@ -15,10 +15,11 @@
 #    under the License.
 
 from nova.compute import task_states
+from nova.compute import utils as compute_utils
 from nova import context as ctx
 from nova import exception
 from nova import image
-from nova.i18n import _LI, _
+from nova.i18n import _LI, _LW, _
 from nova.objects import flavor as flavor_obj
 from nova.virt import configdrive
 from nova.virt import driver
@@ -529,8 +530,13 @@ class PowerVMDriver(driver.ComputeDriver):
     def get_host_ip_addr(self):
         """Retrieves the IP address of the dom0
         """
-        # TODO(IBM): Return real data for PowerVM
-        return '9.9.9.9'
+        # This code was pulled from the libvirt driver.
+        ips = compute_utils.get_machine_ips()
+        if CONF.my_ip not in ips:
+            LOG.warn(_LW('my_ip address (%(my_ip)s) was not found on '
+                         'any of the interfaces: %(ifaces)s'),
+                     {'my_ip': CONF.my_ip, 'ifaces': ", ".join(ips)})
+        return CONF.my_ip
 
     def get_volume_connector(self, instance):
         """Get connector information for the instance for attaching to volumes.

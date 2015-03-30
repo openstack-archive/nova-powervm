@@ -40,6 +40,9 @@ MS_NAME = 'HV4'
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
+CONF = cfg.CONF
+CONF.import_opt('my_ip', 'nova.netconf')
+
 
 class FakeClass(object):
     """Used for the test_inst_dict."""
@@ -528,6 +531,20 @@ class TestPowerVMDriver(test.TestCase):
 
         self.assertEqual(1, len(inst_dict.keys()))
         self.assertIsInstance(inst_dict['test'], FakeClass)
+
+    def test_get_host_ip_addr(self):
+        self.assertEqual(self.drv.get_host_ip_addr(), CONF.my_ip)
+
+    @mock.patch('nova_powervm.virt.powervm.driver.LOG.warn')
+    @mock.patch('nova.compute.utils.get_machine_ips')
+    def test_get_host_ip_addr_failure(self, mock_ips, mock_log):
+        mock_ips.return_value = ['1.1.1.1']
+        self.drv.get_host_ip_addr()
+        mock_log.assert_called_once_with(u'my_ip address (%(my_ip)s) was '
+                                         u'not found on any of the '
+                                         u'interfaces: %(ifaces)s',
+                                         {'ifaces': '1.1.1.1',
+                                          'my_ip': mock.ANY})
 
     def _fake_bdms(self):
         block_device_info = {
