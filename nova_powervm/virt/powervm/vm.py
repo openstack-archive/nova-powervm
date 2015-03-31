@@ -107,6 +107,11 @@ ATTRS_MAP = {
     'powervm:availability_priority': 'avail_priority'
 }
 
+# Attributes for secure RMC
+# TODO(thorst) The name of the secure RMC vswitch will change.
+SECURE_RMC_VSWITCH = 'MGMT'
+SECURE_RMC_VLAN = 4094
+
 
 def _translate_vm_state(pvm_state):
     """Find the current state of the lpar and convert it to
@@ -489,6 +494,35 @@ def crt_vif(adapter, instance, host_uuid, vif):
     # CNA's require a VLAN.  If the network doesn't provide, default to 1
     vlan = vif['network']['meta'].get('vlan', 1)
     cna.crt_cna(adapter, host_uuid, lpar_uuid, vlan, mac_addr=vif['address'])
+
+
+def crt_secure_rmc_vif(adapter, instance, host_uuid):
+    """Creates the Secure RMC Network Adapter on the VM.
+
+    :param adapter: The pypowervm adapter API interface.
+    :param instance: The nova instance to create the VIF against.
+    :param host_uuid: The host system UUID.
+    """
+    lpar_uuid = get_pvm_uuid(instance)
+    cna.crt_cna(adapter, host_uuid, lpar_uuid, SECURE_RMC_VLAN,
+                vswitch=SECURE_RMC_VSWITCH, crt_vswitch=True)
+
+
+def get_secure_rmc_vswitch(adapter, host_uuid):
+    """Returns the vSwitch that is used for secure RMC.
+
+    :param adapter: The pypowervm adapter API interface.
+    :param host_uuid: The host system UUID.
+    :return: The wrapper for the secure RMC vSwitch.  If it does not exist
+             on the system, None is returned.
+    """
+    resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
+                        child_type=pvm_net.VSwitch.schema_type)
+    vswitches = pvm_net.VSwitch.wrap(resp)
+    for vswitch in vswitches:
+        if vswitch.name == SECURE_RMC_VSWITCH:
+            return vswitch
+    return None
 
 
 class UUIDCache(object):
