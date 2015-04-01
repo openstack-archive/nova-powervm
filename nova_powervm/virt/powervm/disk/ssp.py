@@ -124,11 +124,16 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         :param context: nova context for operation
         :param instance: instance to delete the disk for.
-        :param storage_elems: A list of the storage elements that are to be
-                              deleted.  Derived from the return value from
-                              disconnect_image_disk.
+        :param storage_elems: A list of the storage elements (LU
+                              ElementWrappers) that are to be deleted.  Derived
+                              from the return value from disconnect_image_disk.
         """
-        raise NotImplementedError()
+        ssp = self._ssp
+        for lu_to_rm in storage_elems:
+            ssp = tsk_stg.remove_lu_linked_clone(
+                self.adapter, ssp, lu_to_rm, del_unused_image=True,
+                update=False)
+        ssp.update(self.adapter)
 
     def create_disk_from_image(self, context, instance, image, disk_size_gb,
                                image_type=disk_drv.DiskTypeEnum.BOOT):

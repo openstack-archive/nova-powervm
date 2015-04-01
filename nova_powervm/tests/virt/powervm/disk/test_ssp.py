@@ -326,3 +326,39 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertEqual(2, mock_add_map.call_count)
         for vu in ssp_stor._vios_uuids:
             mock_add_map.assert_any_call(self.apt, vu, 'vscsi_mapping')
+
+    def test_delete_disks(self):
+        def _mk_img_lu(idx):
+            lu = pvm_stg.LU.bld('img_lu%d' % idx, 123,
+                                typ=pvm_stg.LUTypeEnum.IMAGE)
+            lu._udid('xxImage-LU-UDID-%d' % idx)
+            return lu
+
+        def _mk_dsk_lu(idx, cloned_from_idx):
+            lu = pvm_stg.LU.bld('dsk_lu%d' % idx, 123,
+                                typ=pvm_stg.LUTypeEnum.DISK)
+            lu._udid('xxDisk-LU-UDID-%d' % idx)
+            lu._cloned_from_udid('yyImage-LU-UDID-%d' % cloned_from_idx)
+            return lu
+
+        # We should be ignoring the return value from update - but it still
+        # needs to be wrappable
+        self.apt.update_by_path.return_value = pvm_stg.SSP.bld('ssp', []).entry
+        ssp_stor = self._get_ssp_stor()
+        ssp1 = ssp_stor._ssp_wrap
+        # Seed the SSP with three clones backed to two images:
+        # img_lu1 => dsk_lu3, dsk_lu4
+        img_lu1 = _mk_img_lu(1)
+        dsk_lu3 = _mk_dsk_lu(3, 1)
+        dsk_lu4 = _mk_dsk_lu(4, 1)
+        # img_lu2 => dsk_lu5
+        img_lu2 = _mk_img_lu(2)
+        dsk_lu5 = _mk_dsk_lu(5, 2)
+        ssp1.logical_units = [img_lu1, img_lu2, dsk_lu3, dsk_lu4, dsk_lu5]
+        # We'll delete dsk_lu3 and dsk_lu5.  We expect img_lu2 to vanish too.
+        ssp_stor.delete_disks(None, None, [dsk_lu3, dsk_lu5])
+        self.assertSetEqual(
+            {(lu.name, lu.udid) for lu in (img_lu1, dsk_lu4)},
+            set([(lu.name, lu.udid) for lu in ssp1.logical_units]))
+        # Update should have been called only once.
+        self.assertEqual(1, self.apt.update_by_path.call_count)
