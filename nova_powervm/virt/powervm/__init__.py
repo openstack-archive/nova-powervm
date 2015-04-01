@@ -96,6 +96,10 @@ npiv_opts = [
 ]
 CONF.register_opts(npiv_opts, group='npiv')
 
+# Dictionary where the key is the NPIV Fabric Name, and the value is a list of
+# Physical WWPNs that match the key.
+NPIV_FABRIC_WWPNS = {}
+
 # At this point, the fabrics should be specified.  Iterate over those to
 # determine the port_wwpns per fabric.
 if CONF.npiv.fabrics is not None:
@@ -111,3 +115,10 @@ if CONF.npiv.fabrics is not None:
         port_wwpn_keys.append(opt)
 
     CONF.register_opts(port_wwpn_keys, group='npiv')
+
+    # Now that we've registered the fabrics, saturate the NPIV dictionary
+    for fabric in fabrics:
+        key = 'fabric_%s_port_wwpns' % fabric
+        wwpns = CONF.npiv[key].split(',')
+        wwpns = [x.upper().strip(':') for x in wwpns]
+        NPIV_FABRIC_WWPNS[fabric] = wwpns
