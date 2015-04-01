@@ -63,6 +63,11 @@ class TestSSPDiskAdapter(test.TestCase):
     def setUp(self):
         super(TestSSPDiskAdapter, self).setUp()
 
+        class Instance(object):
+            uuid = 'instance_uuid'
+
+        self.instance = Instance()
+
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, "..", 'data')
@@ -257,9 +262,6 @@ class TestSSPDiskAdapter(test.TestCase):
         ssp_stor = self._get_ssp_stor()
         img = dict(id='image-id', size=b2G)
 
-        class Instance(object):
-            uuid = 'instance_uuid'
-
         def verify_upload_new_lu(adap, vios_uuid, ssp1, stream, lu_name,
                                  f_size):
             self.assertIn(vios_uuid, ssp_stor._vios_uuids)
@@ -278,7 +280,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         mock_upload_lu.side_effect = verify_upload_new_lu
         mock_crt_lnk_cln.side_effect = verify_create_lu_linked_clone
-        lu = ssp_stor.create_disk_from_image(None, Instance(), img, 1)
+        lu = ssp_stor.create_disk_from_image(None, self.instance, img, 1)
         self.assertEqual('new_lu', lu)
 
     @mock.patch('pypowervm.tasks.storage.crt_lu_linked_clone')
@@ -308,3 +310,19 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_crt_lnk_cln.side_effect = verify_create_lu_linked_clone
         lu = ssp_stor.create_disk_from_image(None, Instance(), img, 1)
         self.assertEqual('new_lu', lu)
+
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
+                '_client_lpar_href')
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.bld_to_lu')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
+    def test_connect_disk(self, mock_add_map, mock_bld_to_lu, mock_href):
+        mock_bld_to_lu.return_value = 'vscsi_mapping'
+        ssp_stor = self._get_ssp_stor()
+        lu = ssp_stor._ssp_wrap.logical_units[0]
+        ssp_stor.connect_disk(None, self.instance, lu, 'lpar_uuid')
+        self.assertEqual(1, mock_bld_to_lu.call_count)
+        mock_bld_to_lu.assert_called_with(self.apt, 'host_uuid', 'lpar_uuid',
+                                          lu.udid, lu.name)
+        self.assertEqual(2, mock_add_map.call_count)
+        for vu in ssp_stor._vios_uuids:
+            mock_add_map.assert_any_call(self.apt, vu, 'vscsi_mapping')
