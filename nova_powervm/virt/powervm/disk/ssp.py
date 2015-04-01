@@ -23,6 +23,7 @@ from nova import image
 from nova.i18n import _LI, _LE
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_drv
+from nova_powervm.virt.powervm import vm
 
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
@@ -117,7 +118,16 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :return: A list of all the backing storage elements that were
                  disconnected from the I/O Server and VM.
         """
-        raise NotImplementedError()
+        lpar_id = vm.get_vm_id(self.adapter, lpar_uuid)
+        lu_set = set()
+        # The mappings will normally be the same on all VIOSes, unless a VIOS
+        # was down when a disk was added.  So for the return value, we need to
+        # collect the union of all relevant mappings from all VIOSes.
+        for vios_uuid in self._vios_uuids:
+            for lu in tsk_map.remove_lu_mapping(
+                    self.adapter, vios_uuid, lpar_id, disk_prefixes=disk_type):
+                lu_set.add(lu)
+        return list(lu_set)
 
     def delete_disks(self, context, instance, storage_elems):
         """Removes the disks specified by the mappings.

@@ -362,3 +362,34 @@ class TestSSPDiskAdapter(test.TestCase):
             set([(lu.name, lu.udid) for lu in ssp1.logical_units]))
         # Update should have been called only once.
         self.assertEqual(1, self.apt.update_by_path.call_count)
+
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_lu_mapping')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    def test_disconnect_image_disk(self, mock_vm_id, mock_rm_lu_map):
+        ssp_stor = self._get_ssp_stor()
+        mock_vm_id.return_value = 'lpar_id'
+
+        def mklu(udid):
+            lu = pvm_stg.LU.bld('lu_%s' % udid, 1)
+            lu._udid('27%s' % udid)
+            return lu
+
+        lu1_1 = mklu('abc')
+        lu1_2 = mklu('abc')
+        lu2_1 = mklu('def')
+        lu3_2 = mklu('123')
+
+        def remove_lu_mapping(adapter, vios_uuid, lpar_id, disk_prefixes=None):
+            """Mock returning different sets of LUs for each VIOS."""
+            self.assertEqual(adapter, self.apt)
+            self.assertEqual('lpar_id', lpar_id)
+            if vios_uuid == ssp_stor._vios_uuids[0]:
+                return [lu1_1, lu2_1]
+            elif vios_uuid == ssp_stor._vios_uuids[1]:
+                return [lu1_2, lu3_2]
+            else:
+                self.fail('Called with invalid VIOS UUID %s' % vios_uuid)
+
+        mock_rm_lu_map.side_effect = remove_lu_mapping
+        lu_list = ssp_stor.disconnect_image_disk(None, None, None)
+        self.assertEqual({lu1_1, lu2_1, lu3_2}, set(lu_list))
