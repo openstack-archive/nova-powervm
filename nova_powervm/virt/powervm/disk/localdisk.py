@@ -24,18 +24,27 @@ from nova.i18n import _LI, _LE
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
+from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
-from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
 localdisk_opts = [
     cfg.StrOpt('volume_group_name',
                default='',
-               help='Volume Group to use for block device operations.')
+               help='Volume Group to use for block device operations.  Must '
+                    'not be rootvg.'),
+    cfg.StrOpt('volume_group_vios_name',
+               default='',
+               help='(Optional) The name of the Virtual I/O Server hosting '
+                    'the volume group.  If not specified, the system will '
+                    'query through the Virtual I/O Servers looking for '
+                    'one that matches the name.  This is only needed if the '
+                    'system has multiple Virtual I/O Servers with a volume '
+                    'group whose name is duplicated.')
 ]
 
 
@@ -55,14 +64,9 @@ class LocalStorage(disk_dvr.DiskAdapter):
         self.adapter = connection['adapter']
         self.host_uuid = connection['host_uuid']
 
-        # TODO(IBM) Query the VIOSes to find the one containing the VG.
-        # This is a temporary method to find the VIOS.
-        vios_map = vios.get_vios_name_map(self.adapter, self.host_uuid)
-        self.vios_name, self.vios_uuid = vios_map.items()[0]
-
+        # Query to get the Volume Group UUID
         self.vg_name = CONF.volume_group_name
-        self.vg_uuid = self._get_vg_uuid(self.adapter, self.vios_uuid,
-                                         CONF.volume_group_name)
+        self.vios_uuid, self.vg_uuid = self._get_vg_uuid(self.vg_name)
         LOG.info(_LI('Local Storage driver initialized: '
                      'volume group: \'%s\'') % self.vg_name)
 
@@ -224,21 +228,36 @@ class LocalStorage(disk_dvr.DiskAdapter):
             LOG.exception()
             raise
 
-    @staticmethod
-    def _get_vg_uuid(adapter, vios_uuid, name):
-        try:
-            resp = adapter.read(pvm_vios.VIOS.schema_type, root_id=vios_uuid,
-                                child_type=pvm_stg.VG.schema_type)
-        except Exception as e:
-            LOG.exception(e)
-            raise e
+    def _get_vg_uuid(self, name):
+        """Returns the VIOS and VG UUIDs for the volume group.
 
-        # Search the feed for the volume group
-        vol_grps = pvm_stg.VG.wrap(resp)
-        for vol_grp in vol_grps:
-            LOG.info(_LI('Volume group: %s') % vol_grp.name)
-            if name == vol_grp.name:
-                return vol_grp.uuid
+        Will iterate over the VIOSes to find the VG with the name.
+
+        :param name: The name of the volume group.
+        :return vios_uuid: The Virtual I/O Server pypowervm UUID.
+        :return vg_uuid: The Volume Group pypowervm UUID.
+        """
+        if CONF.volume_group_vios_name:
+            # Search for the VIOS if the admin specified it.
+            vios_wraps = pvm_vios.VIOS.search(self.adapter,
+                                              name=CONF.volume_group_vios_name)
+        else:
+            vios_resp = self.adapter.read(pvm_ms.System.schema_type,
+                                          root_id=self.host_uuid,
+                                          child_type=pvm_vios.VIOS.schema_type)
+            vios_wraps = pvm_vios.VIOS.wrap(vios_resp)
+
+        # Loop through each vios to find the one with the appropriate name.
+        for vios_wrap in vios_wraps:
+            # Search the feed for the volume group
+            resp = self.adapter.read(pvm_vios.VIOS.schema_type,
+                                     root_id=vios_wrap.uuid,
+                                     child_type=pvm_stg.VG.schema_type)
+            vol_grps = pvm_stg.VG.wrap(resp)
+            for vol_grp in vol_grps:
+                LOG.debug('Volume group: %s' % vol_grp.name)
+                if name == vol_grp.name:
+                    return vios_wrap.uuid, vol_grp.uuid
 
         raise VGNotFound(vg_name=name)
 
