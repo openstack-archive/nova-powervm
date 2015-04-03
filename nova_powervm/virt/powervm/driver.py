@@ -506,6 +506,22 @@ class PowerVMDriver(driver.ComputeDriver):
                          instance=instance)
                 vm.crt_vif(self.adapter, instance, self.host_uuid, vif)
 
+        # Determine if we need to create the secure RMC VIF.  This should only
+        # be needed if there is not a VIF on the secure RMC vSwitch
+        vswitch_w = vm.get_secure_rmc_vswitch(self.adapter, self.host_uuid)
+        if vswitch_w is not None:
+            # If the vSwitch had been none, we can't create the VIF.  This
+            # next check verifies that there are no existing NICs on the
+            # vSwitch, so that the VM does not end up with multiple RMC VIFs.
+            must_create_rmc_conn = True
+            for cna_w in cna_w_list:
+                if cna_w.vswitch_uri == vswitch_w.href:
+                    must_create_rmc_conn = False
+                    break
+
+            if must_create_rmc_conn:
+                vm.crt_secure_rmc_vif(self.adapter, instance, self.host_uuid)
+
     def unplug_vifs(self, instance, network_info):
         """Unplug VIFs from networks."""
         self._log_operation('unplug_vifs', instance)

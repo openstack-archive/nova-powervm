@@ -492,15 +492,20 @@ class TestPowerVMDriver(test.TestCase):
             value = stats.get(fld, None)
             self.assertIsNotNone(value)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_secure_rmc_vswitch')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs(self, mock_vm_get, mock_vm_crt):
+    def test_plug_vifs(self, mock_vm_get, mock_vm_crt, mock_get_rmc_vswitch,
+                       mock_crt_rmc_vif):
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         # Mock up the CNA response
         cnas = [mock.MagicMock(), mock.MagicMock()]
         cnas[0].mac = 'AABBCCDDEEFF'
+        cnas[0].vswitch_uri = 'fake_uri'
         cnas[1].mac = 'AABBCCDDEE11'
+        cnas[1].vswitch_uri = 'fake_mgmt_uri'
         mock_vm_get.return_value = cnas
 
         # Mock up the network info.  They get sanitized to upper case.
@@ -509,12 +514,55 @@ class TestPowerVMDriver(test.TestCase):
             {'address': 'aabbccddee22'}
         ]
 
+        # Mock up the rmc vswitch
+        vswitch_w = mock.MagicMock()
+        vswitch_w.href = 'fake_mgmt_uri'
+        mock_get_rmc_vswitch.return_value = vswitch_w
+
         # Run method
         self.drv.plug_vifs(inst, net_info)
 
         # The create should have only been called once.  The other was already
         # existing.
         self.assertEqual(1, mock_vm_crt.call_count)
+        self.assertEqual(0, mock_crt_rmc_vif.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_secure_rmc_vswitch')
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_plug_vifs_rmc(self, mock_vm_get, mock_vm_crt,
+                           mock_get_rmc_vswitch, mock_crt_rmc_vif):
+        """Tests that a crt vif can be done with secure RMC."""
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Mock up the CNA response.  None are the 'fake_mgmt_uri', so this
+        # will force a RMC to be created.
+        cnas = [mock.MagicMock(), mock.MagicMock()]
+        cnas[0].mac = 'AABBCCDDEEFF'
+        cnas[0].vswitch_uri = 'fake_uri'
+        cnas[1].mac = 'AABBCCDDEE11'
+        cnas[1].vswitch_uri = 'fake_uri'
+        mock_vm_get.return_value = cnas
+
+        # Mock up the network info.  They get sanitized to upper case.
+        net_info = [
+            {'address': 'aabbccddeeff'},
+            {'address': 'aabbccddee22'}
+        ]
+
+        # Mock up the rmc vswitch
+        vswitch_w = mock.MagicMock()
+        vswitch_w.href = 'fake_mgmt_uri'
+        mock_get_rmc_vswitch.return_value = vswitch_w
+
+        # Run method
+        self.drv.plug_vifs(inst, net_info)
+
+        # The create should have only been called once.  A RMC create should
+        # also be invoked.
+        self.assertEqual(1, mock_vm_crt.call_count)
+        self.assertEqual(1, mock_crt_rmc_vif.call_count)
 
     def test_extract_bdm(self):
         """Tests the _extract_bdm method."""
