@@ -21,6 +21,7 @@ from oslo_config import cfg
 from nova import test
 import os
 import pypowervm.adapter as pvm_adp
+import pypowervm.entities as pvm_ent
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import cluster as pvm_clust
 from pypowervm.wrappers import storage as pvm_stg
@@ -113,7 +114,7 @@ class TestSSPDiskAdapter(test.TestCase):
         """Build a pypowervm.adapter.Response for mocking Adapter.search/read.
 
         :param status: HTTP status of the Response.
-        :param entry_or_list: pypowervm.adapter.Entry or list thereof.  If
+        :param entry_or_list: pypowervm.entity.Entry or list thereof.  If
                               None, the Response has no content.  If an Entry,
                               the Response looks like it got back <entry/>.  If
                               a list of Entry, the Response looks like it got
@@ -125,10 +126,10 @@ class TestSSPDiskAdapter(test.TestCase):
         resp.entry = None
         resp.feed = None
         if entry_or_list is None:
-            resp.feed = pvm_adp.Feed({}, [])
+            resp.feed = pvm_ent.Feed({}, [])
         else:
             if isinstance(entry_or_list, list):
-                resp.feed = pvm_adp.Feed({}, entry_or_list)
+                resp.feed = pvm_ent.Feed({}, entry_or_list)
             else:
                 resp.entry = entry_or_list
         return resp
