@@ -152,11 +152,8 @@ class TestLocalDisk(test.TestCase):
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
                 '_client_lpar_href')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_wrap')
-    def test_connect_disk(self, mock_vios_wrap, mock_lpar_href,
-                          mock_add_mapping):
+    def test_connect_disk(self, mock_lpar_href, mock_add_mapping):
         mock_lpar_href.return_value = 'client_lpar_href'
-        mock_vios_wrap.return_value = pvm_vios.VIOS.wrap(self.vio_to_vg)
 
         mock_vdisk = mock.MagicMock()
         mock_vdisk.name = 'vdisk'
