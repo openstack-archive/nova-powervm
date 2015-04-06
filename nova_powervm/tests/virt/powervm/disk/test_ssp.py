@@ -314,19 +314,12 @@ class TestSSPDiskAdapter(test.TestCase):
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
                 '_client_lpar_href')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.bld_to_lu')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    def test_connect_disk(self, mock_add_map, mock_bld_to_lu, mock_href):
-        mock_bld_to_lu.return_value = 'vscsi_mapping'
+    def test_connect_disk(self, mock_add_map, mock_href):
         ssp_stor = self._get_ssp_stor()
         lu = ssp_stor._ssp_wrap.logical_units[0]
         ssp_stor.connect_disk(None, self.instance, lu, 'lpar_uuid')
-        self.assertEqual(1, mock_bld_to_lu.call_count)
-        mock_bld_to_lu.assert_called_with(self.apt, 'host_uuid', 'lpar_uuid',
-                                          lu.udid, lu.name)
         self.assertEqual(2, mock_add_map.call_count)
-        for vu in ssp_stor._vios_uuids:
-            mock_add_map.assert_any_call(self.apt, vu, 'vscsi_mapping')
 
     def test_delete_disks(self):
         def _mk_img_lu(idx):

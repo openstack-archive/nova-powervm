@@ -126,24 +126,19 @@ class ConfigDrivePowerVM(object):
 
         # Upload the media
         file_size = os.path.getsize(iso_path)
-        self._upload_vopt(iso_path, file_name, file_size)
+        vopt, f_uuid = self._upload_vopt(iso_path, file_name, file_size)
 
         # Delete the media
         os.remove(iso_path)
 
-        # Now that it is uploaded, create the vSCSI mappings that link this to
-        # the VM.  Don't run the upload as these are batched in a single call
-        # to the VIOS later.
-        mapping = pvm_vios.VSCSIMapping.bld_to_vopt(self.adapter,
-                                                    self.host_uuid,
-                                                    lpar_uuid, file_name)
-
-        tsk_map.add_vscsi_mapping(self.adapter, self.vios_uuid, mapping)
+        # Add the mapping to the virtual machine
+        tsk_map.add_vscsi_mapping(self.adapter, self.host_uuid, self.vios_uuid,
+                                  lpar_uuid, vopt)
 
     def _upload_vopt(self, iso_path, file_name, file_size):
         with open(iso_path, 'rb') as d_stream:
-            tsk_stg.upload_vopt(self.adapter, self.vios_uuid, d_stream,
-                                file_name, file_size)
+            return tsk_stg.upload_vopt(self.adapter, self.vios_uuid, d_stream,
+                                       file_name, file_size)
 
     def _validate_vopt_vg(self):
         """Will ensure that the virtual optical media repository exists.

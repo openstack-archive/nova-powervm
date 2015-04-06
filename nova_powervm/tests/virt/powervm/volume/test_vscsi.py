@@ -32,11 +32,9 @@ class TestVSCSIAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
     @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.bld_to_pv')
     @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
-    def test_connect_volume(self, mock_vio_name_map, mock_bld_to_pv,
-                            mock_add_vscsi_mapping, mock_discover_hdisk,
-                            mock_build_itls):
+    def test_connect_volume(self, mock_vio_name_map, mock_add_vscsi_mapping,
+                            mock_discover_hdisk, mock_build_itls):
         con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
                                                       'i2': ['t2', 't3']},
                     'target_lun': '1', 'volume_id': 'id'}}

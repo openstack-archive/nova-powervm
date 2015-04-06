@@ -89,13 +89,12 @@ class TestConfigDrivePowerVM(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_upload_vopt')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
-                'bld_to_vopt')
-    def test_crt_cfg_drv_vopt(self, mock_vio_w, mock_add_map, mock_upld,
+    def test_crt_cfg_drv_vopt(self, mock_add_map, mock_upld,
                               mock_rm, mock_size, mock_validate, mock_cfg_iso):
         # Mock Returns
         mock_cfg_iso.return_value = '/tmp/cfgdrv/fake.iso', 'fake.iso'
         mock_size.return_value = 10000
+        mock_upld.return_value = (mock.Mock(), None)
 
         # Run
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')

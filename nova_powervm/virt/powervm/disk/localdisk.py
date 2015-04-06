@@ -180,12 +180,9 @@ class LocalStorage(disk_dvr.DiskAdapter):
                           or PV.
         :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
         """
-        # Create the mapping structure
-        scsi_map = pvm_vios.VSCSIMapping.bld_to_vdisk(
-            self.adapter, self.host_uuid, lpar_uuid, disk_info.name)
-
         # Add the mapping to the VIOS
-        tsk_map.add_vscsi_mapping(self.adapter, self.vios_uuid, scsi_map)
+        tsk_map.add_vscsi_mapping(self.adapter, self.host_uuid, self.vios_uuid,
+                                  lpar_uuid, disk_info)
 
     def extend_disk(self, context, instance, disk_info, size):
         """Extends the disk.

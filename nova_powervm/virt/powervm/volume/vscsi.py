@@ -25,7 +25,7 @@ from nova_powervm.virt.powervm.volume import driver as v_driver
 import pypowervm.exceptions as pexc
 from pypowervm.tasks import hdisk
 from pypowervm.tasks import scsi_mapper as tsk_map
-from pypowervm.wrappers import virtual_io_server as pvm_vios
+from pypowervm.wrappers import storage as pvm_stor
 
 import six
 
@@ -195,10 +195,9 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         :param adapter: The pypowervm API adapter.
         :param host_uuid: The UUID of the target host
-        :param vm_uuid" The UUID of the VM instance
+        :param vm_uuid: The UUID of the VM instance
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param device_name: The The hdisk device name
         """
-        vscsi_map = pvm_vios.VSCSIMapping.bld_to_pv(adapter, host_uuid,
-                                                    vm_uuid, device_name)
-        tsk_map.add_vscsi_mapping(adapter, vios_uuid, vscsi_map)
+        pv = pvm_stor.PV.bld(device_name)
+        tsk_map.add_vscsi_mapping(adapter, host_uuid, vios_uuid, vm_uuid, pv)

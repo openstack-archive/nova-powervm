@@ -29,7 +29,6 @@ from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
-import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 ssp_opts = [
     cfg.StrOpt('cluster_name',
@@ -225,14 +224,13 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                           or PV.
         :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
         """
-        # Create the mapping structure
-        scsi_map = pvm_vios.VSCSIMapping.bld_to_lu(
-            self.adapter, self.host_uuid, lpar_uuid, disk_info.udid,
-            disk_info.name)
+        # Create the LU structure
+        lu = pvm_stg.LU.bld_ref(disk_info.name, disk_info.udid)
 
         # Add the mapping to *each* VIOS on this host.
         for vios_uuid in self._vios_uuids:
-            tsk_map.add_vscsi_mapping(self.adapter, vios_uuid, scsi_map)
+            tsk_map.add_vscsi_mapping(self.adapter, self.host_uuid, vios_uuid,
+                                      lpar_uuid, lu)
 
     def extend_disk(self, context, instance, disk_info, size):
         """Extends the disk.
