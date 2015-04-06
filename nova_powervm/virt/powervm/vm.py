@@ -554,11 +554,8 @@ class UUIDCache(object):
         uuid = self._cache.get(name, None)
         if uuid is None and fetch:
             # Try to look it up
-            searchstring = "(PartitionName=='%s')" % name
             try:
-                resp = self._adapter.read(pvm_lpar.LPAR.schema_type,
-                                          suffix_type='search',
-                                          suffix_parm=searchstring)
+                lpars = pvm_lpar.LPAR.search(self._adapter, name=name)
             except pvm_exc.Error as e:
                 if e.response.status == 404:
                     raise exception.InstanceNotFound(instance_id=name)
@@ -570,10 +567,10 @@ class UUIDCache(object):
                 raise
 
             # Process the response
-            if len(resp.feed.entries) == 0:
+            if len(lpars) == 0:
                 raise exception.InstanceNotFound(instance_id=name)
 
-            self.load_from_feed(resp.feed)
+            self.load_from_lpar_wraps(lpars)
             uuid = self._cache.get(name, None)
         return uuid
 
@@ -588,9 +585,7 @@ class UUIDCache(object):
         except KeyError:
             pass
 
-    def load_from_feed(self, feed):
-        # Loop through getting the name and uuid, and add them to the cache
-        for entry in feed.entries:
-            uuid = entry.properties['id']
-            name = entry.element.findtext('./PartitionName')
-            self.add(name, uuid)
+    def load_from_lpar_wraps(self, lpar_wraps):
+        """Add the name-to-uuid mapping of each LPAR to the cache."""
+        for lpar in lpar_wraps:
+            self.add(lpar.name, lpar.uuid)

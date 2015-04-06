@@ -23,8 +23,10 @@ from nova.compute import power_state
 from nova import exception
 from nova import objects
 from nova import test
+from pypowervm import adapter as pvm_adp
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -68,31 +70,33 @@ class TestVM(test.TestCase):
 
         cache.remove('n1')
         self.assertEqual(cache.lookup('n1', fetch=False), None)
+        # Not in cache, search returns no results (empty feed)
+        emptyfeed = pvm_adp.Response('meth', 'path', 200, 'reason', {})
+        emptyfeed.feed = mock.MagicMock()
+        emptyfeed.feed.entries = []
+        self.apt.read.return_value = emptyfeed
         self.assertRaises(exception.InstanceNotFound,
                           cache.lookup, 'n1', fetch=True)
         # Ensure removing one that doesn't exist is just ignored
-        self.assertEqual(cache.remove('nonExistant'), None)
+        self.assertEqual(cache.remove('nonexistent'), None)
 
-        cache.load_from_feed(self.resp.feed)
+        cache.load_from_lpar_wraps(pvm_lpar.LPAR.wrap(self.resp))
         for lpar in LPAR_MAPPING:
             self.assertEqual(cache.lookup(lpar), LPAR_MAPPING[lpar].upper())
 
         # Test fetching. Start with a fresh cache and try to look it up
         cache = vm.UUIDCache(self.apt)
 
-        def return_response(*args, **kwds):
-            return self.resp
-
-        self.apt.read.side_effect = return_response
+        self.apt.read.return_value = self.resp
         self.assertEqual(cache.lookup('z3-9-5-126-127-00000001'),
                          '089ffb20-5d19-4a8c-bb80-13650627d985'.upper())
         # Test it returns None even when we try to look it up
-        self.assertEqual(cache.lookup('NoneExistant'), None)
+        self.assertEqual(cache.lookup('Nonexistent'), None)
 
         exc = pvm_exc.Error('Not found', response=FakeAdapterResponse(404))
         self.apt.read.side_effect = exc
         self.assertRaises(exception.InstanceNotFound,
-                          cache.lookup, 'NoneExistant')
+                          cache.lookup, 'Nonexistent')
 
     def test_instance_info(self):
 
