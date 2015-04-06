@@ -18,7 +18,6 @@
 from nova import test
 import os
 from pypowervm.tests.wrappers.util import pvmhttp
-from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import vios
@@ -55,9 +54,3 @@ class TestVios(test.TestCase):
                         '21000024FF649107', '21000024FF649106'])
         result = set(vios.get_physical_wwpns(self.adpt, 'fake_uuid'))
         self.assertSetEqual(expected, result)
-
-    def test_get_vios_wrap(self):
-        self.adpt.read.return_value = self.vios_feed_resp.feed.entries[0]
-        vios_w = vios.get_vios_wrap(self.adpt, 'vios_uuid', 'vios_name')
-        self.assertIsNotNone(vios_w)
-        self.assertIsInstance(vios_w, pvm_vios.VIOS)
