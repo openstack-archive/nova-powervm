@@ -14,22 +14,30 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.i18n import _LI, _LW
+from nova.i18n import _LI, _LW, _LE
 
 from oslo_config import cfg
 from oslo_log import log as logging
 
 from nova_powervm.virt.powervm import vios
+from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 import pypowervm.exceptions as pexc
 from pypowervm.tasks import hdisk
 from pypowervm.tasks import scsi_mapper as tsk_map
+from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stor
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 import six
 
 CONF = cfg.CONF
+CONF.register_opts([
+    cfg.BoolOpt('enable_hdisk_removal', default=False,
+                help='Automatically allow the system to remove '
+                'the associated hdisk when a volume is '
+                'disconnected.')])
 LOG = logging.getLogger(__name__)
 
 
@@ -106,7 +114,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                           'volume_id': volume_id, 'status': str(status)})
                 self._add_mapping(adapter, host_uuid, vm_uuid, vios_uuid,
                                   device_name)
-                connection_info['data']['target_udid'] = udid
+                connection_info['data']['target_UDID'] = udid
+                self._set_udid(instance, vios_uuid, volume_id, udid)
                 LOG.info(_LI('Device attached: %s'), device_name)
                 hdisk_found = True
             elif status == hdisk.LUA_STATUS_DEVICE_IN_USE:
@@ -157,14 +166,71 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                    'target_wwn':'500507680210E522'
                 }
         """
-        # TODO(IBM) Need to find the right Virtual I/O Server via the i_wwpns.
-        # This will require querying the full Virtual I/O Server.  This is a
-        # temporary work around for single VIOS/single FC port.
-        #         vio_map = vios.get_vios_name_map(adapter, host_uuid)
-        #         vios_name = vio_map.keys()[0]
-        #         vios_uuid = vio_map[vios_name]
 
-        pass
+        volume_id = connection_info['data']['volume_id']
+
+        try:
+            # Get VIOS feed
+            vio_feed_resp = adapter.read(pvm_ms.System.schema_type,
+                                         root_id=host_uuid,
+                                         child_type=pvm_vios.VIOS.schema_type,
+                                         xag=[pvm_vios.VIOS.xags.STORAGE])
+            vios_feed = pvm_vios.VIOS.wrap(vio_feed_resp)
+
+            # Iterate through host vios list to find hdisks to disconnect.
+            for vio_wrap in vios_feed:
+                LOG.debug("vios uuid %s" % vio_wrap.uuid)
+                try:
+                    volume_udid = self._get_udid(instance, vio_wrap.uuid,
+                                                 volume_id)
+                    device_name = vio_wrap.hdisk_from_uuid(volume_udid)
+
+                    if not device_name:
+                        LOG.info(_LI(u"Disconnect Volume: No mapped device "
+                                     "found on vios %(vios)s for volume "
+                                     "%(volume_id)s. volume_uid: "
+                                     "%(volume_uid)s ")
+                                 % {'volume_uid': volume_udid,
+                                    'volume_id': volume_id,
+                                    'vios': vio_wrap.name})
+                        continue
+
+                except Exception as e:
+                    LOG.error(_LE(u"Disconnect Volume: Failed to find disk "
+                                  "on vios %(vios_name)s for volume "
+                                  "%(volume_id)s. volume_uid: %(volume_uid)s."
+                                  "Error: %(error)s")
+                              % {'error': e, 'volume_uid': volume_udid,
+                                 'volume_id': volume_id,
+                                 'vios_name': vio_wrap.name})
+                    continue
+
+                # We have found the device name
+                LOG.info(_LI(u"Disconnect Volume: Discovered the device "
+                             "%(hdisk)s on vios %(vios_name)s for volume "
+                             "%(volume_id)s. volume_uid: %(volume_uid)s.")
+                         % {'volume_uid': volume_udid, 'volume_id': volume_id,
+                            'vios_name': vio_wrap.name, 'hdisk': device_name})
+                partition_id = vm.get_vm_id(adapter, vm_uuid)
+                tsk_map.remove_pv_mapping(adapter, vio_wrap.uuid,
+                                          partition_id, device_name)
+
+                # TODO(IBM): New method coming to support remove hdisk
+                if CONF.enable_remove_hdisk:
+                    hdisk.remove_hdisk(adapter, CONF.host_display_name,
+                                       device_name, vio_wrap.uuid)
+
+                # Disconnect volume complete, now remove key
+                self._delete_udid_key(instance, vio_wrap.uuid, volume_id)
+
+        except Exception as e:
+            LOG.error(_LE('Cannot detach volumes from virtual machine: %s') %
+                      vm_uuid)
+            LOG.exception(_LE(u'Error: %s') % e)
+            ex_args = {'backing_dev': device_name,
+                       'instance_name': instance.name,
+                       'reason': six.text_type(e)}
+            raise pexc.VolumeDetachFailed(**ex_args)
 
     def wwpns(self, adapter, host_uuid, instance):
         """Builds the WWPNs of the adapters that will connect the ports.
@@ -195,9 +261,64 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         :param adapter: The pypowervm API adapter.
         :param host_uuid: The UUID of the target host
-        :param vm_uuid: The UUID of the VM instance
+        :param vm_uuid" The UUID of the VM instance
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param device_name: The The hdisk device name
         """
         pv = pvm_stor.PV.bld(device_name)
         tsk_map.add_vscsi_mapping(adapter, host_uuid, vios_uuid, vm_uuid, pv)
+
+    def _get_udid(self, instance, vios_uuid, volume_id):
+        """This method will return the hdisk udid stored in system metadata.
+
+        TODO(IBM):Temporary method to persist udid will be replaced with
+        vios read support
+        :param instance: The nova instance.
+        :param vios_uuid: The UUID of the vios for the pypowervm adapter.
+        :param volume_id: The lun volume id
+        :returns: The target_udid associated with the hdisk
+        """
+        try:
+            udid_key = self._build_udid_key(vios_uuid, volume_id)
+            return instance.system_metadata[udid_key]
+        except (KeyError, ValueError) as e:
+            LOG.exception(_LE(u'Failed to retrieve deviceid key: %s') % e)
+            return None
+
+    def _set_udid(self, instance, vios_uuid, volume_id, udid):
+        """This method will set the hdisk udid in the system_metadata.
+
+        TODO(IBM):Temporary method to persist udid will be replaced with
+        vios read support
+        :param instance: The nova instance.
+        :param vios_uuid: The UUID of the vios for the pypowervm adapter.
+        :param volume_id: The lun volume id
+        :param: The hdisk target_udid to be stored in system_metadata
+        """
+        udid_key = self._build_udid_key(vios_uuid, volume_id)
+        instance.system_metadata[udid_key] = udid
+
+    def _delete_udid_key(self, instance, vios_uuid, volume_id):
+        """This method will delete udid key stored in the system_metadata.
+
+        TODO(IBM):Temporary method to persist udid will be replaced with
+        vios read support
+        :param instance: The nova instance.
+        :param volume_id: The lun volume id
+        """
+        try:
+            udid_key = self._build_udid_key(vios_uuid, volume_id)
+            instance.system_metadata.pop(udid_key)
+        except Exception as e:
+            LOG.exception(_LE(u'Failed to delete deviceid key: %s') % e)
+
+    def _build_udid_key(self, vios_uuid, volume_id):
+        """This method will build the udid dictionary key.
+
+        TODO(IBM):Temporary method to persist udid will be replaced with
+        vios read support
+        :param vios_uuid: The UUID of the vios for the pypowervm adapter.
+        :param volume_id: The lun volume id
+        :returns: The udid dictionary key
+        """
+        return vios_uuid + volume_id
