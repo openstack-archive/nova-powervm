@@ -340,7 +340,7 @@ def _crt_lpar_builder(host_wrapper, instance, flavor):
     attrs = _build_attrs(instance, flavor)
 
     stdz = lpar_bldr.DefaultStandardize(
-        attrs, host_wrapper, proc_units_factor=CONF.proc_units_factor)
+        host_wrapper, proc_units_factor=CONF.proc_units_factor)
 
     return lpar_bldr.LPARBuilder(attrs, stdz)
 
