@@ -242,6 +242,47 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         raise NotImplementedError()
 
+    def check_instance_shared_storage_local(self, context, instance):
+        """Check if instance files located on shared storage.
+
+        This runs check on the destination host, and then calls
+        back to the source host to check the results.
+
+        :param context: security context
+        :param instance: nova.objects.instance.Instance object
+        """
+
+        # Get the SSP unique id and use that for the data to pass
+        return {'ssp_uuid': self._cluster.ssp_uuid}
+
+    def check_instance_shared_storage_remote(self, context, data):
+        """Check if instance files located on shared storage.
+
+        :param context: security context
+        :param data: result of check_instance_shared_storage_local
+        """
+
+        # Check the data passed and see if we're in the same SSP
+        try:
+            if data:
+                ssp_uuid = data.get('ssp_uuid')
+                if ssp_uuid is not None:
+                    return ssp_uuid == self._cluster.ssp_uuid
+        except Exception as e:
+            LOG.exception(_LE(u'Error checking for shared storage. '
+                              'exception=%s'), e)
+        return False
+
+    def check_instance_shared_storage_cleanup(self, context, data):
+        """Do cleanup on host after check_instance_shared_storage calls
+
+        :param context: security context
+        :param data: result of check_instance_shared_storage_local
+        """
+
+        # Nothing to cleanup since we just use the SSP UUID
+        pass
+
     def _fetch_cluster(self, clust_name):
         """Bootstrap fetch the Cluster associated with the configured name.
 

@@ -387,3 +387,24 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_rm_lu_map.side_effect = remove_lu_mapping
         lu_list = ssp_stor.disconnect_image_disk(None, None, None)
         self.assertEqual({lu1_1, lu2_1, lu3_2}, set(lu_list))
+
+    def test_shared_stg_calls(self):
+
+        # Check the good paths
+        ssp_stor = self._get_ssp_stor()
+        data = ssp_stor.check_instance_shared_storage_local('context', 'inst')
+        self.assertTrue(
+            ssp_stor.check_instance_shared_storage_remote('context', data))
+        ssp_stor.check_instance_shared_storage_cleanup('context', data)
+
+        # Check bad paths...
+        # No data
+        self.assertFalse(
+            ssp_stor.check_instance_shared_storage_remote('context', None))
+        # Unexpected data format
+        self.assertFalse(
+            ssp_stor.check_instance_shared_storage_remote('context', 'bad'))
+        # Good data, but not the same SSP uuid
+        not_same = {'ssp_uuid': 'uuid value not the same'}
+        self.assertFalse(
+            ssp_stor.check_instance_shared_storage_remote('context', not_same))

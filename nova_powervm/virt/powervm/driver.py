@@ -783,6 +783,39 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('live_migration', instance_ref)
         # TODO(IBM): Implement live migration
 
+    def check_instance_shared_storage_local(self, context, instance):
+        """Check if instance files located on shared storage.
+
+        This runs check on the destination host, and then calls
+        back to the source host to check the results.
+
+        :param context: security context
+        :param instance: nova.objects.instance.Instance object
+        """
+        # Defer to the disk driver method.
+        return self.disk_dvr.check_instance_shared_storage_local(
+            context, instance)
+
+    def check_instance_shared_storage_remote(self, context, data):
+        """Check if instance files located on shared storage.
+
+        :param context: security context
+        :param data: result of check_instance_shared_storage_local
+        """
+        # Defer to the disk driver method.
+        return self.disk_dvr.check_instance_shared_storage_remote(
+            context, data)
+
+    def check_instance_shared_storage_cleanup(self, context, data):
+        """Do cleanup on host after check_instance_shared_storage calls
+
+        :param context: security context
+        :param data: result of check_instance_shared_storage_local
+        """
+        # Defer to the disk driver method.
+        return self.disk_dvr.check_instance_shared_storage_cleanup(
+            context, data)
+
     def post_live_migration_at_destination(self, ctxt, instance_ref,
                                            network_info,
                                            block_migration=False,

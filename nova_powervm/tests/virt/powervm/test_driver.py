@@ -590,6 +590,19 @@ class TestPowerVMDriver(test.TestCase):
                                          {'ifaces': '1.1.1.1',
                                           'my_ip': mock.ANY})
 
+    def test_shared_stg_calls(self):
+        data = self.drv.check_instance_shared_storage_local('context', 'inst')
+        self.assertTrue(
+            self.drv.disk_dvr.check_instance_shared_storage_local.called)
+
+        self.drv.check_instance_shared_storage_remote('context', data)
+        self.assertTrue(
+            self.drv.disk_dvr.check_instance_shared_storage_remote.called)
+
+        self.drv.check_instance_shared_storage_cleanup('context', data)
+        self.assertTrue(
+            self.drv.disk_dvr.check_instance_shared_storage_cleanup.called)
+
     def _fake_bdms(self):
         block_device_info = {
             'block_device_mapping': [
