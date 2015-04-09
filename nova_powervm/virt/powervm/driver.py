@@ -30,6 +30,7 @@ from oslo_log import log as logging
 from oslo_utils import importutils
 import taskflow.engines
 from taskflow.patterns import linear_flow as lf
+import taskflow.task
 
 from pypowervm import adapter as pvm_apt
 from pypowervm.helpers import log_helper as log_hlp
@@ -118,7 +119,8 @@ class PowerVMDriver(driver.ComputeDriver):
         self.host_uuid = self.host_wrapper.uuid
         LOG.info(_LI("Host UUID is:%s") % self.host_uuid)
 
-    def _log_operation(self, op, instance):
+    @staticmethod
+    def _log_operation(op, instance):
         """Log entry point of driver operations
         """
         LOG.info(_LI('Operation: %(op)s. Virtual machine display name: '
@@ -234,7 +236,7 @@ class PowerVMDriver(driver.ComputeDriver):
         engine.run()
 
     def destroy(self, context, instance, network_info, block_device_info=None,
-                destroy_disks=True):
+                destroy_disks=True, migrate_data=None):
         """Destroy (shutdown and delete) the specified instance.
 
         If the instance is not found (for example if networking failed), this
@@ -248,6 +250,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param block_device_info: Information about block devices that should
                                   be detached from the instance.
         :param destroy_disks: Indicates if disks should be destroyed
+        :param migrate_data: implementation specific params
 
         """
 
@@ -479,7 +482,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         return data
 
-    def get_host_uptime(self, host):
+    def get_host_uptime(self):
         """Returns the result of calling "uptime" on the target host."""
         raise NotImplementedError()
 
@@ -527,7 +530,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('unplug_vifs', instance)
         # TODO(IBM): Implement
 
-    def get_available_nodes(self):
+    def get_available_nodes(self, refresh=False):
         """Returns nodenames of all nodes managed by the compute service.
 
         This method is for multi compute-nodes support. If a driver supports
@@ -735,32 +738,33 @@ class PowerVMDriver(driver.ComputeDriver):
         # TODO(IBM): Implement live migration check
         pass
 
-    def check_can_live_migrate_source(self, ctxt, instance_ref,
-                                      dest_check_data):
-        """Validate the source host is capable of live partition
-        migration.
+    def check_can_live_migrate_source(self, context, instance,
+                                      dest_check_data, block_device_info=None):
+        """Check if it is possible to execute live migration.
+
+        This checks if the live migration can succeed, based on the
+        results from check_can_live_migrate_destination.
 
         :param context: security context
-        :param instance_ref: instance to be migrated
-        :param dest_check_data: results from check_can_live_migrate_destination
-        :returns migrate_data: dictionary containing source and
-            destination data for migration
+        :param instance: nova.db.sqlalchemy.models.Instance
+        :param dest_check_data: result of check_can_live_migrate_destination
+        :param block_device_info: result of _get_instance_block_device_info
+        :returns: a dict containing migration info (hypervisor-dependent)
         """
         # migrate_data = \
         # TODO(IBM): Implement live migration check
         pass
 
-    def pre_live_migration(self, context, instance,
-                           block_device_info, network_info,
-                           migrate_data=None):
-        """Perfoms any required prerequisites on the destination
-        host prior to live partition migration.
+    def pre_live_migration(self, context, instance, block_device_info,
+                           network_info, disk_info, migrate_data=None):
+        """Prepare an instance for live migration
 
         :param context: security context
-        :param instance: instance to be migrated
+        :param instance: nova.objects.instance.Instance object
         :param block_device_info: instance block device information
         :param network_info: instance network information
-        :param migrate_data: implementation specific data dictionary
+        :param disk_info: instance disk information
+        :param migrate_data: implementation specific data dict.
         """
         # TODO(IBM): Implement migration prerequisites
         pass
@@ -831,7 +835,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # TODO(IBM): Implement post migration
         pass
 
-    def _extract_bdm(self, block_device_info):
+    @staticmethod
+    def _extract_bdm(block_device_info):
         """Returns the block device mapping out of the block device info.
 
         The block device mapping is a list of dictionaries.  Each dictionary
