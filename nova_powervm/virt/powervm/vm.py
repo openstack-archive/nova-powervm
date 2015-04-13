@@ -26,6 +26,7 @@ from pypowervm.tasks import cna
 from pypowervm.tasks import power
 from pypowervm.tasks import vterm
 from pypowervm.utils import lpar_builder as lpar_bldr
+from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
@@ -63,12 +64,12 @@ POWERVM_STOPABLE_STATE = ("running", "starting", "open firmware")
 PVM_UNCAPPED = 'powervm:uncapped'
 PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
 DED_SHARING_MODES_MAP = {
-    'share_idle_procs': pvm_lpar.DedicatedSharingModesEnum.SHARE_IDLE_PROCS,
-    'keep_idle_procs': pvm_lpar.DedicatedSharingModesEnum.KEEP_IDLE_PROCS,
+    'share_idle_procs': pvm_bp.DedicatedSharingModesEnum.SHARE_IDLE_PROCS,
+    'keep_idle_procs': pvm_bp.DedicatedSharingModesEnum.KEEP_IDLE_PROCS,
     'share_idle_procs_active':
-        pvm_lpar.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ACTIVE,
+        pvm_bp.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ACTIVE,
     'share_idle_procs_always':
-        pvm_lpar.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ALWAYS
+        pvm_bp.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ALWAYS
 }
 # Flavor extra_specs for memory and processor properties
 POWERVM_ATTRS = ['powervm:min_mem',
@@ -291,9 +292,9 @@ def _build_attrs(instance, flavor):
             # Map uncapped to sharing mode
             if key == PVM_UNCAPPED:
                 attrs[lpar_bldr.SHARING_MODE] = (
-                    pvm_lpar.SharingModesEnum.UNCAPPED
+                    pvm_bp.SharingModesEnum.UNCAPPED
                     if flavor.extra_specs[key].lower() == 'true' else
-                    pvm_lpar.SharingModesEnum.CAPPED)
+                    pvm_bp.SharingModesEnum.CAPPED)
             elif key == PVM_DED_SHAR_MODE:
                 # Dedicated sharing modes...map directly
                 mode = DED_SHARING_MODES_MAP.get(flavor.extra_specs[key])
