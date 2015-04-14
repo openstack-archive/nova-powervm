@@ -384,7 +384,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # Creates the boot image.
         flow.add(tf_stg.CreateDiskForImg(
             self.disk_dvr, context, instance, image_meta,
-            image_type=disk_dvr.DiskTypeEnum.RESCUE))
+            image_type=disk_dvr.DiskType.RESCUE))
 
         # Connects up the disk to the LPAR
         flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance))
@@ -423,7 +423,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # Detach the disk adapter for the rescue image
         flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
                                    pvm_inst_uuid,
-                                   disk_type=[disk_dvr.DiskTypeEnum.RESCUE]))
+                                   disk_type=[disk_dvr.DiskType.RESCUE]))
 
         # Delete the storage disk for the rescue image
         flow.add(tf_stg.DeleteDisk(self.disk_dvr, context, instance))

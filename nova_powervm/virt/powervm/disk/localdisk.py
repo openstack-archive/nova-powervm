@@ -137,7 +137,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                                             disk_prefixes=disk_type)
 
     def create_disk_from_image(self, context, instance, image, disk_size,
-                               image_type=disk_dvr.DiskTypeEnum.BOOT):
+                               image_type=disk_dvr.DiskType.BOOT):
         """Creates a disk and copies the specified image to it.
 
         :param context: nova context used to retrieve image from glance

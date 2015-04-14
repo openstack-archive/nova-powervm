@@ -145,7 +145,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         ssp.update(self.adapter)
 
     def create_disk_from_image(self, context, instance, image, disk_size_gb,
-                               image_type=disk_drv.DiskTypeEnum.BOOT):
+                               image_type=disk_drv.DiskType.BOOT):
         """Creates a boot disk and links the specified image to it.
 
         If the specified image has not already been uploaded, an Image LU is
@@ -161,7 +161,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                              than the image, it will be ignored (as the disk
                              must be at least as big as the image).  Must be an
                              int.
-        :param image_type: The image type. See disk_drv.DiskTypeEnum.
+        :param image_type: The image type. See disk_drv.DiskType.
         :returns: The backing pypowervm LU storage object that was created.
         """
         LOG.info(_LI('SSP: Create %(image_type)s disk from image %(image_id)s '
@@ -201,7 +201,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         luname = self._get_image_name(image)
         ssp = self._ssp
         for lu in ssp.logical_units:
-            if lu.lu_type == pvm_stg.LUTypeEnum.IMAGE and lu.name == luname:
+            if lu.lu_type == pvm_stg.LUType.IMAGE and lu.name == luname:
                 LOG.info(_LI('SSP: Using already-uploaded image LU %s.') %
                          luname)
                 return lu

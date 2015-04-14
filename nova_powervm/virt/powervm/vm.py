@@ -64,12 +64,12 @@ POWERVM_STOPABLE_STATE = ("running", "starting", "open firmware")
 PVM_UNCAPPED = 'powervm:uncapped'
 PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
 DED_SHARING_MODES_MAP = {
-    'share_idle_procs': pvm_bp.DedicatedSharingModesEnum.SHARE_IDLE_PROCS,
-    'keep_idle_procs': pvm_bp.DedicatedSharingModesEnum.KEEP_IDLE_PROCS,
+    'share_idle_procs': pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS,
+    'keep_idle_procs': pvm_bp.DedicatedSharingMode.KEEP_IDLE_PROCS,
     'share_idle_procs_active':
-        pvm_bp.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ACTIVE,
+        pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS_ACTIVE,
     'share_idle_procs_always':
-        pvm_bp.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ALWAYS
+        pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS_ALWAYS
 }
 
 # Map of PowerVM extra specs to the lpar builder attributes.
@@ -277,9 +277,9 @@ def _build_attrs(instance, flavor):
             # Map uncapped to sharing mode
             if key == PVM_UNCAPPED:
                 attrs[lpar_bldr.SHARING_MODE] = (
-                    pvm_bp.SharingModesEnum.UNCAPPED
+                    pvm_bp.SharingMode.UNCAPPED
                     if flavor.extra_specs[key].lower() == 'true' else
-                    pvm_bp.SharingModesEnum.CAPPED)
+                    pvm_bp.SharingMode.CAPPED)
             elif key == PVM_DED_SHAR_MODE:
                 # Dedicated sharing modes...map directly
                 mode = DED_SHARING_MODES_MAP.get(flavor.extra_specs[key])

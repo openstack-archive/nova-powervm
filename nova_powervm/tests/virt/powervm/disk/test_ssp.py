@@ -295,7 +295,7 @@ class TestSSPDiskAdapter(test.TestCase):
         img = dict(id='image-id', size=b2G)
         # Mock the 'existing' image LU
         img_lu = pvm_stg.LU.bld('image_image_id', 123,
-                                typ=pvm_stg.LUTypeEnum.IMAGE)
+                                typ=pvm_stg.LUType.IMAGE)
         ssp_stor._ssp_wrap.logical_units.append(img_lu)
 
         class Instance(object):
@@ -324,13 +324,12 @@ class TestSSPDiskAdapter(test.TestCase):
     def test_delete_disks(self):
         def _mk_img_lu(idx):
             lu = pvm_stg.LU.bld('img_lu%d' % idx, 123,
-                                typ=pvm_stg.LUTypeEnum.IMAGE)
+                                typ=pvm_stg.LUType.IMAGE)
             lu._udid('xxImage-LU-UDID-%d' % idx)
             return lu
 
         def _mk_dsk_lu(idx, cloned_from_idx):
-            lu = pvm_stg.LU.bld('dsk_lu%d' % idx, 123,
-                                typ=pvm_stg.LUTypeEnum.DISK)
+            lu = pvm_stg.LU.bld('dsk_lu%d' % idx, 123, typ=pvm_stg.LUType.DISK)
             lu._udid('xxDisk-LU-UDID-%d' % idx)
             lu._cloned_from_udid('yyImage-LU-UDID-%d' % cloned_from_idx)
             return lu

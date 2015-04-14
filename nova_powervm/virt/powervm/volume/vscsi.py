@@ -106,8 +106,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             status, device_name, udid = hdisk.discover_hdisk(adapter,
                                                              vios_uuid, itls)
             if device_name is not None and status in [
-                    hdisk.LUA_STATUS_DEVICE_AVAILABLE,
-                    hdisk.LUA_STATUS_FOUND_ITL_ERR]:
+                    hdisk.LUAStatus.DEVICE_AVAILABLE,
+                    hdisk.LUAStatus.FOUND_ITL_ERR]:
                 LOG.info(_LI('Discovered %(hdisk)s on vios %(vios)s for '
                          'volume %(volume_id)s. Status code: %(status)s.') %
                          {'hdisk': device_name, 'vios': vios_name,
@@ -118,7 +118,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 self._set_udid(instance, vios_uuid, volume_id, udid)
                 LOG.info(_LI('Device attached: %s'), device_name)
                 hdisk_found = True
-            elif status == hdisk.LUA_STATUS_DEVICE_IN_USE:
+            elif status == hdisk.LUAStatus.DEVICE_IN_USE:
                 LOG.warn(_LW('Discovered device %(dev)s for volume %(volume)s '
                              'on %(vios)s is in use Errorcode: %(status)s.'),
                          {'dev': device_name, 'volume': volume_id,
