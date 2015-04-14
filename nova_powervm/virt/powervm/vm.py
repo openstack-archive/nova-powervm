@@ -71,21 +71,6 @@ DED_SHARING_MODES_MAP = {
     'share_idle_procs_always':
         pvm_bp.DedicatedSharingModesEnum.SHARE_IDLE_PROCS_ALWAYS
 }
-# Flavor extra_specs for memory and processor properties
-POWERVM_ATTRS = ['powervm:min_mem',
-                 'powervm:max_mem',
-                 'powervm:min_vcpu',
-                 'powervm:max_vcpu',
-                 'powervm:proc_units',
-                 'powervm:min_proc_units',
-                 'powervm:max_proc_units',
-                 'powervm:dedicated_proc',
-                 'powervm:uncapped',
-                 'powervm:dedicated_sharing_mode',
-                 'powervm:processor_compatibility',
-                 'powervm:srr_capability',
-                 'powervm:shared_weight',
-                 'powervm:availability_priority']
 
 # Map of PowerVM extra specs to the lpar builder attributes.
 # '' is used for attributes that are not implemented yet.
@@ -280,7 +265,7 @@ def _build_attrs(instance, flavor):
             continue
 
         # Check if this is a valid attribute
-        if key not in POWERVM_ATTRS:
+        if key not in ATTRS_MAP.keys():
             exc = exception.InvalidAttribute(attr=key)
             LOG.exception(exc)
             raise exc
