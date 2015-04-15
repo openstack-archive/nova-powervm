@@ -27,6 +27,7 @@ from nova_powervm.virt.powervm import vm
 
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
+import pypowervm.util as pvm_u
 import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
 
@@ -117,12 +118,15 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :return: A list of all the backing storage elements that were
                  disconnected from the I/O Server and VM.
         """
-        lpar_id = vm.get_vm_id(self.adapter, lpar_uuid)
+        lpar_qps = vm.get_vm_qp(self.adapter, lpar_uuid)
+        lpar_id = lpar_qps['PartitionID']
+        host_uuid = pvm_u.get_req_path_uuid(
+            lpar_qps['AssociatedManagedSystem'], preserve_case=True)
         lu_set = set()
         # The mappings will normally be the same on all VIOSes, unless a VIOS
         # was down when a disk was added.  So for the return value, we need to
         # collect the union of all relevant mappings from all VIOSes.
-        for vios_uuid in self._vios_uuids:
+        for vios_uuid in self._vios_uuids(host_uuid=host_uuid):
             for lu in tsk_map.remove_lu_mapping(
                     self.adapter, vios_uuid, lpar_id, disk_prefixes=disk_type):
                 lu_set.add(lu)
@@ -210,7 +214,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         # Make the image LU only as big as the image.
         stream = self._get_image_upload(context, image)
         LOG.info(_LI('SSP: Uploading new image LU %s.') % luname)
-        lu, f_wrap = tsk_stg.upload_new_lu(self.adapter, self._any_vios_uuid,
+        lu, f_wrap = tsk_stg.upload_new_lu(self.adapter, self._any_vios_uuid(),
                                            ssp, stream, luname, image['size'])
         return lu
 
@@ -227,9 +231,14 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         # Create the LU structure
         lu = pvm_stg.LU.bld_ref(disk_info.name, disk_info.udid)
 
-        # Add the mapping to *each* VIOS on this host.
-        for vios_uuid in self._vios_uuids:
-            tsk_map.add_vscsi_mapping(self.adapter, self.host_uuid, vios_uuid,
+        # Add the mapping to *each* VIOS on the LPAR's host.
+        # Note that the LPAR's host is likely to be the same as self.host_uuid,
+        # but this is safer.
+        host_href = vm.get_vm_qp(self.adapter, lpar_uuid,
+                                 'AssociatedManagedSystem')
+        host_uuid = pvm_u.get_req_path_uuid(host_href, preserve_case=True)
+        for vios_uuid in self._vios_uuids(host_uuid=host_uuid):
+            tsk_map.add_vscsi_mapping(self.adapter, host_uuid, vios_uuid,
                                       lpar_uuid, lu)
 
     def extend_disk(self, context, instance, disk_info, size):
@@ -357,20 +366,36 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             self._ssp_wrap = self._ssp_wrap.refresh(self.adapter)
         return self._ssp_wrap
 
-    @property
-    def _vios_uuids(self):
-        """Return a list of the UUIDs of our cluster's VIOSes on this host.
+    def _vios_uuids(self, host_uuid=None):
+        """List the UUIDs of our cluster's VIOSes (on a specific host).
 
         (If a VIOS is not on this host, its URI and therefore its UUID will not
         be available in the pypowervm wrapper.)
-        """
-        return [n.vios_uuid for n in self._cluster.nodes]
 
-    @property
-    def _any_vios_uuid(self):
+        :param host_uuid: Restrict the response to VIOSes residing on the host
+                          with the specified UUID.  If None/unspecified, VIOSes
+                          on all hosts are included.
+        :return: A list of VIOS UUID strings.
+        """
+        ret = []
+        for n in self._cluster.nodes:
+            if host_uuid:
+                node_host_uuid = pvm_u.get_req_path_uuid(
+                    n.vios_uri, preserve_case=True, root=True)
+                if host_uuid != node_host_uuid:
+                    continue
+            ret.append(n.vios_uuid)
+        return ret
+
+    def _any_vios_uuid(self, host_uuid=None):
         """Pick one of the Cluster's VIOSes and return its UUID.
 
         Use when it doesn't matter which VIOS an operation is invoked against.
         Currently picks at random; may later be changed to use round-robin.
+
+        :param host_uuid: Restrict the response to VIOSes residing on the host
+                          with the specified UUID.  If None/unspecified, VIOSes
+                          on all hosts are included.
+        :return: A single VIOS UUID string.
         """
-        return random.choice(self._vios_uuids)
+        return random.choice(self._vios_uuids(host_uuid=host_uuid))

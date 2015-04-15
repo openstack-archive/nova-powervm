@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import json
+
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -142,18 +144,7 @@ class InstanceInfo(hardware.InstanceInfo):
         self.id = uuid
 
     def _get_property(self, q_prop):
-        try:
-            resp = self._adapter.read(
-                pvm_lpar.LPAR.schema_type, root_id=self._uuid,
-                suffix_type='quick', suffix_parm=q_prop)
-        except pvm_exc.Error as e:
-            if e.response.status == 404:
-                raise exception.InstanceNotFound(instance_id=self._name)
-            else:
-                LOG.exception(e)
-                raise
-
-        return resp.body.lstrip(' "').rstrip(' "')
+        return get_vm_qp(self._adapter, self._uuid, q_prop)
 
     @property
     def state(self):
@@ -310,8 +301,31 @@ def get_vm_id(adapter, lpar_uuid):
     :param lpar_uuid: The UUID for the LPAR.
     :returns: The system id (an integer value).
     """
-    return adapter.read(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid,
-                        suffix_type='quick', suffix_parm='PartitionID').body
+    return get_vm_qp(adapter, lpar_uuid, qprop='PartitionID')
+
+
+def get_vm_qp(adapter, lpar_uuid, qprop=None):
+    """Returns one or all quick properties of an LPAR.
+
+    :param adapter: The pypowervm adapter.
+    :param lpar_uuid: The (powervm) UUID for the LPAR.
+    :param qprop: The quick property key to return.  If specified, that single
+                  property value is returned.  If None/unspecified, all quick
+                  properties are returned in a dictionary.
+    :return: Either a single quick property value or a dictionary of all quick
+             properties.
+    """
+    try:
+        resp = adapter.read(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid,
+                            suffix_type='quick', suffix_parm=qprop)
+    except pvm_exc.Error as e:
+        if e.response.status == 404:
+            raise exception.InstanceNotFound(instance_id=lpar_uuid)
+        else:
+            LOG.exception(e)
+            raise
+
+    return json.loads(resp.body)
 
 
 def _crt_lpar_builder(host_wrapper, instance, flavor):

@@ -259,3 +259,62 @@ class TestVM(test.TestCase):
 
         # Validate (along with validate method above)
         self.assertEqual(1, mock_crt_cna.call_count)
+
+    def test_get_vm_qp(self):
+        def adapter_read(root_type, root_id=None, suffix_type=None,
+                         suffix_parm=None):
+            json_str = (u'{"IsVirtualServiceAttentionLEDOn":"false","Migration'
+                        u'State":"Not_Migrating","CurrentProcessingUnits":0.1,'
+                        u'"ProgressState":null,"PartitionType":"AIX/Linux","Pa'
+                        u'rtitionID":1,"AllocatedVirtualProcessors":1,"Partiti'
+                        u'onState":"not activated","RemoteRestartState":"Inval'
+                        u'id","OperatingSystemVersion":"Unknown","AssociatedMa'
+                        u'nagedSystem":"https://9.1.2.3:12443/rest/api/uom/Man'
+                        u'agedSystem/98498bed-c78a-3a4f-b90a-4b715418fcb6","RM'
+                        u'CState":"inactive","PowerManagementMode":null,"Parti'
+                        u'tionName":"lpar-1-06674231-lpar","HasDedicatedProces'
+                        u'sors":"false","ResourceMonitoringIPAddress":null,"Re'
+                        u'ferenceCode":"00000000","CurrentProcessors":null,"Cu'
+                        u'rrentMemory":512,"SharingMode":"uncapped"}')
+            self.assertEqual('LogicalPartition', root_type)
+            self.assertEqual('lpar_uuid', root_id)
+            self.assertEqual('quick', suffix_type)
+            resp = mock.MagicMock()
+            if suffix_parm is None:
+                resp.body = json_str
+            elif suffix_parm == 'PartitionID':
+                resp.body = '1'
+            elif suffix_parm == 'CurrentProcessingUnits':
+                resp.body = '0.1'
+            elif suffix_parm == 'AssociatedManagedSystem':
+                # The double quotes are important
+                resp.body = ('"https://9.1.2.3:12443/rest/api/uom/ManagedSyste'
+                             'm/98498bed-c78a-3a4f-b90a-4b715418fcb6"')
+            else:
+                self.fail('Unhandled quick property key %s' % suffix_parm)
+            return resp
+
+        ms_href = ('https://9.1.2.3:12443/rest/api/uom/ManagedSystem/98498bed-'
+                   'c78a-3a4f-b90a-4b715418fcb6')
+        self.apt.read.side_effect = adapter_read
+        self.assertEqual(1, vm.get_vm_id(self.apt, 'lpar_uuid'))
+        self.assertEqual(ms_href, vm.get_vm_qp(self.apt, 'lpar_uuid',
+                                               'AssociatedManagedSystem'))
+        self.assertEqual(0.1, vm.get_vm_qp(self.apt, 'lpar_uuid',
+                                           'CurrentProcessingUnits'))
+        qp_dict = vm.get_vm_qp(self.apt, 'lpar_uuid')
+        self.assertEqual(ms_href, qp_dict['AssociatedManagedSystem'])
+        self.assertEqual(1, qp_dict['PartitionID'])
+        self.assertEqual(0.1, qp_dict['CurrentProcessingUnits'])
+
+        resp = mock.MagicMock()
+        resp.status = 404
+        self.apt.read.side_effect = pvm_exc.Error('message', response=resp)
+        self.assertRaises(exception.InstanceNotFound, vm.get_vm_qp, self.apt,
+                          'lpar_uuid')
+
+        resp.status = 500
+
+        self.apt.read.side_effect = pvm_exc.Error('message', response=resp)
+        self.assertRaises(pvm_exc.Error, vm.get_vm_qp, self.apt,
+                          'lpar_uuid')

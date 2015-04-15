@@ -231,18 +231,30 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_vios_uuids(self):
         ssp_stor = self._get_ssp_stor()
-        vios_uuids = ssp_stor._vios_uuids
+        vios_uuids = ssp_stor._vios_uuids()
         self.assertEqual(['58C9EB1D-7213-4956-A011-77D43CC4ACCC',
                           '6424120D-CA95-437D-9C18-10B06F4B3400'], vios_uuids)
         s = set()
         for i in range(1000):
-            u = ssp_stor._any_vios_uuid
+            u = ssp_stor._any_vios_uuid()
             # Make sure we got a good value
             self.assertIn(u, vios_uuids)
             s.add(u)
         # Make sure we hit all the values over 1000 iterations.  This isn't
         # guaranteed to work, but the odds of failure should be infinitesimal.
         self.assertEqual(set(vios_uuids), s)
+
+        # Now make sure the host-restricted versions work
+        vios_uuids = ssp_stor._vios_uuids(
+            host_uuid='67dca605-3923-34da-bd8f-26a378fc817f')
+        self.assertEqual(['6424120D-CA95-437D-9C18-10B06F4B3400'], vios_uuids)
+        s = set()
+        for i in range(1000):
+            u = ssp_stor._any_vios_uuid(
+                host_uuid='67dca605-3923-34da-bd8f-26a378fc817f')
+            # Make sure we get the good value every time
+            self.assertIn(u, vios_uuids)
+            s.add(u)
 
     def test_capacity(self):
         ssp_stor = self._get_ssp_stor()
@@ -265,7 +277,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         def verify_upload_new_lu(adap, vios_uuid, ssp1, stream, lu_name,
                                  f_size):
-            self.assertIn(vios_uuid, ssp_stor._vios_uuids)
+            self.assertIn(vios_uuid, ssp_stor._vios_uuids())
             self.assertEqual(ssp_stor._ssp_wrap, ssp1)
             # 'image' + '_' + s/-/_/g(image['id']), per _get_image_name
             self.assertEqual('image_image_id', lu_name)
@@ -315,11 +327,24 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
                 '_client_lpar_href')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    def test_connect_disk(self, mock_add_map, mock_href):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
+    def test_connect_disk(self, mock_vm_qp, mock_add_map, mock_href):
+        ms_uuid = '67dca605-3923-34da-bd8f-26a378fc817f'
+        mock_vm_qp.return_value = ('https://9.1.2.3:12443/rest/api/uom/'
+                                   'ManagedSystem/' + ms_uuid)
+
+        def validate_add_vscsi_mapping(adapter, host_uuid, vios_uuid,
+                                       lpar_uuid, inlu):
+            self.assertEqual(ms_uuid, host_uuid)
+            self.assertEqual('6424120D-CA95-437D-9C18-10B06F4B3400', vios_uuid)
+            self.assertEqual('lpar_uuid', lpar_uuid)
+            self.assertEqual(lu, inlu)
+        mock_add_map.side_effect = validate_add_vscsi_mapping
+
         ssp_stor = self._get_ssp_stor()
         lu = ssp_stor._ssp_wrap.logical_units[0]
         ssp_stor.connect_disk(None, self.instance, lu, 'lpar_uuid')
-        self.assertEqual(2, mock_add_map.call_count)
+        self.assertEqual(1, mock_add_map.call_count)
 
     def test_delete_disks(self):
         def _mk_img_lu(idx):
@@ -357,35 +382,33 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertEqual(1, self.apt.update_by_path.call_count)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_lu_mapping')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
-    def test_disconnect_image_disk(self, mock_vm_id, mock_rm_lu_map):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
+    def test_disconnect_image_disk(self, mock_vm_qp, mock_rm_lu_map):
         ssp_stor = self._get_ssp_stor()
-        mock_vm_id.return_value = 'lpar_id'
+        mock_vm_qp.return_value = dict(
+            PartitionID='lpar_id',
+            AssociatedManagedSystem='https://9.1.2.3:12443/rest/api/uom/'
+                                    'ManagedSystem/'
+                                    '67dca605-3923-34da-bd8f-26a378fc817f')
 
         def mklu(udid):
             lu = pvm_stg.LU.bld('lu_%s' % udid, 1)
             lu._udid('27%s' % udid)
             return lu
 
-        lu1_1 = mklu('abc')
-        lu1_2 = mklu('abc')
-        lu2_1 = mklu('def')
-        lu3_2 = mklu('123')
+        lu1 = mklu('abc')
+        lu2 = mklu('def')
 
         def remove_lu_mapping(adapter, vios_uuid, lpar_id, disk_prefixes=None):
             """Mock returning different sets of LUs for each VIOS."""
             self.assertEqual(adapter, self.apt)
             self.assertEqual('lpar_id', lpar_id)
-            if vios_uuid == ssp_stor._vios_uuids[0]:
-                return [lu1_1, lu2_1]
-            elif vios_uuid == ssp_stor._vios_uuids[1]:
-                return [lu1_2, lu3_2]
-            else:
-                self.fail('Called with invalid VIOS UUID %s' % vios_uuid)
+            self.assertEqual('6424120D-CA95-437D-9C18-10B06F4B3400', vios_uuid)
+            return [lu1, lu2]
 
         mock_rm_lu_map.side_effect = remove_lu_mapping
         lu_list = ssp_stor.disconnect_image_disk(None, None, None)
-        self.assertEqual({lu1_1, lu2_1, lu3_2}, set(lu_list))
+        self.assertEqual({lu1, lu2}, set(lu_list))
 
     def test_shared_stg_calls(self):
 
