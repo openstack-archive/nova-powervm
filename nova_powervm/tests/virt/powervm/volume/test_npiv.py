@@ -20,6 +20,7 @@ from nova.compute import task_states
 from nova import test
 import os
 from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.volume import npiv
@@ -159,6 +160,8 @@ class TestNPIVAdapter(test.TestCase):
         self.assertListEqual(['aa', 'bb'], wwpns)
         self.assertEqual('21000024FF649104,AA,BB',
                          inst.system_metadata[meta_key])
+        xags = [pvm_vios.VIOS.xags.FC_MAPPING, pvm_vios.VIOS.xags.STORAGE]
+        self.adpt.read.assert_called_once_with('VirtualIOServer', xag=xags)
 
     def test_wwpns_on_sys_meta(self):
         """Tests that previously stored WWPNs are returned."""

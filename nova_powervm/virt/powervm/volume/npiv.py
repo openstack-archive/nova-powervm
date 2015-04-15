@@ -171,7 +171,8 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         #
         # This should be done on a per-fabric basis.
         vios_resp = adapter.read(pvm_vios.VIOS.schema_type,
-                                 xag=[pvm_vios.VIOS.xags.FC_MAPPING])
+                                 xag=[pvm_vios.VIOS.xags.FC_MAPPING,
+                                      pvm_vios.VIOS.xags.STORAGE])
         vios_wraps = pvm_vios.VIOS.wrap(vios_resp)
         resp_wwpns = []
         for fabric in self._fabric_names():
