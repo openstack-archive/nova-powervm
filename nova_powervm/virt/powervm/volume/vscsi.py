@@ -216,8 +216,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                                           partition_id, device_name)
 
                 # TODO(IBM): New method coming to support remove hdisk
-                if CONF.enable_remove_hdisk:
-                    hdisk.remove_hdisk(adapter, CONF.host_display_name,
+                if CONF.enable_hdisk_removal:
+                    hdisk.remove_hdisk(adapter, CONF.host,
                                        device_name, vio_wrap.uuid)
 
                 # Disconnect volume complete, now remove key
