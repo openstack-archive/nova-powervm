@@ -26,6 +26,7 @@ from nova import test
 from nova.tests.unit import fake_instance
 from nova.virt import fake
 import pypowervm.adapter as pvm_adp
+import pypowervm.exceptions as pvm_exc
 from pypowervm.tests.wrappers.util import pvmhttp
 import pypowervm.wrappers.logical_partition as pvm_lpar
 import pypowervm.wrappers.managed_system as pvm_ms
@@ -603,7 +604,47 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(
             self.drv.disk_dvr.check_instance_shared_storage_cleanup.called)
 
-    def _fake_bdms(self):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('pypowervm.tasks.power.power_off')
+    def test_reboot(self, mock_pwroff, mock_pwron, mock_instw):
+        entry = mock.Mock()
+        # State doesn't matter
+        entry.state = "whatever"
+        mock_instw.return_value = entry
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Validate SOFT vs HARD and power_on called with each.
+        self.assertTrue(self.drv.reboot('context', inst, None, 'SOFT'))
+        mock_pwroff.assert_called_with(
+            self.drv.adapter, entry, self.drv.host_uuid, force_immediate=False)
+        mock_pwron.assert_called_with(mock.ANY, entry, self.drv.host_uuid)
+        self.assertTrue(self.drv.reboot('context', inst, None, 'HARD'))
+        mock_pwroff.assert_called_with(
+            self.drv.adapter, entry, self.drv.host_uuid, force_immediate=True)
+        self.assertEqual(2, mock_pwron.call_count)
+        mock_pwron.assert_called_with(mock.ANY, entry, self.drv.host_uuid)
+
+        # If power_on raises an exception, it percolates up.
+        mock_pwron.side_effect = pvm_exc.VMPowerOnFailure(lpar_nm='lpar',
+                                                          reason='reason')
+        self.assertRaises(pvm_exc.VMPowerOnFailure, self.drv.reboot, 'context',
+                          inst, None, 'SOFT')
+        # But power_off was called first.
+        mock_pwroff.assert_called_with(
+            self.drv.adapter, entry, self.drv.host_uuid, force_immediate=False)
+
+        # If power_off raises an exception, power_on is not called, and the
+        # exception percolates up.
+        pwron_count = mock_pwron.call_count
+        mock_pwroff.side_effect = pvm_exc.VMPowerOffFailure(lpar_nm='lpar',
+                                                            reason='reason')
+        self.assertRaises(pvm_exc.VMPowerOffFailure, self.drv.reboot,
+                          'context', inst, None, 'HARD')
+        self.assertEqual(pwron_count, mock_pwron.call_count)
+
+    @staticmethod
+    def _fake_bdms():
         block_device_info = {
             'block_device_mapping': [
                 {

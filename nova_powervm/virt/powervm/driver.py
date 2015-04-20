@@ -34,6 +34,7 @@ import taskflow.task
 
 from pypowervm import adapter as pvm_apt
 from pypowervm.helpers import log_helper as log_hlp
+from pypowervm.tasks import power as pvm_pwr
 from pypowervm import util as pvm_util
 from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -443,9 +444,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param retry_interval: How often to signal guest while
                                waiting for it to shutdown
         """
-
         self._log_operation('power_off', instance)
-        """Power off the specified instance."""
         vm.power_off(self.adapter, instance, self.host_uuid)
 
     def power_on(self, context, instance, network_info,
@@ -456,6 +455,39 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         self._log_operation('power_on', instance)
         vm.power_on(self.adapter, instance, self.host_uuid)
+
+    def reboot(self, context, instance, network_info, reboot_type,
+               block_device_info=None, bad_volumes_callback=None):
+        """Reboot the specified instance.
+
+        After this is called successfully, the instance's state
+        goes back to power_state.RUNNING. The virtualization
+        platform should ensure that the reboot action has completed
+        successfully even in cases in which the underlying domain/vm
+        is paused or halted/stopped.
+
+        :param instance: nova.objects.instance.Instance
+        :param network_info:
+           :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
+        :param reboot_type: Either a HARD or SOFT reboot
+        :param block_device_info: Info pertaining to attached volumes
+        :param bad_volumes_callback: Function to handle any bad volumes
+            encountered
+        """
+        self._log_operation(reboot_type + ' reboot', instance)
+        force_immediate = reboot_type == 'HARD'
+        entry = vm.get_instance_wrapper(self.adapter, instance, self.host_uuid)
+        # Note: We're bypassing vm.power_off/_on because we don't want the
+        # state checks imposed thereby.
+        pvm_pwr.power_off(self.adapter, entry, self.host_uuid,
+                          force_immediate=force_immediate)
+        # pypowervm does NOT throw an exception if "already down".  Any other
+        # exception from pypowervm is a legitimate failure; let it raise up.
+        # If we get here, pypowervm thinks the instance is down.
+        pvm_pwr.power_on(self.adapter, entry, self.host_uuid)
+        # Again, pypowervm exceptions are sufficient to indicate real failure.
+        # Otherwise, pypowervm thinks the instance is up.
+        return True
 
     def get_available_resource(self, nodename):
         """Retrieve resource information.
