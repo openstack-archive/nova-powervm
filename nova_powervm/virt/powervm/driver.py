@@ -21,6 +21,7 @@ from nova import exception
 from nova import image
 from nova.i18n import _LI, _LW, _
 from nova.objects import flavor as flavor_obj
+from nova import utils as n_utils
 from nova.virt import configdrive
 from nova.virt import driver
 import time
@@ -516,7 +517,9 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def get_host_uptime(self):
         """Returns the result of calling "uptime" on the target host."""
-        raise NotImplementedError()
+        # trivial implementation from libvirt/driver.py for consistency
+        out, err = n_utils.execute('env', 'LANG=C', 'uptime')
+        return out
 
     def plug_vifs(self, instance, network_info):
         """Plug VIFs into networks."""
