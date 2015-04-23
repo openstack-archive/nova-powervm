@@ -193,6 +193,11 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
                               flavor))
 
+        # Plug the VIFs
+        vif_plug_info = {'instance': instance, 'network_info': network_info}
+        flow.add(taskflow.task.FunctorTask(self._plug_vifs, name='plug_vifs',
+                                           inject=vif_plug_info))
+
         # Only add the image disk if this is from Glance.
         if not is_boot_from_volume:
             # Creates the boot image.
@@ -221,11 +226,6 @@ class PowerVMDriver(driver.ComputeDriver):
                                                      instance, injected_files,
                                                      network_info,
                                                      admin_password))
-
-        # Plug the VIFs
-        vif_plug_info = {'instance': instance, 'network_info': network_info}
-        flow.add(taskflow.task.FunctorTask(self._plug_vifs, name='plug_vifs',
-                                           inject=vif_plug_info))
 
         # Last step is to power on the system.
         # Note: If moving to a Graph Flow, will need to change to depend on
