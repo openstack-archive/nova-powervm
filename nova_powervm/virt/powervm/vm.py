@@ -33,8 +33,6 @@ from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
 
-import six
-
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
@@ -403,8 +401,9 @@ def dlt_lpar(adapter, lpar_uuid):
         LOG.info(_LI('Virtual machine delete status: %s') % resp.status)
         return resp
     except pvm_exc.Error as e:
-        emsg = six.text_type(e)
-        if 'HSCL151B' in emsg:
+        resp = e.response
+        if (resp.body and
+                any(code in str(resp.body) for code in ['HSCL151B'])):
             # If this is a vterm error attempt to close vterm
             try:
                 LOG.info(_LI('Closing virtual terminal'))
