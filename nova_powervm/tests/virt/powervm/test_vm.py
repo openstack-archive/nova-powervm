@@ -160,12 +160,16 @@ class TestVM(test.TestCase):
         """Performs a delete LPAR test."""
         vm.dlt_lpar(self.apt, '12345')
         self.assertEqual(1, self.apt.delete.call_count)
+
         # test failure due to open vterm
-        self.apt.delete.side_effect = pvm_exc.JobRequestFailed(
-            error='delete', operation_name='HSCL151B')
+        resp = mock.Mock()
+        # build a mock response body with the expected HSCL msg
+        resp.body = 'error msg: HSCL151B more text'
+        self.apt.delete.side_effect = pvm_exc.Error(
+            'Mock Error Message', response=resp)
         # If failed due to vterm test close_vterm and delete are called
         self.apt.reset_mock()
-        self.assertRaises(pvm_exc.JobRequestFailed,
+        self.assertRaises(pvm_exc.Error,
                           vm.dlt_lpar, self.apt, '12345')
         self.assertEqual(1, mock_vterm.call_count)
         self.assertEqual(2, self.apt.delete.call_count)
