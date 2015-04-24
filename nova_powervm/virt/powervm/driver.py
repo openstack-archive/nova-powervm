@@ -24,6 +24,7 @@ from nova.objects import flavor as flavor_obj
 from nova import utils as n_utils
 from nova.virt import configdrive
 from nova.virt import driver
+import re
 import time
 
 from oslo_config import cfg
@@ -34,6 +35,7 @@ from taskflow.patterns import linear_flow as lf
 import taskflow.task
 
 from pypowervm import adapter as pvm_apt
+from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.tasks import power as pvm_pwr
 from pypowervm import util as pvm_util
@@ -256,6 +258,48 @@ class PowerVMDriver(driver.ComputeDriver):
 
         """
 
+        def _run_flow():
+            # Define the flow
+            flow = lf.Flow("destroy")
+
+            # Power Off the LPAR
+            flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
+                                    pvm_inst_uuid, instance))
+
+            # Delete the virtual optical
+            flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
+                                       pvm_inst_uuid))
+
+            # Determine if there are volumes to disconnect.  If so, remove each
+            # volume
+            bdms = self._extract_bdm(block_device_info)
+            if bdms is not None:
+                for bdm in bdms:
+                    conn_info = bdm.get('connection_info')
+                    drv_type = conn_info.get('driver_volume_type')
+                    vol_drv = self.vol_drvs.get(drv_type)
+                    flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv,
+                                                     instance, conn_info,
+                                                     self.host_uuid,
+                                                     pvm_inst_uuid))
+
+            # Detach the disk storage adapters
+            flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
+                                       pvm_inst_uuid))
+
+            # Delete the storage disks
+            if destroy_disks:
+                flow.add(tf_stg.DeleteDisk(self.disk_dvr, context, instance))
+
+            # Last step is to delete the LPAR from the system.
+            # Note: If moving to a Graph Flow, will need to change to depend on
+            # the prior step.
+            flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
+
+            # Build the engine & run!
+            engine = taskflow.engines.load(flow)
+            engine.run()
+
         self._log_operation('destroy', instance)
         if instance.task_state == task_states.RESIZE_REVERTING:
             # This destroy is part of resize, just skip destroying
@@ -263,48 +307,30 @@ class PowerVMDriver(driver.ComputeDriver):
             LOG.info(_LI('Ignoring destroy call during resize revert.'))
             return
 
-        pvm_inst_uuid = vm.get_pvm_uuid(instance)
+        try:
+            pvm_inst_uuid = vm.get_pvm_uuid(instance)
+            _run_flow()
+        except exception.InstanceNotFound:
+            LOG.warn(_LW('VM was not found during destroy operation.'),
+                     instance=instance)
+            return
+        except pvm_exc.HttpError as e:
+            # See if we were operating on the LPAR that we're deleting
+            # and it wasn't found
+            resp = e.response
+            exp = '/ManagedSystem/.*/LogicalPartition/.*-.*-.*-.*-.*'
+            if (resp.status == 404 and re.search(exp, resp.reqpath)):
+                # It's the LPAR, so just return.
+                LOG.warn(_LW('VM was not found during destroy operation.'),
+                         instance=instance)
+                return
+            else:
+                raise
 
-        # Define the flow
-        flow = lf.Flow("destroy")
-
-        # Power Off the LPAR
-        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid, pvm_inst_uuid,
-                                instance))
-
-        # Delete the virtual optical
-        flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
-                                   pvm_inst_uuid))
-
-        # Determine if there are volumes to disconnect.  If so, remove each
-        # volume
-        bdms = self._extract_bdm(block_device_info)
-        if bdms is not None:
-            for bdm in bdms:
-                conn_info = bdm.get('connection_info')
-                drv_type = conn_info.get('driver_volume_type')
-                vol_drv = self.vol_drvs.get(drv_type)
-                flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv,
-                                                 instance, conn_info,
-                                                 self.host_uuid,
-                                                 pvm_inst_uuid))
-
-        # Detach the disk storage adapters
-        flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
-                                   pvm_inst_uuid))
-
-        # Delete the storage disks
-        if destroy_disks:
-            flow.add(tf_stg.DeleteDisk(self.disk_dvr, context, instance))
-
-        # Last step is to delete the LPAR from the system.
-        # Note: If moving to a Graph Flow, will need to change to depend on
-        # the prior step.
-        flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
-
-        # Build the engine & run!
-        engine = taskflow.engines.load(flow)
-        engine.run()
+        finally:
+            # Delete the lpar from the cache so if it gets rebuilt it won't
+            # have the old lpar uuid.
+            vm.UUIDCache.get_cache().remove(instance.name)
 
     def attach_volume(self, context, connection_info, instance, mountpoint,
                       disk_bus=None, device_type=None, encryption=None):

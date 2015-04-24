@@ -285,9 +285,6 @@ class TestPowerVMDriver(test.TestCase):
         # Power off was called
         self.assertTrue(mock_pwroff.called)
 
-        # Validate that the storage delete was called
-        self.assertTrue(mock_dlt.called)
-
         # Validate that the vopt delete was called
         self.assertTrue(mock_dlt_vopt.called)
 
@@ -297,6 +294,60 @@ class TestPowerVMDriver(test.TestCase):
         # Delete LPAR was called, and removed from the cache
         mock_dlt.assert_called_with(self.apt, mock.ANY)
         singleton.remove.assert_called_with(inst.name)
+
+        # Start negative tests
+        def reset_mocks():
+            # Reset the mocks for a bad case test
+            for mk in [mock_pwroff, mock_dlt, mock_dlt_vopt,
+                       self.fc_vol_drv.disconnect_volume, mock_dlt, singleton]:
+                mk.reset_mock()
+
+        def assert_not_called():
+            # Power off was not called
+            self.assertFalse(mock_pwroff.called)
+
+            # Validate that the vopt delete was not called
+            self.assertFalse(mock_dlt_vopt.called)
+
+            # Validate that the volume detach was not called
+            self.assertFalse(self.fc_vol_drv.disconnect_volume.called)
+
+            # Delete LPAR was not called, but it was removed from the cache
+            self.assertFalse(mock_dlt.called)
+            singleton.remove.assert_called_with(inst.name)
+
+        reset_mocks()
+        # Pretend we didn't find the VM on the system
+        mock_pvmuuid.side_effect = exc.InstanceNotFound(instance_id=inst.name)
+
+        # Invoke the method.
+        self.drv.destroy('context', inst, mock.Mock(),
+                         block_device_info=mock_bdms)
+        assert_not_called()
+
+        mock_resp = mock.Mock()
+        mock_resp.status = 404
+        mock_resp.reqpath = (
+            '/rest/api/uom/ManagedSystem/c5d782c7-44e4-3086-ad15-'
+            'b16fb039d63b/LogicalPartition/1B5FB633-16D1-4E10-A14'
+            '5-E6FB905161A3?group=None')
+        mock_pvmuuid.side_effect = pvm_exc.HttpError('error msg',
+                                                     response=mock_resp)
+        # Invoke the method.
+        self.drv.destroy('context', inst, mock.Mock(),
+                         block_device_info=mock_bdms)
+        assert_not_called()
+
+        # Ensure the exception is raised with non-matching path
+        reset_mocks()
+        mock_resp.reqpath = (
+            '/rest/api/uom/ManagedSystem/c5d782c7-44e4-3086-ad15-'
+            'b16fb039d63b/SomeResource/1B5FB633-16D1-4E10-A14'
+            '5-E6FB905161A3?group=None')
+        # Invoke the method.
+        self.assertRaises(pvm_exc.HttpError, self.drv.destroy, 'context', inst,
+                          mock.Mock(), block_device_info=mock_bdms)
+        assert_not_called()
 
     @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
                 'connect_volume')
