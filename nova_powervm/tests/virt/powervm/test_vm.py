@@ -71,7 +71,7 @@ class TestVM(test.TestCase):
         cache.remove('n1')
         self.assertEqual(cache.lookup('n1', fetch=False), None)
         # Not in cache, search returns no results (empty feed)
-        emptyfeed = pvm_adp.Response('meth', 'path', 200, 'reason', {})
+        emptyfeed = pvm_adp.Response('meth', 'path', 200, 'reason', {}, None)
         emptyfeed.feed = mock.MagicMock()
         emptyfeed.feed.entries = []
         self.apt.read.return_value = emptyfeed

@@ -80,7 +80,7 @@ class TestPowerVMDriver(test.TestCase):
         self.crt_lpar_p = mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
         self.crt_lpar = self.crt_lpar_p.start()
 
-        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
+        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {}, None)
         resp.entry = pvm_lpar.LPAR._bld().entry
         self.crt_lpar.return_value = pvm_lpar.LPAR.wrap(resp)
 
@@ -388,7 +388,7 @@ class TestPowerVMDriver(test.TestCase):
         # Set up the mocks to the resize operation.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         host = self.drv.get_host_ip_addr()
-        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
+        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {}, None)
         resp.entry = pvm_lpar.LPAR._bld().entry
         self.apt.read.return_value = resp
 

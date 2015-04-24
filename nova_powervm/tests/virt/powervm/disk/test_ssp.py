@@ -122,7 +122,7 @@ class TestSSPDiskAdapter(test.TestCase):
         :return: pypowervm.adapter.Response suitable for mocking
                  pypowervm.adapter.Adapter.search or read.
         """
-        resp = pvm_adp.Response('meth', 'path', status, 'reason', {})
+        resp = pvm_adp.Response('meth', 'path', status, 'reason', {}, None)
         resp.entry = None
         resp.feed = None
         if entry_or_list is None:
