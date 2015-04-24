@@ -32,6 +32,7 @@ import time
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import importutils
+import six
 from taskflow import engines as tf_eng
 from taskflow.patterns import linear_flow as tf_lf
 from taskflow.patterns import unordered_flow as tf_uf
@@ -48,6 +49,7 @@ from pypowervm.wrappers import managed_system as pvm_ms
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import host as pvm_host
+from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm.tasks import image as tf_img
 from nova_powervm.virt.powervm.tasks import network as tf_net
@@ -86,6 +88,8 @@ class PowerVMDriver(driver.ComputeDriver):
         including catching up with currently running VM's on the given host.
         """
 
+        # Live migrations
+        self.live_migrations = {}
         # Get an adapter
         self._get_adapter()
         # First need to resolve the managed host UUID
@@ -867,24 +871,67 @@ class PowerVMDriver(driver.ComputeDriver):
         if power_on:
             vm.power_on(self.adapter, instance, self.host_uuid)
 
-    def check_can_live_migrate_destination(self, ctxt, instance_ref,
+    def ensure_filtering_rules_for_instance(self, instance, network_info):
+        """Setting up filtering rules and waiting for its completion.
+
+        To migrate an instance, filtering rules to hypervisors
+        and firewalls are inevitable on destination host.
+        ( Waiting only for filtering rules to hypervisor,
+        since filtering rules to firewall rules can be set faster).
+
+        Concretely, the below method must be called.
+        - setup_basic_filtering (for nova-basic, etc.)
+        - prepare_instance_filter(for nova-instance-instance-xxx, etc.)
+
+        to_xml may have to be called since it defines PROJNET, PROJMASK.
+        but libvirt migrates those value through migrateToURI(),
+        so , no need to be called.
+
+        Don't use thread for this method since migration should
+        not be started when setting-up filtering rules operations
+        are not completed.
+
+        :param instance: nova.objects.instance.Instance object
+
+        """
+        # No op for PowerVM
+        pass
+
+    def check_can_live_migrate_destination(self, context, instance,
                                            src_compute_info, dst_compute_info,
                                            block_migration=False,
                                            disk_over_commit=False):
-        """Validate the destination host is capable of live partition
-        migration.
+        """Check if it is possible to execute live migration.
 
-        :param ctxt: security context
-        :param instance_ref: instance to be migrated
-        :param src_compute_info: source host information
-        :param dst_compute_info: destination host information
+        This runs checks on the destination host, and then calls
+        back to the source host to check the results.
+
+        :param context: security context
+        :param instance: nova.db.sqlalchemy.models.Instance
+        :param src_compute_info: Info about the sending machine
+        :param dst_compute_info: Info about the receiving machine
         :param block_migration: if true, prepare for block migration
         :param disk_over_commit: if true, allow disk over commit
-        :return: dictionary containing destination data
+
+        :returns: a dict containing migration info (hypervisor-dependent)
         """
-        # dest_check_data = \
-        # TODO(IBM): Implement live migration check
-        pass
+        LOG.info(_LI("Checking live migration capability on destination "
+                     "host."), instance=instance)
+
+        mig = lpm.LiveMigrationDest(self, instance)
+        self.live_migrations[instance.uuid] = mig
+        return mig.check_destination(context, src_compute_info,
+                                     dst_compute_info)
+
+    def check_can_live_migrate_destination_cleanup(self, context,
+                                                   dest_check_data):
+        """Do required cleanup on dest host after check_can_live_migrate calls
+
+        :param context: security context
+        :param dest_check_data: result of check_can_live_migrate_destination
+        """
+        LOG.info(_LI("Cleaning up from checking live migration capability "
+                     "on destination."))
 
     def check_can_live_migrate_source(self, context, instance,
                                       dest_check_data, block_device_info=None):
@@ -897,11 +944,13 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: nova.db.sqlalchemy.models.Instance
         :param dest_check_data: result of check_can_live_migrate_destination
         :param block_device_info: result of _get_instance_block_device_info
-        :return: a dict containing migration info (hypervisor-dependent)
+        :returns: a dict containing migration info (hypervisor-dependent)
         """
-        # migrate_data = \
-        # TODO(IBM): Implement live migration check
-        pass
+        LOG.info(_LI("Checking live migration capability on source host."),
+                 instance=instance)
+        mig = lpm.LiveMigrationSrc(self, instance, dest_check_data)
+        self.live_migrations[instance.uuid] = mig
+        return mig.check_source(context, block_device_info)
 
     def pre_live_migration(self, context, instance, block_device_info,
                            network_info, disk_info, migrate_data=None):
@@ -914,26 +963,94 @@ class PowerVMDriver(driver.ComputeDriver):
         :param disk_info: instance disk information
         :param migrate_data: implementation specific data dict.
         """
-        # TODO(IBM): Implement migration prerequisites
-        pass
+        LOG.info(_LI("Pre live migration processing."),
+                 instance=instance)
+        mig = self.live_migrations[instance.uuid]
+        mig.pre_live_migration(context, block_device_info, network_info,
+                               disk_info, migrate_data)
 
-    def live_migration(self, ctxt, instance_ref, dest,
-                       post_method, recover_method,
-                       block_migration=False, migrate_data=None):
-        """Live migrates a partition from one host to another.
+    def live_migration(self, context, instance, dest,
+                       post_method, recover_method, block_migration=False,
+                       migrate_data=None):
+        """Live migration of an instance to another host.
 
-        :param ctxt: security context
-        :params instance_ref: instance to be migrated.
-        :params dest: destination host
-        :params post_method: post operation method.
-            nova.compute.manager.post_live_migration.
-        :params recover_method: recovery method when any exception occurs.
-            nova.compute.manager.recover_live_migration.
-        :params block_migration: if true, migrate VM disk.
-        :params migrate_data: implementation specific data dictionary.
+        :param context: security context
+        :param instance:
+            nova.db.sqlalchemy.models.Instance object
+            instance object that is migrated.
+        :param dest: destination host
+        :param post_method:
+            post operation method.
+            expected nova.compute.manager._post_live_migration.
+        :param recover_method:
+            recovery method when any exception occurs.
+            expected nova.compute.manager._rollback_live_migration.
+        :param block_migration: if true, migrate VM disk.
+        :param migrate_data: implementation specific params.
+
         """
-        self._log_operation('live_migration', instance_ref)
-        # TODO(IBM): Implement live migration
+        self._log_operation('live_migration', instance)
+        # Spawn off a thread to handle this migration
+        n_utils.spawn_n(self._live_migration_thread, context, instance, dest,
+                        post_method, recover_method, block_migration,
+                        migrate_data)
+
+    def _live_migration_thread(self, context, instance, dest, post_method,
+                               recover_method, block_migration, migrate_data):
+        """Live migration of an instance to another host.
+
+        :param context: security context
+        :param instance:
+            nova.db.sqlalchemy.models.Instance object
+            instance object that is migrated.
+        :param dest: destination host
+        :param post_method:
+            post operation method.
+            expected nova.compute.manager._post_live_migration.
+        :param recover_method:
+            recovery method when any exception occurs.
+            expected nova.compute.manager._rollback_live_migration.
+        :param block_migration: if true, migrate VM disk.
+        :param migrate_data: implementation specific params.
+
+        """
+        try:
+            mig = self.live_migrations[instance.uuid]
+            try:
+                mig.live_migration(context, migrate_data)
+            except Exception as e:
+                LOG.exception(e)
+                LOG.debug("Rolling back live migration.", instance=instance)
+                mig.rollback_live_migration(context)
+                recover_method(context, instance, dest,
+                               block_migration, migrate_data)
+                raise lpm.LiveMigrationFailed(name=instance.name,
+                                              reason=six.text_type(e))
+
+            LOG.debug("Calling post live migration method.", instance=instance)
+            # Post method to update host in OpenStack and finish live-migration
+            post_method(context, instance, dest, block_migration, migrate_data)
+        finally:
+            # Remove the migration record on the source side.
+            del self.live_migrations[instance.uuid]
+
+    def rollback_live_migration_at_destination(self, context, instance,
+                                               network_info,
+                                               block_device_info,
+                                               destroy_disks=True,
+                                               migrate_data=None):
+        """Clean up destination node after a failed live migration.
+
+        :param context: security context
+        :param instance: instance object that was being migrated
+        :param network_info: instance network information
+        :param block_device_info: instance block device information
+        :param destroy_disks:
+            if true, destroy disks at destination during cleanup
+        :param migrate_data: implementation specific params
+
+        """
+        del self.live_migrations[instance.uuid]
 
     def check_instance_shared_storage_local(self, context, instance):
         """Check if instance files located on shared storage.
@@ -968,19 +1085,50 @@ class PowerVMDriver(driver.ComputeDriver):
         return self.disk_dvr.check_instance_shared_storage_cleanup(
             context, data)
 
-    def post_live_migration_at_destination(self, ctxt, instance_ref,
+    def post_live_migration(self, context, instance, block_device_info,
+                            migrate_data=None):
+        """Post operation of live migration at source host.
+
+        :param context: security context
+        :instance: instance object that was migrated
+        :block_device_info: instance block device information
+        :param migrate_data: if not None, it is a dict which has data
+        """
+        pass
+
+    def post_live_migration_at_source(self, context, instance, network_info):
+        """Unplug VIFs from networks at source.
+
+        :param context: security context
+        :param instance: instance object reference
+        :param network_info: instance network information
+        """
+        LOG.info(_LI("Post live migration processing on source host."),
+                 instance=instance)
+        mig = self.live_migrations[instance.uuid]
+        mig.post_live_migration_at_source(network_info)
+
+    def post_live_migration_at_destination(self, context, instance,
                                            network_info,
                                            block_migration=False,
                                            block_device_info=None):
-        """Performs post operations on the destination host
-        following a successful live migration.
+        """Post operation of live migration at destination host.
 
-        :param ctxt: security context
-        :param instance_ref: migrated instance
-        :param network_info: dictionary of network info for instance
-        :param block_migration: boolean for block migration
+        :param context: security context
+        :param instance: instance object that is migrated
+        :param network_info: instance network information
+        :param block_migration: if true, post operation of block_migration.
         """
-        # TODO(IBM): Implement post migration
+        LOG.info(_LI("Post live migration processing on destination host."),
+                 instance=instance)
+        mig = self.live_migrations[instance.uuid]
+        mig.instance = instance
+        mig.post_live_migration_at_destination(network_info)
+        del self.live_migrations[instance.uuid]
+
+    def unfilter_instance(self, instance, network_info):
+        """Stop filtering instance."""
+        # No op for PowerVM
         pass
 
     @staticmethod

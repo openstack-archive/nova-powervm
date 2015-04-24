@@ -72,7 +72,8 @@ def build_host_resource_from_ms(ms_wrapper):
     data["supported_instances"] = POWERVM_SUPPORTED_INSTANCES
 
     stats = {'proc_units': '%.2f' % float(proc_units),
-             'proc_units_used': '%.2f' % pu_used
+             'proc_units_used': '%.2f' % pu_used,
+             'memory_region_size': ms_wrapper.memory_region_size
              }
     data["stats"] = stats
 
