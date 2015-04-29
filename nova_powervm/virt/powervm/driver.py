@@ -46,7 +46,6 @@ from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import host as pvm_host
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
-from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm import volume as vol_attach
 
@@ -85,9 +84,6 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_host_uuid()
         # Initialize the UUID Cache. Lets not prime it at this time.
         vm.UUIDCache(self.adapter)
-
-        # Get the map of the VIOS names to UUIDs
-        self.vios_map = vios.get_vios_name_map(self.adapter, self.host_uuid)
 
         # Initialize the disk adapter.  Sets self.disk_drv
         self._get_disk_adapter()

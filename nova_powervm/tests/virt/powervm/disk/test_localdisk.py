@@ -57,10 +57,6 @@ class TestLocalDisk(test.TestCase):
         self.apt = self.pypvm.apt
 
         # Set up for the mocks for get_ls
-        self.mock_vio_name_map_p = mock.patch('nova_powervm.virt.powervm.vios.'
-                                              'get_vios_name_map')
-        self.mock_vio_name_map = self.mock_vio_name_map_p.start()
-        self.mock_vio_name_map.return_value = {'vio_name': 'vio_uuid'}
 
         self.mock_vg_uuid_p = mock.patch('nova_powervm.virt.powervm.disk.'
                                          'localdisk.LocalStorage.'
@@ -74,7 +70,6 @@ class TestLocalDisk(test.TestCase):
 
         # Tear down mocks
         self.mock_vg_uuid_p.stop()
-        self.mock_vio_name_map_p.stop()
 
     def get_ls(self, adpt):
         return ld.LocalStorage({'adapter': adpt, 'host_uuid': 'host_uuid'})

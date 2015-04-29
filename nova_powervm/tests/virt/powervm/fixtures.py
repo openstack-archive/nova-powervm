@@ -90,7 +90,6 @@ class PowerVMComputeDriver(fixtures.Fixture):
     def __init__(self):
         pass
 
-    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage')
     @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
     def _init_host(self, *args):

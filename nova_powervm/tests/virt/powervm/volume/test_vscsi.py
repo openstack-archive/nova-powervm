@@ -58,24 +58,23 @@ class TestVSCSIAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
     @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
-    def test_connect_volume(self, mock_vio_name_map, mock_add_vscsi_mapping,
+    def test_connect_volume(self, mock_add_vscsi_mapping,
                             mock_discover_hdisk, mock_build_itls):
         con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
                                                       'i2': ['t2', 't3']},
                     'target_lun': '1', 'volume_id': 'id'}}
         mock_discover_hdisk.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
-        mock_vio_name_map.return_value = {'vio_name': 'vio_uuid',
-                                          'vio_name1': 'vio_uuid1'}
+
+        self.adpt.read.return_value = self.vios_feed_resp
         mock_instance = mock.Mock()
         mock_instance.system_metadata = {}
 
-        vscsi.VscsiVolumeAdapter().connect_volume(None, 'host_uuid',
+        vscsi.VscsiVolumeAdapter().connect_volume(self.adpt, 'host_uuid',
                                                   'vm_uuid', mock_instance,
                                                   con_info)
-        # Confirm mapping called twice for two defined VIOS
-        self.assertEqual(2, mock_add_vscsi_mapping.call_count)
+        # Single mapping
+        self.assertEqual(1, mock_add_vscsi_mapping.call_count)
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_pv_mapping')

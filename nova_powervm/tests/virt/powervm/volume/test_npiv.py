@@ -117,9 +117,8 @@ class TestNPIVAdapter(test.TestCase):
                                        inst, mock.ANY)
         self.assertEqual(0, self.adpt.read.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vios.get_vios_name_map')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
-    def test_connect_volume_no_map(self, mock_vio_wrap, mock_vio_name_map):
+    def test_connect_volume_no_map(self, mock_vio_wrap):
         """Tests that if the VFC Mapping exists, another is not added."""
         # Mock Data
         con_info = {'data': {'initiator_target_map': {'a': None,
@@ -132,8 +131,6 @@ class TestNPIVAdapter(test.TestCase):
         mock_vios.vfc_mappings = [mock_mapping]
 
         mock_vio_wrap.return_value = mock_vios
-
-        mock_vio_name_map.return_value = {'vios_name': 'vios_uuid'}
 
         # Invoke
         self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vm_uuid',

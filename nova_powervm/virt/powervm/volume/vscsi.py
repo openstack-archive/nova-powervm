@@ -26,9 +26,7 @@ from nova_powervm.virt.powervm.volume import driver as v_driver
 import pypowervm.exceptions as pexc
 from pypowervm.tasks import hdisk
 from pypowervm.tasks import scsi_mapper as tsk_map
-from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stor
-from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 import six
 
@@ -93,44 +91,42 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         for it_list in it_map.values():
             t_wwpns.extend(it_list)
 
-        # Get VIOS map
-        vio_map = vios.get_vios_name_map(adapter, host_uuid)
+        # Get VIOS feed
+        vios_feed = vios.get_active_vioses(adapter, host_uuid)
 
         # Iterate through host vios list to find valid hdisks and map to VM.
         # TODO(IBM): The VIOS should only include the intersection with
         # defined SCG targets when they are available.
-        for vios_name, vios_uuid in vio_map.iteritems():
+        for vio_wrap in vios_feed:
             # TODO(IBM): Investigate if i_wwpns passed to discover_hdisk
             # should be intersection with VIOS pfc_wwpns
             itls = hdisk.build_itls(i_wwpns, t_wwpns, lun)
-            status, device_name, udid = hdisk.discover_hdisk(adapter,
-                                                             vios_uuid, itls)
+            status, device_name, udid = hdisk.discover_hdisk(
+                adapter, vio_wrap.uuid, itls)
             if device_name is not None and status in [
                     hdisk.LUAStatus.DEVICE_AVAILABLE,
                     hdisk.LUAStatus.FOUND_ITL_ERR]:
                 LOG.info(_LI('Discovered %(hdisk)s on vios %(vios)s for '
                          'volume %(volume_id)s. Status code: %(status)s.') %
-                         {'hdisk': device_name, 'vios': vios_name,
+                         {'hdisk': device_name, 'vios': vio_wrap.name,
                           'volume_id': volume_id, 'status': str(status)})
-                self._add_mapping(adapter, host_uuid, vm_uuid, vios_uuid,
+                self._add_mapping(adapter, host_uuid, vm_uuid, vio_wrap.uuid,
                                   device_name)
                 connection_info['data']['target_UDID'] = udid
-                self._set_udid(instance, vios_uuid, volume_id, udid)
+                self._set_udid(instance, vio_wrap.uuid, volume_id, udid)
                 LOG.info(_LI('Device attached: %s'), device_name)
                 hdisk_found = True
             elif status == hdisk.LUAStatus.DEVICE_IN_USE:
                 LOG.warn(_LW('Discovered device %(dev)s for volume %(volume)s '
                              'on %(vios)s is in use Errorcode: %(status)s.'),
                          {'dev': device_name, 'volume': volume_id,
-                          'vios': vios_name, 'status': str(status)})
+                          'vios': vio_wrap.name, 'status': str(status)})
         # A valid hdisk was not found so log and exit
         if not hdisk_found:
-            msg = (_LW('Failed to discover valid hdisk on %(vios)s '
-                       'for volume %(volume_id)s. status: '
-                       '%(status)s.') % {'vios': vios_name,
-                                         'volume_id': volume_id,
-                                         'status': str(status)})
-            LOG.warn(msg)
+            msg = (_LE('Failed to discover valid hdisk on any Virtual I/O '
+                       'Server for volume %(volume_id)s.') %
+                   {'volume_id': volume_id})
+            LOG.error(msg)
             if device_name is None:
                 device_name = 'None'
             ex_args = {'backing_dev': device_name,
@@ -171,11 +167,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         try:
             # Get VIOS feed
-            vio_feed_resp = adapter.read(pvm_ms.System.schema_type,
-                                         root_id=host_uuid,
-                                         child_type=pvm_vios.VIOS.schema_type,
-                                         xag=[pvm_vios.VIOS.xags.STORAGE])
-            vios_feed = pvm_vios.VIOS.wrap(vio_feed_resp)
+            vios_feed = vios.get_active_vioses(adapter, host_uuid)
 
             # Iterate through host vios list to find hdisks to disconnect.
             for vio_wrap in vios_feed:

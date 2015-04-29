@@ -17,6 +17,7 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -24,24 +25,39 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
+# RMC must be either active or busy.  Busy is allowed because that simply
+# means that something is running against the VIOS at the moment...but
+# it should recover shortly.
+VALID_RMC_STATES = [pvm_bp.RMCState.ACTIVE, pvm_bp.RMCState.BUSY]
 
-def get_vios_name_map(adapter, host_uuid):
-    """Returns the map of VIOS names to UUIDs.
+# Only a running state is OK for now.
+VALID_VM_STATES = [pvm_bp.LPARState.RUNNING]
+
+
+def get_active_vioses(adapter, host_uuid):
+    """Returns a list of active Virtual I/O Server Wrappers for a host.
+
+    Active is defined by powered on and RMC state being 'active'.
 
     :param adapter: The pypowervm adapter for the query.
     :param host_uuid: The host servers UUID.
-    :return: A dictionary with all of the Virtual I/O Servers on the system.
-             The format is:
-             {
-                 'vio_name': 'vio_uuid',
-                 'vio2_name': 'vio2_uuid',
-                 etc...
-             }
+    :return: List of VIOS wrappers.
     """
     vio_feed_resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
                                  child_type=pvm_vios.VIOS.schema_type)
     wrappers = pvm_vios.VIOS.wrap(vio_feed_resp)
-    return {wrapper.name: wrapper.uuid for wrapper in wrappers}
+    return [vio for vio in wrappers if is_vios_active(vio)]
+
+
+def is_vios_active(vios):
+    """Returns a boolean to indicate if the VIOS is active.
+
+    Active is defined by running, and the RMC being 'active'.
+    :param vios: The Virtual I/O Server wrapper to validate.
+    :return: Boolean
+    """
+    return (vios.rmc_state in VALID_RMC_STATES and
+            vios.state in VALID_VM_STATES)
 
 
 def get_physical_wwpns(adapter, ms_uuid):
