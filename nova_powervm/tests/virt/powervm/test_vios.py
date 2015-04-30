@@ -50,7 +50,6 @@ class TestVios(test.TestCase):
 
     def test_get_physical_wwpns(self):
         self.adpt.read.return_value = self.vios_feed_resp
-        expected = set(['21000024FF649105', '21000024FF649104',
-                        '21000024FF649107', '21000024FF649106'])
+        expected = set(['21000024FF649104'])
         result = set(vios.get_physical_wwpns(self.adpt, 'fake_uuid'))
         self.assertSetEqual(expected, result)
