@@ -61,12 +61,12 @@ def is_vios_active(vios):
 
 
 def get_physical_wwpns(adapter, ms_uuid):
-    """Returns the WWPNs of the FC adapters across all VIOSes on system."""
+    """Returns the active WWPNs of the FC ports across all VIOSes on system."""
     resp = adapter.read(pvm_ms.System.schema_type, root_id=ms_uuid,
                         child_type=pvm_vios.VIOS.schema_type,
                         xag=[pvm_vios.VIOS.xags.STORAGE])
     vios_feed = pvm_vios.VIOS.wrap(resp)
     wwpn_list = []
     for vios in vios_feed:
-        wwpn_list.extend(vios.get_pfc_wwpns())
+        wwpn_list.extend(vios.get_active_pfc_wwpns())
     return wwpn_list
