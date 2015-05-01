@@ -31,11 +31,6 @@ from pypowervm.wrappers import storage as pvm_stor
 import six
 
 CONF = cfg.CONF
-CONF.register_opts([
-    cfg.BoolOpt('enable_hdisk_removal', default=False,
-                help='Automatically allow the system to remove '
-                'the associated hdisk when a volume is '
-                'disconnected.')])
 LOG = logging.getLogger(__name__)
 
 
@@ -207,10 +202,17 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 tsk_map.remove_pv_mapping(adapter, vio_wrap.uuid,
                                           partition_id, device_name)
 
-                # TODO(IBM): New method coming to support remove hdisk
-                if CONF.enable_hdisk_removal:
-                    hdisk.remove_hdisk(adapter, CONF.host,
-                                       device_name, vio_wrap.uuid)
+                try:
+                    # Attempt to remove the hDisk
+                    hdisk.remove_hdisk(adapter, CONF.host, device_name,
+                                       vio_wrap.uuid)
+                except Exception as e:
+                    # If there is a failure, log it, but don't stop the process
+                    msg = (_LW("There was an error removing the hdisk "
+                               "%(disk)s from the Virtual I/O Server.") %
+                           {'disk': device_name})
+                    LOG.warn(msg)
+                    LOG.warn(e)
 
                 # Disconnect volume complete, now remove key
                 self._delete_udid_key(instance, vio_wrap.uuid, volume_id)

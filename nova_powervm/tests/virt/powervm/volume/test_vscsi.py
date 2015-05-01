@@ -93,7 +93,6 @@ class TestVSCSIAdapter(test.TestCase):
                                                                     'id')
         instance.system_metadata = {volid_meta_key: self.udid}
         # Set test scenario
-        CONF.enable_remove_hdisk = False
         self.adpt.read.return_value = self.vios_feed_resp
         mock_hdisk_from_uuid.return_value = 'device_name'
         mock_get_vm_id.return_value = 'partion_id'
@@ -102,8 +101,7 @@ class TestVSCSIAdapter(test.TestCase):
                                                      'vm_uuid',
                                                      instance, con_info)
         self.assertEqual(1, mock_remove_pv_mapping.call_count)
-        # Per conf setting remove_hdisk not called
-        self.assertEqual(0, mock_remove_hdisk.call_count)
+        self.assertEqual(1, mock_remove_hdisk.call_count)
         # Verify entry deleted
         self.assertDictEqual({}, instance.system_metadata)
 
