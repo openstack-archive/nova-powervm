@@ -226,7 +226,7 @@ class ConfigDrivePowerVM(object):
 
         # Ensure that there is a virtual optical media repository within it.
         if len(found_vg.vmedia_repos) == 0:
-            vopt_repo = pvm_stg.VMediaRepos.bld('vopt',
+            vopt_repo = pvm_stg.VMediaRepos.bld(self.adapter, 'vopt',
                                                 str(CONF.vopt_media_rep_size))
             found_vg.vmedia_repos = [vopt_repo]
             found_vg = found_vg.update(self.adapter)

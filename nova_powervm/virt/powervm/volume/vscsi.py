@@ -259,7 +259,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param device_name: The The hdisk device name
         """
-        pv = pvm_stor.PV.bld(device_name)
+        pv = pvm_stor.PV.bld(adapter, device_name)
         tsk_map.add_vscsi_mapping(adapter, host_uuid, vios_uuid, vm_uuid, pv)
 
     def _get_udid(self, instance, vios_uuid, volume_id):

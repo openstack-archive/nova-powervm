@@ -229,7 +229,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
         """
         # Create the LU structure
-        lu = pvm_stg.LU.bld_ref(disk_info.name, disk_info.udid)
+        lu = pvm_stg.LU.bld_ref(self.adapter, disk_info.name, disk_info.udid)
 
         # Add the mapping to *each* VIOS on the LPAR's host.
         # Note that the LPAR's host is likely to be the same as self.host_uuid,

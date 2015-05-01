@@ -122,7 +122,7 @@ class TestSSPDiskAdapter(test.TestCase):
         :return: pypowervm.adapter.Response suitable for mocking
                  pypowervm.adapter.Adapter.search or read.
         """
-        resp = pvm_adp.Response('meth', 'path', status, 'reason', {}, None)
+        resp = pvm_adp.Response('meth', 'path', status, 'reason', {})
         resp.entry = None
         resp.feed = None
         if entry_or_list is None:
@@ -168,12 +168,12 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_init_TooManyClustersFound(self):
         """Search-by-name returns more than one result."""
-        clust1 = pvm_clust.Cluster.bld('newclust1',
-                                       pvm_stg.PV.bld('hdisk1'),
+        clust1 = pvm_clust.Cluster.bld(None, 'newclust1',
+                                       pvm_stg.PV.bld(None, 'hdisk1'),
                                        pvm_clust.Node.bld('vios1'))
-        clust2 = pvm_clust.Cluster.bld('newclust2',
-                                       pvm_stg.PV.bld('hdisk2'),
-                                       pvm_clust.Node.bld('vios2'))
+        clust2 = pvm_clust.Cluster.bld(None, 'newclust2',
+                                       pvm_stg.PV.bld(None, 'hdisk2'),
+                                       pvm_clust.Node.bld(None, 'vios2'))
         self.mock_search.return_value = self._bld_resp(
             entry_or_list=[clust1.entry, clust2.entry])
         self.assertRaises(ssp.TooManyClustersFound, self._get_ssp_stor)
@@ -187,12 +187,12 @@ class TestSSPDiskAdapter(test.TestCase):
     def test_init_NoConfigTooManyClusters(self):
         """No SSP name specified in config, more than one SSP on host."""
         cfg.CONF.clear_override('cluster_name')
-        clust1 = pvm_clust.Cluster.bld('newclust1',
-                                       pvm_stg.PV.bld('hdisk1'),
-                                       pvm_clust.Node.bld('vios1'))
-        clust2 = pvm_clust.Cluster.bld('newclust2',
-                                       pvm_stg.PV.bld('hdisk2'),
-                                       pvm_clust.Node.bld('vios2'))
+        clust1 = pvm_clust.Cluster.bld(None, 'newclust1',
+                                       pvm_stg.PV.bld(None, 'hdisk1'),
+                                       pvm_clust.Node.bld(None, 'vios1'))
+        clust2 = pvm_clust.Cluster.bld(None, 'newclust2',
+                                       pvm_stg.PV.bld(None, 'hdisk2'),
+                                       pvm_clust.Node.bld(None, 'vios2'))
         self.apt.read.return_value = self._bld_resp(
             entry_or_list=[clust1.entry, clust2.entry])
         self.assertRaises(ssp.NoConfigTooManyClusters, self._get_ssp_stor)
@@ -306,7 +306,7 @@ class TestSSPDiskAdapter(test.TestCase):
         ssp_stor = self._get_ssp_stor()
         img = dict(id='image-id', size=b2G)
         # Mock the 'existing' image LU
-        img_lu = pvm_stg.LU.bld('image_image_id', 123,
+        img_lu = pvm_stg.LU.bld(None, 'image_image_id', 123,
                                 typ=pvm_stg.LUType.IMAGE)
         ssp_stor._ssp_wrap.logical_units.append(img_lu)
 
@@ -348,20 +348,22 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_delete_disks(self):
         def _mk_img_lu(idx):
-            lu = pvm_stg.LU.bld('img_lu%d' % idx, 123,
+            lu = pvm_stg.LU.bld(None, 'img_lu%d' % idx, 123,
                                 typ=pvm_stg.LUType.IMAGE)
             lu._udid('xxImage-LU-UDID-%d' % idx)
             return lu
 
         def _mk_dsk_lu(idx, cloned_from_idx):
-            lu = pvm_stg.LU.bld('dsk_lu%d' % idx, 123, typ=pvm_stg.LUType.DISK)
+            lu = pvm_stg.LU.bld(None, 'dsk_lu%d' % idx, 123,
+                                typ=pvm_stg.LUType.DISK)
             lu._udid('xxDisk-LU-UDID-%d' % idx)
             lu._cloned_from_udid('yyImage-LU-UDID-%d' % cloned_from_idx)
             return lu
 
         # We should be ignoring the return value from update - but it still
         # needs to be wrappable
-        self.apt.update_by_path.return_value = pvm_stg.SSP.bld('ssp', []).entry
+        self.apt.update_by_path.return_value = pvm_stg.SSP.bld(
+            None, 'ssp', []).entry
         ssp_stor = self._get_ssp_stor()
         ssp1 = ssp_stor._ssp_wrap
         # Seed the SSP with three clones backed to two images:
@@ -392,7 +394,7 @@ class TestSSPDiskAdapter(test.TestCase):
                                     '67dca605-3923-34da-bd8f-26a378fc817f')
 
         def mklu(udid):
-            lu = pvm_stg.LU.bld('lu_%s' % udid, 1)
+            lu = pvm_stg.LU.bld(None, 'lu_%s' % udid, 1)
             lu._udid('27%s' % udid)
             return lu
 
