@@ -666,14 +666,14 @@ class TestPowerVMDriver(test.TestCase):
 
         # Validate SOFT vs HARD and power_on called with each.
         self.assertTrue(self.drv.reboot('context', inst, None, 'SOFT'))
-        mock_pwroff.assert_called_with(
-            self.drv.adapter, entry, self.drv.host_uuid, force_immediate=False)
-        mock_pwron.assert_called_with(mock.ANY, entry, self.drv.host_uuid)
+        mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
+                                       force_immediate=False)
+        mock_pwron.assert_called_with(entry, self.drv.host_uuid)
         self.assertTrue(self.drv.reboot('context', inst, None, 'HARD'))
-        mock_pwroff.assert_called_with(
-            self.drv.adapter, entry, self.drv.host_uuid, force_immediate=True)
+        mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
+                                       force_immediate=True)
         self.assertEqual(2, mock_pwron.call_count)
-        mock_pwron.assert_called_with(mock.ANY, entry, self.drv.host_uuid)
+        mock_pwron.assert_called_with(entry, self.drv.host_uuid)
 
         # If power_on raises an exception, it percolates up.
         mock_pwron.side_effect = pvm_exc.VMPowerOnFailure(lpar_nm='lpar',
@@ -681,8 +681,8 @@ class TestPowerVMDriver(test.TestCase):
         self.assertRaises(pvm_exc.VMPowerOnFailure, self.drv.reboot, 'context',
                           inst, None, 'SOFT')
         # But power_off was called first.
-        mock_pwroff.assert_called_with(
-            self.drv.adapter, entry, self.drv.host_uuid, force_immediate=False)
+        mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
+                                       force_immediate=False)
 
         # If power_off raises an exception, power_on is not called, and the
         # exception percolates up.

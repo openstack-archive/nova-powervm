@@ -132,8 +132,8 @@ class ConfigDrivePowerVM(object):
         os.remove(iso_path)
 
         # Add the mapping to the virtual machine
-        tsk_map.add_vscsi_mapping(self.adapter, self.host_uuid, self.vios_uuid,
-                                  lpar_uuid, vopt)
+        tsk_map.add_vscsi_mapping(self.host_uuid, self.vios_uuid, lpar_uuid,
+                                  vopt)
 
     def _upload_vopt(self, iso_path, file_name, file_size):
         with open(iso_path, 'rb') as d_stream:
@@ -229,7 +229,7 @@ class ConfigDrivePowerVM(object):
             vopt_repo = pvm_stg.VMediaRepos.bld(self.adapter, 'vopt',
                                                 str(CONF.vopt_media_rep_size))
             found_vg.vmedia_repos = [vopt_repo]
-            found_vg = found_vg.update(self.adapter)
+            found_vg = found_vg.update()
 
         # At this point, we know that we've successfully set up the volume
         # group.  Save to the static class variables.
@@ -258,4 +258,4 @@ class ConfigDrivePowerVM(object):
             optical_medias.remove(media_elem)
 
         # Now we can do an update...and be done with it.
-        volgrp.update(self.adapter)
+        volgrp.update()

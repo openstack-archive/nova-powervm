@@ -121,8 +121,7 @@ class PowerOn(task.Task):
 
     def execute(self, lpar_wrap):
         LOG.info(_LI('Powering on instance: %s') % self.instance.name)
-        power.power_on(self.adapter, lpar_wrap,
-                       self.host_uuid, add_parms=self.pwr_opts)
+        power.power_on(lpar_wrap, self.host_uuid, add_parms=self.pwr_opts)
 
     def revert(self, lpar_wrap, result, flow_failures):
         LOG.info(_LI('Powering off instance: %s') % self.instance.name)
@@ -132,8 +131,7 @@ class PowerOn(task.Task):
             LOG.debug('Power on failed.  Not performing power off.')
             return
 
-        power.power_off(self.adapter, lpar_wrap, self.host_uuid,
-                        force_immediate=True)
+        power.power_off(lpar_wrap, self.host_uuid, force_immediate=True)
 
 
 class PowerOff(task.Task):

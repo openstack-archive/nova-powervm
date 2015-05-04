@@ -144,11 +144,10 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         ssp = self._ssp
         for lu_to_rm in storage_elems:
             ssp = tsk_stg.remove_lu_linked_clone(
-                self.adapter, ssp, lu_to_rm, del_unused_image=True,
-                update=False)
-        ssp.update(self.adapter)
+                ssp, lu_to_rm, del_unused_image=True, update=False)
+        ssp.update()
 
-    def create_disk_from_image(self, context, instance, image, disk_size_gb,
+    def create_disk_from_image(self, context, instance, img_meta, disk_size_gb,
                                image_type=disk_drv.DiskType.BOOT):
         """Creates a boot disk and links the specified image to it.
 
@@ -158,7 +157,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
-        :param image: image metadata dict:
+        :param img_meta: image metadata dict:
                       { 'id': reference used to locate the image in glance,
                         'size': size in bytes of the image. }
         :param disk_size_gb: The size of the disk to create in GB.  If smaller
@@ -170,7 +169,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         LOG.info(_LI('SSP: Create %(image_type)s disk from image %(image_id)s '
                      'for instance %(instance_uuid)s.') %
-                 dict(image_type=image_type, image_id=image['id'],
+                 dict(image_type=image_type, image_id=img_meta['id'],
                       instance_uuid=instance.uuid))
 
         # TODO(IBM): There's an optimization to be had here if we can create
@@ -178,17 +177,16 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         # This will require some nontrivial refactoring, though, as the LUs are
         # created down inside of upload_new_lu and crt_lu_linked_clone.
 
-        image_lu = self._get_or_upload_image_lu(context, image)
+        image_lu = self._get_or_upload_image_lu(context, img_meta)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
 
         ssp, boot_lu = tsk_stg.crt_lu_linked_clone(
-            self.adapter, self._ssp, self._cluster, image_lu, boot_lu_name,
-            disk_size_gb)
+            self._ssp, self._cluster, image_lu, boot_lu_name, disk_size_gb)
 
         return boot_lu
 
-    def _get_or_upload_image_lu(self, context, image):
+    def _get_or_upload_image_lu(self, context, img_meta):
         """Ensures our SSP has an LU containing the specified image.
 
         If an LU of type IMAGE corresponding to the input image metadata
@@ -196,13 +194,13 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         with the image contents from glance, and return it.
 
         :param context: nova context used to retrieve image from glance
-        :param image: image metadata dict:
+        :param img_meta: image metadata dict:
                       { 'id': reference used to locate the image in glance,
                         'size': size in bytes of the image. }
         :return: A pypowervm LU ElementWrapper representing the image.
         """
         # Key off of the name to see whether we already have the image
-        luname = self._get_image_name(image)
+        luname = self._get_image_name(img_meta)
         ssp = self._ssp
         for lu in ssp.logical_units:
             if lu.lu_type == pvm_stg.LUType.IMAGE and lu.name == luname:
@@ -212,10 +210,10 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         # We don't have it yet.  Create it and upload the glance image to it.
         # Make the image LU only as big as the image.
-        stream = self._get_image_upload(context, image)
+        stream = self._get_image_upload(context, img_meta)
         LOG.info(_LI('SSP: Uploading new image LU %s.') % luname)
-        lu, f_wrap = tsk_stg.upload_new_lu(self.adapter, self._any_vios_uuid(),
-                                           ssp, stream, luname, image['size'])
+        lu, f_wrap = tsk_stg.upload_new_lu(self._any_vios_uuid(), ssp, stream,
+                                           luname, img_meta['size'])
         return lu
 
     def connect_disk(self, context, instance, disk_info, lpar_uuid):
@@ -238,8 +236,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                                  'AssociatedManagedSystem')
         host_uuid = pvm_u.get_req_path_uuid(host_href, preserve_case=True)
         for vios_uuid in self._vios_uuids(host_uuid=host_uuid):
-            tsk_map.add_vscsi_mapping(self.adapter, host_uuid, vios_uuid,
-                                      lpar_uuid, lu)
+            tsk_map.add_vscsi_mapping(host_uuid, vios_uuid, lpar_uuid, lu)
 
     def extend_disk(self, context, instance, disk_info, size):
         """Extends the disk.
@@ -347,7 +344,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         # point while live, we'll (re)raise the 404 HttpError from the REST
         # API.  Do we need a crisper way to distinguish these two scenarios?
         # Do we want to trap the 404 and raise a custom "ClusterVanished"?
-        self._cluster = self._cluster.refresh(self.adapter)
+        self._cluster = self._cluster.refresh()
         return self._cluster
 
     @property
@@ -363,7 +360,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             resp = self.adapter.read_by_href(self._cluster.ssp_uri)
             self._ssp_wrap = pvm_stg.SSP.wrap(resp)
         else:
-            self._ssp_wrap = self._ssp_wrap.refresh(self.adapter)
+            self._ssp_wrap = self._ssp_wrap.refresh()
         return self._ssp_wrap
 
     def _vios_uuids(self, host_uuid=None):

@@ -73,14 +73,16 @@ class TestSSPDiskAdapter(test.TestCase):
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, "..", 'data')
 
+        self.pypvm = self.useFixture(fx.PyPowerVM())
+        self.apt = self.pypvm.apt
+
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)
-            return pvmhttp.load_pvm_resp(file_path).get_response()
+            return pvmhttp.load_pvm_resp(
+                file_path, adapter=self.apt).get_response()
 
         self.ssp_resp = resp(SSP)
         self.clust_resp = resp(CLUST)
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
 
         self.sspfx = self.useFixture(SSPFixture())
 
@@ -275,8 +277,7 @@ class TestSSPDiskAdapter(test.TestCase):
         ssp_stor = self._get_ssp_stor()
         img = dict(id='image-id', size=b2G)
 
-        def verify_upload_new_lu(adap, vios_uuid, ssp1, stream, lu_name,
-                                 f_size):
+        def verify_upload_new_lu(vios_uuid, ssp1, stream, lu_name, f_size):
             self.assertIn(vios_uuid, ssp_stor._vios_uuids())
             self.assertEqual(ssp_stor._ssp_wrap, ssp1)
             # 'image' + '_' + s/-/_/g(image['id']), per _get_image_name
@@ -284,8 +285,7 @@ class TestSSPDiskAdapter(test.TestCase):
             self.assertEqual(b2G, f_size)
             return 'image_lu', None
 
-        def verify_create_lu_linked_clone(adap, ssp1, clust1, imglu, lu_name,
-                                          sz_gb):
+        def verify_create_lu_linked_clone(ssp1, clust1, imglu, lu_name, sz_gb):
             # 'boot'[:6] + '_' + 'instance_uuid'[:8], per _get_disk_name
             self.assertEqual('boot_instance', lu_name)
             self.assertEqual('image_lu', imglu)
@@ -313,8 +313,7 @@ class TestSSPDiskAdapter(test.TestCase):
         class Instance(object):
             uuid = 'instance_uuid'
 
-        def verify_create_lu_linked_clone(adap, ssp1, clust1, imglu, lu_name,
-                                          sz_gb):
+        def verify_create_lu_linked_clone(ssp1, clust1, imglu, lu_name, sz_gb):
             # 'boot'[:6] + '_' + 'instance_uuid'[:8], per _get_disk_name
             self.assertEqual('boot_instance', lu_name)
             self.assertEqual(img_lu, imglu)
@@ -333,8 +332,7 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_vm_qp.return_value = ('https://9.1.2.3:12443/rest/api/uom/'
                                    'ManagedSystem/' + ms_uuid)
 
-        def validate_add_vscsi_mapping(adapter, host_uuid, vios_uuid,
-                                       lpar_uuid, inlu):
+        def validate_add_vscsi_mapping(host_uuid, vios_uuid, lpar_uuid, inlu):
             self.assertEqual(ms_uuid, host_uuid)
             self.assertEqual('6424120D-CA95-437D-9C18-10B06F4B3400', vios_uuid)
             self.assertEqual('lpar_uuid', lpar_uuid)
@@ -363,7 +361,7 @@ class TestSSPDiskAdapter(test.TestCase):
         # We should be ignoring the return value from update - but it still
         # needs to be wrappable
         self.apt.update_by_path.return_value = pvm_stg.SSP.bld(
-            None, 'ssp', []).entry
+            self.apt, 'ssp', []).entry
         ssp_stor = self._get_ssp_stor()
         ssp1 = ssp_stor._ssp_wrap
         # Seed the SSP with three clones backed to two images:

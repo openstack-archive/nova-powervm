@@ -43,9 +43,13 @@ class TestConfigDrivePowerVM(test.TestCase):
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, 'data')
 
+        self.pypvm = self.useFixture(fx.PyPowerVM())
+        self.apt = self.pypvm.apt
+
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)
-            return pvmhttp.load_pvm_resp(file_path).get_response()
+            return pvmhttp.load_pvm_resp(
+                file_path, adapter=self.apt).get_response()
 
         self.vol_grp_resp = resp(VOL_GRP_DATA)
         self.vol_grp_novg_resp = resp(VOL_GRP_NOVG_DATA)
@@ -54,9 +58,6 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
 
         self.vio_feed_no_vg = resp(VIOS_NO_VG)
-
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
 
         # Wipe out the static variables, so that the revalidate is called
         m.ConfigDrivePowerVM._cur_vios_uuid = None

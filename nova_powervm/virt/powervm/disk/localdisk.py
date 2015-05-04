@@ -117,7 +117,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 existing_vds.remove(match)
 
         # Now update the volume group to remove the storage.
-        vg_wrap.update(self.adapter)
+        vg_wrap.update()
 
     def disconnect_image_disk(self, context, instance, lpar_uuid,
                               disk_type=None):
@@ -142,7 +142,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
-        :param image_id: image_id reference used to locate the image in glance
+        :param image: image dict used to locate the image in glance
         :param disk_size: The size of the disk to create in GB.  If smaller
                           than the image, it will be ignored (as the disk
                           must be at least as big as the image).  Must be an
@@ -181,8 +181,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
         :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
         """
         # Add the mapping to the VIOS
-        tsk_map.add_vscsi_mapping(self.adapter, self.host_uuid, self.vios_uuid,
-                                  lpar_uuid, disk_info)
+        tsk_map.add_vscsi_mapping(self.host_uuid, self.vios_uuid, lpar_uuid,
+                                  disk_info)
 
     def extend_disk(self, context, instance, disk_info, size):
         """Extends the disk.
@@ -213,7 +213,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
             disk_found.capacity = size
 
             # Post it to the VIOS
-            vg_wrap.update(self.adapter)
+            vg_wrap.update()
 
         # Get the disk name based on the instance and type
         vol_name = self._get_disk_name(disk_info['type'], instance)

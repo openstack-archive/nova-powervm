@@ -326,9 +326,10 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None):
     return json.loads(resp.body)
 
 
-def _crt_lpar_builder(host_wrapper, instance, flavor):
+def _crt_lpar_builder(adapter, host_wrapper, instance, flavor):
     """Create an LPAR builder loaded with the instance and flavor attributes
 
+    :param adapter: The adapter for the pypowervm API
     :param host_wrapper: The host wrapper
     :param instance: The nova instance.
     :param flavor: The nova flavor.
@@ -340,7 +341,7 @@ def _crt_lpar_builder(host_wrapper, instance, flavor):
     stdz = lpar_bldr.DefaultStandardize(
         host_wrapper, proc_units_factor=CONF.proc_units_factor)
 
-    return lpar_bldr.LPARBuilder(attrs, stdz)
+    return lpar_bldr.LPARBuilder(adapter, attrs, stdz)
 
 
 def crt_lpar(adapter, host_wrapper, instance, flavor):
@@ -353,7 +354,7 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
     :returns: The LPAR response from the API.
     """
 
-    lpar = _crt_lpar_builder(host_wrapper, instance, flavor).build()
+    lpar = _crt_lpar_builder(adapter, host_wrapper, instance, flavor).build()
 
     resp = adapter.create(
         lpar.element, pvm_ms.System.schema_type, root_id=host_wrapper.uuid,
@@ -381,10 +382,10 @@ def update(adapter, host_wrapper, instance, flavor, entry=None):
     if not entry:
         entry = get_instance_wrapper(adapter, instance, host_wrapper.uuid)
 
-    _crt_lpar_builder(host_wrapper, instance, flavor).rebuild(entry)
+    _crt_lpar_builder(adapter, host_wrapper, instance, flavor).rebuild(entry)
 
     # Write out the new specs
-    entry.update(adapter)
+    entry.update()
 
 
 def dlt_lpar(adapter, lpar_uuid):
@@ -430,7 +431,7 @@ def power_on(adapter, instance, host_uuid, entry=None):
     # Get the current state and see if we can start the VM
     if entry.state in POWERVM_STARTABLE_STATE:
         # Now start the lpar
-        power.power_on(adapter, entry, host_uuid)
+        power.power_on(entry, host_uuid)
         return True
 
     return False
@@ -443,7 +444,7 @@ def power_off(adapter, instance, host_uuid, entry=None, add_parms=None):
     # Get the current state and see if we can stop the VM
     if entry.state in POWERVM_STOPABLE_STATE:
         # Now stop the lpar
-        power.power_off(adapter, entry, host_uuid, add_parms=add_parms)
+        power.power_off(entry, host_uuid, add_parms=add_parms)
         return True
 
     return False

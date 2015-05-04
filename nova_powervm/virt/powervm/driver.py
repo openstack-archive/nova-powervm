@@ -502,12 +502,12 @@ class PowerVMDriver(driver.ComputeDriver):
         entry = vm.get_instance_wrapper(self.adapter, instance, self.host_uuid)
         # Note: We're bypassing vm.power_off/_on because we don't want the
         # state checks imposed thereby.
-        pvm_pwr.power_off(self.adapter, entry, self.host_uuid,
+        pvm_pwr.power_off(entry, self.host_uuid,
                           force_immediate=force_immediate)
         # pypowervm does NOT throw an exception if "already down".  Any other
         # exception from pypowervm is a legitimate failure; let it raise up.
         # If we get here, pypowervm thinks the instance is down.
-        pvm_pwr.power_on(self.adapter, entry, self.host_uuid)
+        pvm_pwr.power_on(entry, self.host_uuid)
         # Again, pypowervm exceptions are sufficient to indicate real failure.
         # Otherwise, pypowervm thinks the instance is up.
         return True
