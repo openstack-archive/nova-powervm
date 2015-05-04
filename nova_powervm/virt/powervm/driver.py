@@ -95,11 +95,7 @@ class PowerVMDriver(driver.ComputeDriver):
         LOG.info(_LI("The compute driver has been initialized."))
 
     def _get_adapter(self):
-        # Decode the password
-        password = CONF.pvm_pass.decode('base64', 'strict')
-        # TODO(IBM): set cert path
-        self.session = pvm_apt.Session(CONF.pvm_server_ip, CONF.pvm_user_id,
-                                       password, certpath=None)
+        self.session = pvm_apt.Session()
         self.adapter = pvm_apt.Adapter(self.session,
                                        helpers=log_hlp.log_helper)
 
