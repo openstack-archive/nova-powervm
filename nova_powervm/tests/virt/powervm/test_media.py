@@ -31,6 +31,7 @@ VOL_GRP_WITH_VIOS = 'fake_volume_group_with_vio_data.txt'
 VIOS_WITH_VOL_GRP = 'fake_vios_with_volume_group_data.txt'
 
 VIOS_NO_VG = 'fake_vios_feed_no_vg.txt'
+VIOS_FEED = 'fake_vios_feed.txt'
 
 
 class TestConfigDrivePowerVM(test.TestCase):
@@ -58,6 +59,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
 
         self.vio_feed_no_vg = resp(VIOS_NO_VG)
+        self.vio_feed = resp(VIOS_FEED)
 
         # Wipe out the static variables, so that the revalidate is called
         m.ConfigDrivePowerVM._cur_vios_uuid = None
@@ -105,7 +107,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertTrue(mock_add_map.called)
 
     def test_validate_opt_vg(self):
-        self.apt.read.return_value = self.vol_grp_resp
+        self.apt.read.side_effect = [self.vio_feed, self.vol_grp_resp]
         vg_update = self.vol_grp_resp.feed.entries[0]
         self.apt.update_by_path.return_value = vg_update
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')

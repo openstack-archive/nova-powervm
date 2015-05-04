@@ -25,6 +25,7 @@ from oslo_log import log as logging
 
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
+from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -47,8 +48,8 @@ class AbstractMediaException(Exception):
 
 class NoMediaRepoVolumeGroupFound(AbstractMediaException):
     msg_fmt = _LE('Unable to locate the volume group %(vol_grp)s to store the '
-                  'virtual optical media within.  Since it is not rootvg, the '
-                  'volume group must be pre-created on the VIOS.')
+                  'virtual optical media within.  Unable to create the '
+                  'media repository.')
 
 
 class ConfigDrivePowerVM(object):
@@ -195,7 +196,13 @@ class ConfigDrivePowerVM(object):
         # First loop through the VIOSes to see if any have the right VG
         found_vg = None
         found_vios = None
+
         for vio_wrap in vio_wraps:
+            # If the RMC state is not active, skip over to ensure we don't
+            # timeout
+            if vio_wrap.rmc_state != pvm_bp.RMCState.ACTIVE:
+                continue
+
             try:
                 vg_resp = self.adapter.read(pvm_vios.VIOS.schema_type,
                                             root_id=vio_wrap.uuid,
@@ -211,18 +218,13 @@ class ConfigDrivePowerVM(object):
                              'I/O Server %s') % vio_wrap.name)
                 pass
 
-        # If we didn't find a volume group...
+        # If we didn't find a volume group...raise the exception.  It should
+        # default to being the rootvg, which all VIOSes will have.  Otherwise,
+        # this is user specified, and if it was not found is a proper
+        # exception path.
         if found_vg is None:
-            if CONF.vopt_media_volume_group == 'rootvg':
-                # If left at the default of rootvg, we should create it.
-                # TODO(IBM) Need to implement.  Need implementation in
-                # pypowervm api.
-                found_vios = vio_wraps[0]  # Use first VIOS (when implemented)
-                raise NoMediaRepoVolumeGroupFound(
-                    vol_grp=CONF.vopt_media_volume_group)
-            else:
-                raise NoMediaRepoVolumeGroupFound(
-                    vol_grp=CONF.vopt_media_volume_group)
+            raise NoMediaRepoVolumeGroupFound(
+                vol_grp=CONF.vopt_media_volume_group)
 
         # Ensure that there is a virtual optical media repository within it.
         if len(found_vg.vmedia_repos) == 0:
