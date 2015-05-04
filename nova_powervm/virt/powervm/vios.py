@@ -34,17 +34,20 @@ VALID_RMC_STATES = [pvm_bp.RMCState.ACTIVE, pvm_bp.RMCState.BUSY]
 VALID_VM_STATES = [pvm_bp.LPARState.RUNNING]
 
 
-def get_active_vioses(adapter, host_uuid):
+def get_active_vioses(adapter, host_uuid, xag=None):
     """Returns a list of active Virtual I/O Server Wrappers for a host.
 
     Active is defined by powered on and RMC state being 'active'.
 
     :param adapter: The pypowervm adapter for the query.
     :param host_uuid: The host servers UUID.
+    :param xag: Optional list of extended attributes to use.  If not passed
+                in defaults to None.
     :return: List of VIOS wrappers.
     """
     vio_feed_resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
-                                 child_type=pvm_vios.VIOS.schema_type)
+                                 child_type=pvm_vios.VIOS.schema_type,
+                                 xag=xag)
     wrappers = pvm_vios.VIOS.wrap(vio_feed_resp)
     return [vio for vio in wrappers if is_vios_active(vio)]
 
