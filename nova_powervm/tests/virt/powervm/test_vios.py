@@ -19,6 +19,8 @@ from nova import test
 import os
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import base_partition as pvm_bp
+from pypowervm.wrappers import managed_system as pvm_ms
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import vios
@@ -50,6 +52,10 @@ class TestVios(test.TestCase):
         vio = vioses[0]
         self.assertEqual(pvm_bp.LPARState.RUNNING, vio.state)
         self.assertEqual(pvm_bp.RMCState.ACTIVE, vio.rmc_state)
+        self.adpt.read.assert_called_with(pvm_ms.System.schema_type,
+                                          root_id='host_uuid',
+                                          child_type=pvm_vios.VIOS.schema_type,
+                                          xag=None)
 
     def test_get_physical_wwpns(self):
         self.adpt.read.return_value = self.vios_feed_resp

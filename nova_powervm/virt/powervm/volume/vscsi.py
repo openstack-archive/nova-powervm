@@ -27,11 +27,14 @@ import pypowervm.exceptions as pexc
 from pypowervm.tasks import hdisk
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.wrappers import storage as pvm_stor
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 import six
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
+
+_XAGS = [pvm_vios.VIOS.xags.STORAGE]
 
 
 class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
@@ -162,7 +165,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         try:
             # Get VIOS feed
-            vios_feed = vios.get_active_vioses(adapter, host_uuid)
+            vios_feed = vios.get_active_vioses(adapter, host_uuid,
+                                               xag=_XAGS)
 
             # Iterate through host vios list to find hdisks to disconnect.
             for vio_wrap in vios_feed:
