@@ -390,31 +390,19 @@ def dlt_lpar(adapter, lpar_uuid):
     # Attempt to delete the VM. If delete fails because of vterm
     # we will close the vterm and try the delete again
     try:
-        LOG.info(_LI('Deleting virtual machine. LPARID: %s') % lpar_uuid)
+        LOG.info(_LI('Deleting virtual machine. LPARID: %s'), lpar_uuid)
+        # Ensure any vterms are closed.  Will no-op otherwise.
+        vterm.close_vterm(adapter, lpar_uuid)
+
+        # Run the LPAR delete
         resp = adapter.delete(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid)
-        LOG.info(_LI('Virtual machine delete status: %s') % resp.status)
+        LOG.info(_LI('Virtual machine delete status: %d'), resp.status)
         return resp
-    except pvm_exc.Error as e:
-        resp = e.response
-        if (resp.body and
-                any(code in str(resp.body) for code in ['HSCL151B'])):
-            # If this is a vterm error attempt to close vterm
-            try:
-                LOG.info(_LI('Closing virtual terminal'))
-                vterm.close_vterm(adapter, lpar_uuid)
-                # Try to delete the vm again
-                resp = adapter.delete(pvm_lpar.LPAR.schema_type,
-                                      root_id=lpar_uuid)
-                LOG.info(_LI('Virtual machine delete status: %s')
-                         % resp.status)
-                return resp
-            except pvm_exc.Error as e:
-                # Fall through and raise exception
-                pass
+    except pvm_exc.Error:
         # Attempting to close vterm did not help so raise exception
-        LOG.error(_LE('Virtual machine delete failed: LPARID=%s')
-                  % lpar_uuid)
-        raise e
+        LOG.error(_LE('Virtual machine delete failed: LPARID=%s'),
+                  lpar_uuid)
+        raise
 
 
 def power_on(adapter, instance, host_uuid, entry=None):
