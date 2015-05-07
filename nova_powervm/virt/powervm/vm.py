@@ -337,10 +337,8 @@ def _crt_lpar_builder(adapter, host_wrapper, instance, flavor):
     """
 
     attrs = _build_attrs(instance, flavor)
-
     stdz = lpar_bldr.DefaultStandardize(
         host_wrapper, proc_units_factor=CONF.proc_units_factor)
-
     return lpar_bldr.LPARBuilder(adapter, attrs, stdz)
 
 
@@ -354,14 +352,9 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
     :returns: The LPAR response from the API.
     """
 
-    lpar = _crt_lpar_builder(adapter, host_wrapper, instance, flavor).build()
-
-    resp = adapter.create(
-        lpar.element, pvm_ms.System.schema_type, root_id=host_wrapper.uuid,
-        child_type=pvm_lpar.LPAR.schema_type)
-
-    lpar_w = pvm_lpar.LPAR.wrap(resp)
-
+    lpar_w = _crt_lpar_builder(
+        adapter, host_wrapper, instance, flavor).build().create(
+        parent_type=pvm_ms.System, parent_uuid=host_wrapper.uuid)
     # Add the uuid to the cache.
     UUIDCache.get_cache().add(instance.name, lpar_w.uuid)
 

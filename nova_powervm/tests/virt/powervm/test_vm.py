@@ -51,15 +51,15 @@ class FakeAdapterResponse(object):
 class TestVM(test.TestCase):
     def setUp(self):
         super(TestVM, self).setUp()
-        lpar_http = pvmhttp.load_pvm_resp(LPAR_HTTPRESP_FILE)
+        self.pypvm = self.useFixture(fx.PyPowerVM())
+        self.apt = self.pypvm.apt
+
+        lpar_http = pvmhttp.load_pvm_resp(LPAR_HTTPRESP_FILE, adapter=self.apt)
         self.assertNotEqual(lpar_http, None,
                             "Could not load %s " %
                             LPAR_HTTPRESP_FILE)
 
         self.resp = lpar_http.response
-
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
 
     def test_uuid_cache(self):
         cache = vm.UUIDCache(self.apt)
@@ -223,10 +223,9 @@ class TestVM(test.TestCase):
         self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
     @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
-    @mock.patch('pypowervm.wrappers.entry_wrapper.EntryWrapper.wrap')
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
-    @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder')
-    def test_crt_lpar(self, mock_bldr, mock_stdz, mock_entrywrap, mock_cache):
+    @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder.build')
+    def test_crt_lpar(self, mock_bld, mock_stdz, mock_cache):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
@@ -234,6 +233,9 @@ class TestVM(test.TestCase):
         host_wrapper = mock.Mock()
         singleton = mock.Mock()
         mock_cache.get_cache.return_value = singleton
+        lparw = pvm_lpar.LPAR.wrap(self.resp.feed.entries[0])
+        mock_bld.return_value = lparw
+        self.apt.create.return_value = lparw.entry
         vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
         self.assertTrue(self.apt.create.called)
         singleton.add.assert_called_with(instance.name, mock.ANY)
