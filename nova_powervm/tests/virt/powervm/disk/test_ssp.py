@@ -258,6 +258,21 @@ class TestSSPDiskAdapter(test.TestCase):
             self.assertIn(u, vios_uuids)
             s.add(u)
 
+        # Test VIOSs on other nodes, which won't have uuid or url
+        with mock.patch.object(ssp_stor, '_cluster') as mock_clust:
+            def mock_node(uuid, uri):
+                node = mock.MagicMock()
+                node.vios_uuid = uuid
+                node.vios_uri = uri
+                return node
+            node1 = mock_node(None, 'uri')
+            node2 = mock_node('2', None)
+            # This mock is good and should be returned
+            node3 = mock_node('3', 'uri')
+            mock_clust.nodes = [node1, node2, node3]
+            vios_uuids = ssp_stor._vios_uuids()
+            self.assertEqual(['3'], vios_uuids)
+
     def test_capacity(self):
         ssp_stor = self._get_ssp_stor()
         self.assertEqual(49.88, ssp_stor.capacity)

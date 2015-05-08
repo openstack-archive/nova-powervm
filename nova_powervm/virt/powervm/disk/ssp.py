@@ -376,6 +376,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         ret = []
         for n in self._cluster.nodes:
+            # Skip any nodes that we don't have the vios uuid or uri
+            if not (n.vios_uuid and n.vios_uri):
+                continue
             if host_uuid:
                 node_host_uuid = pvm_u.get_req_path_uuid(
                     n.vios_uri, preserve_case=True, root=True)
