@@ -40,21 +40,11 @@ pvm_opts = [
                default='/tmp/cfgdrv/',
                help='The location where the config drive ISO files should be '
                     'built.'),
-    # TODO(kyleh) Re-evaluate these as the auth model evolves.
     cfg.StrOpt('pvm_host_mtms',
                default='',
                help='The Model Type/Serial Number of the host server to '
                     'manage.  Format is MODEL-TYPE*SERIALNUM.  Example is '
                     '8286-42A*1234ABC.'),
-    cfg.StrOpt('pvm_server_ip',
-               default='localhost',
-               help='The IP Address hosting the PowerVM REST API'),
-    cfg.StrOpt('pvm_user_id',
-               default='',
-               help='The user id for authentication into the API.'),
-    cfg.StrOpt('pvm_pass',
-               default='',
-               help='The password for authentication into the API.'),
     cfg.StrOpt('fc_attach_strategy',
                default='vscsi',
                help='The Fibre Channel Volume Strategy defines how FC Cinder '
