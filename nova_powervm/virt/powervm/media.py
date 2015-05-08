@@ -25,6 +25,7 @@ from oslo_log import log as logging
 
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
+from pypowervm import util as pvm_util
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
@@ -102,7 +103,8 @@ class ConfigDrivePowerVM(object):
         if not os.path.exists(CONF.image_meta_local_path):
             os.mkdir(CONF.image_meta_local_path)
 
-        file_name = '%s_config.iso' % instance.name.replace('-', '_')
+        file_name = pvm_util.sanitize_file_name_for_api(
+            instance.name, prefix='config_', suffix='.iso')
         iso_path = os.path.join(CONF.image_meta_local_path, file_name)
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
             LOG.info(_LI("Config drive ISO being built for instance %(inst)s "

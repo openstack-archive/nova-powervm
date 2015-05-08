@@ -65,7 +65,8 @@ class TestSSPDiskAdapter(test.TestCase):
         super(TestSSPDiskAdapter, self).setUp()
 
         class Instance(object):
-            uuid = 'instance_uuid'
+            uuid = 'instance-uuid'
+            name = 'instance-name'
 
         self.instance = Instance()
 
@@ -275,19 +276,19 @@ class TestSSPDiskAdapter(test.TestCase):
         b1G = 1024 * 1024 * 1024
         b2G = 2 * b1G
         ssp_stor = self._get_ssp_stor()
-        img = dict(id='image-id', size=b2G)
+        img = dict(name='image-name', id='image-id', size=b2G)
 
         def verify_upload_new_lu(vios_uuid, ssp1, stream, lu_name, f_size):
             self.assertIn(vios_uuid, ssp_stor._vios_uuids())
             self.assertEqual(ssp_stor._ssp_wrap, ssp1)
             # 'image' + '_' + s/-/_/g(image['id']), per _get_image_name
-            self.assertEqual('image_image_id', lu_name)
+            self.assertEqual('image_image_name', lu_name)
             self.assertEqual(b2G, f_size)
             return 'image_lu', None
 
         def verify_create_lu_linked_clone(ssp1, clust1, imglu, lu_name, sz_gb):
-            # 'boot'[:6] + '_' + 'instance_uuid'[:8], per _get_disk_name
-            self.assertEqual('boot_instance', lu_name)
+            # 'boot_' + sanitize('instance-name') _get_disk_name
+            self.assertEqual('boot_instance_name', lu_name)
             self.assertEqual('image_lu', imglu)
             return ssp1, 'new_lu'
 
@@ -304,18 +305,19 @@ class TestSSPDiskAdapter(test.TestCase):
         b1G = 1024 * 1024 * 1024
         b2G = 2 * b1G
         ssp_stor = self._get_ssp_stor()
-        img = dict(id='image-id', size=b2G)
+        img = dict(name='image-name', id='image-id', size=b2G)
         # Mock the 'existing' image LU
-        img_lu = pvm_stg.LU.bld(None, 'image_image_id', 123,
+        img_lu = pvm_stg.LU.bld(None, 'image_image_name', 123,
                                 typ=pvm_stg.LUType.IMAGE)
         ssp_stor._ssp_wrap.logical_units.append(img_lu)
 
         class Instance(object):
-            uuid = 'instance_uuid'
+            uuid = 'instance-uuid'
+            name = 'instance-name'
 
         def verify_create_lu_linked_clone(ssp1, clust1, imglu, lu_name, sz_gb):
-            # 'boot'[:6] + '_' + 'instance_uuid'[:8], per _get_disk_name
-            self.assertEqual('boot_instance', lu_name)
+            # 'boot_' + sanitize('instance-name') per _get_disk_name
+            self.assertEqual('boot_instance_name', lu_name)
             self.assertEqual(img_lu, imglu)
             return ssp1, 'new_lu'
 

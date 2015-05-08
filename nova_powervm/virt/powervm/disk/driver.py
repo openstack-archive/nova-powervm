@@ -21,6 +21,7 @@ from oslo_utils import units
 import six
 
 from nova import image
+import pypowervm.util as pvm_util
 
 
 class DiskType(object):
@@ -71,7 +72,7 @@ class DiskAdapter(object):
 
         Default is to make the capacity arbitrarily large
         """
-        return (1 << 21)
+        return 1 << 21
 
     @property
     def capacity_used(self):
@@ -97,11 +98,15 @@ class DiskAdapter(object):
 
     @staticmethod
     def _get_disk_name(disk_type, instance):
-        return disk_type[:6] + '_' + instance.uuid[:8]
+        """Generate a name for a virtual disk associated with an instance."""
+        return pvm_util.sanitize_file_name_for_api(instance.name,
+                                                   prefix=disk_type + '_')
 
     @staticmethod
-    def _get_image_name(image):
-        return DiskType.IMAGE + '_' + image['id'].replace('-', '_')
+    def _get_image_name(image_meta):
+        """Generate a name for a virtual storage copy of an image."""
+        return pvm_util.sanitize_file_name_for_api(image_meta['name'],
+                                                   prefix=DiskType.IMAGE + '_')
 
     @staticmethod
     def _disk_gb_to_bytes(size_gb, floor=None):
@@ -144,13 +149,13 @@ class DiskAdapter(object):
         """
         pass
 
-    def create_disk_from_image(self, context, instance, image, disk_size,
+    def create_disk_from_image(self, context, instance, image_meta, disk_size,
                                image_type=DiskType.BOOT):
         """Creates a disk and copies the specified image to it.
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
-        :param image_id: image_id reference used to locate the image in glance
+        :param image_meta: dict identifying the image in glance
         :param disk_size: The size of the disk to create in GB.  If smaller
                           than the image, it will be ignored (as the disk
                           must be at least as big as the image).  Must be an

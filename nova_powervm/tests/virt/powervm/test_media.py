@@ -75,13 +75,14 @@ class TestConfigDrivePowerVM(test.TestCase):
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'host_uuid')
         mock_instance = mock.MagicMock()
         mock_instance.name = 'fake-instance'
+        mock_instance.uuid = '1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f'
         mock_files = mock.MagicMock()
         mock_net = mock.MagicMock()
         iso_path, file_name = cfg_dr_builder._create_cfg_dr_iso(mock_instance,
                                                                 mock_files,
                                                                 mock_net)
-        self.assertEqual('fake_instance_config.iso', file_name)
-        self.assertEqual('/tmp/cfgdrv/fake_instance_config.iso', iso_path)
+        self.assertEqual('config_fake_instance.iso', file_name)
+        self.assertEqual('/tmp/cfgdrv/config_fake_instance.iso', iso_path)
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_create_cfg_dr_iso')
