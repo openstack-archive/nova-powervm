@@ -23,6 +23,9 @@ import mock
 from nova_powervm.virt.powervm import driver
 
 from nova.virt import fake
+from pypowervm.tests.wrappers.util import pvmhttp
+
+MS_HTTPRESP_FILE = "managedsystem.txt"
 
 
 class PyPowerVM(fixtures.Fixture):
@@ -91,8 +94,12 @@ class PowerVMComputeDriver(fixtures.Fixture):
         pass
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage')
-    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._get_adapter')
     def _init_host(self, *args):
+        ms_http = pvmhttp.load_pvm_resp(MS_HTTPRESP_FILE).get_response()
+        # Pretend it just returned one host
+        ms_http.feed.entries = [ms_http.feed.entries[0]]
+        self.drv.adapter.read.return_value = ms_http
         self.drv.init_host('FakeHost')
 
     def setUp(self):
@@ -103,8 +110,8 @@ class PowerVMComputeDriver(fixtures.Fixture):
         self.addCleanup(self.pypvm.cleanUp)
 
         self.drv = driver.PowerVMDriver(fake.FakeVirtAPI())
-        self._init_host()
         self.drv.adapter = self.pypvm.apt
+        self._init_host()
         self.drv.image_api = mock.Mock()
 
         # Set up the mock volume and disk drivers.

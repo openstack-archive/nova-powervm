@@ -100,15 +100,6 @@ class TestPowerVMDriver(test.TestCase):
         self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
 
-    @mock.patch('pypowervm.wrappers.managed_system.find_entry_by_mtms')
-    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage')
-    def test_driver_init(self, mock_disk, mock_find):
-        """Validates the PowerVM driver can be initialized for the host."""
-        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
-        drv.init_host('FakeHost')
-        # Nothing to really check here specific to the host.
-        self.assertIsNotNone(drv)
-
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.context.get_admin_context')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')

@@ -108,12 +108,13 @@ class PowerVMDriver(driver.ComputeDriver):
             DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.disk_driver], conn_info)
 
     def _get_host_uuid(self):
-        # Need to get a list of the hosts, then find the matching one
-        resp = self.adapter.read(pvm_ms.System.schema_type)
-        mtms = CONF.pvm_host_mtms
-        self.host_wrapper = pvm_ms.find_entry_by_mtms(resp, mtms)
-        if not self.host_wrapper:
-            raise Exception("Host %s not found" % CONF.pvm_host_mtms)
+        """Get the System wrapper and its UUID for the (single) host."""
+        syswraps = pvm_ms.System.wrap(
+            self.adapter.read(pvm_ms.System.schema_type))
+        if len(syswraps) != 1:
+            raise Exception(
+                _("Expected exactly one host; found %d"), len(syswraps))
+        self.host_wrapper = syswraps[0]
         self.host_uuid = self.host_wrapper.uuid
         LOG.info(_LI("Host UUID is:%s") % self.host_uuid)
 

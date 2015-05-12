@@ -40,11 +40,6 @@ pvm_opts = [
                default='/tmp/cfgdrv/',
                help='The location where the config drive ISO files should be '
                     'built.'),
-    cfg.StrOpt('pvm_host_mtms',
-               default='',
-               help='The Model Type/Serial Number of the host server to '
-                    'manage.  Format is MODEL-TYPE*SERIALNUM.  Example is '
-                    '8286-42A*1234ABC.'),
     cfg.StrOpt('fc_attach_strategy',
                default='vscsi',
                help='The Fibre Channel Volume Strategy defines how FC Cinder '
