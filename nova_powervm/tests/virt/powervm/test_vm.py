@@ -160,19 +160,23 @@ class TestVM(test.TestCase):
         """Performs a delete LPAR test."""
         vm.dlt_lpar(self.apt, '12345')
         self.assertEqual(1, self.apt.delete.call_count)
+        self.assertEqual(1, mock_vterm.call_count)
 
-        # test failure due to open vterm
-        resp = mock.Mock()
+        # Test Failure Path
         # build a mock response body with the expected HSCL msg
+        resp = mock.Mock()
         resp.body = 'error msg: HSCL151B more text'
         self.apt.delete.side_effect = pvm_exc.Error(
             'Mock Error Message', response=resp)
-        # If failed due to vterm test close_vterm and delete are called
+
+        # Reset counters
         self.apt.reset_mock()
+        mock_vterm.reset_mock()
+
         self.assertRaises(pvm_exc.Error,
                           vm.dlt_lpar, self.apt, '12345')
         self.assertEqual(1, mock_vterm.call_count)
-        self.assertEqual(2, self.apt.delete.call_count)
+        self.assertEqual(1, self.apt.delete.call_count)
 
     def test_build_attr(self):
         """Perform tests against _build_attrs."""

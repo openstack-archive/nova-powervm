@@ -16,6 +16,7 @@
 
 from nova.compute import task_states
 from nova.compute import utils as compute_utils
+from nova.console import type as console_type
 from nova import context as ctx
 from nova import exception
 from nova import image
@@ -38,6 +39,7 @@ from pypowervm import adapter as pvm_apt
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.tasks import power as pvm_pwr
+from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm import util as pvm_util
 from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -924,6 +926,21 @@ class PowerVMDriver(driver.ComputeDriver):
         if block_device_info is None:
             return []
         return block_device_info.get('block_device_mapping', [])
+
+    def get_vnc_console(self, context, instance):
+        """Get connection info for a vnc console.
+
+        :param context: security context
+        :param instance: nova.objects.instance.Instance
+
+        :returns an instance of console.type.ConsoleVNC
+        """
+        self._log_operation('get_vnc_console', instance)
+        lpar_uuid = vm.get_pvm_uuid(instance)
+        port = pvm_vterm.open_vnc_vterm(self.adapter, lpar_uuid,
+                                        bind_ip=CONF.vncserver_listen)
+        host = CONF.vncserver_proxyclient_address
+        return console_type.ConsoleVNC(host=host, port=port)
 
 
 def _inst_dict(input_dict):

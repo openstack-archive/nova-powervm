@@ -693,6 +693,20 @@ class TestPowerVMDriver(test.TestCase):
                           'context', inst, None, 'HARD')
         self.assertEqual(pwron_count, mock_pwron.call_count)
 
+    @mock.patch('pypowervm.tasks.vterm.open_vnc_vterm')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_get_vnc_console(self, mock_uuid, mock_vterm):
+        # Mock response
+        mock_vterm.return_value = '10'
+
+        # Invoke
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        resp = self.drv.get_vnc_console(mock.ANY, inst)
+
+        # Validate
+        self.assertEqual('127.0.0.1', resp.host)
+        self.assertEqual('10', resp.port)
+
     @staticmethod
     def _fake_bdms():
         block_device_info = {

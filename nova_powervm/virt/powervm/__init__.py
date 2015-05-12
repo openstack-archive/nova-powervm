@@ -63,6 +63,8 @@ CONF.register_opts(pvm_opts)
 # Options imported from other regions
 CONF.import_opt('host', 'nova.netconf')
 CONF.import_opt('my_ip', 'nova.netconf')
+CONF.import_opt('vncserver_proxyclient_address', 'nova.vnc')
+CONF.import_opt('vncserver_listen', 'nova.vnc')
 
 
 # NPIV Options will go in separate section.  Only applicable if the
