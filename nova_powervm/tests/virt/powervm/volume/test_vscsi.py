@@ -75,6 +75,9 @@ class TestVSCSIAdapter(test.TestCase):
                                                   con_info)
         # Single mapping
         self.assertEqual(1, mock_add_vscsi_mapping.call_count)
+        mock_add_vscsi_mapping.assert_called_with(
+            'host_uuid', '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089', 'vm_uuid',
+            mock.ANY)
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_pv_mapping')
