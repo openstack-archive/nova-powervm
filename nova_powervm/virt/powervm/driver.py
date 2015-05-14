@@ -146,7 +146,7 @@ class PowerVMDriver(driver.ComputeDriver):
         """Return the names of all the instances known to the virtualization
         layer, as a list.
         """
-        lpar_list = vm.get_lpar_list(self.adapter, self.host_uuid)
+        lpar_list = vm.get_lpar_names(self.adapter)
         return lpar_list
 
     def spawn(self, context, instance, image_meta, injected_files,

@@ -191,29 +191,14 @@ class InstanceInfo(hardware.InstanceInfo):
                 self._uuid == other._uuid)
 
 
-def get_lpar_feed(adapter, host_uuid):
-    """Get a feed of the LPARs."""
-
-    feed = None
-    try:
-        resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
-                            child_type=pvm_lpar.LPAR.schema_type)
-        feed = resp.feed
-    except pvm_exc.Error as e:
-        LOG.exception(e)
-    return feed
+def get_lpars(adapter):
+    """Get a list of the LPAR wrappers."""
+    return pvm_lpar.LPAR.search(adapter, is_mgmt_partition=False)
 
 
-def get_lpar_list(adapter, host_uuid):
+def get_lpar_names(adapter):
     """Get a list of the LPAR names."""
-    lpar_list = []
-    feed = get_lpar_feed(adapter, host_uuid)
-    if feed is not None:
-        for entry in feed.entries:
-            name = pvm_lpar.LPAR.wrap(entry).name
-            lpar_list.append(name)
-
-    return lpar_list
+    return [x.name for x in get_lpars(adapter)]
 
 
 def get_instance_wrapper(adapter, instance, host_uuid):
