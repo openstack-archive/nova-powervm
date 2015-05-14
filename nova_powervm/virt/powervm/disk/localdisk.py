@@ -153,7 +153,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Transfer the image
         stream = self._get_image_upload(context, image)
-        vol_name = self._get_disk_name(image_type, instance)
+        vol_name = self._get_disk_name(image_type, instance, short=True)
 
         # Disk size to API is in bytes.  Input from method is in Gb
         disk_bytes = self._disk_gb_to_bytes(disk_size, floor=image['size'])
@@ -215,7 +215,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
             vg_wrap.update()
 
         # Get the disk name based on the instance and type
-        vol_name = self._get_disk_name(disk_info['type'], instance)
+        vol_name = self._get_disk_name(disk_info['type'], instance, short=True)
         LOG.info(_LI('Extending disk: %s'), vol_name)
         try:
             _extend()

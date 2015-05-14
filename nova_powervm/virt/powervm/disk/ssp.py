@@ -180,6 +180,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         image_lu = self._get_or_upload_image_lu(context, img_meta)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
+        LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)
 
         ssp, boot_lu = tsk_stg.crt_lu_linked_clone(
             self._ssp, self._cluster, image_lu, boot_lu_name, disk_size_gb)

@@ -97,10 +97,20 @@ class DiskAdapter(object):
         return IterableToFileAdapter(chunks)
 
     @staticmethod
-    def _get_disk_name(disk_type, instance):
-        """Generate a name for a virtual disk associated with an instance."""
-        return pvm_util.sanitize_file_name_for_api(instance.name,
-                                                   prefix=disk_type + '_')
+    def _get_disk_name(disk_type, instance, short=False):
+        """Generate a name for a virtual disk associated with an instance.
+
+        :param disk_type: One of the DiskType enum values.
+        :param instance: The instance for which the disk is to be created.
+        :param short: If True, the generated name will be limited to 15
+                      characters (the limit for virtual disk).  If False, it
+                      will be limited by the API (79 characters currently).
+        :return:
+        """
+        prefix = '%s_' % (disk_type[0] if short else disk_type)
+        base = ('%s_%s' % (instance.name[:8], instance.uuid[:4]) if short
+                else instance.name)
+        return pvm_util.sanitize_file_name_for_api(base, prefix=prefix)
 
     @staticmethod
     def _get_image_name(image_meta):
