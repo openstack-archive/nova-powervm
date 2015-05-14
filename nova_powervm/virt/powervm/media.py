@@ -15,8 +15,10 @@
 #    under the License.
 
 import abc
+import copy
 from nova.api.metadata import base as instance_metadata
 from nova.i18n import _, _LI, _LW
+from nova.network import model as network_model
 from nova.virt import configdrive
 import os
 
@@ -114,7 +116,7 @@ class ConfigDrivePowerVM(object):
             return iso_path, file_name
 
     def create_cfg_drv_vopt(self, instance, injected_files, network_info,
-                            lpar_uuid, admin_pass=None):
+                            lpar_uuid, admin_pass=None, mgmt_cna=None):
         """Creates the config drive virtual optical and attach to VM.
 
         :param instance: The VM instance from OpenStack.
@@ -122,8 +124,15 @@ class ConfigDrivePowerVM(object):
                                the ISO.
         :param network_info: The network_info from the nova spawn method.
         :param lpar_uuid: The UUID of the client LPAR
-        :param admin_pass: Optional password to inject for the VM.
+        :param admin_pass: (Optional) password to inject for the VM.
+        :param mgmt_cna: (Optional) The management (RMC) CNA wrapper.
         """
+        # If there is a management client network adapter, then we should
+        # convert that to a VIF and add it to the network info
+        if mgmt_cna is not None:
+            network_info = copy.deepcopy(network_info)
+            network_info.append(self._mgmt_cna_to_vif(mgmt_cna))
+
         iso_path, file_name = self._create_cfg_dr_iso(instance, injected_files,
                                                       network_info, admin_pass)
 
@@ -137,6 +146,14 @@ class ConfigDrivePowerVM(object):
         # Add the mapping to the virtual machine
         tsk_map.add_vscsi_mapping(self.host_uuid, self.vios_uuid, lpar_uuid,
                                   vopt)
+
+    def _mgmt_cna_to_vif(self, cna):
+        """Converts the mgmt CNA to VIF format for network injection."""
+        subnet = network_model.Subnet(version='6', dhcp_server='link_local')
+        network = network_model.Network(id='mgmt', subnets=[subnet],
+                                        injected='yes')
+        return network_model.VIF(id='mgmt_vif', address=vm.norm_mac(cna.mac),
+                                 network=network)
 
     def _upload_vopt(self, iso_path, file_name, file_size):
         with open(iso_path, 'rb') as d_stream:

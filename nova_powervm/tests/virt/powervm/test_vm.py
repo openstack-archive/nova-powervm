@@ -27,6 +27,7 @@ from pypowervm import adapter as pvm_adp
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import logical_partition as pvm_lpar
+from pypowervm.wrappers import network as pvm_net
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -262,13 +263,17 @@ class TestVM(test.TestCase):
             self.assertEqual('fake_host', kargs[1])
             self.assertEqual(5, kargs[3])
             self.assertEqual('aabbccddeeff', kwargs['mac_addr'])
+            return pvm_net.CNA.bld(self.apt, 5, 'fake_host')
         mock_crt_cna.side_effect = validate_of_crt
 
         # Invoke
-        vm.crt_vif(mock.MagicMock(), mock.MagicMock(), 'fake_host', fake_vif)
+        resp = vm.crt_vif(mock.MagicMock(), mock.MagicMock(), 'fake_host',
+                          fake_vif)
 
         # Validate (along with validate method above)
         self.assertEqual(1, mock_crt_cna.call_count)
+        self.assertIsNotNone(resp)
+        self.assertIsInstance(resp, pvm_net.CNA)
 
     def test_get_vm_qp(self):
         def adapter_read(root_type, root_id=None, suffix_type=None,
@@ -334,3 +339,10 @@ class TestVM(test.TestCase):
         mp_wrap = vm.get_mgmt_partition(self.apt)
         self.assertIsInstance(mp_wrap, pvm_lpar.LPAR)
         self.assertTrue(mp_wrap.is_mgmt_partition)
+
+    def test_norm_mac(self):
+        EXPECTED = "12:34:56:78:90:ab"
+        self.assertEqual(EXPECTED, vm.norm_mac("12:34:56:78:90:ab"))
+        self.assertEqual(EXPECTED, vm.norm_mac("1234567890ab"))
+        self.assertEqual(EXPECTED, vm.norm_mac("12:34:56:78:90:AB"))
+        self.assertEqual(EXPECTED, vm.norm_mac("1234567890AB"))

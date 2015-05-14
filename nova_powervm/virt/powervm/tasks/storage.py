@@ -215,7 +215,7 @@ class CreateAndConnectCfgDrive(task.Task):
                  network_info, admin_pass):
         """Create the Task that create and connect the config drive.
 
-        Requires the 'lpar_wrap'.
+        Requires the 'lpar_wrap' and 'mgmt_cna'
         Provides the 'cfg_drv_vscsi_map' which is an element to later map
         the vscsi drive.
 
@@ -227,8 +227,8 @@ class CreateAndConnectCfgDrive(task.Task):
         :param network_info: The network_info from the nova spawn method.
         :param admin_pass: Optional password to inject for the VM.
         """
-        super(CreateAndConnectCfgDrive, self).__init__(name='cfg_drive',
-                                                       requires=['lpar_wrap'])
+        super(CreateAndConnectCfgDrive, self).__init__(
+            name='cfg_drive', requires=['lpar_wrap', 'mgmt_cna'])
         self.adapter = adapter
         self.host_uuid = host_uuid
         self.instance = instance
@@ -237,15 +237,16 @@ class CreateAndConnectCfgDrive(task.Task):
         self.ad_pass = admin_pass
         self.mb = None
 
-    def execute(self, lpar_wrap):
+    def execute(self, lpar_wrap, mgmt_cna):
         LOG.info(_LI('Creating Config Drive for instance: %s'),
                  self.instance.name)
         self.mb = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
         self.mb.create_cfg_drv_vopt(self.instance, self.injected_files,
                                     self.network_info, lpar_wrap.uuid,
-                                    admin_pass=self.ad_pass)
+                                    admin_pass=self.ad_pass,
+                                    mgmt_cna=mgmt_cna)
 
-    def revert(self, lpar_wrap, result, flow_failures):
+    def revert(self, lpar_wrap, mgmt_cna, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
 

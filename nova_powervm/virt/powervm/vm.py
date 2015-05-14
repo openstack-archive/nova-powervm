@@ -466,11 +466,13 @@ def crt_vif(adapter, instance, host_uuid, vif):
     :param instance: The nova instance to create the VIF against.
     :param host_uuid: The host system UUID.
     :param vif: The nova VIF that describes the ethernet interface.
+    :return: The created network adapter wrapper.
     """
     lpar_uuid = get_pvm_uuid(instance)
     # CNA's require a VLAN.  If the network doesn't provide, default to 1
     vlan = vif['network']['meta'].get('vlan', 1)
-    cna.crt_cna(adapter, host_uuid, lpar_uuid, vlan, mac_addr=vif['address'])
+    return cna.crt_cna(adapter, host_uuid, lpar_uuid, vlan,
+                       mac_addr=vif['address'])
 
 
 def crt_secure_rmc_vif(adapter, instance, host_uuid):
@@ -479,10 +481,11 @@ def crt_secure_rmc_vif(adapter, instance, host_uuid):
     :param adapter: The pypowervm adapter API interface.
     :param instance: The nova instance to create the VIF against.
     :param host_uuid: The host system UUID.
+    :return: The created network adapter wrapper.
     """
     lpar_uuid = get_pvm_uuid(instance)
-    cna.crt_cna(adapter, host_uuid, lpar_uuid, SECURE_RMC_VLAN,
-                vswitch=SECURE_RMC_VSWITCH, crt_vswitch=True)
+    return cna.crt_cna(adapter, host_uuid, lpar_uuid, SECURE_RMC_VLAN,
+                       vswitch=SECURE_RMC_VSWITCH, crt_vswitch=True)
 
 
 def get_secure_rmc_vswitch(adapter, host_uuid):
@@ -500,6 +503,20 @@ def get_secure_rmc_vswitch(adapter, host_uuid):
         if vswitch.name == SECURE_RMC_VSWITCH:
             return vswitch
     return None
+
+
+def norm_mac(mac):
+    """Normalizes a MAC address from pypowervm format to OpenStack.
+
+    That means that the format will be converted to lower case and will
+    have colons added.
+
+    :param mac: A pypowervm mac address.  Ex. 1234567890AB
+    :returns: A mac that matches the standard neutron format.
+              Ex. 12:34:56:78:90:ab
+    """
+    mac = mac.lower().replace(':', '')
+    return ':'.join(mac[i:i + 2] for i in range(0, len(mac), 2))
 
 
 class UUIDCache(object):

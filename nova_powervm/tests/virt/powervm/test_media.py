@@ -107,6 +107,24 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertTrue(mock_upld.called)
         self.assertTrue(mock_add_map.called)
 
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_validate_vopt_vg')
+    def test_cna_to_vif(self, mock_validate):
+        mock_cna = mock.MagicMock()
+        mock_cna.mac = "FAD4433ED120"
+
+        # Run
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        vif = cfg_dr_builder._mgmt_cna_to_vif(mock_cna)
+
+        # Validate
+        self.assertEqual(vif.get('address'), "fa:d4:43:3e:d1:20")
+        self.assertEqual(vif.get('id'), 'mgmt_vif')
+        self.assertIsNotNone(vif.get('network'))
+        self.assertEqual(1, len(vif.get('network').get('subnets')))
+        self.assertEqual('6',
+                         vif.get('network').get('subnets')[0].get('version'))
+
     def test_validate_opt_vg(self):
         self.apt.read.side_effect = [self.vio_feed, self.vol_grp_resp]
         vg_update = self.vol_grp_resp.feed.entries[0]

@@ -33,19 +33,18 @@ from oslo_log import log as logging
 from oslo_utils import importutils
 import taskflow.engines
 from taskflow.patterns import linear_flow as lf
-import taskflow.task
 
 from pypowervm import adapter as pvm_apt
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.tasks import power as pvm_pwr
 from pypowervm.tasks import vterm as pvm_vterm
-from pypowervm import util as pvm_util
 from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import managed_system as pvm_ms
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import host as pvm_host
+from nova_powervm.virt.powervm.tasks import network as tf_net
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
 from nova_powervm.virt.powervm import vm
@@ -192,9 +191,9 @@ class PowerVMDriver(driver.ComputeDriver):
                               flavor))
 
         # Plug the VIFs
-        vif_plug_info = {'instance': instance, 'network_info': network_info}
-        flow.add(taskflow.task.FunctorTask(self._plug_vifs, name='plug_vifs',
-                                           inject=vif_plug_info))
+        flow.add(tf_net.PlugVifs(self.adapter, instance, network_info,
+                                 self.host_uuid))
+        flow.add(tf_net.PlugMgmtVif(self.adapter, instance, self.host_uuid))
 
         # Only add the image disk if this is from Glance.
         if not is_boot_from_volume:
@@ -545,41 +544,20 @@ class PowerVMDriver(driver.ComputeDriver):
     def plug_vifs(self, instance, network_info):
         """Plug VIFs into networks."""
         self._log_operation('plug_vifs', instance)
-        self._plug_vifs(instance, network_info)
 
-    def _plug_vifs(self, instance, network_info):
-        """Actual logic to plug VIFs into networks."""
-        # Get all the current VIFs.  Only create new ones.
-        cna_w_list = vm.get_cnas(self.adapter, instance, self.host_uuid)
-        for vif in network_info:
-            crt_cna = True
-            for cna_w in cna_w_list:
-                if cna_w.mac == pvm_util.sanitize_mac_for_api(vif['address']):
-                    crt_cna = False
+        # Define the flow
+        flow = lf.Flow("plug_vifs")
 
-            # If the crt_cna flag is true, then actually kick off the create
-            if crt_cna:
-                LOG.info(_LI('Creating VIF with mac %(mac)s for instance '
-                             '%(inst)s'), {'mac': vif['address'],
-                                           'inst': instance.name},
-                         instance=instance)
-                vm.crt_vif(self.adapter, instance, self.host_uuid, vif)
+        # Get the LPAR Wrapper
+        flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
 
-        # Determine if we need to create the secure RMC VIF.  This should only
-        # be needed if there is not a VIF on the secure RMC vSwitch
-        vswitch_w = vm.get_secure_rmc_vswitch(self.adapter, self.host_uuid)
-        if vswitch_w is not None:
-            # If the vSwitch had been none, we can't create the VIF.  This
-            # next check verifies that there are no existing NICs on the
-            # vSwitch, so that the VM does not end up with multiple RMC VIFs.
-            must_create_rmc_conn = True
-            for cna_w in cna_w_list:
-                if cna_w.vswitch_uri == vswitch_w.href:
-                    must_create_rmc_conn = False
-                    break
+        # Run the attach
+        flow.add(tf_net.PlugVifs(self.adapter, instance, network_info,
+                                 self.host_uuid))
 
-            if must_create_rmc_conn:
-                vm.crt_secure_rmc_vif(self.adapter, instance, self.host_uuid)
+        # Build the engine & run!
+        engine = taskflow.engines.load(flow)
+        engine.run()
 
     def unplug_vifs(self, instance, network_info):
         """Unplug VIFs from networks."""

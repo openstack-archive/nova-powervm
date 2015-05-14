@@ -119,12 +119,13 @@ class TestPowerVMDriver(test.TestCase):
             inst_list = self.drv.list_instances()
             self.assertEqual(fake_lpar_list, inst_list)
 
-    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_ops(self, mock_pwron, mock_get_flv, mock_cfg_drv,
-                       mock_plug_vifs):
+                       mock_plug_vifs, mock_plug_mgmt_vif):
 
         """Validates the PowerVM driver operations."""
         # Set up the mocks to the tasks.
@@ -143,7 +144,8 @@ class TestPowerVMDriver(test.TestCase):
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
-    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'create_cfg_drv_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -152,7 +154,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_cfg(self, mock_pwron, mock_get_flv, mock_cfg_drv,
-                            mock_val_vopt, mock_cfg_vopt, mock_plug_vifs):
+                            mock_val_vopt, mock_cfg_vopt, mock_plug_vifs,
+                            mock_plug_mgmt_vif):
 
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
@@ -171,7 +174,8 @@ class TestPowerVMDriver(test.TestCase):
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
-    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'create_cfg_drv_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -180,7 +184,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_bdms(self, mock_pwron, mock_get_flv, mock_cfg_drv,
-                             mock_val_vopt, mock_cfg_vopt, mock_plug_vifs):
+                             mock_val_vopt, mock_cfg_vopt, mock_plug_vifs,
+                             mock_plug_mgmt_vif):
 
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
@@ -206,14 +211,16 @@ class TestPowerVMDriver(test.TestCase):
         # Check that the connect volume was called
         self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._plug_vifs')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     @mock.patch('pypowervm.tasks.power.power_off')
     def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_get_flv,
-                                mock_cfg_drv, mock_dlt, mock_plug_vifs):
+                                mock_cfg_drv, mock_dlt, mock_plug_vifs,
+                                mock_plug_mgmt_vifs):
         """Validates the PowerVM driver operations.  Will do a rollback."""
 
         # Set up the mocks to the tasks.
@@ -534,12 +541,13 @@ class TestPowerVMDriver(test.TestCase):
             value = stats.get(fld, None)
             self.assertIsNotNone(value)
 
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_secure_rmc_vswitch')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
     def test_plug_vifs(self, mock_vm_get, mock_vm_crt, mock_get_rmc_vswitch,
-                       mock_crt_rmc_vif):
+                       mock_crt_rmc_vif, mock_vm_state):
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         # Mock up the CNA response
@@ -550,10 +558,12 @@ class TestPowerVMDriver(test.TestCase):
         cnas[1].vswitch_uri = 'fake_mgmt_uri'
         mock_vm_get.return_value = cnas
 
+        mock_vm_state.return_value = True
+
         # Mock up the network info.  They get sanitized to upper case.
         net_info = [
-            {'address': 'aabbccddeeff'},
-            {'address': 'aabbccddee22'}
+            {'address': 'aa:bb:cc:dd:ee:ff'},
+            {'address': 'aa:bb:cc:dd:ee:22'}
         ]
 
         # Mock up the rmc vswitch
@@ -568,43 +578,6 @@ class TestPowerVMDriver(test.TestCase):
         # existing.
         self.assertEqual(1, mock_vm_crt.call_count)
         self.assertEqual(0, mock_crt_rmc_vif.call_count)
-
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_secure_rmc_vswitch')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_rmc(self, mock_vm_get, mock_vm_crt,
-                           mock_get_rmc_vswitch, mock_crt_rmc_vif):
-        """Tests that a crt vif can be done with secure RMC."""
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-
-        # Mock up the CNA response.  None are the 'fake_mgmt_uri', so this
-        # will force a RMC to be created.
-        cnas = [mock.MagicMock(), mock.MagicMock()]
-        cnas[0].mac = 'AABBCCDDEEFF'
-        cnas[0].vswitch_uri = 'fake_uri'
-        cnas[1].mac = 'AABBCCDDEE11'
-        cnas[1].vswitch_uri = 'fake_uri'
-        mock_vm_get.return_value = cnas
-
-        # Mock up the network info.  They get sanitized to upper case.
-        net_info = [
-            {'address': 'aabbccddeeff'},
-            {'address': 'aabbccddee22'}
-        ]
-
-        # Mock up the rmc vswitch
-        vswitch_w = mock.MagicMock()
-        vswitch_w.href = 'fake_mgmt_uri'
-        mock_get_rmc_vswitch.return_value = vswitch_w
-
-        # Run method
-        self.drv.plug_vifs(inst, net_info)
-
-        # The create should have only been called once.  A RMC create should
-        # also be invoked.
-        self.assertEqual(1, mock_vm_crt.call_count)
-        self.assertEqual(1, mock_crt_rmc_vif.call_count)
 
     def test_extract_bdm(self):
         """Tests the _extract_bdm method."""
