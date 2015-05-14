@@ -20,7 +20,7 @@ from oslo_config import cfg
 import oslo_log.log as logging
 
 from nova import image
-from nova.i18n import _LI, _LE
+from nova.i18n import _, _LI, _LE
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_drv
 from nova_powervm.virt.powervm import vm
@@ -46,22 +46,22 @@ CONF.register_opts(ssp_opts)
 
 
 class ClusterNotFoundByName(disk.AbstractDiskException):
-    msg_fmt = _LE("Unable to locate the Cluster '%(clust_name)s' for this "
-                  "operation.")
+    msg_fmt = _("Unable to locate the Cluster '%(clust_name)s' for this "
+                "operation.")
 
 
 class NoConfigNoClusterFound(disk.AbstractDiskException):
-    msg_fmt = _LE('Unable to locate any Cluster for this operation.')
+    msg_fmt = _('Unable to locate any Cluster for this operation.')
 
 
 class TooManyClustersFound(disk.AbstractDiskException):
-    msg_fmt = _LE("Unexpectedly found %(clust_count)d Clusters "
-                  "matching name '%(clust_name)s'.")
+    msg_fmt = _("Unexpectedly found %(clust_count)d Clusters "
+                "matching name '%(clust_name)s'.")
 
 
 class NoConfigTooManyClusters(disk.AbstractDiskException):
-    msg_fmt = _LE("No cluster_name specified.  Refusing to select one of the "
-                  "%(clust_count)d Clusters found.")
+    msg_fmt = _("No cluster_name specified.  Refusing to select one of the "
+                "%(clust_count)d Clusters found.")
 
 
 class SSPDiskAdapter(disk_drv.DiskAdapter):
@@ -92,8 +92,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         self.image_api = image.API()
         LOG.info(_LI("SSP Storage driver initialized. "
-                     "Cluster '%(clust_name)s'; SSP '%(ssp_name)s'")
-                 % {'clust_name': self.clust_name, 'ssp_name': self.ssp_name})
+                     "Cluster '%(clust_name)s'; SSP '%(ssp_name)s'"),
+                 {'clust_name': self.clust_name, 'ssp_name': self.ssp_name})
 
     @property
     def capacity(self):
@@ -168,7 +168,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :returns: The backing pypowervm LU storage object that was created.
         """
         LOG.info(_LI('SSP: Create %(image_type)s disk from image %(image_id)s '
-                     'for instance %(instance_uuid)s.') %
+                     'for instance %(instance_uuid)s.'),
                  dict(image_type=image_type, image_id=img_meta['id'],
                       instance_uuid=instance.uuid))
 
@@ -204,14 +204,14 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         ssp = self._ssp
         for lu in ssp.logical_units:
             if lu.lu_type == pvm_stg.LUType.IMAGE and lu.name == luname:
-                LOG.info(_LI('SSP: Using already-uploaded image LU %s.') %
+                LOG.info(_LI('SSP: Using already-uploaded image LU %s.'),
                          luname)
                 return lu
 
         # We don't have it yet.  Create it and upload the glance image to it.
         # Make the image LU only as big as the image.
         stream = self._get_image_upload(context, img_meta)
-        LOG.info(_LI('SSP: Uploading new image LU %s.') % luname)
+        LOG.info(_LI('SSP: Uploading new image LU %s.'), luname)
         lu, f_wrap = tsk_stg.upload_new_lu(self._any_vios_uuid(), ssp, stream,
                                            luname, img_meta['size'])
         return lu

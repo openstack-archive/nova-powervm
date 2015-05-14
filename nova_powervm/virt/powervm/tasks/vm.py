@@ -70,7 +70,7 @@ class Create(task.Task):
         self.flavor = flavor
 
     def execute(self):
-        LOG.info(_LI('Creating instance: %s') % self.instance.name)
+        LOG.info(_LI('Creating instance: %s'), self.instance.name)
         wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
                            self.flavor)
         return wrap
@@ -78,25 +78,25 @@ class Create(task.Task):
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warn(_LW('Instance %s to be undefined off host') %
+        LOG.warn(_LW('Instance %s to be undefined off host'),
                  self.instance.name)
 
         if isinstance(result, task_fail.Failure):
             # No response, nothing to do
             LOG.info(_LI('Create failed.  No delete of LPAR needed for '
-                         'instance %s') % self.instance.name)
+                         'instance %s'), self.instance.name)
             return
 
         if result is None:
             # No response, nothing to do
-            LOG.info(_LI('Instance %s not found on host.  No update needed.') %
+            LOG.info(_LI('Instance %s not found on host.  No update needed.'),
                      self.instance.name)
             return
 
         # The result is a lpar wrapper.
         lpar = result
         vm.dlt_lpar(self.adapter, lpar.uuid)
-        LOG.info(_LI('Instance %s removed from system') % self.instance.name)
+        LOG.info(_LI('Instance %s removed from system'), self.instance.name)
 
 
 class PowerOn(task.Task):
@@ -120,11 +120,11 @@ class PowerOn(task.Task):
         self.pwr_opts = pwr_opts
 
     def execute(self, lpar_wrap):
-        LOG.info(_LI('Powering on instance: %s') % self.instance.name)
+        LOG.info(_LI('Powering on instance: %s'), self.instance.name)
         power.power_on(lpar_wrap, self.host_uuid, add_parms=self.pwr_opts)
 
     def revert(self, lpar_wrap, result, flow_failures):
-        LOG.info(_LI('Powering off instance: %s') % self.instance.name)
+        LOG.info(_LI('Powering off instance: %s'), self.instance.name)
 
         if isinstance(result, task_fail.Failure):
             # The power on itself failed...can't power off.
@@ -152,8 +152,7 @@ class PowerOff(task.Task):
         self.instance = instance
 
     def execute(self):
-        LOG.info(_LI('Powering off instance %s.')
-                 % self.instance.name)
+        LOG.info(_LI('Powering off instance %s.'), self.instance.name)
         vm.power_off(self.adapter, self.instance, self.host_uuid,
                      add_parms=dict(immediate='true'))
 
@@ -174,7 +173,7 @@ class Delete(task.Task):
         self.instance = instance
 
     def execute(self):
-        LOG.info(_LI('Deleting instance %s from system.') % self.instance.name)
+        LOG.info(_LI('Deleting instance %s from system.'), self.instance.name)
         vm.dlt_lpar(self.adapter, self.lpar_uuid)
         # Delete the lpar from the cache so if it gets rebuilt it won't
         # have the old lpar uuid.

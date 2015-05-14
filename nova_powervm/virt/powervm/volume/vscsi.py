@@ -14,7 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.i18n import _LI, _LW, _LE
+from nova.i18n import _, _LI, _LW, _LE
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -82,6 +82,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         volume_id = connection_info['data']['volume_id']
         lun = connection_info['data']['target_lun']
         hdisk_found = False
+        device_name = None
 
         i_wwpns = it_map.keys()
         t_wwpns = []
@@ -105,7 +106,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     hdisk.LUAStatus.DEVICE_AVAILABLE,
                     hdisk.LUAStatus.FOUND_ITL_ERR]:
                 LOG.info(_LI('Discovered %(hdisk)s on vios %(vios)s for '
-                         'volume %(volume_id)s. Status code: %(status)s.') %
+                         'volume %(volume_id)s. Status code: %(status)s.'),
                          {'hdisk': device_name, 'vios': vio_wrap.name,
                           'volume_id': volume_id, 'status': str(status)})
                 self._add_mapping(adapter, host_uuid, vm_uuid, vio_wrap.uuid,
@@ -121,15 +122,15 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                           'vios': vio_wrap.name, 'status': str(status)})
         # A valid hdisk was not found so log and exit
         if not hdisk_found:
-            msg = (_LE('Failed to discover valid hdisk on any Virtual I/O '
-                       'Server for volume %(volume_id)s.') %
+            msg = (_('Failed to discover valid hdisk on any Virtual I/O '
+                     'Server for volume %(volume_id)s.') %
                    {'volume_id': volume_id})
             LOG.error(msg)
             if device_name is None:
                 device_name = 'None'
             ex_args = {'backing_dev': device_name,
                        'instance_name': instance.name,
-                       'reason': six.text_type(msg)}
+                       'reason': msg}
             raise pexc.VolumeAttachFailed(**ex_args)
 
     def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
@@ -170,7 +171,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
             # Iterate through host vios list to find hdisks to disconnect.
             for vio_wrap in vios_feed:
-                LOG.debug("vios uuid %s" % vio_wrap.uuid)
+                LOG.debug("vios uuid %s", vio_wrap.uuid)
                 try:
                     volume_udid = self._get_udid(instance, vio_wrap.uuid,
                                                  volume_id)
@@ -180,28 +181,28 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                         LOG.info(_LI(u"Disconnect Volume: No mapped device "
                                      "found on vios %(vios)s for volume "
                                      "%(volume_id)s. volume_uid: "
-                                     "%(volume_uid)s ")
-                                 % {'volume_uid': volume_udid,
-                                    'volume_id': volume_id,
-                                    'vios': vio_wrap.name})
+                                     "%(volume_uid)s "),
+                                 {'volume_uid': volume_udid,
+                                  'volume_id': volume_id,
+                                  'vios': vio_wrap.name})
                         continue
 
                 except Exception as e:
                     LOG.error(_LE(u"Disconnect Volume: Failed to find disk "
                                   "on vios %(vios_name)s for volume "
                                   "%(volume_id)s. volume_uid: %(volume_uid)s."
-                                  "Error: %(error)s")
-                              % {'error': e, 'volume_uid': volume_udid,
-                                 'volume_id': volume_id,
-                                 'vios_name': vio_wrap.name})
+                                  "Error: %(error)s"),
+                              {'error': e, 'volume_uid': volume_udid,
+                               'volume_id': volume_id,
+                               'vios_name': vio_wrap.name})
                     continue
 
                 # We have found the device name
                 LOG.info(_LI(u"Disconnect Volume: Discovered the device "
                              "%(hdisk)s on vios %(vios_name)s for volume "
-                             "%(volume_id)s. volume_uid: %(volume_uid)s.")
-                         % {'volume_uid': volume_udid, 'volume_id': volume_id,
-                            'vios_name': vio_wrap.name, 'hdisk': device_name})
+                             "%(volume_id)s. volume_uid: %(volume_uid)s."),
+                         {'volume_uid': volume_udid, 'volume_id': volume_id,
+                          'vios_name': vio_wrap.name, 'hdisk': device_name})
                 partition_id = vm.get_vm_id(adapter, vm_uuid)
                 tsk_map.remove_pv_mapping(adapter, vio_wrap.uuid,
                                           partition_id, device_name)
@@ -212,19 +213,18 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                                        vio_wrap.uuid)
                 except Exception as e:
                     # If there is a failure, log it, but don't stop the process
-                    msg = (_LW("There was an error removing the hdisk "
-                               "%(disk)s from the Virtual I/O Server.") %
-                           {'disk': device_name})
-                    LOG.warn(msg)
+                    LOG.warn(_LW("There was an error removing the hdisk "
+                             "%(disk)s from the Virtual I/O Server."),
+                             {'disk': device_name})
                     LOG.warn(e)
 
                 # Disconnect volume complete, now remove key
                 self._delete_udid_key(instance, vio_wrap.uuid, volume_id)
 
         except Exception as e:
-            LOG.error(_LE('Cannot detach volumes from virtual machine: %s') %
+            LOG.error(_LE('Cannot detach volumes from virtual machine: %s'),
                       vm_uuid)
-            LOG.exception(_LE(u'Error: %s') % e)
+            LOG.exception(_LE(u'Error: %s'), e)
             ex_args = {'backing_dev': device_name,
                        'instance_name': instance.name,
                        'reason': six.text_type(e)}
@@ -280,7 +280,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             udid_key = self._build_udid_key(vios_uuid, volume_id)
             return instance.system_metadata[udid_key]
         except (KeyError, ValueError) as e:
-            LOG.exception(_LE(u'Failed to retrieve deviceid key: %s') % e)
+            LOG.exception(_LE(u'Failed to retrieve deviceid key: %s'), e)
             return None
 
     def _set_udid(self, instance, vios_uuid, volume_id, udid):
@@ -308,7 +308,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             udid_key = self._build_udid_key(vios_uuid, volume_id)
             instance.system_metadata.pop(udid_key)
         except Exception as e:
-            LOG.exception(_LE(u'Failed to delete deviceid key: %s') % e)
+            LOG.exception(_LE(u'Failed to delete deviceid key: %s'), e)
 
     def _build_udid_key(self, vios_uuid, volume_id):
         """This method will build the udid dictionary key.

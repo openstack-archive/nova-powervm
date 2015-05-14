@@ -510,10 +510,14 @@ class TestPowerVMDriver(test.TestCase):
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         drv._log_operation('fake_op', inst)
-        entry = ('Operation: fake_op. Virtual machine display '
-                 'name: Fake Instance, name: instance-00000001, '
-                 'UUID: 49629a5c-f4c4-4721-9511-9725786ff2e5')
-        mock_log.info.assert_called_with(entry)
+        entry = (r'Operation: %(op)s. Virtual machine display '
+                 'name: %(display_name)s, name: %(name)s, '
+                 'UUID: %(uuid)s')
+        msg_dict = {'uuid': '49629a5c-f4c4-4721-9511-9725786ff2e5',
+                    'display_name': u'Fake Instance',
+                    'name': 'instance-00000001',
+                    'op': 'fake_op'}
+        mock_log.info.assert_called_with(entry, msg_dict)
 
     def test_host_resources(self):
         # Set the return value of None so we use the cached value in the drv

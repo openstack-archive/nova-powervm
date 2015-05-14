@@ -116,14 +116,14 @@ class PowerVMDriver(driver.ComputeDriver):
                 _("Expected exactly one host; found %d"), len(syswraps))
         self.host_wrapper = syswraps[0]
         self.host_uuid = self.host_wrapper.uuid
-        LOG.info(_LI("Host UUID is:%s") % self.host_uuid)
+        LOG.info(_LI("Host UUID is:%s"), self.host_uuid)
 
     @staticmethod
     def _log_operation(op, instance):
         """Log entry point of driver operations
         """
         LOG.info(_LI('Operation: %(op)s. Virtual machine display name: '
-                     '%(display_name)s, name: %(name)s, UUID: %(uuid)s') %
+                     '%(display_name)s, name: %(name)s, UUID: %(uuid)s'),
                  {'op': op, 'display_name': instance.display_name,
                   'name': instance.name, 'uuid': instance.uuid})
 
@@ -560,8 +560,8 @@ class PowerVMDriver(driver.ComputeDriver):
             # If the crt_cna flag is true, then actually kick off the create
             if crt_cna:
                 LOG.info(_LI('Creating VIF with mac %(mac)s for instance '
-                             '%(inst)s') % {'mac': vif['address'],
-                                            'inst': instance.name},
+                             '%(inst)s'), {'mac': vif['address'],
+                                           'inst': instance.name},
                          instance=instance)
                 vm.crt_vif(self.adapter, instance, self.host_uuid, vif)
 
@@ -693,7 +693,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         @pvm_retry.retry(delay_func=_delay)
         def _update_vm():
-            LOG.debug('Resizing instance %s.' % instance.name,
+            LOG.debug('Resizing instance %s.', instance.name,
                       instance=instance)
             entry = vm.get_instance_wrapper(self.adapter, instance,
                                             self.host_uuid)

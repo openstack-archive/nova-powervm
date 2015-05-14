@@ -85,7 +85,7 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         # This method should no-op if the mappings are already attached to
         # the instance...so it won't duplicate the settings every time an
         # attach volume is called.
-        LOG.info(_LI("Adding NPIV mapping for instance %s") % instance.name)
+        LOG.info(_LI("Adding NPIV mapping for instance %s"), instance.name)
         pvm_wwpn.add_npiv_port_mappings(adapter, host_uuid, vm_uuid,
                                         npiv_port_mappings)
 
@@ -134,7 +134,7 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         # Now that we've collapsed all of the varying fabrics' port mappings
         # into one list, we can call down into pypowervm to remove them in one
         # action.
-        LOG.info(_LI("Removing NPIV mapping for instance %s") % instance.name)
+        LOG.info(_LI("Removing NPIV mapping for instance %s"), instance.name)
         pvm_wwpn.remove_npiv_port_mappings(adapter, host_uuid,
                                            npiv_port_mappings)
 

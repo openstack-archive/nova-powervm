@@ -54,7 +54,7 @@ class ConnectVolume(task.Task):
                                             requires=['lpar_wrap'])
 
     def execute(self, lpar_wrap):
-        LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s') %
+        LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s'),
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
                                            lpar_wrap.uuid, self.instance,
@@ -68,7 +68,7 @@ class ConnectVolume(task.Task):
             return
 
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
-                     'disconnected') %
+                     'disconnected'),
                  {'vol': self.vol_id, 'inst': self.instance.name})
 
         return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
@@ -106,7 +106,7 @@ class DisconnectVolume(task.Task):
                                                self.vol_id)
 
     def execute(self):
-        LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s') %
+        LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s'),
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
                                               self.vm_uuid, self.instance,
@@ -120,7 +120,7 @@ class DisconnectVolume(task.Task):
             return
 
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
-                     're-connected') %
+                     're-connected'),
                  {'vol': self.vol_id, 'inst': self.instance.name})
         return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
                                            self.vm_uuid, self.instance,
@@ -155,7 +155,7 @@ class CreateDiskForImg(task.Task):
         self.image_type = image_type
 
     def execute(self):
-        LOG.info(_LI('Creating disk for instance: %s') % self.instance.name)
+        LOG.info(_LI('Creating disk for instance: %s'), self.instance.name)
         return self.disk_dvr.create_disk_from_image(
             self.context, self.instance, self.image_meta, self.disk_size,
             image_type=self.image_type)
@@ -163,7 +163,7 @@ class CreateDiskForImg(task.Task):
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warn(_LW('Image for instance %s to be deleted') %
+        LOG.warn(_LW('Image for instance %s to be deleted'),
                  self.instance.name)
         if result is None or isinstance(result, task_fail.Failure):
             # No result means no disk to clean up.
@@ -197,12 +197,12 @@ class ConnectDisk(task.Task):
         self.instance = instance
 
     def execute(self, lpar_wrap, disk_dev_info):
-        LOG.info(_LI('Connecting disk to instance: %s') % self.instance.name)
+        LOG.info(_LI('Connecting disk to instance: %s'), self.instance.name)
         self.disk_dvr.connect_disk(self.context, self.instance, disk_dev_info,
                                    lpar_wrap.uuid)
 
     def revert(self, lpar_wrap, disk_dev_info, result, flow_failures):
-        LOG.warn(_LW('Disk image being disconnected from instance %s') %
+        LOG.warn(_LW('Disk image being disconnected from instance %s'),
                  self.instance.name)
         self.disk_dvr.disconnect_image_disk(self.context, self.instance,
                                             lpar_wrap.uuid)
@@ -238,7 +238,7 @@ class CreateAndConnectCfgDrive(task.Task):
         self.mb = None
 
     def execute(self, lpar_wrap):
-        LOG.info(_LI('Creating Config Drive for instance: %s') %
+        LOG.info(_LI('Creating Config Drive for instance: %s'),
                  self.instance.name)
         self.mb = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
         self.mb.create_cfg_drv_vopt(self.instance, self.injected_files,
@@ -275,8 +275,8 @@ class DeleteVOpt(task.Task):
         self.lpar_uuid = lpar_uuid
 
     def execute(self):
-        LOG.info(_LI('Deleting Virtual Optical Media for instance %s')
-                 % self.instance.name)
+        LOG.info(_LI('Deleting Virtual Optical Media for instance %s'),
+                 self.instance.name)
         media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
         media_builder.dlt_vopt(self.lpar_uuid)
 
@@ -306,8 +306,8 @@ class DetachDisk(task.Task):
         self.disk_type = disk_type
 
     def execute(self):
-        LOG.info(_LI('Detaching disk storage adapters for instance %s')
-                 % self.instance.name)
+        LOG.info(_LI('Detaching disk storage adapters for instance %s'),
+                 self.instance.name)
         return self.disk_dvr.disconnect_image_disk(self.context, self.instance,
                                                    self.lpar_uuid,
                                                    disk_type=self.disk_type)
@@ -332,7 +332,7 @@ class DeleteDisk(task.Task):
         self.instance = instance
 
     def execute(self, stor_adpt_mappings):
-        LOG.info(_LI('Deleting storage disk for instance %s.') %
+        LOG.info(_LI('Deleting storage disk for instance %s.'),
                  self.instance.name)
         self.disk_dvr.delete_disks(self.context, self.instance,
                                    stor_adpt_mappings)

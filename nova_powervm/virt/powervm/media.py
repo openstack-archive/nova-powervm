@@ -16,7 +16,7 @@
 
 import abc
 from nova.api.metadata import base as instance_metadata
-from nova.i18n import _LE, _LI, _LW
+from nova.i18n import _, _LI, _LW
 from nova.virt import configdrive
 import os
 
@@ -48,9 +48,9 @@ class AbstractMediaException(Exception):
 
 
 class NoMediaRepoVolumeGroupFound(AbstractMediaException):
-    msg_fmt = _LE('Unable to locate the volume group %(vol_grp)s to store the '
-                  'virtual optical media within.  Unable to create the '
-                  'media repository.')
+    msg_fmt = _('Unable to locate the volume group %(vol_grp)s to store the '
+                'virtual optical media within.  Unable to create the '
+                'media repository.')
 
 
 class ConfigDrivePowerVM(object):
@@ -89,7 +89,7 @@ class ConfigDrivePowerVM(object):
         :return iso_path: The path to the ISO
         :return file_name: The file name for the ISO
         """
-        LOG.info(_LI("Creating config drive for instance: %s") % instance.name)
+        LOG.info(_LI("Creating config drive for instance: %s"), instance.name)
         extra_md = {}
         if admin_pass is not None:
             extra_md['admin_pass'] = admin_pass
@@ -108,7 +108,7 @@ class ConfigDrivePowerVM(object):
         iso_path = os.path.join(CONF.image_meta_local_path, file_name)
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
             LOG.info(_LI("Config drive ISO being built for instance %(inst)s "
-                         "building to path %(iso_path)s.") %
+                         "building to path %(iso_path)s."),
                      {'inst': instance.name, 'iso_path': iso_path})
             cdb.make_drive(iso_path)
             return iso_path, file_name
@@ -217,7 +217,7 @@ class ConfigDrivePowerVM(object):
                         break
             except Exception:
                 LOG.warn(_LW('Unable to read volume groups for Virtual '
-                             'I/O Server %s') % vio_wrap.name)
+                             'I/O Server %s'), vio_wrap.name)
                 pass
 
         # If we didn't find a volume group...raise the exception.  It should

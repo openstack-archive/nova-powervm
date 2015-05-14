@@ -20,7 +20,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from nova import exception as nova_exc
-from nova.i18n import _LI, _LE
+from nova.i18n import _, _LI, _LE
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
@@ -54,8 +54,8 @@ CONF.register_opts(localdisk_opts)
 
 
 class VGNotFound(disk.AbstractDiskException):
-    msg_fmt = _LE('Unable to locate the volume group \'%(vg_name)s\' '
-                  'for this operation.')
+    msg_fmt = _("Unable to locate the volume group '%(vg_name)s' for this "
+                "operation.")
 
 
 class LocalStorage(disk_dvr.DiskAdapter):
@@ -67,8 +67,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # Query to get the Volume Group UUID
         self.vg_name = CONF.volume_group_name
         self.vios_uuid, self.vg_uuid = self._get_vg_uuid(self.vg_name)
-        LOG.info(_LI('Local Storage driver initialized: '
-                     'volume group: \'%s\'') % self.vg_name)
+        LOG.info(_LI("Local Storage driver initialized: volume group: '%s'"),
+                 self.vg_name)
 
     @property
     def capacity(self):
@@ -102,8 +102,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # resides in the scsi map from the volume group.
         existing_vds = vg_wrap.virtual_disks
         for removal in storage_elems:
-            LOG.info(_LI('Deleting disk: %s') % removal.name,
-                     instance=instance)
+            LOG.info(_LI('Deleting disk: %s'), removal.name, instance=instance)
 
             # Can't just call direct on remove, because attribs are off.
             # May want to evaluate change in pypowervm for this.
@@ -204,7 +203,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                     break
 
             if not disk_found:
-                LOG.error(_LE('Disk %s not found during resize.') % vol_name,
+                LOG.error(_LE('Disk %s not found during resize.'), vol_name,
                           instance=instance)
                 raise nova_exc.DiskNotFound(
                     location=self.vg_name + '/' + vol_name)
@@ -217,7 +216,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Get the disk name based on the instance and type
         vol_name = self._get_disk_name(disk_info['type'], instance)
-        LOG.info(_LI('Extending disk: %s') % vol_name)
+        LOG.info(_LI('Extending disk: %s'), vol_name)
         try:
             _extend()
         except pvm_exc.Error:
@@ -252,7 +251,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                                      child_type=pvm_stg.VG.schema_type)
             vol_grps = pvm_stg.VG.wrap(resp)
             for vol_grp in vol_grps:
-                LOG.debug('Volume group: %s' % vol_grp.name)
+                LOG.debug('Volume group: %s', vol_grp.name)
                 if name == vol_grp.name:
                     return vios_wrap.uuid, vol_grp.uuid
 
