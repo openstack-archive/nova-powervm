@@ -328,3 +328,9 @@ class TestVM(test.TestCase):
         self.apt.read.side_effect = pvm_exc.Error('message', response=resp)
         self.assertRaises(pvm_exc.Error, vm.get_vm_qp, self.apt,
                           'lpar_uuid')
+
+    def test_get_mgmt_partition(self):
+        self.apt.read.return_value = self.resp
+        mp_wrap = vm.get_mgmt_partition(self.apt)
+        self.assertIsInstance(mp_wrap, pvm_lpar.LPAR)
+        self.assertTrue(mp_wrap.is_mgmt_partition)
