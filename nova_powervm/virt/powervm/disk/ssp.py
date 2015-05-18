@@ -118,15 +118,12 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :return: A list of all the backing storage elements that were
                  disconnected from the I/O Server and VM.
         """
-        lpar_qps = vm.get_vm_qp(self.adapter, lpar_uuid)
-        lpar_id = lpar_qps['PartitionID']
-        host_uuid = pvm_u.get_req_path_uuid(
-            lpar_qps['AssociatedManagedSystem'], preserve_case=True)
+        lpar_id = vm.get_vm_id(self.adapter, lpar_uuid)
         lu_set = set()
         # The mappings will normally be the same on all VIOSes, unless a VIOS
         # was down when a disk was added.  So for the return value, we need to
         # collect the union of all relevant mappings from all VIOSes.
-        for vios_uuid in self._vios_uuids(host_uuid=host_uuid):
+        for vios_uuid in self.vios_uuids:
             for lu in tsk_map.remove_lu_mapping(
                     self.adapter, vios_uuid, lpar_id, disk_prefixes=disk_type):
                 lu_set.add(lu)
@@ -231,13 +228,10 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         lu = pvm_stg.LU.bld_ref(self.adapter, disk_info.name, disk_info.udid)
 
         # Add the mapping to *each* VIOS on the LPAR's host.
-        # Note that the LPAR's host is likely to be the same as self.host_uuid,
-        # but this is safer.
-        host_href = vm.get_vm_qp(self.adapter, lpar_uuid,
-                                 'AssociatedManagedSystem')
-        host_uuid = pvm_u.get_req_path_uuid(host_href, preserve_case=True)
-        for vios_uuid in self._vios_uuids(host_uuid=host_uuid):
-            tsk_map.add_vscsi_mapping(host_uuid, vios_uuid, lpar_uuid, lu)
+        # The LPAR's host has to be self.host_uuid, else the PowerVM API will
+        # fail.
+        for vios_uuid in self.vios_uuids:
+            tsk_map.add_vscsi_mapping(self.host_uuid, vios_uuid, lpar_uuid, lu)
 
     def extend_disk(self, context, instance, disk_info, size):
         """Extends the disk.
@@ -364,15 +358,14 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             self._ssp_wrap = self._ssp_wrap.refresh()
         return self._ssp_wrap
 
-    def _vios_uuids(self, host_uuid=None):
-        """List the UUIDs of our cluster's VIOSes (on a specific host).
+    @property
+    def vios_uuids(self):
+        """List the UUIDs of our cluster's VIOSes on this host.
 
-        (If a VIOS is not on this host, its URI and therefore its UUID will not
-        be available in the pypowervm wrapper.)
+        (If a VIOS is not on this host, we can't interact with it, even if its
+        URI and therefore its UUID happen to be available in the pypowervm
+        wrapper.)
 
-        :param host_uuid: Restrict the response to VIOSes residing on the host
-                          with the specified UUID.  If None/unspecified, VIOSes
-                          on all hosts are included.
         :return: A list of VIOS UUID strings.
         """
         ret = []
@@ -380,23 +373,19 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             # Skip any nodes that we don't have the vios uuid or uri
             if not (n.vios_uuid and n.vios_uri):
                 continue
-            if host_uuid:
-                node_host_uuid = pvm_u.get_req_path_uuid(
-                    n.vios_uri, preserve_case=True, root=True)
-                if host_uuid != node_host_uuid:
-                    continue
+            node_host_uuid = pvm_u.get_req_path_uuid(
+                n.vios_uri, preserve_case=True, root=True)
+            if self.host_uuid != node_host_uuid:
+                continue
             ret.append(n.vios_uuid)
         return ret
 
-    def _any_vios_uuid(self, host_uuid=None):
+    def _any_vios_uuid(self):
         """Pick one of the Cluster's VIOSes and return its UUID.
 
         Use when it doesn't matter which VIOS an operation is invoked against.
         Currently picks at random; may later be changed to use round-robin.
 
-        :param host_uuid: Restrict the response to VIOSes residing on the host
-                          with the specified UUID.  If None/unspecified, VIOSes
-                          on all hosts are included.
         :return: A single VIOS UUID string.
         """
-        return random.choice(self._vios_uuids(host_uuid=host_uuid))
+        return random.choice(self.vios_uuids)

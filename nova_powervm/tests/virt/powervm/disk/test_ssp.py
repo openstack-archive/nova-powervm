@@ -109,8 +109,9 @@ class TestSSPDiskAdapter(test.TestCase):
         cfg.CONF.set_override('cluster_name', 'clust1')
 
     def _get_ssp_stor(self):
-        ssp_stor = ssp.SSPDiskAdapter({'adapter': self.apt,
-                                       'host_uuid': 'host_uuid'})
+        ssp_stor = ssp.SSPDiskAdapter(
+            {'adapter': self.apt,
+             'host_uuid': '67dca605-3923-34da-bd8f-26a378fc817f'})
         return ssp_stor
 
     def _bld_resp(self, status=200, entry_or_list=None):
@@ -234,9 +235,10 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_vios_uuids(self):
         ssp_stor = self._get_ssp_stor()
-        vios_uuids = ssp_stor._vios_uuids()
-        self.assertEqual(['58C9EB1D-7213-4956-A011-77D43CC4ACCC',
-                          '6424120D-CA95-437D-9C18-10B06F4B3400'], vios_uuids)
+        vios_uuids = ssp_stor.vios_uuids
+        self.assertEqual({'10B06F4B-437D-9C18-CA95-34006424120D',
+                          '6424120D-CA95-437D-9C18-10B06F4B3400'},
+                         set(vios_uuids))
         s = set()
         for i in range(1000):
             u = ssp_stor._any_vios_uuid()
@@ -247,32 +249,22 @@ class TestSSPDiskAdapter(test.TestCase):
         # guaranteed to work, but the odds of failure should be infinitesimal.
         self.assertEqual(set(vios_uuids), s)
 
-        # Now make sure the host-restricted versions work
-        vios_uuids = ssp_stor._vios_uuids(
-            host_uuid='67dca605-3923-34da-bd8f-26a378fc817f')
-        self.assertEqual(['6424120D-CA95-437D-9C18-10B06F4B3400'], vios_uuids)
-        s = set()
-        for i in range(1000):
-            u = ssp_stor._any_vios_uuid(
-                host_uuid='67dca605-3923-34da-bd8f-26a378fc817f')
-            # Make sure we get the good value every time
-            self.assertIn(u, vios_uuids)
-            s.add(u)
-
-        # Test VIOSs on other nodes, which won't have uuid or url
+        # Test VIOSes on other nodes, which won't have uuid or url
         with mock.patch.object(ssp_stor, '_cluster') as mock_clust:
             def mock_node(uuid, uri):
                 node = mock.MagicMock()
                 node.vios_uuid = uuid
                 node.vios_uri = uri
                 return node
-            node1 = mock_node(None, 'uri')
+            uri = ('https://9.1.2.3:12443/rest/api/uom/ManagedSystem/67dca605-'
+                   '3923-34da-bd8f-26a378fc817f/VirtualIOServer/10B06F4B-437D-'
+                   '9C18-CA95-34006424120D')
+            node1 = mock_node(None, uri)
             node2 = mock_node('2', None)
             # This mock is good and should be returned
-            node3 = mock_node('3', 'uri')
+            node3 = mock_node('3', uri)
             mock_clust.nodes = [node1, node2, node3]
-            vios_uuids = ssp_stor._vios_uuids()
-            self.assertEqual(['3'], vios_uuids)
+            self.assertEqual(['3'], ssp_stor.vios_uuids)
 
     def test_capacity(self):
         ssp_stor = self._get_ssp_stor()
@@ -294,7 +286,7 @@ class TestSSPDiskAdapter(test.TestCase):
         img = dict(name='image-name', id='image-id', size=b2G)
 
         def verify_upload_new_lu(vios_uuid, ssp1, stream, lu_name, f_size):
-            self.assertIn(vios_uuid, ssp_stor._vios_uuids())
+            self.assertIn(vios_uuid, ssp_stor.vios_uuids)
             self.assertEqual(ssp_stor._ssp_wrap, ssp1)
             # 'image' + '_' + s/-/_/g(image['id']), per _get_image_name
             self.assertEqual('image_image_name', lu_name)
@@ -343,15 +335,13 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
                 '_client_lpar_href')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
-    def test_connect_disk(self, mock_vm_qp, mock_add_map, mock_href):
+    def test_connect_disk(self, mock_add_map, mock_href):
         ms_uuid = '67dca605-3923-34da-bd8f-26a378fc817f'
-        mock_vm_qp.return_value = ('https://9.1.2.3:12443/rest/api/uom/'
-                                   'ManagedSystem/' + ms_uuid)
 
         def validate_add_vscsi_mapping(host_uuid, vios_uuid, lpar_uuid, inlu):
             self.assertEqual(ms_uuid, host_uuid)
-            self.assertEqual('6424120D-CA95-437D-9C18-10B06F4B3400', vios_uuid)
+            self.assertIn(vios_uuid, ('6424120D-CA95-437D-9C18-10B06F4B3400',
+                                      '10B06F4B-437D-9C18-CA95-34006424120D'))
             self.assertEqual('lpar_uuid', lpar_uuid)
             self.assertEqual(lu, inlu)
         mock_add_map.side_effect = validate_add_vscsi_mapping
@@ -359,7 +349,7 @@ class TestSSPDiskAdapter(test.TestCase):
         ssp_stor = self._get_ssp_stor()
         lu = ssp_stor._ssp_wrap.logical_units[0]
         ssp_stor.connect_disk(None, self.instance, lu, 'lpar_uuid')
-        self.assertEqual(1, mock_add_map.call_count)
+        self.assertEqual(2, mock_add_map.call_count)
 
     def test_delete_disks(self):
         def _mk_img_lu(idx):
@@ -399,14 +389,10 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertEqual(1, self.apt.update_by_path.call_count)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_lu_mapping')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
-    def test_disconnect_image_disk(self, mock_vm_qp, mock_rm_lu_map):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    def test_disconnect_image_disk(self, mock_vm_id, mock_rm_lu_map):
         ssp_stor = self._get_ssp_stor()
-        mock_vm_qp.return_value = dict(
-            PartitionID='lpar_id',
-            AssociatedManagedSystem='https://9.1.2.3:12443/rest/api/uom/'
-                                    'ManagedSystem/'
-                                    '67dca605-3923-34da-bd8f-26a378fc817f')
+        mock_vm_id.return_value = 'lpar_id'
 
         def mklu(udid):
             lu = pvm_stg.LU.bld(None, 'lu_%s' % udid, 1)
@@ -420,7 +406,8 @@ class TestSSPDiskAdapter(test.TestCase):
             """Mock returning different sets of LUs for each VIOS."""
             self.assertEqual(adapter, self.apt)
             self.assertEqual('lpar_id', lpar_id)
-            self.assertEqual('6424120D-CA95-437D-9C18-10B06F4B3400', vios_uuid)
+            self.assertIn(vios_uuid, ('6424120D-CA95-437D-9C18-10B06F4B3400',
+                                      '10B06F4B-437D-9C18-CA95-34006424120D'))
             return [lu1, lu2]
 
         mock_rm_lu_map.side_effect = remove_lu_mapping

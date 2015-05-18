@@ -88,6 +88,23 @@ BODY{
             <VirtualIOServerLevel kb="CUD" kxe="false">2.2.4.0</VirtualIOServerLevel>
             <VirtualIOServer kb="CUD" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/ManagedSystem/67dca605-3923-34da-bd8f-26a378fc817f/VirtualIOServer/6424120D-CA95-437D-9C18-10B06F4B3400" rel="related"/>
         </Node>
+        <Node schemaVersion="V1_2_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <HostName kb="CUD" kxe="false">bar.example.com</HostName>
+            <PartitionID kb="CUD" kxe="false">3</PartitionID>
+            <MachineTypeModelAndSerialNumber kxe="false" kb="CUD" schemaVersion="V1_2_0">
+                <Metadata>
+                    <Atom/>
+                </Metadata>
+                <MachineType kb="CUR" kxe="false">8247</MachineType>
+                <Model kxe="false" kb="CUR">22L</Model>
+                <SerialNumber kb="CUR" kxe="false">2125D0A</SerialNumber>
+            </MachineTypeModelAndSerialNumber>
+            <VirtualIOServerLevel kb="CUD" kxe="false">2.2.4.0</VirtualIOServerLevel>
+            <VirtualIOServer kb="CUD" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/ManagedSystem/67dca605-3923-34da-bd8f-26a378fc817f/VirtualIOServer/10B06F4B-437D-9C18-CA95-34006424120D" rel="related"/>
+        </Node>
     </Node>
 </Cluster:Cluster>
     </content>
