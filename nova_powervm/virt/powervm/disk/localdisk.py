@@ -66,9 +66,34 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Query to get the Volume Group UUID
         self.vg_name = CONF.volume_group_name
-        self.vios_uuid, self.vg_uuid = self._get_vg_uuid(self.vg_name)
+        self._vios_uuid, self.vg_uuid = self._get_vg_uuid(self.vg_name)
         LOG.info(_LI("Local Storage driver initialized: volume group: '%s'"),
                  self.vg_name)
+
+    @property
+    def vios_uuids(self):
+        """List the UUIDs of the Virtual I/O Servers hosting the storage.
+
+        For localdisk, there's only one.
+        """
+        return [self._vios_uuid]
+
+    def disk_match_func(self, disk_type, instance):
+        """Return a matching function to locate the disk for an instance.
+
+        :param disk_type: One of the DiskType enum values.
+        :param instance: The instance whose disk is to be found.
+        :return: Callable suitable for the match_func parameter of the
+                 pypowervm.tasks.scsi_mapper.find_maps method, with the
+                 following specification:
+            def match_func(storage_elem)
+                param storage_elem: A backing storage element wrapper (VOpt,
+                                    VDisk, PV, or LU) to be analyzed.
+                return: True if the storage_elem's mapping should be included;
+                        False otherwise.
+        """
+        disk_name = self._get_disk_name(disk_type, instance, short=True)
+        return tsk_map.gen_match_func(pvm_stg.VDisk, names=[disk_name])
 
     @property
     def capacity(self):
@@ -131,7 +156,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                  disconnected from the I/O Server and VM.
         """
         partition_id = vm.get_vm_id(self.adapter, lpar_uuid)
-        return tsk_map.remove_vdisk_mapping(self.adapter, self.vios_uuid,
+        return tsk_map.remove_vdisk_mapping(self.adapter, self._vios_uuid,
                                             partition_id,
                                             disk_prefixes=disk_type)
 
@@ -164,7 +189,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # If the image is bigger than disk, API should make the disk big
         # enough to support the image (up to 1 Gb boundary).
         vdisk, f_wrap = tsk_stg.upload_new_vdisk(
-            self.adapter, self.vios_uuid, self.vg_uuid, stream, vol_name,
+            self.adapter, self._vios_uuid, self.vg_uuid, stream, vol_name,
             image['size'], d_size=disk_bytes)
 
         return vdisk
@@ -180,7 +205,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
         """
         # Add the mapping to the VIOS
-        tsk_map.add_vscsi_mapping(self.host_uuid, self.vios_uuid, lpar_uuid,
+        tsk_map.add_vscsi_mapping(self.host_uuid, self._vios_uuid, lpar_uuid,
                                   disk_info)
 
     def extend_disk(self, context, instance, disk_info, size):
@@ -259,7 +284,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
     def _get_vg(self):
         vg_rsp = self.adapter.read(
-            pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
+            pvm_vios.VIOS.schema_type, root_id=self._vios_uuid,
             child_type=pvm_stg.VG.schema_type, child_id=self.vg_uuid)
         return vg_rsp
 

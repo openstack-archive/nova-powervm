@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
+
 import mock
 from oslo_config import cfg
 
@@ -204,6 +206,41 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual(1, resp.update.call_count)
         self.assertEqual(vdisk.capacity, 1000)
 
+    @mock.patch('pypowervm.wrappers.storage.VG')
+    def test_instance_disk_iter(self, mock_vg):
+        local = self.get_ls(self.apt)
+        inst = mock.Mock()
+        inst.name = 'Name Of Instance'
+        inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
+        lpar_wrap = mock.Mock()
+        lpar_wrap.id = 2
+        vios1 = pvm_vios.VIOS.wrap(self.vio_to_vg)
+        vios2 = copy.deepcopy(vios1)
+        vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__d506'
+
+        # Good path
+        self.apt.read.return_value = vios1.entry
+        for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+            self.assertEqual('0300025d4a00007a000000014b36d9deaf.1',
+                             vdisk.udid)
+            self.assertEqual('3443DB77-AED1-47ED-9AA5-3DB9C6CF7089', vios.uuid)
+        self.assertEqual(1, self.apt.read.call_count)
+
+        # Not found because no storage of that name
+        self.apt.reset_mock()
+        self.apt.read.return_value = vios2.entry
+        for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+            self.fail()
+        self.assertEqual(1, self.apt.read.call_count)
+
+        # Not found because LPAR ID doesn't match
+        self.apt.reset_mock()
+        self.apt.read.return_value = vios1.entry
+        lpar_wrap.id = 3
+        for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+            self.fail()
+        self.assertEqual(1, self.apt.read.call_count)
+
 
 class TestLocalDiskFindVG(test.TestCase):
     """Test in separate class for the static loading of the VG.
@@ -246,7 +283,7 @@ class TestLocalDiskFindVG(test.TestCase):
         storage = ld.LocalStorage({'adapter': self.apt,
                                    'host_uuid': 'host_uuid'})
 
-        # Make sure the uuid's match
+        # Make sure the uuids match
         self.assertEqual('d5065c2c-ac43-3fa6-af32-ea84a3960291',
                          storage.vg_uuid)
 

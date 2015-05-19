@@ -389,3 +389,20 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :return: A single VIOS UUID string.
         """
         return random.choice(self.vios_uuids)
+
+    def disk_match_func(self, disk_type, instance):
+        """Return a matching function to locate the disk for an instance.
+
+        :param disk_type: One of the DiskType enum values.
+        :param instance: The instance whose disk is to be found.
+        :return: Callable suitable for the match_func parameter of the
+                 pypowervm.tasks.scsi_mapper.find_maps method, with the
+                 following specification:
+            def match_func(storage_elem)
+                param storage_elem: A backing storage element wrapper (VOpt,
+                                    VDisk, PV, or LU) to be analyzed.
+                return: True if the storage_elem's mapping should be included;
+                        False otherwise.
+        """
+        disk_name = self._get_disk_name(disk_type, instance)
+        return tsk_map.gen_match_func(pvm_stg.LU, names=[disk_name])
