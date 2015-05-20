@@ -17,21 +17,32 @@
 
 import abc
 
+import oslo_log.log as logging
 from oslo_utils import units
 import six
 
+from nova.i18n import _, _LW, _LI
 from nova import image
 import pypowervm.tasks.scsi_mapper as tsk_map
 import pypowervm.util as pvm_util
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
+from nova_powervm.virt.powervm import disk
 from nova_powervm.virt.powervm import vm
+
+LOG = logging.getLogger(__name__)
 
 
 class DiskType(object):
     BOOT = 'boot'
     RESCUE = 'rescue'
     IMAGE = 'image'
+
+
+class InstanceDiskMappingFailed(disk.AbstractDiskException):
+    msg_fmt = _("Failed to map boot disk of instance %(instance_name)s to "
+                "management partition %(mp_name)s from any Virtual I/O "
+                "Server.")
 
 
 class IterableToFileAdapter(object):
@@ -120,6 +131,61 @@ class DiskAdapter(object):
             for scsi_map in tsk_map.find_maps(
                     vios_wrap.scsi_mappings, lpar_wrap.id, match_func):
                 yield scsi_map.backing_storage, vios_wrap
+
+    def connect_instance_disk_to_mgmt(self, instance, mp_wrap=None):
+        """Connect an instance's boot disk to the management partition.
+
+        :param instance: The instance whose boot disk is to be mapped.
+        :param mp_wrap: The LPAR EntryWrapper representing the management
+                        partition.  If not specified, it will be looked up.
+        :return stg_elem: The storage element (LU, VDisk, etc.) that was mapped
+        :return vios: The EntryWrapper of the VIOS from which the mapping was
+                      made.
+        :return mp_wrap: The LPAR EntryWrapper representing the management
+                         partition.  Same as the mp_wrap parameter, if it was
+                         supplied.
+        :raise InstanceDiskMappingFailed: If the mapping could not be done.
+        """
+        if mp_wrap is None:
+            mp_wrap = vm.get_mgmt_partition(self.adapter)
+        msg_args = {'instance_name': instance.name,
+                    'mp_name': mp_wrap.name}
+        for stg_elem, vios in self.instance_disk_iter(instance):
+            msg_args['disk_name'] = stg_elem.name
+            msg_args['vios_name'] = vios.name
+            LOG.debug("Mapping boot disk %(disk_name)s of instance "
+                      "%(instance_name)s to management partition %(mp_name)s "
+                      "from Virtual I/O Server %(vios_name)s.", msg_args)
+            try:
+                tsk_map.add_vscsi_mapping(self.host_uuid, vios.uuid,
+                                          mp_wrap.uuid, stg_elem)
+                # If that worked, we're done.  Let the caller know where the
+                # mapping happened from.
+                LOG.info(_LI(
+                    "Mapped boot disk %(disk_name)s of instance "
+                    "%(instance_name)s to management partition %(mp_name)s "
+                    "from Virtual I/O Server %(vios_name)s."), msg_args)
+                return stg_elem, vios, mp_wrap
+            except Exception as e:
+                msg_args['exc'] = e
+                LOG.warn(_LW("Failed to map boot disk %(disk_name)s of "
+                             "instance %(instance_name)s to management "
+                             "partition %(mp_name)s from Virtual I/O Server "
+                             "%(vios_name)s: %(exc)s"), msg_args)
+                # Try the next hit, if available.
+        # We either didn't find the boot dev, or failed all attempts to map it.
+        raise InstanceDiskMappingFailed(**msg_args)
+
+    def disconnect_disk_from_mgmt(self, vios_uuid, disk_name, mp_wrap=None):
+        """Disconnect a disk from the management partition.
+
+        :param vios_uuid: The UUID of the Virtual I/O Server serving the
+                          mapping.
+        :param disk_name: The name of the disk to unmap.
+        :param mp_wrap: The LPAR EntryWrapper representing the management
+                        partition.  If not specified, it will be looked up.
+        """
+        raise NotImplementedError()
 
     @property
     def capacity(self):

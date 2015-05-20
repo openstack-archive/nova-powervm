@@ -206,9 +206,7 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual(1, resp.update.call_count)
         self.assertEqual(vdisk.capacity, 1000)
 
-    @mock.patch('pypowervm.wrappers.storage.VG')
-    def test_instance_disk_iter(self, mock_vg):
-        local = self.get_ls(self.apt)
+    def _bld_mocks_for_instance_disk(self):
         inst = mock.Mock()
         inst.name = 'Name Of Instance'
         inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
@@ -217,6 +215,12 @@ class TestLocalDisk(test.TestCase):
         vios1 = pvm_vios.VIOS.wrap(self.vio_to_vg)
         vios2 = copy.deepcopy(vios1)
         vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__d506'
+        return inst, lpar_wrap, vios1, vios2
+
+    @mock.patch('pypowervm.wrappers.storage.VG')
+    def test_instance_disk_iter(self, mock_vg):
+        local = self.get_ls(self.apt)
+        inst, lpar_wrap, vios1, vios2 = self._bld_mocks_for_instance_disk()
 
         # Good path
         self.apt.read.return_value = vios1.entry
@@ -240,6 +244,81 @@ class TestLocalDisk(test.TestCase):
         for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
             self.fail()
         self.assertEqual(1, self.apt.read.call_count)
+
+    def _mp_wrap_mock(self):
+        mp_wrap = mock.Mock()
+        mp_wrap.name = 'ManagementPartition'
+        mp_wrap.id = 'mp_id'
+        mp_wrap.uuid = 'mp_uuid'
+        return mp_wrap
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
+    def test_connect_instance_disk_to_mgmt_partition(self, mock_add, mock_lw):
+        local = self.get_ls(self.apt)
+        inst, lpar_wrap, vios1, vios2 = self._bld_mocks_for_instance_disk()
+        mp_wrap = self._mp_wrap_mock()
+        mock_lw.return_value = lpar_wrap
+
+        # Good path
+        self.apt.read.return_value = vios1.entry
+        vdisk, vios, mpw = local.connect_instance_disk_to_mgmt(inst,
+                                                               mp_wrap=mp_wrap)
+        self.assertEqual('0300025d4a00007a000000014b36d9deaf.1', vdisk.udid)
+        self.assertIs(mp_wrap, mpw)
+        self.assertIs(vios1.entry, vios.entry)
+        self.assertEqual(1, mock_add.call_count)
+        mock_add.assert_called_with('host_uuid', vios1.uuid, 'mp_uuid', vdisk)
+
+        # Not found
+        mock_add.reset_mock()
+        self.apt.read.return_value = vios2.entry
+        self.assertRaises(
+            disk_dvr.InstanceDiskMappingFailed,
+            local.connect_instance_disk_to_mgmt, inst, mp_wrap=mp_wrap)
+        self.assertEqual(0, mock_add.call_count)
+
+        # add_vscsi_mapping raises.  Show-stopper since only one VIOS.
+        mock_add.reset_mock()
+        self.apt.read.return_value = vios1.entry
+        mock_add.side_effect = Exception("mapping failed")
+        self.assertRaises(
+            disk_dvr.InstanceDiskMappingFailed,
+            local.connect_instance_disk_to_mgmt, inst, mp_wrap=mp_wrap)
+        self.assertEqual(1, mock_add.call_count)
+
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_vdisk_mapping')
+    def test_disconnect_disk_from_mgmt_partition(self, mock_rm_vdisk_map):
+        local = self.get_ls(self.apt)
+        mp_wrap = self._mp_wrap_mock()
+        local.disconnect_disk_from_mgmt('vios_uuid', 'disk_name', mp_wrap)
+        mock_rm_vdisk_map.assert_called_with(local.adapter, 'vios_uuid',
+                                             'mp_id', disk_names=['disk_name'])
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_mgmt_partition')
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
+                'instance_disk_iter')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_vdisk_mapping')
+    def test_discover_mgmt_partition(self, mock_rm_vdisk, mock_add_map,
+                                     mock_inst_disk_iter, mock_get_mgmt):
+        """Ensure connect/disconnect will discover the mgmt partition."""
+        local = self.get_ls(self.apt)
+        mp_wrap = self._mp_wrap_mock()
+        inst = mock.Mock()
+        mock_inst_disk_iter.return_value = [(mock.Mock(), mock.Mock())]
+
+        local.connect_instance_disk_to_mgmt(inst, mp_wrap=mp_wrap)
+        self.assertFalse(mock_get_mgmt.called)
+        local.connect_instance_disk_to_mgmt(inst)
+        self.assertTrue(mock_get_mgmt.called)
+
+        mock_get_mgmt.reset_mock()
+        local.disconnect_disk_from_mgmt('vios_uuid', 'disk_name',
+                                        mp_wrap=mp_wrap)
+        self.assertFalse(mock_get_mgmt.called)
+        local.disconnect_disk_from_mgmt('vios_uuid', 'disk_name')
+        self.assertTrue(mock_get_mgmt.called)
 
 
 class TestLocalDiskFindVG(test.TestCase):

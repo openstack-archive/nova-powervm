@@ -129,6 +129,27 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                 lu_set.add(lu)
         return list(lu_set)
 
+    def disconnect_disk_from_mgmt(self, vios_uuid, disk_name, mp_wrap=None):
+        """Disconnect a disk from the management partition.
+
+        :param vios_uuid: The UUID of the Virtual I/O Server serving the
+                          mapping.
+        :param disk_name: The name of the disk to unmap.
+        :param mp_wrap: The pypowervm LPAR EntryWrapper representing the
+                        management partition.  If not specified, it will be
+                        looked up.
+        """
+        if mp_wrap is None:
+            mp_wrap = vm.get_mgmt_partition(self.adapter)
+        tsk_map.remove_lu_mapping(self.adapter, vios_uuid, mp_wrap.id,
+                                  disk_names=[disk_name])
+        LOG.info(_LI(
+            "Unmapped boot disk %(disk_name)s from management partition "
+            "%(mp_name)s from Virtual I/O Server %(vios_uuid)s."), {
+                'disk_name': disk_name,
+                'mp_name': mp_wrap.name,
+                'vios_uuid': vios_uuid})
+
     def delete_disks(self, context, instance, storage_elems):
         """Removes the disks specified by the mappings.
 
