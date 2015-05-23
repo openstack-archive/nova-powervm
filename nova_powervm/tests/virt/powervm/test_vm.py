@@ -137,23 +137,23 @@ class TestVM(test.TestCase):
         inst_info2 = vm.InstanceInfo(self.apt, 'name', '4321')
         self.assertNotEqual(inst_info1, inst_info2)
 
-    def test_get_lpar_feed(self):
+    def test_get_lpars(self):
         self.apt.read.return_value = self.resp
-        feed = vm.get_lpar_feed(self.apt, 'host_uuid')
-        self.assertEqual(feed, self.resp.feed)
+        lpars = vm.get_lpars(self.apt)
+        # One of the LPARs is a management partition, so one less than the
+        # total length should be returned.
+        self.assertEqual(len(self.resp.feed.entries) - 1, len(lpars))
 
         exc = pvm_exc.Error('Not found', response=FakeAdapterResponse(404))
         self.apt.read.side_effect = exc
-        feed = vm.get_lpar_feed(self.apt, 'host_uuid')
-        self.assertEqual(feed, None)
+        self.assertRaises(pvm_exc.Error, vm.get_lpars, self.apt)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_lpar_feed')
-    def test_get_lpar_list(self, mock_feed):
-        mock_feed.return_value = self.resp.feed
-        lpar_list = vm.get_lpar_list(self.apt, 'host_uuid')
+    def test_get_lpar_names(self):
+        self.apt.read.return_value = self.resp
+        lpar_list = vm.get_lpar_names(self.apt)
         # Check the first one in the feed and the length of the feed
-        self.assertEqual(lpar_list[0], 'z3-9-5-126-127-00000001')
-        self.assertEqual(len(lpar_list), 21)
+        self.assertEqual(lpar_list[0], 'z3-9-5-126-208-000001f0')
+        self.assertEqual(len(lpar_list), 20)
 
     @mock.patch('pypowervm.tasks.vterm.close_vterm')
     def test_dlt_lpar(self, mock_vterm):

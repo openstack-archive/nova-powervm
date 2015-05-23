@@ -112,7 +112,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual(info.id, '1234')
 
         # list_instances()
-        tgt_mock = 'nova_powervm.virt.powervm.vm.get_lpar_list'
+        tgt_mock = 'nova_powervm.virt.powervm.vm.get_lpar_names'
         with mock.patch(tgt_mock) as mock_get_list:
             fake_lpar_list = ['1', '2']
             mock_get_list.return_value = fake_lpar_list
