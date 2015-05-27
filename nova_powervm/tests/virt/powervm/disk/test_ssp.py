@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
+
 import fixtures
 import mock
 from oslo_config import cfg
@@ -25,6 +27,7 @@ import pypowervm.entities as pvm_ent
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import cluster as pvm_clust
 from pypowervm.wrappers import storage as pvm_stg
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.disk import ssp
@@ -434,3 +437,68 @@ class TestSSPDiskAdapter(test.TestCase):
         not_same = {'ssp_uuid': 'uuid value not the same'}
         self.assertFalse(
             ssp_stor.check_instance_shared_storage_remote('context', not_same))
+
+    def test_instance_disk_iter(self):
+        ssp_stor = self._get_ssp_stor()
+        inst = mock.Mock()
+        inst.name = 'my-instance-name'
+        lpar_wrap = mock.Mock()
+        lpar_wrap.id = 4
+        # Build mock VIOS Wrappers as the returns from VIOS.wrap.
+        # vios1 and vios2 will both have the mapping for client ID 4 and LU
+        # named boot_my_instance_name.
+        vios1 = pvm_vios.VIOS.wrap(pvmhttp.load_pvm_resp(
+            'fake_vios_ssp_npiv.txt', adapter=self.apt).get_response())
+        vios1.scsi_mappings[3].backing_storage._name('boot_my_instance_name')
+        resp1 = self._bld_resp(entry_or_list=vios1.entry)
+        vios2 = copy.deepcopy(vios1)
+        # Rename vios2 so we can tell the difference:
+        vios2.name = 'vios2'
+        resp2 = self._bld_resp(entry_or_list=vios2.entry)
+        # vios3 will not have the mapping
+        vios3 = pvm_vios.VIOS.wrap(pvmhttp.load_pvm_resp(
+            'fake_vios_ssp_npiv.txt', adapter=self.apt).get_response())
+        vios3.name = 'vios3'
+        resp3 = self._bld_resp(entry_or_list=vios3.entry)
+
+        # Test with two VIOSes, both of which contain the mapping
+        self.apt.read.side_effect = [resp1, resp2]
+        count = 0
+        for lu, vios in ssp_stor.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+            count += 1
+            self.assertEqual('274d7bb790666211e3bc1a00006cae8b01ac18997ab9bc23'
+                             'fb24756e9713a93f90', lu.udid)
+            self.assertEqual('vios1_181.68' if count == 1 else 'vios2',
+                             vios.name)
+        self.assertEqual(2, count)
+        self.assertEqual(2, self.apt.read.call_count)
+
+        # Same, but prove that breaking out of the loop early avoids the second
+        # Adapter.read call
+        self.apt.reset_mock()
+        self.apt.read.side_effect = [resp1, resp2]
+        for lu, vios in ssp_stor.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+            self.assertEqual('274d7bb790666211e3bc1a00006cae8b01ac18997ab9bc23'
+                             'fb24756e9713a93f90', lu.udid)
+            self.assertEqual('vios1_181.68', vios.name)
+            break
+        self.assertEqual(1, self.apt.read.call_count)
+
+        # Now the first VIOS doesn't have the mapping, but the second does
+        self.apt.reset_mock()
+        self.apt.read.side_effect = [resp3, resp2]
+        count = 0
+        for lu, vios in ssp_stor.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+            count += 1
+            self.assertEqual('274d7bb790666211e3bc1a00006cae8b01ac18997ab9bc23'
+                             'fb24756e9713a93f90', lu.udid)
+            self.assertEqual('vios2', vios.name)
+        self.assertEqual(1, count)
+        self.assertEqual(2, self.apt.read.call_count)
+
+        # No hits
+        self.apt.reset_mock()
+        self.apt.read.side_effect = [resp3, resp3]
+        for lu, vios in ssp_stor.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+            self.fail()
+        self.assertEqual(2, self.apt.read.call_count)

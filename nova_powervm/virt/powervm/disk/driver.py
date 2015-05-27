@@ -21,7 +21,11 @@ from oslo_utils import units
 import six
 
 from nova import image
+import pypowervm.tasks.scsi_mapper as tsk_map
 import pypowervm.util as pvm_util
+import pypowervm.wrappers.virtual_io_server as pvm_vios
+
+from nova_powervm.virt.powervm import vm
 
 
 class DiskType(object):
@@ -65,6 +69,57 @@ class DiskAdapter(object):
         """
         self._connection = connection
         self.image_api = image.API()
+
+    @property
+    def vios_uuids(self):
+        """List the UUIDs of the Virtual I/O Servers hosting the storage."""
+        raise NotImplementedError()
+
+    def disk_match_func(self, disk_type, instance):
+        """Return a matching function to locate the disk for an instance.
+
+        :param disk_type: One of the DiskType enum values.
+        :param instance: The instance whose disk is to be found.
+        :return: Callable suitable for the match_func parameter of the
+                 pypowervm.tasks.scsi_mapper.find_maps method, with the
+                 following specification:
+            def match_func(storage_elem)
+                param storage_elem: A backing storage element wrapper (VOpt,
+                                    VDisk, PV, or LU) to be analyzed.
+                return: True if the storage_elem's mapping should be included;
+                        False otherwise.
+        """
+        raise NotImplementedError()
+
+    def instance_disk_iter(self, instance, disk_type=DiskType.BOOT,
+                           lpar_wrap=None):
+        """Return the instance's storage element wrapper of the specified type.
+
+        :param instance: nova.objects.instance.Instance object owning the
+                         requested disk.
+        :param disk_type: The type of disk to find, one of the DiskType enum
+                          values.
+        :param lpar_wrap: pypowervm.wrappers.logical_partition.LPAR
+                          corresponding to the instance.  If not specified, it
+                          will be retrieved; i.e. specify this parameter to
+                          save on REST calls.
+        :return: Iterator of tuples of (storage_elem, VIOS), where storage_elem
+                 is a storage element wrapper (pypowervm.wrappers.storage.VOpt,
+                 VDisk, PV, or LU) associated with the instance; and VIOS is
+                 the wrapper of the Virtual I/O Server owning that storage
+                 element.
+        """
+        if lpar_wrap is None:
+            lpar_wrap = vm.get_instance_wrapper(self.adapter, instance,
+                                                self.host_uuid)
+        match_func = self.disk_match_func(disk_type, instance)
+        for vios_uuid in self.vios_uuids:
+            vios_wrap = pvm_vios.VIOS.wrap(self.adapter.read(
+                pvm_vios.VIOS.schema_type, root_id=vios_uuid,
+                xag=pvm_vios.VIOS.xags.SCSI_MAPPING))
+            for scsi_map in tsk_map.find_maps(
+                    vios_wrap.scsi_mappings, lpar_wrap.id, match_func):
+                yield scsi_map.backing_storage, vios_wrap
 
     @property
     def capacity(self):
