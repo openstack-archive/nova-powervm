@@ -127,7 +127,7 @@ class DiskAdapter(object):
         for vios_uuid in self.vios_uuids:
             vios_wrap = pvm_vios.VIOS.wrap(self.adapter.read(
                 pvm_vios.VIOS.schema_type, root_id=vios_uuid,
-                xag=pvm_vios.VIOS.xags.SCSI_MAPPING))
+                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING]))
             for scsi_map in tsk_map.find_maps(
                     vios_wrap.scsi_mappings, lpar_wrap.id, match_func):
                 yield scsi_map.backing_storage, vios_wrap

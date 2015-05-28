@@ -63,7 +63,7 @@ class TestLocalDisk(test.TestCase):
                                          '_get_vg_uuid')
         self.mock_vg_uuid = self.mock_vg_uuid_p.start()
         vg_uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
-        self.mock_vg_uuid.return_value = ('', vg_uuid)
+        self.mock_vg_uuid.return_value = ('vios_uuid', vg_uuid)
 
     def tearDown(self):
         test.TestCase.tearDown(self)
@@ -219,6 +219,12 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('pypowervm.wrappers.storage.VG')
     def test_instance_disk_iter(self, mock_vg):
+        def assert_read_calls(num):
+            self.assertEqual(num, self.apt.read.call_count)
+            self.apt.read.assert_has_calls(
+                [mock.call(pvm_vios.VIOS.schema_type, root_id='vios_uuid',
+                           xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                 for i in range(num)])
         local = self.get_ls(self.apt)
         inst, lpar_wrap, vios1, vios2 = self._bld_mocks_for_instance_disk()
 
@@ -228,14 +234,14 @@ class TestLocalDisk(test.TestCase):
             self.assertEqual('0300025d4a00007a000000014b36d9deaf.1',
                              vdisk.udid)
             self.assertEqual('3443DB77-AED1-47ED-9AA5-3DB9C6CF7089', vios.uuid)
-        self.assertEqual(1, self.apt.read.call_count)
+        assert_read_calls(1)
 
         # Not found because no storage of that name
         self.apt.reset_mock()
         self.apt.read.return_value = vios2.entry
         for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
             self.fail()
-        self.assertEqual(1, self.apt.read.call_count)
+        assert_read_calls(1)
 
         # Not found because LPAR ID doesn't match
         self.apt.reset_mock()
@@ -243,7 +249,7 @@ class TestLocalDisk(test.TestCase):
         lpar_wrap.id = 3
         for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
             self.fail()
-        self.assertEqual(1, self.apt.read.call_count)
+        assert_read_calls(1)
 
     def _mp_wrap_mock(self):
         mp_wrap = mock.Mock()

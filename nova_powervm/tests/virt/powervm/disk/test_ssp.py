@@ -465,6 +465,12 @@ class TestSSPDiskAdapter(test.TestCase):
         return inst, lpar_wrap, resp1, resp2, resp3
 
     def test_instance_disk_iter(self):
+        def assert_read_calls(num):
+            self.assertEqual(num, self.apt.read.call_count)
+            self.apt.read.assert_has_calls(
+                [mock.call(pvm_vios.VIOS.schema_type, root_id=mock.ANY,
+                           xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                 for i in range(num)])
         ssp_stor = self._get_ssp_stor()
         inst, lpar_wrap, rsp1, rsp2, rsp3 = self._bld_mocks_for_instance_disk()
 
@@ -478,7 +484,7 @@ class TestSSPDiskAdapter(test.TestCase):
             self.assertEqual('vios1_181.68' if count == 1 else 'vios2',
                              vios.name)
         self.assertEqual(2, count)
-        self.assertEqual(2, self.apt.read.call_count)
+        assert_read_calls(2)
 
         # Same, but prove that breaking out of the loop early avoids the second
         # Adapter.read call
@@ -490,6 +496,7 @@ class TestSSPDiskAdapter(test.TestCase):
             self.assertEqual('vios1_181.68', vios.name)
             break
         self.assertEqual(1, self.apt.read.call_count)
+        assert_read_calls(1)
 
         # Now the first VIOS doesn't have the mapping, but the second does
         self.apt.reset_mock()
@@ -501,14 +508,14 @@ class TestSSPDiskAdapter(test.TestCase):
                              'fb24756e9713a93f90', lu.udid)
             self.assertEqual('vios2', vios.name)
         self.assertEqual(1, count)
-        self.assertEqual(2, self.apt.read.call_count)
+        assert_read_calls(2)
 
         # No hits
         self.apt.reset_mock()
         self.apt.read.side_effect = [rsp3, rsp3]
         for lu, vios in ssp_stor.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
             self.fail()
-        self.assertEqual(2, self.apt.read.call_count)
+        assert_read_calls(2)
 
     def _mp_wrap_mock(self):
         mp_wrap = mock.Mock()
