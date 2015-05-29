@@ -23,13 +23,17 @@ from pypowervm.tasks import wwpn as pvm_wwpn
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt import powervm
+from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 WWPN_SYSTEM_METADATA_KEY = 'npiv_adpt_wwpns'
-
+FABRIC_STATE_METADATA_KEY = 'fabric_state'
+FS_UNMAPPED = 'unmapped'
+FS_MGMT_MAPPED = 'mgmt_mapped'
+FS_INST_MAPPED = 'inst_mapped'
 TASK_STATES_FOR_DISCONNECT = [task_states.DELETING, task_states.SPAWNING]
 
 
@@ -76,18 +80,17 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         # We need to gather each fabric's port mappings
         npiv_port_mappings = []
         for fabric in self._fabric_names():
-            npiv_port_mappings.extend(self._get_fabric_meta(instance, fabric))
+            npiv_port_mappings = self._get_fabric_meta(instance, fabric)
+            self._remove_npiv_mgmt_mappings(adapter, fabric, host_uuid,
+                                            instance, npiv_port_mappings)
+            # This method should no-op if the mappings are already attached to
+            # the instance...so it won't duplicate the settings every time an
+            # attach volume is called.
+            LOG.info(_LI("Adding NPIV mapping for instance %s"), instance.name)
+            pvm_wwpn.add_npiv_port_mappings(adapter, host_uuid, vm_uuid,
+                                            npiv_port_mappings)
 
-        # Now that we've collapsed all of the varying fabrics' port mappings
-        # into one list, we can call down into pypowervm to add them in one
-        # action.
-        #
-        # This method should no-op if the mappings are already attached to
-        # the instance...so it won't duplicate the settings every time an
-        # attach volume is called.
-        LOG.info(_LI("Adding NPIV mapping for instance %s"), instance.name)
-        pvm_wwpn.add_npiv_port_mappings(adapter, host_uuid, vm_uuid,
-                                        npiv_port_mappings)
+            self._set_fabric_state(instance, fabric, FS_INST_MAPPED)
 
     def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
                           connection_info):
@@ -193,10 +196,73 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
             # single VIOS).
             vios_wraps.reverse()
 
-            # TODO(IBM) Need to log the WWPNs in temporarily here.
+            # Check if the fabrics are unmapped then we need to map it
+            # temporarily with the management partition.
+            self._add_npiv_mgmt_mappings(adapter, fabric, host_uuid, instance,
+                                         port_map)
 
         # The return object needs to be a list for the volume connector.
         return resp_wwpns
+
+    def _add_npiv_mgmt_mappings(self, adapter, fabric, host_uuid, instance,
+                                npiv_port_map):
+        """Check if a single fabric is mapped if not it will add NPIV mappings.
+
+        The fabric will be mapped to the management partition so that NPIV
+        WWPNs are logged onto the FC physical fabric. This will allow the WWPNs
+        to properly zone via the cinder zone manager, as well as be available
+        the cinder storage host.
+
+        Once the mapping is done the fabric state is updated to FS_MGMT_MAPPED.
+
+        :param adapter: The pypowervm adapter.
+        :param fabric: fabric name
+        :param host_uuid: The pypowervm UUID of the host.
+        :param instance: The nova instance for which the mapping needs to
+                         be added
+        :param npiv_port_map: NPIV port mappings needs to be added.
+        """
+        fc_state = self._get_fabric_state(instance, fabric)
+        LOG.info(_LI("NPIV wwpns fabric state=%(st)s for "
+                     "instance=%(inst)s") %
+                 {'st': fc_state, 'inst': instance.name})
+        if fc_state == FS_UNMAPPED:
+            # Need to login the WWPNs in temporarily here with
+            # the mgmt_uuid
+            mg_wrap = mgmt.get_mgmt_partition(adapter)
+            LOG.info(_LI("Adding NPIV Mapping with mgmt partition for "
+                         "instance=%s") % instance.name)
+            pvm_wwpn.add_npiv_port_mappings(adapter, host_uuid,
+                                            mg_wrap.uuid, npiv_port_map)
+            self._set_fabric_state(instance, fabric, FS_MGMT_MAPPED)
+        return
+
+    def _remove_npiv_mgmt_mappings(self, adapter, fabric, host_uuid, instance,
+                                   npiv_port_map):
+        """Remove the fabric from the management partition if necessary.
+
+        Check if the Fabric is mapped to the management partition, if yes then
+        remove the mappings and update the fabric state. In order for the WWPNs
+        to be on the fabric(for cinder) before the VM is online, the WWPNs get
+        mapped to the management partition. This method remove those mappings
+        from the management partition so that they can be remapped to the
+        actual client VM.
+
+        :param adapter: The pypowervm adapter.
+        :param fabric: fabric name
+        :param host_uuid: The pypowervm UUID of the host.
+        :param instance: The nova instance that the volume should disconnect
+                         from.
+        :param npiv_port_map: NPIV port mappings needs to be removed.
+        """
+
+        if self._get_fabric_state(instance, fabric) == FS_MGMT_MAPPED:
+            LOG.info(_LI("Removing NPIV mapping for mgmt partition "
+                         "for instance=%s") % instance.name)
+            pvm_wwpn.remove_npiv_port_mappings(adapter, host_uuid,
+                                               npiv_port_map)
+            self._set_fabric_state(instance, fabric, FS_UNMAPPED)
+        return
 
     def host_name(self, adapter, host_uuid, instance):
         """Derives the host name that should be used for the storage device.
@@ -207,6 +273,42 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         :returns: The host name.
         """
         return instance.name
+
+    def _set_fabric_state(self, instance, fabric, state):
+        """Sets the fabric state into the instance's system metadata.
+        :param instance: The nova instance
+        :param fabric: The name of the fabric
+        :param state: state of the fabric whicn needs to be set
+         Possible Valid States:-
+         FS_UNMAPPED: Initial state unmapped.
+         FS_MGMT_MAPPED: Fabric is mapped with the management partition
+         FS_INST_MAPPED: Fabric is mapped with the nova instance.
+        """
+
+        meta_key = self._sys_fabric_state_key(fabric)
+        LOG.info(_LI("Setting Fabric state=%(st)s for instance=%(inst)s") %
+                 {'st': state, 'inst': instance.name})
+        instance.system_metadata[meta_key] = state
+
+    def _get_fabric_state(self, instance, fabric):
+        """Gets the fabric state from the instance's system metadata.
+        :param instance: The nova instance
+        :param fabric: The name of the fabric
+        :Returns state: state of the fabric whicn needs to be set
+         Possible Valid States:-
+         FS_UNMAPPED: Initial state unmapped.
+         FS_MGMT_MAPPED: Fabric is mapped with the management partition
+         FS_INST_MAPPED: Fabric is mapped with the nova instance.
+        """
+        meta_key = self._sys_fabric_state_key(fabric)
+        if instance.system_metadata.get(meta_key) is None:
+            instance.system_metadata[meta_key] = FS_UNMAPPED
+
+        return instance.system_metadata[meta_key]
+
+    def _sys_fabric_state_key(self, fabric):
+        """Returns the nova system metadata key for a given fabric."""
+        return FABRIC_STATE_METADATA_KEY + '_' + fabric
 
     def _set_fabric_meta(self, instance, fabric, port_map):
         """Sets the port map into the instance's system metadata.
