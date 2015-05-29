@@ -28,6 +28,7 @@ import pypowervm.util as pvm_util
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import disk
+from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -147,7 +148,7 @@ class DiskAdapter(object):
         :raise InstanceDiskMappingFailed: If the mapping could not be done.
         """
         if mp_wrap is None:
-            mp_wrap = vm.get_mgmt_partition(self.adapter)
+            mp_wrap = mgmt.get_mgmt_partition(self.adapter)
         msg_args = {'instance_name': instance.name,
                     'mp_name': mp_wrap.name}
         for stg_elem, vios in self.instance_disk_iter(instance):

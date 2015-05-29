@@ -334,12 +334,6 @@ class TestVM(test.TestCase):
         self.assertRaises(pvm_exc.Error, vm.get_vm_qp, self.apt,
                           'lpar_uuid')
 
-    def test_get_mgmt_partition(self):
-        self.apt.read.return_value = self.resp
-        mp_wrap = vm.get_mgmt_partition(self.apt)
-        self.assertIsInstance(mp_wrap, pvm_lpar.LPAR)
-        self.assertTrue(mp_wrap.is_mgmt_partition)
-
     def test_norm_mac(self):
         EXPECTED = "12:34:56:78:90:ab"
         self.assertEqual(EXPECTED, vm.norm_mac("12:34:56:78:90:ab"))

@@ -23,6 +23,7 @@ from nova import image
 from nova.i18n import _, _LI, _LE
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_drv
+from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
 from pypowervm.tasks import scsi_mapper as tsk_map
@@ -140,7 +141,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                         looked up.
         """
         if mp_wrap is None:
-            mp_wrap = vm.get_mgmt_partition(self.adapter)
+            mp_wrap = mgmt.get_mgmt_partition(self.adapter)
         tsk_map.remove_lu_mapping(self.adapter, vios_uuid, mp_wrap.id,
                                   disk_names=[disk_name])
         LOG.info(_LI(

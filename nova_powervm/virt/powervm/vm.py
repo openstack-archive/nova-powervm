@@ -21,7 +21,7 @@ from oslo_log import log as logging
 
 from nova.compute import power_state
 from nova import exception
-from nova.i18n import _, _LI, _LE
+from nova.i18n import _LI, _LE
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import cna
@@ -214,17 +214,6 @@ def get_instance_wrapper(adapter, instance, host_uuid):
                         child_type=pvm_lpar.LPAR.schema_type,
                         child_id=pvm_inst_uuid)
     return pvm_lpar.LPAR.wrap(resp)
-
-
-def get_mgmt_partition(adapter):
-    """Get the LPAR wrapper for this host's management partition.
-
-    :param adapter: The adapter for the pypowervm API.
-    """
-    wraps = pvm_lpar.LPAR.search(adapter, is_mgmt_partition=True)
-    if len(wraps) != 1:
-        raise Exception(_("Unable to find a single management partition."))
-    return wraps[0]
 
 
 def _build_attrs(instance, flavor):

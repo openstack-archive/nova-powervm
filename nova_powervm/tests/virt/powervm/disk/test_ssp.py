@@ -584,7 +584,7 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_rm_lu_map.assert_called_with(ssp_stor.adapter, 'vios_uuid',
                                           'mp_id', disk_names=['disk_name'])
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_mgmt_partition')
+    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
                 'instance_disk_iter')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')

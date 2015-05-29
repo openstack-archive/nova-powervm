@@ -301,7 +301,7 @@ class TestLocalDisk(test.TestCase):
         mock_rm_vdisk_map.assert_called_with(local.adapter, 'vios_uuid',
                                              'mp_id', disk_names=['disk_name'])
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_mgmt_partition')
+    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 'instance_disk_iter')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')

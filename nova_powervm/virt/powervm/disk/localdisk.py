@@ -30,6 +30,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
+from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
 localdisk_opts = [
@@ -171,7 +172,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                         looked up.
         """
         if mp_wrap is None:
-            mp_wrap = vm.get_mgmt_partition(self.adapter)
+            mp_wrap = mgmt.get_mgmt_partition(self.adapter)
         tsk_map.remove_vdisk_mapping(self.adapter, vios_uuid, mp_wrap.id,
                                      disk_names=[disk_name])
         LOG.info(_LI(
