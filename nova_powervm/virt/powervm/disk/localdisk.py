@@ -30,7 +30,6 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
-from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
 localdisk_opts = [
@@ -62,8 +61,6 @@ class VGNotFound(disk.AbstractDiskException):
 class LocalStorage(disk_dvr.DiskAdapter):
     def __init__(self, connection):
         super(LocalStorage, self).__init__(connection)
-        self.adapter = connection['adapter']
-        self.host_uuid = connection['host_uuid']
 
         # Query to get the Volume Group UUID
         self.vg_name = CONF.volume_group_name
@@ -162,25 +159,19 @@ class LocalStorage(disk_dvr.DiskAdapter):
             disk_prefixes=disk_type)
         return vdisks
 
-    def disconnect_disk_from_mgmt(self, vios_uuid, disk_name, mp_wrap=None):
+    def disconnect_disk_from_mgmt(self, vios_uuid, disk_name):
         """Disconnect a disk from the management partition.
 
         :param vios_uuid: The UUID of the Virtual I/O Server serving the
                           mapping.
         :param disk_name: The name of the disk to unmap.
-        :param mp_wrap: The pypowervm LPAR EntryWrapper representing the
-                        management partition.  If not specified, it will be
-                        looked up.
         """
-        if mp_wrap is None:
-            mp_wrap = mgmt.get_mgmt_partition(self.adapter)
-        tsk_map.remove_vdisk_mapping(self.adapter, vios_uuid, mp_wrap.id,
+        tsk_map.remove_vdisk_mapping(self.adapter, vios_uuid, self.mp_uuid,
                                      disk_names=[disk_name])
         LOG.info(_LI(
-            "Unmapped boot disk %(disk_name)s from management partition "
-            "%(mp_name)s from Virtual I/O Server %(vios_name)s."), {
-                'disk_name': disk_name,
-                'mp_name': mp_wrap.name,
+            "Unmapped boot disk %(disk_name)s from the management partition "
+            "from Virtual I/O Server %(vios_name)s."), {
+                'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
                 'vios_name': vios_uuid})
 
     def create_disk_from_image(self, context, instance, image, disk_size,

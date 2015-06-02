@@ -28,7 +28,6 @@ import pypowervm.util as pvm_util
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import disk
-from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -42,8 +41,7 @@ class DiskType(object):
 
 class InstanceDiskMappingFailed(disk.AbstractDiskException):
     msg_fmt = _("Failed to map boot disk of instance %(instance_name)s to "
-                "management partition %(mp_name)s from any Virtual I/O "
-                "Server.")
+                "the management partition from any Virtual I/O Server.")
 
 
 class IterableToFileAdapter(object):
@@ -80,6 +78,9 @@ class DiskAdapter(object):
         :param connection: connection information for the underlying driver
         """
         self._connection = connection
+        self.adapter = connection['adapter']
+        self.host_uuid = connection['host_uuid']
+        self.mp_uuid = connection['mp_uuid']
         self.image_api = image.API()
 
     @property
@@ -133,58 +134,48 @@ class DiskAdapter(object):
                     vios_wrap.scsi_mappings, lpar_wrap.id, match_func):
                 yield scsi_map.backing_storage, vios_wrap
 
-    def connect_instance_disk_to_mgmt(self, instance, mp_wrap=None):
+    def connect_instance_disk_to_mgmt(self, instance):
         """Connect an instance's boot disk to the management partition.
 
         :param instance: The instance whose boot disk is to be mapped.
-        :param mp_wrap: The LPAR EntryWrapper representing the management
-                        partition.  If not specified, it will be looked up.
         :return stg_elem: The storage element (LU, VDisk, etc.) that was mapped
         :return vios: The EntryWrapper of the VIOS from which the mapping was
                       made.
-        :return mp_wrap: The LPAR EntryWrapper representing the management
-                         partition.  Same as the mp_wrap parameter, if it was
-                         supplied.
         :raise InstanceDiskMappingFailed: If the mapping could not be done.
         """
-        if mp_wrap is None:
-            mp_wrap = mgmt.get_mgmt_partition(self.adapter)
-        msg_args = {'instance_name': instance.name,
-                    'mp_name': mp_wrap.name}
+        msg_args = {'instance_name': instance.name}
         for stg_elem, vios in self.instance_disk_iter(instance):
             msg_args['disk_name'] = stg_elem.name
             msg_args['vios_name'] = vios.name
             LOG.debug("Mapping boot disk %(disk_name)s of instance "
-                      "%(instance_name)s to management partition %(mp_name)s "
-                      "from Virtual I/O Server %(vios_name)s.", msg_args)
+                      "%(instance_name)s to the management partition from "
+                      "Virtual I/O Server %(vios_name)s.", msg_args)
             try:
                 tsk_map.add_vscsi_mapping(self.host_uuid, vios.uuid,
-                                          mp_wrap.uuid, stg_elem)
+                                          self.mp_uuid, stg_elem)
                 # If that worked, we're done.  Let the caller know where the
                 # mapping happened from.
                 LOG.info(_LI(
                     "Mapped boot disk %(disk_name)s of instance "
-                    "%(instance_name)s to management partition %(mp_name)s "
-                    "from Virtual I/O Server %(vios_name)s."), msg_args)
-                return stg_elem, vios, mp_wrap
+                    "%(instance_name)s to the management partition from "
+                    "Virtual I/O Server %(vios_name)s."), msg_args)
+                return stg_elem, vios
             except Exception as e:
                 msg_args['exc'] = e
                 LOG.warn(_LW("Failed to map boot disk %(disk_name)s of "
-                             "instance %(instance_name)s to management "
-                             "partition %(mp_name)s from Virtual I/O Server "
+                             "instance %(instance_name)s to the management "
+                             "partition from Virtual I/O Server "
                              "%(vios_name)s: %(exc)s"), msg_args)
                 # Try the next hit, if available.
         # We either didn't find the boot dev, or failed all attempts to map it.
         raise InstanceDiskMappingFailed(**msg_args)
 
-    def disconnect_disk_from_mgmt(self, vios_uuid, disk_name, mp_wrap=None):
+    def disconnect_disk_from_mgmt(self, vios_uuid, disk_name):
         """Disconnect a disk from the management partition.
 
         :param vios_uuid: The UUID of the Virtual I/O Server serving the
                           mapping.
         :param disk_name: The name of the disk to unmap.
-        :param mp_wrap: The LPAR EntryWrapper representing the management
-                        partition.  If not specified, it will be looked up.
         """
         raise NotImplementedError()
 

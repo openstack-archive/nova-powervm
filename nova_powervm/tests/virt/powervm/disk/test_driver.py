@@ -29,7 +29,9 @@ class TestDiskAdapter(test.TestCase):
         super(TestDiskAdapter, self).setUp()
         self.useFixture(fx.ImageAPI())
 
-        self.st_adpt = disk_dvr.DiskAdapter(None)
+        # These are not used currently.
+        conn = {'adapter': None, 'host_uuid': None, 'mp_uuid': None}
+        self.st_adpt = disk_dvr.DiskAdapter(conn)
 
     def test_capacity(self):
         """These are arbitrary capacity numbers."""

@@ -44,6 +44,7 @@ from pypowervm.wrappers import managed_system as pvm_ms
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import host as pvm_host
+from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm.tasks import network as tf_net
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
@@ -83,10 +84,12 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_adapter()
         # First need to resolve the managed host UUID
         self._get_host_uuid()
-        # Initialize the UUID Cache. Lets not prime it at this time.
+        # Get the management partition
+        self.mp_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
+        # Initialize the UUID Cache. Let's not prime it at this time.
         vm.UUIDCache(self.adapter)
 
-        # Initialize the disk adapter.  Sets self.disk_drv
+        # Initialize the disk adapter.  Sets self.disk_dvr
         self._get_disk_adapter()
         self.image_api = image.API()
 
@@ -101,7 +104,8 @@ class PowerVMDriver(driver.ComputeDriver):
                                        helpers=log_hlp.log_helper)
 
     def _get_disk_adapter(self):
-        conn_info = {'adapter': self.adapter, 'host_uuid': self.host_uuid}
+        conn_info = {'adapter': self.adapter, 'host_uuid': self.host_uuid,
+                     'mp_uuid': self.mp_uuid}
 
         self.disk_dvr = importutils.import_object_ns(
             DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.disk_driver], conn_info)

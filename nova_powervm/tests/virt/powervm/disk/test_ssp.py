@@ -115,7 +115,8 @@ class TestSSPDiskAdapter(test.TestCase):
     def _get_ssp_stor(self):
         ssp_stor = ssp.SSPDiskAdapter(
             {'adapter': self.apt,
-             'host_uuid': '67dca605-3923-34da-bd8f-26a378fc817f'})
+             'host_uuid': '67dca605-3923-34da-bd8f-26a378fc817f',
+             'mp_uuid': 'mp_uuid'})
         return ssp_stor
 
     def _bld_resp(self, status=200, entry_or_list=None):
@@ -517,28 +518,18 @@ class TestSSPDiskAdapter(test.TestCase):
             self.fail()
         assert_read_calls(2)
 
-    def _mp_wrap_mock(self):
-        mp_wrap = mock.Mock()
-        mp_wrap.name = 'ManagementPartition'
-        mp_wrap.id = 'mp_id'
-        mp_wrap.uuid = 'mp_uuid'
-        return mp_wrap
-
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     def test_connect_instance_disk_to_mgmt(self, mock_add, mock_lw):
         ssp_stor = self._get_ssp_stor()
         inst, lpar_wrap, rsp1, rsp2, rsp3 = self._bld_mocks_for_instance_disk()
-        mp_wrap = self._mp_wrap_mock()
         mock_lw.return_value = lpar_wrap
 
         # Test with two VIOSes, both of which contain the mapping
         self.apt.read.side_effect = [rsp1, rsp2]
-        lu, vios, mpw = ssp_stor.connect_instance_disk_to_mgmt(inst,
-                                                               mp_wrap=mp_wrap)
+        lu, vios = ssp_stor.connect_instance_disk_to_mgmt(inst)
         self.assertEqual('274d7bb790666211e3bc1a00006cae8b01ac18997ab9bc23'
                          'fb24756e9713a93f90', lu.udid)
-        self.assertIs(mp_wrap, mpw)
         # Should hit on the first VIOS
         self.assertIs(rsp1.entry, vios.entry)
         self.assertEqual(1, mock_add.call_count)
@@ -549,11 +540,9 @@ class TestSSPDiskAdapter(test.TestCase):
         # Now the first VIOS doesn't have the mapping, but the second does
         mock_add.reset_mock()
         self.apt.read.side_effect = [rsp3, rsp2]
-        lu, vios, mpw = ssp_stor.connect_instance_disk_to_mgmt(inst,
-                                                               mp_wrap=mp_wrap)
+        lu, vios = ssp_stor.connect_instance_disk_to_mgmt(inst)
         self.assertEqual('274d7bb790666211e3bc1a00006cae8b01ac18997ab9bc23'
                          'fb24756e9713a93f90', lu.udid)
-        self.assertIs(mp_wrap, mpw)
         # Should hit on the second VIOS
         self.assertIs(rsp2.entry, vios.entry)
         self.assertEqual(1, mock_add.call_count)
@@ -564,9 +553,8 @@ class TestSSPDiskAdapter(test.TestCase):
         # No hits
         mock_add.reset_mock()
         self.apt.read.side_effect = [rsp3, rsp3]
-        self.assertRaises(
-            driver.InstanceDiskMappingFailed,
-            ssp_stor.connect_instance_disk_to_mgmt, inst, mp_wrap=mp_wrap)
+        self.assertRaises(driver.InstanceDiskMappingFailed,
+                          ssp_stor.connect_instance_disk_to_mgmt, inst)
         self.assertEqual(0, mock_add.call_count)
 
         # First add_vscsi_mapping call raises
@@ -578,33 +566,6 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_lu_mapping')
     def test_disconnect_disk_from_mgmt(self, mock_rm_lu_map):
         ssp_stor = self._get_ssp_stor()
-        mp_wrap = self._mp_wrap_mock()
-        ssp_stor.disconnect_disk_from_mgmt('vios_uuid', 'disk_name',
-                                           mp_wrap=mp_wrap)
-        mock_rm_lu_map.assert_called_with(ssp_stor.adapter, 'vios_uuid',
-                                          'mp_id', disk_names=['disk_name'])
-
-    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
-    @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
-                'instance_disk_iter')
-    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    @mock.patch('pypowervm.tasks.scsi_mapper.remove_lu_mapping')
-    def test_discover_mgmt_partition(self, mock_rm_lu, mock_add_map,
-                                     mock_inst_disk_iter, mock_get_mgmt):
-        """Ensure connect/disconnect will discover the mgmt partition."""
-        ssp_stor = self._get_ssp_stor()
-        mp_wrap = self._mp_wrap_mock()
-        inst = mock.Mock()
-        mock_inst_disk_iter.return_value = [(mock.Mock(), mock.Mock())]
-
-        ssp_stor.connect_instance_disk_to_mgmt(inst, mp_wrap=mp_wrap)
-        self.assertFalse(mock_get_mgmt.called)
-        ssp_stor.connect_instance_disk_to_mgmt(inst)
-        self.assertTrue(mock_get_mgmt.called)
-
-        mock_get_mgmt.reset_mock()
-        ssp_stor.disconnect_disk_from_mgmt('vios_uuid', 'disk_name',
-                                           mp_wrap=mp_wrap)
-        self.assertFalse(mock_get_mgmt.called)
         ssp_stor.disconnect_disk_from_mgmt('vios_uuid', 'disk_name')
-        self.assertTrue(mock_get_mgmt.called)
+        mock_rm_lu_map.assert_called_with(ssp_stor.adapter, 'vios_uuid',
+                                          'mp_uuid', disk_names=['disk_name'])

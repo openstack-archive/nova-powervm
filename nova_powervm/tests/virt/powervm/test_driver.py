@@ -55,9 +55,7 @@ class TestPowerVMDriver(test.TestCase):
         super(TestPowerVMDriver, self).setUp()
 
         ms_http = pvmhttp.load_pvm_resp(MS_HTTPRESP_FILE)
-        self.assertNotEqual(ms_http, None,
-                            "Could not load %s " %
-                            MS_HTTPRESP_FILE)
+        self.assertIsNotNone(ms_http, "Could not load %s " % MS_HTTPRESP_FILE)
 
         entries = ms_http.response.feed.findentries(pvm_ms._SYSTEM_NAME,
                                                     MS_NAME)
@@ -66,8 +64,7 @@ class TestPowerVMDriver(test.TestCase):
                             "Could not find %s in %s" %
                             (MS_NAME, MS_HTTPRESP_FILE))
 
-        self.ms_entry = entries[0]
-        self.wrapper = pvm_ms.System.wrap(self.ms_entry)
+        self.wrapper = pvm_ms.System.wrap(entries[0])
 
         cfg.CONF.set_override('disk_driver', 'localdisk')
         self.drv_fix = self.useFixture(fx.PowerVMComputeDriver())
@@ -79,14 +76,11 @@ class TestPowerVMDriver(test.TestCase):
 
         self.crt_lpar_p = mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
         self.crt_lpar = self.crt_lpar_p.start()
+        self.addCleanup(self.crt_lpar_p.stop)
 
         resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
         resp.entry = pvm_lpar.LPAR._bld(None).entry
         self.crt_lpar.return_value = pvm_lpar.LPAR.wrap(resp)
-
-    def tearDown(self):
-        super(TestPowerVMDriver, self).tearDown()
-        self.crt_lpar_p.stop()
 
     def test_driver_create(self):
         """Validates that a driver of the PowerVM type can just be
