@@ -267,7 +267,7 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual('0300025d4a00007a000000014b36d9deaf.1', vdisk.udid)
         self.assertIs(vios1.entry, vios.entry)
         self.assertEqual(1, mock_add.call_count)
-        mock_add.assert_called_with('host_uuid', vios1.uuid, 'mp_uuid', vdisk)
+        mock_add.assert_called_with('host_uuid', vios, 'mp_uuid', vdisk)
 
         # Not found
         mock_add.reset_mock()
