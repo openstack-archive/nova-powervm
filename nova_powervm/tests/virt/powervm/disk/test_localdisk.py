@@ -91,7 +91,7 @@ class TestLocalDisk(test.TestCase):
             None, inst, mock_img, 20)
         mock_upload_vdisk.assert_called_with(mock.ANY, mock.ANY, mock.ANY,
                                              mock.ANY, 'b_Inst_Nam_d506', 50,
-                                             d_size=21474836480L)
+                                             d_size=21474836480)
         self.assertEqual('vdisk', vdisk)
 
     @mock.patch('pypowervm.wrappers.storage.VG')

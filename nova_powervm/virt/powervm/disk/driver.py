@@ -63,7 +63,7 @@ class IterableToFileAdapter(object):
         chunk = self.remaining_data
         try:
             while not chunk:
-                chunk = self.iterator.next()
+                chunk = next(self.iterator)
         except StopIteration:
             return ''
         return_value = chunk[0:size]
