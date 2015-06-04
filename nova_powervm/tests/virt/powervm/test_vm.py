@@ -275,6 +275,29 @@ class TestVM(test.TestCase):
         self.assertIsNotNone(resp)
         self.assertIsInstance(resp, pvm_net.CNA)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache.remove')
+    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache.lookup')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
+    def test_instance_exists(self, mock_getvmqp, mock_getuuid, mock_lookup,
+                             mock_remove):
+
+        # Try the good case where it exist and it's in our cache
+        mock_lookup.side_effect = '123'
+        mock_getvmqp.side_effect = 'fake_state'
+        mock_parms = (mock.Mock(), mock.Mock(), mock.Mock())
+        self.assertTrue(vm.instance_exists(*mock_parms))
+
+        # It's in our cache but not on the system...
+        mock_lookup.side_effect = '123'
+        mock_getvmqp.side_effect = exception.InstanceNotFound(instance_id=123)
+        self.assertFalse(vm.instance_exists(*mock_parms))
+        self.assertEqual(1, mock_remove.call_count)
+
+        # It's not in our cache but on the system...
+        mock_lookup.side_effect = [None, '123']
+        self.assertTrue(vm.instance_exists(*mock_parms))
+
     def test_get_vm_qp(self):
         def adapter_read(root_type, root_id=None, suffix_type=None,
                          suffix_parm=None):

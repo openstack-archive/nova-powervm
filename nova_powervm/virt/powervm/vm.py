@@ -216,6 +216,29 @@ def get_instance_wrapper(adapter, instance, host_uuid):
     return pvm_lpar.LPAR.wrap(resp)
 
 
+def instance_exists(adapter, instance, host_uuid):
+    """Determine if an instance exists on the host.
+
+    :param adapter: The adapter for the pypowervm API
+    :param instance: The nova instance.
+    :param host_uuid: The host UUID
+    :returns: boolean, whether the instance exists.
+    """
+    try:
+        cache = UUIDCache.get_cache()
+        uuid = cache.lookup(instance.name, fetch=False)
+        if uuid is not None:
+            # Getting the uuid from the cache doesn't mean it exists...
+            get_vm_qp(adapter, uuid, 'PartitionState')
+        else:
+            # It wasn't in the cache, so we can try to get it now
+            cache.lookup(instance.name)
+        return True
+    except exception.InstanceNotFound:
+        cache.remove(instance.name)
+        return False
+
+
 def _build_attrs(instance, flavor):
     """Builds LPAR attributes that are used by the LPAR builder.
 

@@ -141,6 +141,16 @@ class PowerVMDriver(driver.ComputeDriver):
                                vm.get_pvm_uuid(instance))
         return info
 
+    def instance_exists(self, instance):
+        """Checks existence of an instance on the host.
+
+        :param instance: The instance to lookup
+
+        Returns True if an instance with the supplied ID exists on
+        the host, False otherwise.
+        """
+        return vm.instance_exists(self.adapter, instance, self.host_uuid)
+
     def list_instances(self):
         """Return the names of all the instances known to the virtualization
         layer, as a list.

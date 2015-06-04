@@ -119,6 +119,13 @@ class TestPowerVMDriver(test.TestCase):
             inst_list = self.drv.list_instances()
             self.assertEqual(fake_lpar_list, inst_list)
 
+        # instance_exists()
+        tgt_mock = 'nova_powervm.virt.powervm.vm.instance_exists'
+        with mock.patch(tgt_mock) as mock_inst_exists:
+            mock_inst_exists.side_effect = [True, False]
+            self.assertTrue(self.drv.instance_exists(mock.Mock()))
+            self.assertFalse(self.drv.instance_exists(mock.Mock()))
+
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
