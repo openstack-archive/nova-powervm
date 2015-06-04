@@ -157,9 +157,10 @@ class LocalStorage(disk_dvr.DiskAdapter):
                  disconnected from the I/O Server and VM.
         """
         partition_id = vm.get_vm_id(self.adapter, lpar_uuid)
-        return tsk_map.remove_vdisk_mapping(self.adapter, self._vios_uuid,
-                                            partition_id,
-                                            disk_prefixes=disk_type)
+        vios, vdisks = tsk_map.remove_vdisk_mapping(
+            self.adapter, self._vios_uuid, partition_id,
+            disk_prefixes=disk_type)
+        return vdisks
 
     def disconnect_disk_from_mgmt(self, vios_uuid, disk_name, mp_wrap=None):
         """Disconnect a disk from the management partition.

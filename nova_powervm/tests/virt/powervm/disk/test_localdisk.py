@@ -118,6 +118,7 @@ class TestLocalDisk(test.TestCase):
         """Tests the disconnect_image_disk method."""
         # Set up the mock data.
         mock_get_vm_id.return_value = '2'
+        mock_remove.return_value = ('fake_vios', [])
 
         local = self.get_ls(self.apt)
         local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2')
@@ -133,6 +134,7 @@ class TestLocalDisk(test.TestCase):
         """Tests the disconnect_image_disk method."""
         # Set up the mock data.
         mock_get_vm_id.return_value = '2'
+        mock_remove.return_value = ('fake_vios', [])
 
         # Invoke
         local = self.get_ls(self.apt)

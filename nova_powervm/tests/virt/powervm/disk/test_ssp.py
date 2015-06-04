@@ -412,7 +412,7 @@ class TestSSPDiskAdapter(test.TestCase):
             self.assertEqual('lpar_id', lpar_id)
             self.assertIn(vios_uuid, ('6424120D-CA95-437D-9C18-10B06F4B3400',
                                       '10B06F4B-437D-9C18-CA95-34006424120D'))
-            return [lu1, lu2]
+            return 'fake_vios', [lu1, lu2]
 
         mock_rm_lu_map.side_effect = remove_lu_mapping
         lu_list = ssp_stor.disconnect_image_disk(None, None, None)

@@ -125,9 +125,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         # was down when a disk was added.  So for the return value, we need to
         # collect the union of all relevant mappings from all VIOSes.
         for vios_uuid in self.vios_uuids:
-            for lu in tsk_map.remove_lu_mapping(
-                    self.adapter, vios_uuid, lpar_id, disk_prefixes=disk_type):
-                lu_set.add(lu)
+            vios, lulist = tsk_map.remove_lu_mapping(
+                self.adapter, vios_uuid, lpar_id, disk_prefixes=disk_type)
+            lu_set.update(lulist)
         return list(lu_set)
 
     def disconnect_disk_from_mgmt(self, vios_uuid, disk_name, mp_wrap=None):
