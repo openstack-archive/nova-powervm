@@ -282,6 +282,8 @@ class TestVM(test.TestCase):
     def test_instance_exists(self, mock_getvmqp, mock_getuuid, mock_lookup,
                              mock_remove):
 
+        # Make sure the cache is initialized
+        vm.UUIDCache(self.apt)
         # Try the good case where it exist and it's in our cache
         mock_lookup.side_effect = '123'
         mock_getvmqp.side_effect = 'fake_state'
