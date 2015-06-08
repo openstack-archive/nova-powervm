@@ -534,8 +534,7 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertIs(rsp1.entry, vios.entry)
         self.assertEqual(1, mock_add.call_count)
         mock_add.assert_called_with('67dca605-3923-34da-bd8f-26a378fc817f',
-                                    '75B373A5-B9FF-4799-B23B-202929517C64',
-                                    'mp_uuid', lu)
+                                    vios, 'mp_uuid', lu)
 
         # Now the first VIOS doesn't have the mapping, but the second does
         mock_add.reset_mock()
@@ -547,8 +546,7 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertIs(rsp2.entry, vios.entry)
         self.assertEqual(1, mock_add.call_count)
         mock_add.assert_called_with('67dca605-3923-34da-bd8f-26a378fc817f',
-                                    '7C6475B3-73A5-B9FF-4799-B23B20292951',
-                                    'mp_uuid', lu)
+                                    vios, 'mp_uuid', lu)
 
         # No hits
         mock_add.reset_mock()

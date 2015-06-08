@@ -21,7 +21,7 @@ import oslo_log.log as logging
 from oslo_utils import units
 import six
 
-from nova.i18n import _, _LW, _LI
+from nova.i18n import _, _LW
 from nova import image
 import pypowervm.tasks.scsi_mapper as tsk_map
 import pypowervm.util as pvm_util
@@ -144,21 +144,27 @@ class DiskAdapter(object):
         :raise InstanceDiskMappingFailed: If the mapping could not be done.
         """
         msg_args = {'instance_name': instance.name}
-        for stg_elem, vios in self.instance_disk_iter(instance):
+        lpar_wrap = vm.get_instance_wrapper(self.adapter, instance,
+                                            self.host_uuid)
+        for stg_elem, vios in self.instance_disk_iter(instance,
+                                                      lpar_wrap=lpar_wrap):
             msg_args['disk_name'] = stg_elem.name
             msg_args['vios_name'] = vios.name
+
+            # Create a new mapping.  NOTE: If there's an existing mapping on
+            # the other VIOS but not this one, we'll create a second mapping
+            # here.  It would take an extreme sequence of events to get to that
+            # point, and the second mapping would be harmless anyway. The
+            # alternative would be always checking all VIOSes for existing
+            # mappings, which increases the response time of the common case by
+            # an entire GET of VIOS+SCSI_MAPPING.
             LOG.debug("Mapping boot disk %(disk_name)s of instance "
                       "%(instance_name)s to the management partition from "
                       "Virtual I/O Server %(vios_name)s.", msg_args)
             try:
-                tsk_map.add_vscsi_mapping(self.host_uuid, vios.uuid,
-                                          self.mp_uuid, stg_elem)
-                # If that worked, we're done.  Let the caller know where the
-                # mapping happened from.
-                LOG.info(_LI(
-                    "Mapped boot disk %(disk_name)s of instance "
-                    "%(instance_name)s to the management partition from "
-                    "Virtual I/O Server %(vios_name)s."), msg_args)
+                tsk_map.add_vscsi_mapping(self.host_uuid, vios, self.mp_uuid,
+                                          stg_elem)
+                # If that worked, we're done.  add_vscsi_mapping logged.
                 return stg_elem, vios
             except Exception as e:
                 msg_args['exc'] = e
