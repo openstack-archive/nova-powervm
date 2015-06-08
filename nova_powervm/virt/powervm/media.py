@@ -264,8 +264,8 @@ class ConfigDrivePowerVM(object):
 
         # Remove the SCSI mappings to all vOpt Media.  This returns the media
         # devices that were removed from the bus.
-        media_elems = tsk_map.remove_vopt_mapping(self.adapter, self.vios_uuid,
-                                                  partition_id)
+        vios, media_elems = tsk_map.remove_vopt_mapping(
+            self.adapter, self.vios_uuid, partition_id)
 
         # Next delete the media from the volume group.  To do so, remove the
         # media from the volume group, which triggers a delete.

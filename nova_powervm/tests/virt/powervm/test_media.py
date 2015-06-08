@@ -151,7 +151,8 @@ class TestConfigDrivePowerVM(test.TestCase):
 
         # We tell it to remove all the optical medias.
         vg = pvm_stor.VG.wrap(self.vg_to_vio)
-        mock_remove_map.return_value = vg.vmedia_repos[0].optical_media
+        mock_remove_map.return_value = ('fake_vios',
+                                        vg.vmedia_repos[0].optical_media)
 
         # Make sure that the first update is a VIO and doesn't have the vopt
         # mapping
