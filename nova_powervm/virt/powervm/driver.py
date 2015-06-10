@@ -205,8 +205,8 @@ class PowerVMDriver(driver.ComputeDriver):
                               flavor))
 
         # Plug the VIFs
-        flow.add(tf_net.PlugVifs(self.adapter, instance, network_info,
-                                 self.host_uuid))
+        flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
+                                 network_info, self.host_uuid))
         flow.add(tf_net.PlugMgmtVif(self.adapter, instance, self.host_uuid))
 
         # Only add the image disk if this is from Glance.
@@ -566,8 +566,8 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
 
         # Run the attach
-        flow.add(tf_net.PlugVifs(self.adapter, instance, network_info,
-                                 self.host_uuid))
+        flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
+                                 network_info, self.host_uuid))
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)

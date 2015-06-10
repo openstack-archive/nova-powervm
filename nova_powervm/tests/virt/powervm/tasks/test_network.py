@@ -14,8 +14,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import eventlet
 import mock
 
+from nova import exception
 from nova import objects
 from nova import test
 from pypowervm.wrappers import base_partition as pvm_bp
@@ -72,14 +74,64 @@ class TestNetwork(test.TestCase):
         # sanitized to upper case.
         net_info = [
             {'address': 'aa:bb:cc:dd:ee:ff'},
-            {'address': 'aa:bb:cc:dd:ee:22'}
+            {'address': 'aa:bb:cc:dd:ee:22'},
+            {'address': 'aa:bb:cc:dd:ee:33'}
         ]
 
         mock_state.return_value = True
 
         # Run method
-        p_vifs = tf_net.PlugVifs(self.apt, inst, net_info, 'host_uuid')
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
+                                 'host_uuid')
         p_vifs.execute(mock.Mock())
+
+        # The create should have only been called once.
+        self.assertEqual(2, mock_vm_crt.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    def test_plug_vifs_invalid_state(self, mock_vm_crt, mock_state):
+        """Tests that a crt_vif fails when the LPAR state is bad."""
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Mock that the state is incorrect
+        mock_state.return_value = False
+
+        # Run method
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, [],
+                                 'host_uuid')
+        self.assertRaises(exception.VirtualInterfaceCreateException,
+                          p_vifs.execute, mock.Mock())
+
+        # The create should not have been invoked
+        self.assertEqual(0, mock_vm_crt.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_plug_vifs_timeout(self, mock_vm_get, mock_vm_crt, mock_state):
+        """Tests that crt vif failure via loss of neutron callback."""
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Mock up the CNA response.  Only doing one for simplicity
+        cnas = [mock.MagicMock()]
+        cnas[0].mac = 'AABBCCDDEE11'
+        cnas[0].vswitch_uri = 'fake_uri'
+        mock_vm_get.return_value = cnas
+
+        # Mock up the network info.
+        net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
+
+        mock_state.return_value = True
+
+        # Ensure that an exception is raised by a timeout.
+        mock_vm_crt.side_effect = eventlet.timeout.Timeout()
+
+        # Run method
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
+                                 'host_uuid')
+        self.assertRaises(exception.VirtualInterfaceCreateException,
+                          p_vifs.execute, mock.Mock())
 
         # The create should have only been called once.
         self.assertEqual(1, mock_vm_crt.call_count)
@@ -104,3 +156,28 @@ class TestNetwork(test.TestCase):
 
         # The create should have only been called once.
         self.assertEqual(1, mock_crt_rmc_vif.call_count)
+
+    @mock.patch('nova.utils.is_neutron')
+    def test_get_vif_events(self, mock_is_neutron):
+        # Set up common mocks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        net_info = [mock.MagicMock(), mock.MagicMock()]
+        net_info[0]['id'] = 'a'
+        net_info[0].get.return_value = False
+        net_info[1]['id'] = 'b'
+        net_info[1].get.return_value = True
+
+        # Set up the runner.
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
+                                 'host_uuid')
+
+        # Mock that neutron is off.
+        mock_is_neutron.return_value = False
+        self.assertEqual([], p_vifs._get_vif_events())
+
+        # Turn neutron on.
+        mock_is_neutron.return_value = True
+        resp = p_vifs._get_vif_events()
+
+        # Only one should be returned since only one was active.
+        self.assertEqual(1, len(resp))

@@ -14,8 +14,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.i18n import _LI, _LW
+import eventlet
 
+from nova import exception
+from nova.i18n import _LI, _LE
+from nova import utils
+
+from oslo_config import cfg
 from oslo_log import log as logging
 from taskflow import task
 
@@ -24,6 +29,9 @@ from pypowervm.wrappers import base_partition as pvm_bp
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
+CONF = cfg.CONF
+CONF.import_opt('vif_plugging_is_fatal', 'nova.virt.driver')
+CONF.import_opt('vif_plugging_timeout', 'nova.virt.driver')
 
 
 def state_ok_for_plug(lpar_wrap):
@@ -39,17 +47,19 @@ def state_ok_for_plug(lpar_wrap):
 class PlugVifs(task.Task):
     """The task to plug the Virtual Network Interfaces to a VM."""
 
-    def __init__(self, adapter, instance, network_info, host_uuid):
+    def __init__(self, virt_api, adapter, instance, network_info, host_uuid):
         """Create the task.
 
         Provides the 'vm_cnas' - the Virtual Machine's Client Network Adapters.
 
+        :param virt_api: The VirtAPI for the operation.
         :param adapter: The pypowervm adapter.
         :param instance: The nova instance.
         :param network_info: The network information containing the nova
                              VIFs to create.
         :param host_uuid: The host system's PowerVM UUID.
         """
+        self.virt_api = virt_api
         self.adapter = adapter
         self.instance = instance
         self.network_info = network_info
@@ -61,29 +71,76 @@ class PlugVifs(task.Task):
     def execute(self, lpar_wrap):
         LOG.info(_LI('Plugging the Network Interfaces to instance %s'),
                  self.instance.name)
-        # Get all the current VIFs.  Only create new ones.
+
+        # Check to see if the LPAR is OK to add VIFs to.
+        if not state_ok_for_plug(lpar_wrap):
+            LOG.error(_LE('Unable to create VIF(s) for instance %(sys)s.  The '
+                          'VM was in a state where VIF plugging is not '
+                          'acceptable.  The system may be running without an '
+                          'active RMC connection.'),
+                      {'sys': self.instance.name}, instance=self.instance)
+            raise exception.VirtualInterfaceCreateException()
+
+        # Get the current adapters on the system
         cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
+
+        # Trim the VIFs down to the ones that haven't yet been created.
+        crt_vifs = []
         for vif in self.network_info:
             for cna_w in cna_w_list:
                 if vm.norm_mac(cna_w.mac) == vif['address']:
                     break
             else:
-                if state_ok_for_plug(lpar_wrap):
+                crt_vifs.append(vif)
+
+        # For the VIFs, run the creates (and wait for the events back)
+        try:
+            with self.virt_api.wait_for_instance_event(
+                    self.instance, self._get_vif_events(),
+                    deadline=CONF.vif_plugging_timeout,
+                    error_callback=self._vif_callback_failed):
+                for vif in crt_vifs:
                     LOG.info(_LI('Creating VIF with mac %(mac)s for instance '
-                                 '%(inst)s'),
+                                 '%(sys)s'),
                              {'mac': vif['address'],
-                              'inst': self.instance.name},
+                              'sys': self.instance.name},
                              instance=self.instance)
                     vm.crt_vif(self.adapter, self.instance, self.host_uuid,
                                vif)
-                else:
-                    LOG.warn(_LW('Unable to create VIF with mac %(mac)s for '
-                                 'instance %(inst)s.  The VM was in a bad '
-                                 'state.'),
-                             {'mac': vif['address'],
-                              'inst': self.instance.name},
-                             instance=self.instance)
+        except eventlet.timeout.Timeout:
+            LOG.error(_LE('Error waiting for VIF to be created for instance '
+                          '%(sys)s'), {'sys': self.instance.name},
+                      instance=self.instance)
+            raise exception.VirtualInterfaceCreateException()
+
+        # Return the list of created VIFs.
         return cna_w_list
+
+    def _vif_callback_failed(self, event_name, instance):
+        LOG.error(_LE('VIF Plug failure for callback on event '
+                      '%(event)s for instance %(uuid)s'),
+                  {'event': event_name, 'uuid': instance.uuid})
+        if CONF.vif_plugging_is_fatal:
+            raise exception.VirtualInterfaceCreateException()
+
+    def _get_vif_events(self):
+        """Returns the VIF events that need to be received for a VIF plug.
+
+        In order for a VIF plug to be successful, certain events should be
+        received from other components within the OpenStack ecosystem.  If
+        using neutron, certain events are needed.  If Nova networking, then no
+        events are required.  This method returns the events needed for a given
+        deploy.
+        """
+        # See libvirt's driver.py -> _get_neutron_events method for
+        # more information.
+        if (utils.is_neutron() and CONF.vif_plugging_is_fatal and
+                CONF.vif_plugging_timeout):
+            return [('network-vif-plugged', vif['id'])
+                    for vif in self.network_info
+                    if not vif.get('active', True)]
+        else:
+            return []
 
 
 class PlugMgmtVif(task.Task):
