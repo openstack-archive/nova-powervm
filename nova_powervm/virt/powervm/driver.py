@@ -555,6 +555,14 @@ class PowerVMDriver(driver.ComputeDriver):
         out, err = n_utils.execute('env', 'LANG=C', 'uptime')
         return out
 
+    def attach_interface(self, instance, image_meta, vif):
+        """Attach an interface to the instance."""
+        self.plug_vifs(instance, [vif])
+
+    def detach_interface(self, instance, vif):
+        """Detach an interface from the instance."""
+        self.unplug_vifs(instance, [vif])
+
     def plug_vifs(self, instance, network_info):
         """Plug VIFs into networks."""
         self._log_operation('plug_vifs', instance)
@@ -576,7 +584,20 @@ class PowerVMDriver(driver.ComputeDriver):
     def unplug_vifs(self, instance, network_info):
         """Unplug VIFs from networks."""
         self._log_operation('unplug_vifs', instance)
-        # TODO(IBM): Implement
+
+        # Define the flow
+        flow = lf.Flow("unplug_vifs")
+
+        # Get the LPAR Wrapper
+        flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
+
+        # Run the detach
+        flow.add(tf_net.UnplugVifs(self.adapter, instance, network_info,
+                                   self.host_uuid))
+
+        # Build the engine & run!
+        engine = taskflow.engines.load(flow)
+        engine.run()
 
     def get_available_nodes(self, refresh=False):
         """Returns nodenames of all nodes managed by the compute service.

@@ -27,6 +27,14 @@ from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.tasks import network as tf_net
 
 
+def cna(mac):
+    """Builds a mock Client Network Adapter for unit tests."""
+    nic = mock.MagicMock()
+    nic.mac = mac
+    nic.vswitch_uri = 'fake_href'
+    return nic
+
+
 class TestNetwork(test.TestCase):
     def setUp(self):
         super(TestNetwork, self).setUp()
@@ -53,6 +61,49 @@ class TestNetwork(test.TestCase):
         self.assertFalse(tf_net.state_ok_for_plug(mock_lpar))
 
     @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_unplug_vifs(self, mock_vm_get, mock_state):
+        """Tests that a delete of the vif can be done."""
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Mock up the CNA response.  One should already exist, the other
+        # should not.
+        cnas = [cna('AABBCCDDEEFF'), cna('AABBCCDDEE11'), cna('AABBCCDDEE22')]
+        mock_vm_get.return_value = cnas
+
+        # Mock up the network info.  This also validates that they will be
+        # sanitized to upper case.
+        net_info = [
+            {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:22'},
+            {'address': 'aa:bb:cc:dd:ee:33'}
+        ]
+
+        mock_state.return_value = True
+
+        # Run method
+        p_vifs = tf_net.UnplugVifs(self.apt, inst, net_info, 'host_uuid')
+        p_vifs.execute(mock.Mock())
+
+        # The delete should have only been called once.  The second CNA didn't
+        # have a matching mac...so it should be skipped.
+        self.assertEqual(1, cnas[0].delete.call_count)
+        self.assertEqual(0, cnas[1].delete.call_count)
+        self.assertEqual(1, cnas[2].delete.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
+    def test_unplug_vifs_invalid_state(self, mock_state):
+        """Tests that the delete raises an exception if bad VM state."""
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # State that the VM is not in a valid state for VIF unplug
+        mock_state.return_value = False
+
+        # Run method
+        p_vifs = tf_net.UnplugVifs(self.apt, inst, mock.Mock(), 'host_uuid')
+        self.assertRaises(tf_net.VirtualInterfaceUnplugException,
+                          p_vifs.execute, mock.Mock)
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
@@ -63,12 +114,7 @@ class TestNetwork(test.TestCase):
 
         # Mock up the CNA response.  One should already exist, the other
         # should not.
-        cnas = [mock.MagicMock(), mock.MagicMock()]
-        cnas[0].mac = 'AABBCCDDEEFF'
-        cnas[0].vswitch_uri = 'fake_uri'
-        cnas[1].mac = 'AABBCCDDEE11'
-        cnas[1].vswitch_uri = 'fake_uri'
-        mock_vm_get.return_value = cnas
+        mock_vm_get.return_value = [cna('AABBCCDDEEFF'), cna('AABBCCDDEE11')]
 
         # Mock up the network info.  This also validates that they will be
         # sanitized to upper case.
@@ -114,10 +160,7 @@ class TestNetwork(test.TestCase):
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         # Mock up the CNA response.  Only doing one for simplicity
-        cnas = [mock.MagicMock()]
-        cnas[0].mac = 'AABBCCDDEE11'
-        cnas[0].vswitch_uri = 'fake_uri'
-        mock_vm_get.return_value = cnas
+        mock_vm_get.return_value = [cna('AABBCCDDEE11')]
 
         # Mock up the network info.
         net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
