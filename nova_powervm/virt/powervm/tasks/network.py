@@ -17,7 +17,7 @@
 import eventlet
 
 from nova import exception
-from nova.i18n import _LI, _LE
+from nova.i18n import _LI, _LW, _LE, _
 from nova import utils
 
 from oslo_config import cfg
@@ -35,13 +35,89 @@ CONF.import_opt('vif_plugging_timeout', 'nova.virt.driver')
 
 
 def state_ok_for_plug(lpar_wrap):
-    """Determines if a LPAR is in an OK state for network plugging."""
+    """Determines if a LPAR is in an OK state for network plug or unplug."""
     if lpar_wrap.state == pvm_bp.LPARState.NOT_ACTIVATED:
         return True
     elif (lpar_wrap.state == pvm_bp.LPARState.RUNNING and
           lpar_wrap.rmc_state == pvm_bp.RMCState.ACTIVE):
         return True
     return False
+
+
+class VirtualInterfaceUnplugException(exception.NovaException):
+    """Indicates that a VIF unplug failed."""
+    # TODO(thorst) symmetrical to the exception in base Nova.  Evaluate
+    # moving to Nova core.
+    msg_fmt = _("Virtual interface unplug failed")
+
+
+class UnplugVifs(task.Task):
+    """The task to unplug Virtual Network Interfaces from a VM."""
+
+    def __init__(self, adapter, instance, network_info, host_uuid):
+        """Create the task.
+
+        :param adapter: The pypowervm adapter.
+        :param instance: The nova instance.
+        :param network_info: The network information containing the nova
+                             VIFs to create.
+        :param host_uuid: The host system's PowerVM UUID.
+        """
+        self.adapter = adapter
+        self.instance = instance
+        self.network_info = network_info
+        self.host_uuid = host_uuid
+
+        super(UnplugVifs, self).__init__(name='unplug_vifs',
+                                         requires=['lpar_wrap'])
+
+    def execute(self, lpar_wrap):
+        LOG.info(_LI('Unplugging the Network Interfaces to instance %s'),
+                 self.instance.name)
+
+        # If the state is not in an OK state for deleting, then throw an
+        # error up front.
+        if not state_ok_for_plug(lpar_wrap):
+            LOG.error(_LE('Unable to remove VIFs from instance %(inst)s '
+                          'because the system is not in a correct state.  '
+                          'This can occur if the system is not powered '
+                          'off or there is an inactive RMC connection.'),
+                      {'inst': self.instance.name}, instance=self.instance)
+            raise VirtualInterfaceUnplugException()
+
+        # Get all the current Client Network Adapters (CNA) on the VM itself.
+        cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
+
+        # Walk through the VIFs and delete the corresponding CNA on the VM.
+        for vif in self.network_info:
+            for cna_w in cna_w_list:
+                # If the MAC address matched, attempt the delete.
+                if vm.norm_mac(cna_w.mac) == vif['address']:
+                    LOG.info(_LI('Deleting VIF with mac %(mac)s for instance '
+                                 '%(inst)s.'), {'mac': vif['address'],
+                                                'inst': self.instance.name},
+                             instance=self.instance)
+                    try:
+                        cna_w.delete()
+                    except Exception as e:
+                        LOG.error(_LE('Unable to unplug VIF with mac %(mac)s '
+                                      'for instance %(inst)s.'),
+                                  {'mac': vif['address'],
+                                   'inst': self.instance.name},
+                                  instance=self.instance)
+                        LOG.error(e)
+                        raise VirtualInterfaceUnplugException()
+
+                    # Break from the loop as we had a successful unplug.
+                    # This prevents from going to 'else' loop.
+                    break
+            else:
+                LOG.warn(_LW('Unable to unplug VIF with mac %(mac)s for '
+                             'instance %(inst)s.  The VIF was not found on '
+                             'the instance.'),
+                         {'mac': vif['address'], 'inst': self.instance.name},
+                         instance=self.instance)
+        return cna_w_list
 
 
 class PlugVifs(task.Task):
