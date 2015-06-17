@@ -104,11 +104,9 @@ class TestNetwork(test.TestCase):
                           p_vifs.execute, mock.Mock)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_rmc(self, mock_vm_get, mock_vm_crt,
-                           mock_crt_rmc_vif, mock_state):
+    def test_plug_vifs_rmc(self, mock_vm_get, mock_vm_crt, mock_state):
         """Tests that a crt vif can be done with secure RMC."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
@@ -119,8 +117,7 @@ class TestNetwork(test.TestCase):
         # Mock up the network info.  This also validates that they will be
         # sanitized to upper case.
         net_info = [
-            {'address': 'aa:bb:cc:dd:ee:ff'},
-            {'address': 'aa:bb:cc:dd:ee:22'},
+            {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:22'},
             {'address': 'aa:bb:cc:dd:ee:33'}
         ]
 
@@ -133,6 +130,35 @@ class TestNetwork(test.TestCase):
 
         # The create should have only been called once.
         self.assertEqual(2, mock_vm_crt.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_plug_vifs_rmc_no_create(self, mock_vm_get, mock_vm_crt,
+                                     mock_state):
+        """Verifies if no creates are needed, none are done."""
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Mock up the CNA response.  Both should already exist.
+        mock_vm_get.return_value = [cna('AABBCCDDEEFF'), cna('AABBCCDDEE11')]
+
+        # Mock up the network info.  This also validates that they will be
+        # sanitized to upper case.
+        net_info = [
+            {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:11'}
+        ]
+
+        mock_state.return_value = True
+
+        # Run method
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
+                                 'host_uuid')
+        resp = p_vifs.execute(mock.Mock())
+
+        # The create should not have been called.  The response should have
+        # been empty.
+        self.assertEqual(0, mock_vm_crt.call_count)
+        self.assertEqual([], resp)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')

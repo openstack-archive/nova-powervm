@@ -169,6 +169,10 @@ class PlugVifs(task.Task):
             else:
                 crt_vifs.append(vif)
 
+        # If there are no vifs to create, then just exit immediately.
+        if len(crt_vifs) == 0:
+            return []
+
         # For the VIFs, run the creates (and wait for the events back)
         try:
             with self.virt_api.wait_for_instance_event(
