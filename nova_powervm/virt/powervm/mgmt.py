@@ -23,10 +23,11 @@ aixlinux, but with the is_mgmt_partition property set to True.
 The PowerVM Nova Compute service runs on the management partition.
 """
 import glob
-from os import path
-
+from nova import exception
 from nova.i18n import _, _LI
 from nova.storage import linuxscsi
+import os
+from os import path
 
 from oslo_log import log as logging
 
@@ -37,6 +38,11 @@ LOG = logging.getLogger(__name__)
 
 class UniqueDiskDiscoveryException(Exception):
     """Expected to discover exactly one disk, but discovered 0 or >1."""
+    pass
+
+
+class DeviceDeletionException(Exception):
+    """Expected to delete a disk, but the disk is still present afterward."""
     pass
 
 
@@ -102,3 +108,44 @@ def discover_vscsi_disk(mapping):
                  "at path %(devname)s."),
              {'udid': udid, 'slot': lslot, 'devname': dpath})
     return dpath
+
+
+def remove_block_dev(devpath):
+    """Remove a block device from the management partition.
+
+    This method causes the operating system of the management partition to
+    delete the device special files associated with the specified block device.
+
+    :param devpath: Any path to the block special file associated with the
+                    device to be removed.
+    :raise InvalidDevicePath: If the specified device or its 'delete' special
+                              file cannot be found.
+    :raise DeviceDeletionException: If the deletion was attempted, but the
+                                    device special file is still present
+                                    afterward.
+    """
+    # Resolve symlinks, if any, to get to the /dev/sdX path
+    devpath = path.realpath(devpath)
+    try:
+        os.stat(devpath)
+    except OSError:
+        raise exception.InvalidDevicePath(path=devpath)
+    devname = devpath.rsplit('/', 1)[-1]
+    delpath = '/sys/block/%s/device/delete' % devname
+    try:
+        os.stat(delpath)
+    except OSError:
+        raise exception.InvalidDevicePath(path=delpath)
+    LOG.debug("Deleting block device %(devpath)s from the management "
+              "partition via special file %(delpath)s.",
+              {'devpath': devpath, 'delpath': delpath})
+    linuxscsi.echo_scsi_command(delpath, '1')
+    try:
+        os.stat(devpath)
+        raise DeviceDeletionException(
+            _("Device %(devpath)s is still present on the management "
+              "partition after attempting to delete it."),
+            {'devpath': devpath})
+    except OSError:
+        # Device special file is absent, as expected
+        pass
