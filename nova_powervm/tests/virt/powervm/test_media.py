@@ -22,6 +22,7 @@ from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
+from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import media as m
 
 VOL_GRP_DATA = 'fake_volume_group.txt'
@@ -136,7 +137,7 @@ class TestConfigDrivePowerVM(test.TestCase):
     def test_validate_opt_vg_fail(self):
         self.apt.read.side_effect = [self.vio_feed_no_vg,
                                      self.vol_grp_novg_resp]
-        self.assertRaises(m.NoMediaRepoVolumeGroupFound,
+        self.assertRaises(npvmex.NoMediaRepoVolumeGroupFound,
                           m.ConfigDrivePowerVM, self.apt, 'fake_host')
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_vopt_mapping')

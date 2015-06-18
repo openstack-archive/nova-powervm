@@ -22,6 +22,7 @@ from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
+from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import mgmt
 
 LPAR_HTTPRESP_FILE = "lpar.txt"
@@ -77,11 +78,11 @@ class TestMgmt(test.TestCase):
         mapping.backing_storage.udid = udid
         # No disks found
         mock_glob.side_effect = [['path'], []]
-        self.assertRaises(mgmt.UniqueDiskDiscoveryException,
+        self.assertRaises(npvmex.UniqueDiskDiscoveryException,
                           mgmt.discover_vscsi_disk, mapping)
         # Multiple disks found
         mock_glob.side_effect = [['path'], ['/dev/sde', '/dev/sdf']]
-        self.assertRaises(mgmt.UniqueDiskDiscoveryException,
+        self.assertRaises(npvmex.UniqueDiskDiscoveryException,
                           mgmt.discover_vscsi_disk, mapping)
 
     @mock.patch('os.path.realpath')
@@ -126,8 +127,8 @@ class TestMgmt(test.TestCase):
         mock_exec.reset_mock()
         mock_stat.reset_mock()
         mock_stat.side_effect = (None, None, None)
-        self.assertRaises(mgmt.DeviceDeletionException, mgmt.remove_block_dev,
-                          link)
+        self.assertRaises(
+            npvmex.DeviceDeletionException, mgmt.remove_block_dev, link)
         # stat was called thrice; exec was called once
         self.assertEqual(3, mock_stat.call_count)
         self.assertEqual(1, mock_exec.call_count)

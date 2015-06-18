@@ -20,7 +20,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from nova import exception as nova_exc
-from nova.i18n import _, _LI, _LE
+from nova.i18n import _LI, _LE
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
@@ -28,8 +28,8 @@ from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-import nova_powervm.virt.powervm.disk as disk
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
+from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import vm
 
 localdisk_opts = [
@@ -51,11 +51,6 @@ localdisk_opts = [
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 CONF.register_opts(localdisk_opts)
-
-
-class VGNotFound(disk.AbstractDiskException):
-    msg_fmt = _("Unable to locate the volume group '%(vg_name)s' for this "
-                "operation.")
 
 
 class LocalStorage(disk_dvr.DiskAdapter):
@@ -294,7 +289,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 if name == vol_grp.name:
                     return vios_wrap.uuid, vol_grp.uuid
 
-        raise VGNotFound(vg_name=name)
+        raise npvmex.VGNotFound(vg_name=name)
 
     def _get_vg(self):
         vg_rsp = self.adapter.read(

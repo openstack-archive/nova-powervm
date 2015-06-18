@@ -24,7 +24,7 @@ The PowerVM Nova Compute service runs on the management partition.
 """
 import glob
 from nova import exception
-from nova.i18n import _, _LI
+from nova.i18n import _LI
 from nova.storage import linuxscsi
 import os
 from os import path
@@ -33,17 +33,9 @@ from oslo_log import log as logging
 
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
+from nova_powervm.virt.powervm import exception as npvmex
+
 LOG = logging.getLogger(__name__)
-
-
-class UniqueDiskDiscoveryException(Exception):
-    """Expected to discover exactly one disk, but discovered 0 or >1."""
-    pass
-
-
-class DeviceDeletionException(Exception):
-    """Expected to delete a disk, but the disk is still present afterward."""
-    pass
 
 
 def get_mgmt_partition(adapter):
@@ -53,7 +45,7 @@ def get_mgmt_partition(adapter):
     """
     wraps = pvm_lpar.LPAR.search(adapter, is_mgmt_partition=True)
     if len(wraps) != 1:
-        raise Exception(_("Unable to find a single management partition."))
+        raise npvmex.ManagementPartitionNotFoundException(count=len(wraps))
     return wraps[0]
 
 
@@ -97,10 +89,8 @@ def discover_vscsi_disk(mapping):
     dpathpat = '/dev/disk/by-id/*%s' % udid
     disks = glob.glob(dpathpat)
     if len(disks) != 1:
-        raise UniqueDiskDiscoveryException(
-            _("Expected to find exactly one disk on the management partition "
-              "at %(path_pattern)s; found %(count)d.") %
-            {'path_pattern': dpathpat, 'count': len(disks)})
+        raise npvmex.UniqueDiskDiscoveryException(path_pattern=dpathpat,
+                                                  count=len(disks))
 
     # The by-id path is a symlink.  Resolve to the /dev/sdX path
     dpath = path.realpath(disks[0])
@@ -142,10 +132,7 @@ def remove_block_dev(devpath):
     linuxscsi.echo_scsi_command(delpath, '1')
     try:
         os.stat(devpath)
-        raise DeviceDeletionException(
-            _("Device %(devpath)s is still present on the management "
-              "partition after attempting to delete it."),
-            {'devpath': devpath})
+        raise npvmex.DeviceDeletionException(devpath=devpath)
     except OSError:
         # Device special file is absent, as expected
         pass

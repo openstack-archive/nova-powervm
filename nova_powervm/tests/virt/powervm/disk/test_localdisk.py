@@ -27,6 +27,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm.disk import localdisk as ld
+from nova_powervm.virt.powervm import exception as npvmex
 
 
 VOL_GRP_WITH_VIOS = 'fake_volume_group_with_vio_data.txt'
@@ -268,7 +269,7 @@ class TestLocalDisk(test.TestCase):
         # Not found
         mock_add.reset_mock()
         self.apt.read.return_value = vios2.entry
-        self.assertRaises(disk_dvr.InstanceDiskMappingFailed,
+        self.assertRaises(npvmex.InstanceDiskMappingFailed,
                           local.connect_instance_disk_to_mgmt, inst)
         self.assertEqual(0, mock_add.call_count)
 
@@ -276,7 +277,7 @@ class TestLocalDisk(test.TestCase):
         mock_add.reset_mock()
         self.apt.read.return_value = vios1.entry
         mock_add.side_effect = Exception("mapping failed")
-        self.assertRaises(disk_dvr.InstanceDiskMappingFailed,
+        self.assertRaises(npvmex.InstanceDiskMappingFailed,
                           local.connect_instance_disk_to_mgmt, inst)
         self.assertEqual(1, mock_add.call_count)
 
@@ -349,6 +350,6 @@ class TestLocalDiskFindVG(test.TestCase):
         self.flags(volume_group_name='rootvg',
                    volume_group_vios_name='invalid_vios')
 
-        self.assertRaises(ld.VGNotFound, ld.LocalStorage,
+        self.assertRaises(npvmex.VGNotFound, ld.LocalStorage,
                           {'adapter': self.apt, 'host_uuid': 'host_uuid',
                            'mp_uuid': 'mp_uuid'})

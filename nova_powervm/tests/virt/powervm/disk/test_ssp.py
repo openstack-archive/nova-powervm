@@ -29,8 +29,8 @@ from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
-from nova_powervm.virt.powervm.disk import driver
 from nova_powervm.virt.powervm.disk import ssp
+from nova_powervm.virt.powervm import exception as npvmex
 
 
 SSP = 'fake_ssp.txt'
@@ -172,7 +172,7 @@ class TestSSPDiskAdapter(test.TestCase):
     def test_init_ClusterNotFoundByName(self):
         """Empty feed comes back from search - no cluster by that name."""
         self.mock_search.return_value = self._bld_resp(status=204)
-        self.assertRaises(ssp.ClusterNotFoundByName, self._get_ssp_stor)
+        self.assertRaises(npvmex.ClusterNotFoundByName, self._get_ssp_stor)
 
     def test_init_TooManyClustersFound(self):
         """Search-by-name returns more than one result."""
@@ -184,13 +184,13 @@ class TestSSPDiskAdapter(test.TestCase):
                                        pvm_clust.Node.bld(None, 'vios2'))
         self.mock_search.return_value = self._bld_resp(
             entry_or_list=[clust1.entry, clust2.entry])
-        self.assertRaises(ssp.TooManyClustersFound, self._get_ssp_stor)
+        self.assertRaises(npvmex.TooManyClustersFound, self._get_ssp_stor)
 
     def test_init_NoConfigNoClusterFound(self):
         """No cluster name specified in config, no clusters on host."""
         self.flags(cluster_name='')
         self.apt.read.return_value = self._bld_resp(status=204)
-        self.assertRaises(ssp.NoConfigNoClusterFound, self._get_ssp_stor)
+        self.assertRaises(npvmex.NoConfigNoClusterFound, self._get_ssp_stor)
 
     def test_init_NoConfigTooManyClusters(self):
         """No SSP name specified in config, more than one SSP on host."""
@@ -203,7 +203,7 @@ class TestSSPDiskAdapter(test.TestCase):
                                        pvm_clust.Node.bld(None, 'vios2'))
         self.apt.read.return_value = self._bld_resp(
             entry_or_list=[clust1.entry, clust2.entry])
-        self.assertRaises(ssp.NoConfigTooManyClusters, self._get_ssp_stor)
+        self.assertRaises(npvmex.NoConfigTooManyClusters, self._get_ssp_stor)
 
     def test_refresh_cluster(self):
         """_refresh_cluster with cached wrapper."""
@@ -550,7 +550,7 @@ class TestSSPDiskAdapter(test.TestCase):
         # No hits
         mock_add.reset_mock()
         self.apt.read.side_effect = [rsp3, rsp3]
-        self.assertRaises(driver.InstanceDiskMappingFailed,
+        self.assertRaises(npvmex.InstanceDiskMappingFailed,
                           ssp_stor.connect_instance_disk_to_mgmt, inst)
         self.assertEqual(0, mock_add.call_count)
 

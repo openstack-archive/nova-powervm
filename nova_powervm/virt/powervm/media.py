@@ -14,10 +14,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import abc
 import copy
 from nova.api.metadata import base as instance_metadata
-from nova.i18n import _, _LI, _LW
+from nova.i18n import _LI, _LW
 from nova.network import model as network_model
 from nova.virt import configdrive
 import os
@@ -33,26 +32,12 @@ from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-import six
-
+from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
-
-
-@six.add_metaclass(abc.ABCMeta)
-class AbstractMediaException(Exception):
-    def __init__(self, **kwargs):
-        msg = self.msg_fmt % kwargs
-        super(AbstractMediaException, self).__init__(msg)
-
-
-class NoMediaRepoVolumeGroupFound(AbstractMediaException):
-    msg_fmt = _('Unable to locate the volume group %(vol_grp)s to store the '
-                'virtual optical media within.  Unable to create the '
-                'media repository.')
 
 
 class ConfigDrivePowerVM(object):
@@ -87,7 +72,7 @@ class ConfigDrivePowerVM(object):
         :param injected_files: A list of file paths that will be injected into
                                the ISO.
         :param network_info: The network_info from the nova spawn method.
-        :param admin_password: Optional password to inject for the VM.
+        :param admin_pass: Optional password to inject for the VM.
         :return iso_path: The path to the ISO
         :return file_name: The file name for the ISO
         """
@@ -242,7 +227,7 @@ class ConfigDrivePowerVM(object):
         # this is user specified, and if it was not found is a proper
         # exception path.
         if found_vg is None:
-            raise NoMediaRepoVolumeGroupFound(
+            raise npvmex.NoMediaRepoVolumeGroupFound(
                 vol_grp=CONF.vopt_media_volume_group)
 
         # Ensure that there is a virtual optical media repository within it.

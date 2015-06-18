@@ -19,8 +19,7 @@ import random
 from oslo_config import cfg
 import oslo_log.log as logging
 
-from nova.i18n import _, _LI, _LE
-import nova_powervm.virt.powervm.disk as disk
+from nova.i18n import _LI, _LE
 from nova_powervm.virt.powervm.disk import driver as disk_drv
 from nova_powervm.virt.powervm import vm
 
@@ -29,6 +28,8 @@ from pypowervm.tasks import storage as tsk_stg
 import pypowervm.util as pvm_u
 import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
+
+from nova_powervm.virt.powervm import exception as npvmex
 
 ssp_opts = [
     cfg.StrOpt('cluster_name',
@@ -42,25 +43,6 @@ ssp_opts = [
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 CONF.register_opts(ssp_opts)
-
-
-class ClusterNotFoundByName(disk.AbstractDiskException):
-    msg_fmt = _("Unable to locate the Cluster '%(clust_name)s' for this "
-                "operation.")
-
-
-class NoConfigNoClusterFound(disk.AbstractDiskException):
-    msg_fmt = _('Unable to locate any Cluster for this operation.')
-
-
-class TooManyClustersFound(disk.AbstractDiskException):
-    msg_fmt = _("Unexpectedly found %(clust_count)d Clusters "
-                "matching name '%(clust_name)s'.")
-
-
-class NoConfigTooManyClusters(disk.AbstractDiskException):
-    msg_fmt = _("No cluster_name specified.  Refusing to select one of the "
-                "%(clust_count)d Clusters found.")
 
 
 class SSPDiskAdapter(disk_drv.DiskAdapter):
@@ -318,19 +300,20 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                 resp = pvm_clust.Cluster.search(self.adapter, name=clust_name)
                 wraps = pvm_clust.Cluster.wrap(resp)
                 if len(wraps) == 0:
-                    raise ClusterNotFoundByName(clust_name=clust_name)
+                    raise npvmex.ClusterNotFoundByName(clust_name=clust_name)
                 if len(wraps) > 1:
-                    raise TooManyClustersFound(clust_count=len(wraps),
-                                               clust_name=clust_name)
+                    raise npvmex.TooManyClustersFound(clust_count=len(wraps),
+                                                      clust_name=clust_name)
             else:
                 # Otherwise, pull the entire feed of Clusters and, if
                 # exactly one result, use it.
                 resp = self.adapter.read(pvm_clust.Cluster.schema_type)
                 wraps = pvm_clust.Cluster.wrap(resp)
                 if len(wraps) == 0:
-                    raise NoConfigNoClusterFound()
+                    raise npvmex.NoConfigNoClusterFound()
                 if len(wraps) > 1:
-                    raise NoConfigTooManyClusters(clust_count=len(wraps))
+                    raise npvmex.NoConfigTooManyClusters(
+                        clust_count=len(wraps))
             clust_wrap = wraps[0]
         except Exception as e:
             LOG.exception(e.message)

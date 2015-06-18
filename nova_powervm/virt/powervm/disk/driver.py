@@ -21,13 +21,13 @@ import oslo_log.log as logging
 from oslo_utils import units
 import six
 
-from nova.i18n import _, _LW
+from nova.i18n import _LW
 from nova import image
 import pypowervm.tasks.scsi_mapper as tsk_map
 import pypowervm.util as pvm_util
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
-from nova_powervm.virt.powervm import disk
+from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -37,11 +37,6 @@ class DiskType(object):
     BOOT = 'boot'
     RESCUE = 'rescue'
     IMAGE = 'image'
-
-
-class InstanceDiskMappingFailed(disk.AbstractDiskException):
-    msg_fmt = _("Failed to map boot disk of instance %(instance_name)s to "
-                "the management partition from any Virtual I/O Server.")
 
 
 class IterableToFileAdapter(object):
@@ -174,7 +169,7 @@ class DiskAdapter(object):
                              "%(vios_name)s: %(exc)s"), msg_args)
                 # Try the next hit, if available.
         # We either didn't find the boot dev, or failed all attempts to map it.
-        raise InstanceDiskMappingFailed(**msg_args)
+        raise npvmex.InstanceDiskMappingFailed(**msg_args)
 
     def disconnect_disk_from_mgmt(self, vios_uuid, disk_name):
         """Disconnect a disk from the management partition.
