@@ -14,11 +14,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import copy
-
 import mock
-from oslo_config import cfg
 
+import copy
 from nova import exception as nova_exc
 from nova import test
 import os
@@ -33,8 +31,6 @@ from nova_powervm.virt.powervm.disk import localdisk as ld
 
 VOL_GRP_WITH_VIOS = 'fake_volume_group_with_vio_data.txt'
 VIOS_WITH_VOL_GRP = 'fake_vios_with_volume_group_data.txt'
-
-CONF = cfg.CONF
 
 
 class TestLocalDisk(test.TestCase):
@@ -328,7 +324,7 @@ class TestLocalDiskFindVG(test.TestCase):
         self.apt.read.side_effect = [self.vio_to_vg, self.vg_to_vio]
         mock_vio_wrap.return_value = self.mock_vios_feed
         mock_vg_wrap.return_value = self.mock_vg_feed
-        CONF.volume_group_name = 'rootvg'
+        self.flags(volume_group_name='rootvg')
 
         storage = ld.LocalStorage({'adapter': self.apt,
                                    'host_uuid': 'host_uuid',
@@ -350,8 +346,8 @@ class TestLocalDiskFindVG(test.TestCase):
         mock_vg_wrap.return_value = self.mock_vg_feed
 
         # Override that we need a specific VIOS...that won't be found.
-        CONF.volume_group_name = 'rootvg'
-        CONF.volume_group_vios_name = 'invalid_vios'
+        self.flags(volume_group_name='rootvg',
+                   volume_group_vios_name='invalid_vios')
 
         self.assertRaises(ld.VGNotFound, ld.LocalStorage,
                           {'adapter': self.apt, 'host_uuid': 'host_uuid',
