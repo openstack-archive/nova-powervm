@@ -16,6 +16,7 @@
 
 import mock
 
+from nova import exception
 from nova import test
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import logical_partition as pvm_lpar
@@ -82,3 +83,51 @@ class TestMgmt(test.TestCase):
         mock_glob.side_effect = [['path'], ['/dev/sde', '/dev/sdf']]
         self.assertRaises(mgmt.UniqueDiskDiscoveryException,
                           mgmt.discover_vscsi_disk, mapping)
+
+    @mock.patch('os.path.realpath')
+    @mock.patch('os.stat')
+    @mock.patch('nova.utils.execute')
+    def test_remove_block_dev(self, mock_exec, mock_stat, mock_realpath):
+        link = '/dev/link/foo'
+        realpath = '/dev/sde'
+        delpath = '/sys/block/sde/device/delete'
+        mock_realpath.return_value = realpath
+
+        # Good path
+        mock_stat.side_effect = (None, None, OSError())
+        mgmt.remove_block_dev(link)
+        mock_realpath.assert_called_with(link)
+        mock_stat.assert_has_calls([mock.call(realpath), mock.call(delpath),
+                                    mock.call(realpath)])
+        mock_exec.assert_called_with('tee', '-a', delpath, process_input='1',
+                                     run_as_root=True)
+
+        # Device param not found
+        mock_exec.reset_mock()
+        mock_stat.reset_mock()
+        mock_stat.side_effect = (OSError(), None, None)
+        self.assertRaises(exception.InvalidDevicePath, mgmt.remove_block_dev,
+                          link)
+        # stat was called once; exec was not called
+        self.assertEqual(1, mock_stat.call_count)
+        self.assertEqual(0, mock_exec.call_count)
+
+        # Delete special file not found
+        mock_exec.reset_mock()
+        mock_stat.reset_mock()
+        mock_stat.side_effect = (None, OSError(), None)
+        self.assertRaises(exception.InvalidDevicePath, mgmt.remove_block_dev,
+                          link)
+        # stat was called twice; exec was not called
+        self.assertEqual(2, mock_stat.call_count)
+        self.assertEqual(0, mock_exec.call_count)
+
+        # Deletion was attempted, but device is still there
+        mock_exec.reset_mock()
+        mock_stat.reset_mock()
+        mock_stat.side_effect = (None, None, None)
+        self.assertRaises(mgmt.DeviceDeletionException, mgmt.remove_block_dev,
+                          link)
+        # stat was called thrice; exec was called once
+        self.assertEqual(3, mock_stat.call_count)
+        self.assertEqual(1, mock_exec.call_count)
