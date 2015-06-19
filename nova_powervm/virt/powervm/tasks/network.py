@@ -148,15 +148,6 @@ class PlugVifs(task.Task):
         LOG.info(_LI('Plugging the Network Interfaces to instance %s'),
                  self.instance.name)
 
-        # Check to see if the LPAR is OK to add VIFs to.
-        if not state_ok_for_plug(lpar_wrap):
-            LOG.error(_LE('Unable to create VIF(s) for instance %(sys)s.  The '
-                          'VM was in a state where VIF plugging is not '
-                          'acceptable.  The system may be running without an '
-                          'active RMC connection.'),
-                      {'sys': self.instance.name}, instance=self.instance)
-            raise exception.VirtualInterfaceCreateException()
-
         # Get the current adapters on the system
         cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
 
@@ -172,6 +163,15 @@ class PlugVifs(task.Task):
         # If there are no vifs to create, then just exit immediately.
         if len(crt_vifs) == 0:
             return []
+
+        # Check to see if the LPAR is OK to add VIFs to.
+        if not state_ok_for_plug(lpar_wrap):
+            LOG.error(_LE('Unable to create VIF(s) for instance %(sys)s.  The '
+                          'VM was in a state where VIF plugging is not '
+                          'acceptable.  The system may be running without an '
+                          'active RMC connection.'),
+                      {'sys': self.instance.name}, instance=self.instance)
+            raise exception.VirtualInterfaceCreateException()
 
         # For the VIFs, run the creates (and wait for the events back)
         try:

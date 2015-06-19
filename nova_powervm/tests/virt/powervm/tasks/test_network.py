@@ -148,8 +148,6 @@ class TestNetwork(test.TestCase):
             {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:11'}
         ]
 
-        mock_state.return_value = True
-
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid')
@@ -160,17 +158,27 @@ class TestNetwork(test.TestCase):
         self.assertEqual(0, mock_vm_crt.call_count)
         self.assertEqual([], resp)
 
+        # State check shouldn't have even been invoked as no creates were
+        # required
+        self.assertEqual(0, mock_state.call_count)
+
     @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
-    def test_plug_vifs_invalid_state(self, mock_vm_crt, mock_state):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_plug_vifs_invalid_state(self, mock_vm_get, mock_vm_crt,
+                                     mock_state):
         """Tests that a crt_vif fails when the LPAR state is bad."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Mock up the CNA response.  Only doing one for simplicity
+        mock_vm_get.return_value = []
+        net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
 
         # Mock that the state is incorrect
         mock_state.return_value = False
 
         # Run method
-        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, [],
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid')
         self.assertRaises(exception.VirtualInterfaceCreateException,
                           p_vifs.execute, mock.Mock())
