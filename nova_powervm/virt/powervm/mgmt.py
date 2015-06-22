@@ -28,12 +28,12 @@ from nova.i18n import _LI
 from nova.storage import linuxscsi
 import os
 from os import path
-
-from oslo_log import log as logging
-
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from nova_powervm.virt.powervm import exception as npvmex
+
+from oslo_log import log as logging
+import retrying
 
 LOG = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ def get_mgmt_partition(adapter):
     return wraps[0]
 
 
-def discover_vscsi_disk(mapping):
+def discover_vscsi_disk(mapping, scan_timeout=10):
     """Bring a mapped device into the management partition and find its name.
 
     Based on a VSCSIMapping, scan the appropriate virtual SCSI host bus,
@@ -64,7 +64,13 @@ def discover_vscsi_disk(mapping):
     :param mapping: The pypowervm.wrappers.virtual_io_server.VSCSIMapping
                     representing the mapping of the desired disk to the
                     management partition.
+    :param scan_timeout: The maximum number of seconds after scanning to wait
+                         for the specified device to appear.
     :return: The udev-generated ("/dev/sdX") name of the discovered disk.
+    :raise NoDiskDiscoveryException: If the disk did not appear after the
+                                     specified timeout.
+    :raise UniqueDiskDiscoveryException: If more than one disk appears with the
+                                         expected UDID.
     """
     # TODO(IBM): Support for other host platforms.
 
@@ -87,7 +93,22 @@ def discover_vscsi_disk(mapping):
     # Now see if our device showed up.  If so, we can reliably match it based
     # on its Linux ID, which ends with the disk's UDID.
     dpathpat = '/dev/disk/by-id/*%s' % udid
-    disks = glob.glob(dpathpat)
+
+    # The bus scan is asynchronous.  Need to poll, waiting for the device to
+    # spring into existence.  Stop when glob finds at least one device, or
+    # after the specified timeout.  Sleep 1/4 second between polls.
+    @retrying.retry(retry_on_result=lambda result: not result, wait_fixed=250,
+                    stop_max_delay=scan_timeout * 1000)
+    def _poll_for_dev(globpat):
+        return glob.glob(globpat)
+    try:
+        disks = _poll_for_dev(dpathpat)
+    except retrying.RetryError as re:
+        raise npvmex.NoDiskDiscoveryException(
+            bus=lslot, udid=udid, polls=re.last_attempt.attempt_number,
+            timeout=scan_timeout)
+    # If we get here, _poll_for_dev returned a nonempty list.  If not exactly
+    # one entry, this is an error.
     if len(disks) != 1:
         raise npvmex.UniqueDiskDiscoveryException(path_pattern=dpathpat,
                                                   count=len(disks))
@@ -100,7 +121,7 @@ def discover_vscsi_disk(mapping):
     return dpath
 
 
-def remove_block_dev(devpath):
+def remove_block_dev(devpath, scan_timeout=10):
     """Remove a block device from the management partition.
 
     This method causes the operating system of the management partition to
@@ -108,6 +129,8 @@ def remove_block_dev(devpath):
 
     :param devpath: Any path to the block special file associated with the
                     device to be removed.
+    :param scan_timeout: The maximum number of seconds after scanning to wait
+                         for the specified device to disappear.
     :raise InvalidDevicePath: If the specified device or its 'delete' special
                               file cannot be found.
     :raise DeviceDeletionException: If the deletion was attempted, but the
@@ -130,9 +153,25 @@ def remove_block_dev(devpath):
               "partition via special file %(delpath)s.",
               {'devpath': devpath, 'delpath': delpath})
     linuxscsi.echo_scsi_command(delpath, '1')
+
+    # The bus scan is asynchronous.  Need to poll, waiting for the device to
+    # disappear.  Stop when stat raises OSError (dev file not found) - which is
+    # success - or after the specified timeout (which is failure).  Sleep 1/4
+    # second between polls.
+    @retrying.retry(retry_on_result=lambda result: result, wait_fixed=250,
+                    stop_max_delay=scan_timeout * 1000)
+    def _poll_for_del(statpath):
+        try:
+            os.stat(statpath)
+            return True
+        except OSError:
+            # Device special file is absent, as expected
+            return False
     try:
-        os.stat(devpath)
-        raise npvmex.DeviceDeletionException(devpath=devpath)
-    except OSError:
-        # Device special file is absent, as expected
-        pass
+        _poll_for_del(devpath)
+    except retrying.RetryError as re:
+        # stat just kept returning (dev file continued to exist).
+        raise npvmex.DeviceDeletionException(
+            devpath=devpath, polls=re.last_attempt.attempt_number,
+            timeout=scan_timeout)
+    # Else stat raised - the device disappeared - all done.

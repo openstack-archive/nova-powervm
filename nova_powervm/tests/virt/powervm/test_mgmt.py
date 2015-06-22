@@ -67,9 +67,11 @@ class TestMgmt(test.TestCase):
                                      process_input='- - -', run_as_root=True)
         mock_realpath.assert_called_with(devlink)
 
+    @mock.patch('time.sleep')
     @mock.patch('glob.glob')
     @mock.patch('nova.utils.execute')
-    def test_discover_vscsi_disk_not_one_result(self, mock_exec, mock_glob):
+    def test_discover_vscsi_disk_not_one_result(self, mock_exec, mock_glob,
+                                                mock_sleep):
         """Zero or more than one disk is found by discover_vscsi_disk."""
         udid = ('275b5d5f88fa5611e48be9000098be9400'
                 '13fb2aa55a2d7b8d150cb1b7b6bc04d6')
@@ -77,18 +79,23 @@ class TestMgmt(test.TestCase):
         mapping.client_adapter.slot_number = 5
         mapping.backing_storage.udid = udid
         # No disks found
-        mock_glob.side_effect = [['path'], []]
-        self.assertRaises(npvmex.UniqueDiskDiscoveryException,
+        mock_glob.side_effect = lambda path: []
+        self.assertRaises(npvmex.NoDiskDiscoveryException,
                           mgmt.discover_vscsi_disk, mapping)
+        self.assertTrue(mock_sleep.call_count)
         # Multiple disks found
+        mock_sleep.reset_mock()
         mock_glob.side_effect = [['path'], ['/dev/sde', '/dev/sdf']]
         self.assertRaises(npvmex.UniqueDiskDiscoveryException,
                           mgmt.discover_vscsi_disk, mapping)
+        self.assertEqual(0, mock_sleep.call_count)
 
+    @mock.patch('time.sleep')
     @mock.patch('os.path.realpath')
     @mock.patch('os.stat')
     @mock.patch('nova.utils.execute')
-    def test_remove_block_dev(self, mock_exec, mock_stat, mock_realpath):
+    def test_remove_block_dev(self, mock_exec, mock_stat, mock_realpath,
+                              mock_sleep):
         link = '/dev/link/foo'
         realpath = '/dev/sde'
         delpath = '/sys/block/sde/device/delete'
@@ -102,6 +109,7 @@ class TestMgmt(test.TestCase):
                                     mock.call(realpath)])
         mock_exec.assert_called_with('tee', '-a', delpath, process_input='1',
                                      run_as_root=True)
+        self.assertEqual(0, mock_sleep.call_count)
 
         # Device param not found
         mock_exec.reset_mock()
@@ -126,9 +134,12 @@ class TestMgmt(test.TestCase):
         # Deletion was attempted, but device is still there
         mock_exec.reset_mock()
         mock_stat.reset_mock()
-        mock_stat.side_effect = (None, None, None)
+        mock_sleep.reset_mock()
+        mock_stat.side_effect = lambda path: 1
         self.assertRaises(
             npvmex.DeviceDeletionException, mgmt.remove_block_dev, link)
-        # stat was called thrice; exec was called once
-        self.assertEqual(3, mock_stat.call_count)
+        # stat was called many times; exec was called once
+        self.assertTrue(mock_stat.call_count > 4)
         self.assertEqual(1, mock_exec.call_count)
+        # sleep was called many times
+        self.assertTrue(mock_sleep.call_count)

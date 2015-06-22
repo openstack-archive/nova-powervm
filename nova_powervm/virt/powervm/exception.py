@@ -45,8 +45,15 @@ class ManagementPartitionNotFoundException(nex.NovaException):
                 "%(count)d.")
 
 
+class NoDiskDiscoveryException(nex.NovaException):
+    """Failed to discover any disk."""
+    msg_fmt = _("Having scanned SCSI bus %(bus)x on the management partition, "
+                "disk with UDID %(udid)s failed to appear after %(polls)d "
+                "polls over %(timeout)d seconds.")
+
+
 class UniqueDiskDiscoveryException(nex.NovaException):
-    """Expected to discover exactly one disk, but discovered 0 or >1."""
+    """Expected to discover exactly one disk, but discovered >1."""
     msg_fmt = _("Expected to find exactly one disk on the management "
                 "partition at %(path_pattern)s; found %(count)d.")
 
@@ -54,7 +61,8 @@ class UniqueDiskDiscoveryException(nex.NovaException):
 class DeviceDeletionException(nex.NovaException):
     """Expected to delete a disk, but the disk is still present afterward."""
     msg_fmt = _("Device %(devpath)s is still present on the management "
-                "partition after attempting to delete it.")
+                "partition after attempting to delete it.  Polled %(polls)d "
+                "times over %(timeout)d seconds.")
 
 
 class InstanceDiskMappingFailed(AbstractDiskException):
