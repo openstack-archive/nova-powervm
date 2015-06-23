@@ -14,8 +14,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nova.i18n import _LI
+
 from oslo_log import log as logging
 from taskflow import task
+
+from nova_powervm.virt.powervm import image
 
 LOG = logging.getLogger(__name__)
 
@@ -40,3 +44,40 @@ class UpdateTaskState(task.Task):
     def execute(self):
         self.update_task_state(task_state=self.task_state,
                                expected_state=self.expected_state)
+
+
+class StreamToGlance(task.Task):
+    """Task around streaming a block device to glance."""
+    def __init__(self, context, image_api, image_id, instance):
+        """Initialize the flow for streaming a block device to glance.
+
+        Requires: disk_path: path to the block device file for the instance's
+                             boot disk.
+
+        :param context: Nova security context.
+        :param image_api: Handle to the glance API.
+        :param image_id: UUID of the prepared glance image.
+        :param instance: Instance whose backing device is being captured.
+        """
+        self.context = context
+        self.image_api = image_api
+        self.image_id = image_id
+        self.instance = instance
+        super(StreamToGlance, self).__init__(name='stream_to_glance',
+                                             requires='disk_path')
+
+    def execute(self, disk_path):
+        metadata = image.snapshot_metadata(self.context, self.image_api,
+                                           self.image_id, self.instance)
+        LOG.info(_LI("Starting stream of boot device for instance %(inst)s "
+                     "(local blockdev %(devpath)s) to glance image "
+                     "%(img_id)s."), {'inst': self.instance.name,
+                                      'devpath': disk_path,
+                                      'img_id': self.image_id})
+        image.stream_blockdev_to_glance(self.context, self.image_api,
+                                        self.image_id, metadata, disk_path)
+        LOG.info(_LI("Completed stream of boot device for instance %(inst)s "
+                     "(local blockdev %(devpath)s) to glance image "
+                     "%(img_id)s."), {'inst': self.instance.name,
+                                      'devpath': disk_path,
+                                      'img_id': self.image_id})

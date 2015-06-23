@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import mock
+
 from nova import test
 
 from nova_powervm.virt.powervm.tasks import image as tsk_img
@@ -34,3 +36,18 @@ class TestImage(test.TestCase):
         tf = tsk_img.UpdateTaskState(func2, 'task_state',
                                      expected_state='expected_state')
         tf.execute()
+
+    @mock.patch('nova_powervm.virt.powervm.image.stream_blockdev_to_glance')
+    @mock.patch('nova_powervm.virt.powervm.image.snapshot_metadata')
+    def test_stream_to_glance(self, mock_metadata, mock_stream):
+        mock_metadata.return_value = 'metadata'
+        mock_inst = mock.Mock()
+        mock_inst.name = 'instance_name'
+        tf = tsk_img.StreamToGlance('context', 'image_api', 'image_id',
+                                    mock_inst)
+        self.assertEqual('stream_to_glance', tf.name)
+        tf.execute('disk_path')
+        mock_metadata.assert_called_with('context', 'image_api', 'image_id',
+                                         mock_inst)
+        mock_stream.assert_called_with('context', 'image_api', 'image_id',
+                                       'metadata', 'disk_path')

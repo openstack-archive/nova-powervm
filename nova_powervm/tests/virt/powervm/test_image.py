@@ -26,7 +26,7 @@ class TestImage(test.TestCase):
     @mock.patch('nova.utils.temporary_chown')
     @mock.patch('__builtin__.open')
     @mock.patch('nova.image.api.API')
-    def test_stream_disk_to_glance(self, mock_api, mock_open, mock_chown):
+    def test_stream_blockdev_to_glance(self, mock_api, mock_open, mock_chown):
         mock_open.return_value.__enter__.return_value = 'mock_stream'
         image.stream_blockdev_to_glance('context', mock_api, 'image_id',
                                         'metadata', '/dev/disk')
