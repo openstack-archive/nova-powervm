@@ -702,3 +702,21 @@ class TestPowerVMDriver(test.TestCase):
             ]
         }
         return block_device_info
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.image.UpdateTaskState.'
+                'execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.InstanceDiskToMgmt.'
+                'execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.image.StreamToGlance.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
+                'RemoveInstanceDiskFromMgmt.execute')
+    def test_snapshot(self, mock_rm, mock_stream, mock_conn, mock_update):
+        inst = mock.Mock()
+        inst.display_name = 'inst'
+        mock_conn.return_value = 'stg_elem', 'vios_wrap', 'disk_path'
+        self.drv.snapshot('context', inst, 'image_id', 'update_task_state')
+        self.assertEqual(2, mock_update.call_count)
+        self.assertEqual(1, mock_conn.call_count)
+        mock_stream.assert_called_with(disk_path='disk_path')
+        mock_rm.assert_called_with(stg_elem='stg_elem', vios_wrap='vios_wrap',
+                                   disk_path='disk_path')
