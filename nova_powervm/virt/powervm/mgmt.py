@@ -24,7 +24,6 @@ The PowerVM Nova Compute service runs on the management partition.
 """
 import glob
 from nova import exception
-from nova.i18n import _LI
 from nova.storage import linuxscsi
 import os
 from os import path
@@ -80,8 +79,8 @@ def discover_vscsi_disk(mapping, scan_timeout=10):
     # 32 chars of the field we get from PowerVM.
     udid = mapping.backing_storage.udid[-32:]
 
-    LOG.info(_LI("Trying to discover VSCSI disk with UDID %(udid)s on slot "
-                 "%(slot)x."), {'udid': udid, 'slot': lslot})
+    LOG.debug("Trying to discover VSCSI disk with UDID %(udid)s on slot "
+              "%(slot)x.", {'udid': udid, 'slot': lslot})
 
     # Find the special file to scan the bus, and scan it.
     # This glob should yield exactly one result, but use the loop just in case.
@@ -115,9 +114,9 @@ def discover_vscsi_disk(mapping, scan_timeout=10):
 
     # The by-id path is a symlink.  Resolve to the /dev/sdX path
     dpath = path.realpath(disks[0])
-    LOG.info(_LI("Discovered VSCSI disk with UDID %(udid)s on slot %(slot)x "
-                 "at path %(devname)s."),
-             {'udid': udid, 'slot': lslot, 'devname': dpath})
+    LOG.debug("Discovered VSCSI disk with UDID %(udid)s on slot %(slot)x at "
+              "path %(devname)s.",
+              {'udid': udid, 'slot': lslot, 'devname': dpath})
     return dpath
 
 

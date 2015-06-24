@@ -70,6 +70,13 @@ class InstanceDiskMappingFailed(AbstractDiskException):
                 "the management partition from any Virtual I/O Server.")
 
 
+class NewMgmtMappingNotFoundException(nex.NovaException):
+    """Just created a mapping to the mgmt partition, but can't find it."""
+    msg_fmt = _("Failed to find newly-created mapping of storage element "
+                "%(stg_name)s from Virtual I/O Server %(vios_name)s to the "
+                "management partition.")
+
+
 class VGNotFound(AbstractDiskException):
     msg_fmt = _("Unable to locate the volume group '%(vg_name)s' for this "
                 "operation.")
