@@ -38,72 +38,95 @@ class TestStorage(test.TestCase):
         mock_vwrap.uuid = 'vios_uuid'
         mock_vwrap.scsi_mappings = ['mapping1']
 
-        def verify_connect(inst):
-            self.assertEqual(mock_instance, inst)
-            return mock_stg, mock_vwrap
-
-        def verify_disconnect(vios_uuid, stg_name):
-            self.assertEqual('vios_uuid', vios_uuid)
-            self.assertEqual('stg_name', stg_name)
-
         disk_dvr = mock.MagicMock()
         disk_dvr.mp_uuid = 'mp_uuid'
-        disk_dvr.connect_instance_disk_to_mgmt = verify_connect
-        disk_dvr.disconnect_disk_from_mgmt = verify_disconnect
+        disk_dvr.connect_instance_disk_to_mgmt.return_value = (mock_stg,
+                                                               mock_vwrap)
+
+        def reset_mocks():
+            mock_find.reset_mock()
+            mock_discover.reset_mock()
+            mock_rm.reset_mock()
+            disk_dvr.reset_mock()
 
         # Good path - find_maps returns one result
         mock_find.return_value = ['one_mapping']
         tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
         self.assertEqual('connect_and_discover_instance_disk_to_mgmt', tf.name)
         self.assertEqual((mock_stg, mock_vwrap, '/dev/disk'), tf.execute())
+        disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
+            mock_instance)
         mock_find.assert_called_with(['mapping1'], 'mp_uuid',
                                      stg_elem=mock_stg)
         mock_discover.assert_called_with('one_mapping')
         tf.revert('result', 'failures')
+        disk_dvr.disconnect_disk_from_mgmt.assert_called_with('vios_uuid',
+                                                              'stg_name')
         mock_rm.assert_called_with('/dev/disk')
 
         # Good path - find_maps returns >1 result
-        mock_find.reset_mock()
-        mock_discover.reset_mock()
-        mock_rm.reset_mock()
+        reset_mocks()
         mock_find.return_value = ['first_mapping', 'second_mapping']
         tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
         self.assertEqual((mock_stg, mock_vwrap, '/dev/disk'), tf.execute())
+        disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
+            mock_instance)
         mock_find.assert_called_with(['mapping1'], 'mp_uuid',
                                      stg_elem=mock_stg)
         mock_discover.assert_called_with('first_mapping')
         tf.revert('result', 'failures')
+        disk_dvr.disconnect_disk_from_mgmt.assert_called_with('vios_uuid',
+                                                              'stg_name')
         mock_rm.assert_called_with('/dev/disk')
 
         # Bad path - find_maps returns no results
-        mock_find.reset_mock()
-        mock_discover.reset_mock()
-        mock_rm.reset_mock()
+        reset_mocks()
         mock_find.return_value = []
         tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
         self.assertRaises(npvmex.NewMgmtMappingNotFoundException, tf.execute)
+        disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
+            mock_instance)
         # find_maps was still called
         mock_find.assert_called_with(['mapping1'], 'mp_uuid',
                                      stg_elem=mock_stg)
         # discover_vscsi_disk didn't get called
         self.assertEqual(0, mock_discover.call_count)
         tf.revert('result', 'failures')
-        # disconnect_disk_from_mgmt got called (still checked by
-        # verify_disconnect above), but remove_block_dev did not.
+        # disconnect_disk_from_mgmt got called
+        disk_dvr.disconnect_disk_from_mgmt.assert_called_with('vios_uuid',
+                                                              'stg_name')
+        # ...but remove_block_dev did not.
         self.assertEqual(0, mock_rm.call_count)
 
         # Bad path - connect raises
-        mock_find.reset_mock()
-        mock_discover.reset_mock()
-        mock_rm.reset_mock()
-        disk_dvr.connect_instance_disk_to_mgmt = mock.Mock(
-            side_effect=npvmex.InstanceDiskMappingFailed(
-                instance_name='inst_name'))
+        reset_mocks()
+        disk_dvr.connect_instance_disk_to_mgmt.side_effect = (
+            npvmex.InstanceDiskMappingFailed(instance_name='inst_name'))
         tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
         self.assertRaises(npvmex.InstanceDiskMappingFailed, tf.execute)
+        disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
+            mock_instance)
         self.assertEqual(0, mock_find.call_count)
         self.assertEqual(0, mock_discover.call_count)
         # revert shouldn't call disconnect or remove
-        disk_dvr.disconnect_disk_from_mgmt = mock.Mock(side_effect=self.fail)
         tf.revert('result', 'failures')
+        self.assertEqual(0, disk_dvr.disconnect_disk_from_mgmt.call_count)
         self.assertEqual(0, mock_rm.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.mgmt.remove_block_dev')
+    def test_remove_instance_disk_from_mgmt(self, mock_rm):
+        disk_dvr = mock.MagicMock()
+        mock_instance = mock.Mock()
+        mock_instance.name = 'instance_name'
+        mock_stg = mock.Mock()
+        mock_stg.name = 'stg_name'
+        mock_vwrap = mock.Mock()
+        mock_vwrap.name = 'vios_name'
+        mock_vwrap.uuid = 'vios_uuid'
+
+        tf = tf_stg.RemoveInstanceDiskFromMgmt(disk_dvr, mock_instance)
+        self.assertEqual('remove_inst_disk_from_mgmt', tf.name)
+        tf.execute(mock_stg, mock_vwrap, '/dev/disk')
+        disk_dvr.disconnect_disk_from_mgmt.assert_called_with('vios_uuid',
+                                                              'stg_name')
+        mock_rm.assert_called_with('/dev/disk')

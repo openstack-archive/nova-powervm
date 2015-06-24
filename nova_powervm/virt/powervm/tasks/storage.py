@@ -293,6 +293,54 @@ class InstanceDiskToMgmt(task.Task):
         mgmt.remove_block_dev(self.disk_path)
 
 
+class RemoveInstanceDiskFromMgmt(task.Task):
+    """Unmap and remove an instance's boot disk from the mgmt partition."""
+
+    def __init__(self, disk_dvr, instance):
+        """Unmap and remove an instance's boot disk from the mgmt partition.
+
+        Requires (from InstanceDiskToMgmt):
+        stg_elem: The storage element wrapper (pypowervm LU, PV, etc.) that was
+                  connected.
+        vios_wrap: The Virtual I/O Server wrapper
+                   (pypowervm.wrappers.virtual_io_server.VIOS) from which the
+                   storage element was mapped.
+        disk_path: The local path to the mapped-and-discovered device, e.g.
+                   '/dev/sde'
+
+        :param disk_dvr: The disk driver.
+        :param instance: The nova instance whose boot disk is to be connected.
+        """
+        self.disk_dvr = disk_dvr
+        self.instance = instance
+        super(RemoveInstanceDiskFromMgmt, self).__init__(
+            name='remove_inst_disk_from_mgmt',
+            requires=['stg_elem', 'vios_wrap', 'disk_path'])
+
+    def execute(self, stg_elem, vios_wrap, disk_path):
+        """Unmap and remove an instance's boot disk from the mgmt partition.
+
+        Input parameters ('requires') provided by InstanceDiskToMgmt task.
+
+        :param stg_elem: The storage element wrapper (pypowervm LU, PV, etc.)
+                         to be disconnected.
+        :param vios_wrap: The Virtual I/O Server wrapper from which the
+                          mapping is to be removed.
+        :param disk_path: The local path to the disk device to be removed, e.g.
+                          '/dev/sde'
+        """
+        LOG.info(_LI("Unmapping boot disk %(disk_name)s of instance "
+                     "%(instance_name)s from management partition via Virtual "
+                     "I/O Server %(vios_name)s."),
+                 {'disk_name': stg_elem.name,
+                  'instance_name': self.instance.name,
+                  'vios_name': vios_wrap.name})
+        self.disk_dvr.disconnect_disk_from_mgmt(vios_wrap.uuid, stg_elem.name)
+        LOG.info(_LI("Removing disk %(disk_path)s from the management "
+                     "partition."), {'disk_path': disk_path})
+        mgmt.remove_block_dev(disk_path)
+
+
 class CreateAndConnectCfgDrive(task.Task):
     """The task to create the configuration drive."""
 
