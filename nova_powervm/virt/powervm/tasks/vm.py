@@ -15,7 +15,6 @@
 #    under the License.
 
 from nova.i18n import _LI
-from nova.i18n import _LW
 from pypowervm.tasks import power
 
 from oslo_log import log as logging
@@ -55,6 +54,11 @@ class Create(task.Task):
     def __init__(self, adapter, host_wrapper, instance, flavor):
         """Creates the Task for creating a VM.
 
+        The revert method is not implemented because the compute manager
+        calls the driver destroy operation for spawn errors.  By not deleting
+        the lpar, it's a cleaner flow through the destroy operation and
+        accomplishes the same result.
+
         Provides the 'lpar_wrap' for other tasks.
 
         :param adapter: The adapter for the pypowervm API
@@ -74,29 +78,6 @@ class Create(task.Task):
         wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
                            self.flavor)
         return wrap
-
-    def revert(self, result, flow_failures):
-        # The parameters have to match the execute method, plus the response +
-        # failures even if only a subset are used.
-        LOG.warn(_LW('Instance %s to be undefined off host'),
-                 self.instance.name)
-
-        if isinstance(result, task_fail.Failure):
-            # No response, nothing to do
-            LOG.info(_LI('Create failed.  No delete of LPAR needed for '
-                         'instance %s'), self.instance.name)
-            return
-
-        if result is None:
-            # No response, nothing to do
-            LOG.info(_LI('Instance %s not found on host.  No update needed.'),
-                     self.instance.name)
-            return
-
-        # The result is a lpar wrapper.
-        lpar = result
-        vm.dlt_lpar(self.adapter, lpar.uuid)
-        LOG.info(_LI('Instance %s removed from system'), self.instance.name)
 
 
 class PowerOn(task.Task):
