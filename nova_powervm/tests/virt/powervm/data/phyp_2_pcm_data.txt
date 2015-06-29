@@ -1,0 +1,285 @@
+####################################################
+# This file was manually generated.
+#
+####################################################
+INFO{
+{'comment': 'Fake...This file was manually generated.', 'status': 200, 'pw': 'abc123', 'reason': 'OK', 'host': '9.1.2.3', 'user': 'hscroot', 'path': 'rest/api/pcm/ManagedSystem/c5d782c7-44e4-3086-ad15-b16fb039d63b/RawMetrics/LongTermMonitor/LTM_8247-22L*2125D4A_phyp_20150527T074430+0000.json'}
+END OF SECTION}
+
+HEADERS{
+{'content-length': '1878', 'x-powered-by': 'Servlet/3.0', 'last-modified': 'Thu, 30 Apr 2015 03:53:05 GMT', 'etag': '1430365985674', 'date': 'Thu, 30 Apr 2015 03:53:04 GMT', 'content-type': 'application/atom+xml'}
+END OF SECTION}
+
+BODY{
+
+{
+  "systemUtil": {
+    "utilInfo": {
+      "version": "1.3.0",
+      "metricType": "Raw",
+      "monitoringType": "LTM",
+      "mtms": "8247-22L*2125D4A",
+      "name": "dev-4"
+    },
+    "utilSample": {
+      "timeStamp": "2015-05-27T08:17:45+0000",
+      "status": 0,
+      "errorInfo": [],
+      "timeBasedCycles": 8.0629725893315e+14,
+      "systemFirmware": {
+        "utilizedProcCycles": 58599310268,
+        "assignedMem": 4096
+      },
+      "processor": {
+        "totalProcUnits": 20,
+        "configurableProcUnits": 20,
+        "availableProcUnits": 18.9,
+        "procCyclesPerSecond": 512000000
+      },
+      "memory": {
+        "totalMem": 65536,
+        "availableMem": 32512,
+        "configurableMem": 65536
+      },
+      "sharedProcessorPool": [
+        {
+          "id": 0,
+          "name": "DefaultPool",
+          "assignedProcCycles": 1.6125945162342e+16,
+          "utilizedPoolCycles": 683011326288,
+          "maxProcUnits": 20,
+          "borrowedPoolProcUnits": 18
+        }
+      ],
+      "lparsUtil": [
+        {
+          "id": 6,
+          "uuid": "2545BCC5-BAE8-4414-AD49-EAFC2DEE2546",
+          "type": "aixlinux",
+          "name": "fkh4-99b8fdca-kyleh",
+          "state": "Not Activated",
+          "affinityScore": 100,
+          "memory": {
+            "logicalMem": 2048,
+            "backedPhysicalMem": 2048
+          },
+          "processor": {
+            "poolId": 0,
+            "mode": "uncap",
+            "maxVirtualProcessors": 2,
+            "maxProcUnits": 0.2,
+            "weight": 64,
+            "entitledProcCycles": 1000000,
+            "utilizedCappedProcCycles": 10000,
+            "utilizedUnCappedProcCycles": 5000,
+            "idleProcCycles": 0,
+            "donatedProcCycles": 0,
+            "timeSpentWaitingForDispatch": 0,
+            "totalInstructions": 0,
+            "totalInstructionsExecutionTime": 0
+          }
+        },
+        {
+          "id": 5,
+          "uuid": "3B0237F9-26F1-41C7-BE57-A08C9452AD9D",
+          "type": "aixlinux",
+          "name": "fake_npiv",
+          "state": "Not Activated",
+          "affinityScore": 100,
+          "memory": {
+            "logicalMem": 256,
+            "backedPhysicalMem": 256
+          },
+          "processor": {
+            "poolId": 0,
+            "mode": "cap",
+            "maxVirtualProcessors": 1,
+            "maxProcUnits": 0.1,
+            "weight": 0,
+            "entitledProcCycles": 0,
+            "utilizedCappedProcCycles": 0,
+            "utilizedUnCappedProcCycles": 0,
+            "idleProcCycles": 0,
+            "donatedProcCycles": 0,
+            "timeSpentWaitingForDispatch": 0,
+            "totalInstructions": 0,
+            "totalInstructionsExecutionTime": 0
+          }
+        },
+        {
+          "id": 4,
+          "uuid": "66A2E886-D05D-42F4-87E0-C3BA02CF7C7E",
+          "type": "aixlinux",
+          "name": "kh4-9fdaa1ba-kyleh",
+          "state": "Not Activated",
+          "affinityScore": 100,
+          "memory": {
+            "logicalMem": 2048,
+            "backedPhysicalMem": 2048
+          },
+          "processor": {
+            "poolId": 0,
+            "mode": "uncap",
+            "maxVirtualProcessors": 2,
+            "maxProcUnits": 0.2,
+            "weight": 64,
+            "entitledProcCycles": 500000,
+            "utilizedCappedProcCycles": 10000,
+            "utilizedUnCappedProcCycles": 5000,
+            "idleProcCycles": 0,
+            "donatedProcCycles": 0,
+            "timeSpentWaitingForDispatch": 0,
+            "totalInstructions": 0,
+            "totalInstructionsExecutionTime": 0
+          }
+        },
+        {
+          "id": 3,
+          "uuid": "3B7A3E07-E0B0-4F35-8997-6019D0D1CFC8",
+          "type": "aixlinux",
+          "name": "placeholder",
+          "state": "Not Activated",
+          "affinityScore": 0,
+          "memory": {
+            "logicalMem": 0,
+            "backedPhysicalMem": 0
+          },
+          "processor": {
+            "mode": "share_idle_procs",
+            "maxVirtualProcessors": 0,
+            "maxProcUnits": 0,
+            "entitledProcCycles": 1000000,
+            "utilizedCappedProcCycles": 10000,
+            "utilizedUnCappedProcCycles": 5000,
+            "idleProcCycles": 0,
+            "donatedProcCycles": 0,
+            "timeSpentWaitingForDispatch": 0,
+            "totalInstructions": 0,
+            "totalInstructionsExecutionTime": 0
+          }
+        },
+        {
+          "id": 2,
+          "uuid": "42AD4FD4-DC64-4935-9E29-9B7C6F35AFCC",
+          "type": "aixlinux",
+          "name": "Ubuntu1410",
+          "state": "Open Firmware",
+          "affinityScore": 100,
+          "memory": {
+            "logicalMem": 20480,
+            "backedPhysicalMem": 20480
+          },
+          "processor": {
+            "poolId": 0,
+            "mode": "uncap",
+            "maxVirtualProcessors": 4,
+            "maxProcUnits": 0.4,
+            "weight": 128,
+            "entitledProcCycles": 1665629232513,
+            "utilizedCappedProcCycles": 254619289721,
+            "utilizedUnCappedProcCycles": 631419282,
+            "idleProcCycles": 0,
+            "donatedProcCycles": 0,
+            "timeSpentWaitingForDispatch": 0,
+            "totalInstructions": 150866895489,
+            "totalInstructionsExecutionTime": 183139925064
+          },
+          "network": {
+            "virtualEthernetAdapters": [
+              {
+                "vlanId": 2227,
+                "vswitchId": 0,
+                "physicalLocation": "U8247.22L.2125D4A-V2-C2",
+                "isPortVLANID": true,
+                "receivedPackets": 10,
+                "sentPackets": 100,
+                "droppedPackets": 5,
+                "sentBytes": 100,
+                "receivedBytes": 10000,
+                "receivedPhysicalPackets": 0,
+                "sentPhysicalPackets": 0,
+                "droppedPhysicalPackets": 0,
+                "sentPhysicalBytes": 0,
+                "receivedPhysicalBytes": 0
+              }
+            ]
+          },
+          "storage": {
+            "genericVirtualAdapters": [
+              {
+                "physicalLocation": "U8247.22L.2125D4A-V2-C3",
+                "viosId": 1,
+                "viosAdapterSlotId": 1000
+              }
+            ]
+          }
+        }
+      ],
+      "viosUtil": [
+        {
+          "id": 1,
+          "uuid": "3443DB77-AED1-47ED-9AA5-3DB9C6CF7089",
+          "name": "IOServer - SN2125D4A",
+          "state": "Running",
+          "affinityScore": 100,
+          "memory": {
+            "assignedMem": 4096
+          },
+          "processor": {
+            "poolId": 0,
+            "mode": "uncap",
+            "maxVirtualProcessors": 4,
+            "maxProcUnits": 0.4,
+            "weight": 255,
+            "entitledProcCycles": 3503069246332,
+            "utilizedCappedProcCycles": 324805782979,
+            "utilizedUnCappedProcCycles": 209847016046,
+            "idleProcCycles": 250430293020,
+            "donatedProcCycles": 0,
+            "timeSpentWaitingForDispatch": 0,
+            "totalInstructions": 1189474458948,
+            "totalInstructionsExecutionTime": 510104519750
+          },
+          "network": {
+            "virtualEthernetAdapters": [
+              {
+                "vlanId": 2227,
+                "vswitchId": 0,
+                "physicalLocation": "U8247.22L.2125D4A-V1-C2",
+                "isPortVLANID": true,
+                "receivedPackets": 0,
+                "sentPackets": 0,
+                "droppedPackets": 0,
+                "sentBytes": 0,
+                "receivedBytes": 0,
+                "receivedPhysicalPackets": 0,
+                "sentPhysicalPackets": 0,
+                "droppedPhysicalPackets": 0,
+                "sentPhysicalBytes": 0,
+                "receivedPhysicalBytes": 0
+              },
+              {
+                "vlanId": 123,
+                "vswitchId": 0,
+                "physicalLocation": "U8247.22L.2125D4A-V1-C12",
+                "isPortVLANID": true,
+                "receivedPackets": 0,
+                "sentPackets": 0,
+                "droppedPackets": 0,
+                "sentBytes": 0,
+                "receivedBytes": 0,
+                "receivedPhysicalPackets": 0,
+                "sentPhysicalPackets": 0,
+                "droppedPhysicalPackets": 0,
+                "sentPhysicalBytes": 0,
+                "receivedPhysicalBytes": 0
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+
+END OF SECTION}
