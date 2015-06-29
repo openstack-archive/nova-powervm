@@ -50,7 +50,7 @@ localdisk_opts = [
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
-CONF.register_opts(localdisk_opts)
+CONF.register_opts(localdisk_opts, group='powervm')
 
 
 class LocalStorage(disk_dvr.DiskAdapter):
@@ -58,7 +58,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         super(LocalStorage, self).__init__(connection)
 
         # Query to get the Volume Group UUID
-        self.vg_name = CONF.volume_group_name
+        self.vg_name = CONF.powervm.volume_group_name
         self._vios_uuid, self.vg_uuid = self._get_vg_uuid(self.vg_name)
         LOG.info(_LI("Local Storage driver initialized: volume group: '%s'"),
                  self.vg_name)
@@ -267,10 +267,10 @@ class LocalStorage(disk_dvr.DiskAdapter):
         :return vios_uuid: The Virtual I/O Server pypowervm UUID.
         :return vg_uuid: The Volume Group pypowervm UUID.
         """
-        if CONF.volume_group_vios_name:
+        if CONF.powervm.volume_group_vios_name:
             # Search for the VIOS if the admin specified it.
-            vios_wraps = pvm_vios.VIOS.search(self.adapter,
-                                              name=CONF.volume_group_vios_name)
+            vios_wraps = pvm_vios.VIOS.search(
+                self.adapter, name=CONF.powervm.volume_group_vios_name)
         else:
             vios_resp = self.adapter.read(pvm_ms.System.schema_type,
                                           root_id=self.host_uuid,

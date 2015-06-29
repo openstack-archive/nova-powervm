@@ -99,9 +99,6 @@ As such, no REST API impacts are anticipated.
 Security Impact
 ---------------
 
-The user may need to configure the credentials to communicate with the PowerVM
-REST API via a CONF file.  These should be encoded.
-
 New root wrap policies may need to be updated to support various commands for
 the PowerVM REST API.
 
@@ -140,9 +137,11 @@ Other Deployer Impact
 The cloud administrator will need to refer to documentation on how to
 configure OpenStack for use with a PowerVM hypervisor.
 
-The existing configuration file attributes will be reused as much as possible.
-This reduces the number of PowerVM specific items that will be needed.
-However, the driver will require some PowerVM specific options.
+A 'powervm' configuration group will be used to contain all the PowerVM
+specific configuration settings. Existing configuration file attributes will be
+reused as much as possible. This reduces the number of PowerVM specific items
+that will be needed. However, the driver will require some PowerVM specific
+options.
 
 In this case, we plan to keep the PowerVM specifics contained within the
 configuration file (and driver code).  These will be documented on the

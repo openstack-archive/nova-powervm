@@ -42,7 +42,7 @@ ssp_opts = [
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
-CONF.register_opts(ssp_opts)
+CONF.register_opts(ssp_opts, group='powervm')
 
 
 class SSPDiskAdapter(disk_drv.DiskAdapter):
@@ -63,7 +63,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         super(SSPDiskAdapter, self).__init__(connection)
 
-        self._cluster = self._fetch_cluster(CONF.cluster_name)
+        self._cluster = self._fetch_cluster(CONF.powervm.cluster_name)
         self.clust_name = self._cluster.name
 
         # _ssp @property method will fetch and cache the SSP.

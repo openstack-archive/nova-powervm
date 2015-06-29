@@ -65,7 +65,7 @@ class TestPowerVMDriver(test.TestCase):
 
         self.wrapper = pvm_ms.System.wrap(entries[0])
 
-        self.flags(disk_driver='localdisk')
+        self.flags(disk_driver='localdisk', group='powervm')
         self.drv_fix = self.useFixture(fx.PowerVMComputeDriver())
         self.drv = self.drv_fix.drv
         self.apt = self.drv_fix.pypvm.apt

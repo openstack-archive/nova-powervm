@@ -53,7 +53,7 @@ pvm_opts = [
 
 
 CONF = cfg.CONF
-CONF.register_opts(pvm_opts)
+CONF.register_opts(pvm_opts, group='powervm')
 
 # Options imported from other regions
 CONF.import_opt('host', 'nova.netconf')
@@ -62,9 +62,8 @@ CONF.import_opt('vncserver_proxyclient_address', 'nova.vnc', group='vnc')
 CONF.import_opt('vncserver_listen', 'nova.vnc', group='vnc')
 
 
-# NPIV Options will go in separate section.  Only applicable if the
-# 'fc_attach_strategy' is set to 'npiv'.  Otherwise this section can be
-# ignored.
+# NPIV Options.  Only applicable if the 'fc_attach_strategy' is set to 'npiv'.
+# Otherwise this section can be ignored.
 npiv_opts = [
     cfg.IntOpt('ports_per_fabric', default=1,
                help='The number of physical ports that should be connected '
@@ -81,7 +80,7 @@ npiv_opts = [
                     'The fabric identifiers are used for the '
                     '\'fabric_<identifier>_port_wwpns\' key.')
 ]
-CONF.register_opts(npiv_opts, group='npiv')
+CONF.register_opts(npiv_opts, group='powervm')
 
 # Dictionary where the key is the NPIV Fabric Name, and the value is a list of
 # Physical WWPNs that match the key.
@@ -89,23 +88,23 @@ NPIV_FABRIC_WWPNS = {}
 
 # At this point, the fabrics should be specified.  Iterate over those to
 # determine the port_wwpns per fabric.
-if CONF.npiv.fabrics is not None:
+if CONF.powervm.fabrics is not None:
     port_wwpn_keys = []
     help_text = ('A comma delimited list of all the physical FC port WWPNs '
                  'that support the specified fabric.  Is tied to the NPIV '
                  'fabrics key.')
 
-    fabrics = CONF.npiv.fabrics.split(',')
+    fabrics = CONF.powervm.fabrics.split(',')
     for fabric in fabrics:
         opt = cfg.StrOpt('fabric_%s_port_wwpns' % fabric,
                          default='', help=help_text)
         port_wwpn_keys.append(opt)
 
-    CONF.register_opts(port_wwpn_keys, group='npiv')
+    CONF.register_opts(port_wwpn_keys, group='powervm')
 
     # Now that we've registered the fabrics, saturate the NPIV dictionary
     for fabric in fabrics:
         key = 'fabric_%s_port_wwpns' % fabric
-        wwpns = CONF.npiv[key].split(',')
+        wwpns = CONF.powervm[key].split(',')
         wwpns = [x.upper().strip(':') for x in wwpns]
         NPIV_FABRIC_WWPNS[fabric] = wwpns

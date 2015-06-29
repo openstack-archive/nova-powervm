@@ -346,7 +346,7 @@ def _crt_lpar_builder(adapter, host_wrapper, instance, flavor):
 
     attrs = _build_attrs(instance, flavor)
     stdz = lpar_bldr.DefaultStandardize(
-        host_wrapper, proc_units_factor=CONF.proc_units_factor)
+        host_wrapper, proc_units_factor=CONF.powervm.proc_units_factor)
     return lpar_bldr.LPARBuilder(adapter, attrs, stdz)
 
 

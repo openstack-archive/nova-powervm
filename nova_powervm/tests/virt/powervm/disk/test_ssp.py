@@ -109,7 +109,7 @@ class TestSSPDiskAdapter(test.TestCase):
         self.mock_ssp_refresh.return_value = pvm_stg.SSP.wrap(self.ssp_resp)
 
         # By default, assume the config supplied a Cluster name
-        self.flags(cluster_name='clust1')
+        self.flags(cluster_name='clust1', group='powervm')
 
     def _get_ssp_stor(self):
         ssp_stor = ssp.SSPDiskAdapter(
@@ -157,7 +157,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_init_green_no_config(self):
         """No cluster name specified in config; one cluster on host - ok."""
-        self.flags(cluster_name='')
+        self.flags(cluster_name='', group='powervm')
         self.apt.read.return_value = self._bld_resp(
             entry_or_list=[self.clust_resp.entry])
         self._get_ssp_stor()
@@ -188,13 +188,13 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_init_NoConfigNoClusterFound(self):
         """No cluster name specified in config, no clusters on host."""
-        self.flags(cluster_name='')
+        self.flags(cluster_name='', group='powervm')
         self.apt.read.return_value = self._bld_resp(status=204)
         self.assertRaises(npvmex.NoConfigNoClusterFound, self._get_ssp_stor)
 
     def test_init_NoConfigTooManyClusters(self):
         """No SSP name specified in config, more than one SSP on host."""
-        self.flags(cluster_name='')
+        self.flags(cluster_name='', group='powervm')
         clust1 = pvm_clust.Cluster.bld(None, 'newclust1',
                                        pvm_stg.PV.bld(None, 'hdisk1'),
                                        pvm_clust.Node.bld(None, 'vios1'))

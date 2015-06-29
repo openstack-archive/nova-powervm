@@ -59,7 +59,8 @@ CONF = cfg.CONF
 # only supports Fibre Channel, which has multiple options for connections.
 # The connection strategy is defined above.
 VOLUME_DRIVER_MAPPINGS = {
-    'fibre_channel': vol_attach.FC_STRATEGY_MAPPING[CONF.fc_attach_strategy]
+    'fibre_channel': vol_attach.FC_STRATEGY_MAPPING[
+        CONF.powervm.fc_attach_strategy]
 }
 
 DISK_ADPT_NS = 'nova_powervm.virt.powervm.disk'
@@ -109,7 +110,8 @@ class PowerVMDriver(driver.ComputeDriver):
                      'mp_uuid': self.mp_uuid}
 
         self.disk_dvr = importutils.import_object_ns(
-            DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.disk_driver], conn_info)
+            DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.powervm.disk_driver],
+            conn_info)
 
     def _get_host_uuid(self):
         """Get the System wrapper and its UUID for the (single) host."""

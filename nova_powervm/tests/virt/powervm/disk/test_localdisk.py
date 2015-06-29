@@ -325,7 +325,7 @@ class TestLocalDiskFindVG(test.TestCase):
         self.apt.read.side_effect = [self.vio_to_vg, self.vg_to_vio]
         mock_vio_wrap.return_value = self.mock_vios_feed
         mock_vg_wrap.return_value = self.mock_vg_feed
-        self.flags(volume_group_name='rootvg')
+        self.flags(volume_group_name='rootvg', group='powervm')
 
         storage = ld.LocalStorage({'adapter': self.apt,
                                    'host_uuid': 'host_uuid',
@@ -348,7 +348,7 @@ class TestLocalDiskFindVG(test.TestCase):
 
         # Override that we need a specific VIOS...that won't be found.
         self.flags(volume_group_name='rootvg',
-                   volume_group_vios_name='invalid_vios')
+                   volume_group_vios_name='invalid_vios', group='powervm')
 
         self.assertRaises(npvmex.VGNotFound, ld.LocalStorage,
                           {'adapter': self.apt, 'host_uuid': 'host_uuid',

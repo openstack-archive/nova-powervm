@@ -87,12 +87,13 @@ class ConfigDrivePowerVM(object):
                                                      network_info=network_info)
 
         # Make sure the path exists.
-        if not os.path.exists(CONF.image_meta_local_path):
-            os.mkdir(CONF.image_meta_local_path)
+        im_path = CONF.powervm.image_meta_local_path
+        if not os.path.exists(im_path):
+            os.mkdir(im_path)
 
         file_name = pvm_util.sanitize_file_name_for_api(
             instance.name, prefix='config_', suffix='.iso')
-        iso_path = os.path.join(CONF.image_meta_local_path, file_name)
+        iso_path = os.path.join(im_path, file_name)
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
             LOG.info(_LI("Config drive ISO being built for instance %(inst)s "
                          "building to path %(iso_path)s."),
@@ -213,7 +214,7 @@ class ConfigDrivePowerVM(object):
                                             child_type=pvm_stg.VG.schema_type)
                 vg_wraps = pvm_stg.VG.wrap(vg_resp)
                 for vg_wrap in vg_wraps:
-                    if vg_wrap.name == CONF.vopt_media_volume_group:
+                    if vg_wrap.name == CONF.powervm.vopt_media_volume_group:
                         found_vg = vg_wrap
                         found_vios = vio_wrap
                         break
@@ -228,12 +229,12 @@ class ConfigDrivePowerVM(object):
         # exception path.
         if found_vg is None:
             raise npvmex.NoMediaRepoVolumeGroupFound(
-                vol_grp=CONF.vopt_media_volume_group)
+                vol_grp=CONF.powervm.vopt_media_volume_group)
 
         # Ensure that there is a virtual optical media repository within it.
         if len(found_vg.vmedia_repos) == 0:
-            vopt_repo = pvm_stg.VMediaRepos.bld(self.adapter, 'vopt',
-                                                str(CONF.vopt_media_rep_size))
+            vopt_repo = pvm_stg.VMediaRepos.bld(
+                self.adapter, 'vopt', str(CONF.powervm.vopt_media_rep_size))
             found_vg.vmedia_repos = [vopt_repo]
             found_vg = found_vg.update()
 
