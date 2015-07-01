@@ -82,8 +82,16 @@ class TestConfigDrivePowerVM(test.TestCase):
         iso_path, file_name = cfg_dr_builder._create_cfg_dr_iso(mock_instance,
                                                                 mock_files,
                                                                 mock_net)
-        self.assertEqual('config_fake_instance.iso', file_name)
-        self.assertEqual('/tmp/cfgdrv/config_fake_instance.iso', iso_path)
+        self.assertEqual('cfg_fake_instance.iso', file_name)
+        self.assertEqual('/tmp/cfgdrv/cfg_fake_instance.iso', iso_path)
+        # Make sure the length is limited properly
+        mock_instance.name = 'fake-instance-with-name-that-is-too-long'
+        iso_path, file_name = cfg_dr_builder._create_cfg_dr_iso(mock_instance,
+                                                                mock_files,
+                                                                mock_net)
+        self.assertEqual('cfg_fake_instance_with_name_that_.iso', file_name)
+        self.assertEqual('/tmp/cfgdrv/cfg_fake_instance_with_name_that_.iso',
+                         iso_path)
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_create_cfg_dr_iso')

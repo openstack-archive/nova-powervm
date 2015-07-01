@@ -24,6 +24,7 @@ import os
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from pypowervm import const as pvm_const
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 from pypowervm import util as pvm_util
@@ -92,7 +93,8 @@ class ConfigDrivePowerVM(object):
             os.mkdir(im_path)
 
         file_name = pvm_util.sanitize_file_name_for_api(
-            instance.name, prefix='config_', suffix='.iso')
+            instance.name, prefix='cfg_', suffix='.iso',
+            max_len=pvm_const.MaxLen.VOPT_NAME)
         iso_path = os.path.join(im_path, file_name)
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
             LOG.info(_LI("Config drive ISO being built for instance %(inst)s "

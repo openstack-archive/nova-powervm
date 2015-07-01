@@ -23,6 +23,7 @@ import six
 
 from nova.i18n import _LW
 from nova import image
+import pypowervm.const as pvm_const
 import pypowervm.tasks.scsi_mapper as tsk_map
 import pypowervm.util as pvm_util
 import pypowervm.wrappers.virtual_io_server as pvm_vios
@@ -224,7 +225,9 @@ class DiskAdapter(object):
         prefix = '%s_' % (disk_type[0] if short else disk_type)
         base = ('%s_%s' % (instance.name[:8], instance.uuid[:4]) if short
                 else instance.name)
-        return pvm_util.sanitize_file_name_for_api(base, prefix=prefix)
+        return pvm_util.sanitize_file_name_for_api(
+            base, prefix=prefix, max_len=pvm_const.MaxLen.VDISK_NAME if short
+            else pvm_const.MaxLen.FILENAME_DEFAULT)
 
     @staticmethod
     def _get_image_name(image_meta):
