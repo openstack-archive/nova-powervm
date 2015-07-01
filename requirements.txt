@@ -1,4 +1,4 @@
-oslosphinx
-pbr>=0.6,!=0.7,<1.0
+oslo.log>=1.2.0  # Apache-2.0
+pbr>=0.11,<2.0
 sphinx>=1.1.2,<1.2
 yasfb>=0.5.1
