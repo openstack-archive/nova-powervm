@@ -30,8 +30,13 @@ class PyPowerVMMetrics(fixtures.Fixture):
                                               'LparMetricCache')
         self._ensure_ltm = mock.patch('pypowervm.tasks.monitor.util.'
                                       'ensure_ltm_monitors')
+        self._uuid_converter = mock.patch('pypowervm.utils.uuid.'
+                                          'convert_uuid_to_pvm')
+
         self.vm_metrics = self._vm_metrics_patcher.start()
         self.ensure_ltm = self._ensure_ltm.start()
+        self.uuid_converter = self._uuid_converter.start()
 
         self.addCleanup(self._vm_metrics_patcher.stop)
         self.addCleanup(self._ensure_ltm.stop)
+        self.addCleanup(self._uuid_converter.stop)
