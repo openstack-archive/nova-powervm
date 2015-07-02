@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import datetime
 import mock
 
 from ceilometer.compute.virt import inspector as virt_inspector
@@ -31,7 +32,8 @@ class TestPowerVMInspector(base.BaseTestCase):
 
         # These fixtures allow for stand up of the unit tests that use
         # pypowervm.
-        self.useFixture(api_fx.AdapterFx())
+        pvm_adpt_fx = self.useFixture(api_fx.AdapterFx())
+        self.adpt = pvm_adpt_fx.adpt
         pvm_mon_fx = self.useFixture(pvm_fixtures.PyPowerVMMetrics())
 
         # Individual test cases will set return values on the metrics that
@@ -140,3 +142,138 @@ class TestPowerVMInspector(base.BaseTestCase):
         # utilization.  Fast!
         resp = self.inspector.inspect_cpu_util(mock.Mock())
         self.assertEqual(300.0, resp.util)
+
+    @staticmethod
+    def _mock_vnic_metric(rec_bytes, tx_bytes, rec_pkts, tx_pkts, phys_loc):
+        """Helper method to create a specific mock network metric."""
+        metric = mock.MagicMock()
+        metric.received_bytes = rec_bytes
+        metric.sent_bytes = tx_bytes
+        metric.received_packets = rec_pkts
+        metric.sent_packets = tx_pkts
+        metric.physical_location = phys_loc
+        return metric
+
+    def _build_cur_mock_vnic_metrics(self):
+        """Helper method to create mock network metrics."""
+        cna1 = self._mock_vnic_metric(1000, 1000, 10, 10, 'a')
+        cna2 = self._mock_vnic_metric(2000, 2000, 20, 20, 'b')
+        cna3 = self._mock_vnic_metric(3000, 3000, 30, 30, 'c')
+
+        metric = mock.MagicMock()
+        metric.network.cnas = [cna1, cna2, cna3]
+        return metric
+
+    def _build_prev_mock_vnic_metrics(self):
+        """Helper method to create mock network metrics."""
+        cna1 = self._mock_vnic_metric(1000, 1000, 10, 10, 'a')
+        cna2 = self._mock_vnic_metric(200, 200, 20, 20, 'b')
+
+        metric = mock.MagicMock()
+        metric.network.cnas = [cna1, cna2]
+        return metric
+
+    @staticmethod
+    def _build_mock_cnas():
+        """Builds a set of mock client network adapters."""
+        cna1 = mock.MagicMock()
+        cna1.loc_code, cna1.mac = 'a', 'AABBCCDDEEFF'
+
+        cna2 = mock.MagicMock()
+        cna2.loc_code, cna2.mac = 'b', 'AABBCCDDEE11'
+
+        cna3 = mock.MagicMock()
+        cna3.loc_code, cna3.mac = 'c', 'AABBCCDDEE22'
+
+        return [cna1, cna2, cna3]
+
+    @mock.patch('pypowervm.wrappers.network.CNA.wrap')
+    def test_inspect_vnics(self, mock_wrap):
+        """Tests the inspect_vnics inspector method for PowerVM."""
+        # Validate that an error is raised if the instance can't be found in
+        # the sample data.
+        self.mock_metrics.get_latest_metric.return_value = None, None
+        self.assertRaises(virt_inspector.InstanceNotFoundException,
+                          list, self.inspector.inspect_vnics(mock.Mock()))
+
+        # Validate that no data is returned if there is a current metric,
+        # just no network within it.
+        mock_empty_net = mock.MagicMock()
+        mock_empty_net.network = None
+        self.mock_metrics.get_latest_metric.return_value = None, mock_empty_net
+        self.assertEqual([], list(self.inspector.inspect_vnics(mock.Mock())))
+
+        # Build a couple CNAs and verify we get the proper list back
+        mock_wrap.return_value = self._build_mock_cnas()
+        self.adpt.read.return_value = mock.Mock()
+        mock_metrics = self._build_cur_mock_vnic_metrics()
+        self.mock_metrics.get_latest_metric.return_value = None, mock_metrics
+
+        resp = list(self.inspector.inspect_vnics(mock.Mock()))
+        self.assertEqual(3, len(resp))
+
+        interface1, stats1 = resp[0]
+        self.assertEqual('aa:bb:cc:dd:ee:ff', interface1.mac)
+        self.assertEqual('a', interface1.name)
+        self.assertEqual(1000, stats1.rx_bytes)
+        self.assertEqual(1000, stats1.tx_bytes)
+        self.assertEqual(10, stats1.rx_packets)
+        self.assertEqual(10, stats1.tx_packets)
+
+    @mock.patch('pypowervm.wrappers.network.CNA.wrap')
+    def test_inspect_vnic_rates(self, mock_wrap):
+        """Tests the inspect_vnic_rates inspector method for PowerVM."""
+        # Validate that an error is raised if the instance can't be found in
+        # the sample data.
+        self.mock_metrics.get_latest_metric.return_value = None, None
+        self.mock_metrics.get_previous_metric.return_value = None, None
+        self.assertRaises(virt_inspector.InstanceNotFoundException,
+                          list, self.inspector.inspect_vnic_rates(mock.Mock()))
+
+        # Validate that no data is returned if there is a current metric,
+        # just no network within it.
+        mock_empty_net = mock.MagicMock()
+        mock_empty_net.network = None
+        self.mock_metrics.get_latest_metric.return_value = None, mock_empty_net
+        self.assertEqual([],
+                         list(self.inspector.inspect_vnic_rates(mock.Mock())))
+
+        # Build the response LPAR data
+        mock_wrap.return_value = self._build_mock_cnas()
+        self.adpt.read.return_value = mock.Mock()
+
+        # Current metric data
+        mock_cur = self._build_cur_mock_vnic_metrics()
+        cur_date = datetime.datetime.now()
+        self.mock_metrics.get_latest_metric.return_value = cur_date, mock_cur
+
+        # Build the previous
+        mock_prev = self._build_prev_mock_vnic_metrics()
+        prev_date = cur_date - datetime.timedelta(seconds=30)
+        self.mock_metrics.get_previous_metric.return_value = (prev_date,
+                                                              mock_prev)
+
+        # Execute
+        resp = list(self.inspector.inspect_vnic_rates(mock.Mock()))
+        self.assertEqual(3, len(resp))
+
+        # First metric.  No delta
+        interface1, stats1 = resp[0]
+        self.assertEqual('aa:bb:cc:dd:ee:ff', interface1.mac)
+        self.assertEqual('a', interface1.name)
+        self.assertEqual(0, stats1.rx_bytes_rate)
+        self.assertEqual(0, stats1.tx_bytes_rate)
+
+        # Second metric
+        interface2, stats2 = resp[1]
+        self.assertEqual('aa:bb:cc:dd:ee:11', interface2.mac)
+        self.assertEqual('b', interface2.name)
+        self.assertEqual(60.0, stats2.rx_bytes_rate)
+        self.assertEqual(60.0, stats2.tx_bytes_rate)
+
+        # Third metric had no previous.
+        interface3, stats3 = resp[2]
+        self.assertEqual('aa:bb:cc:dd:ee:22', interface3.mac)
+        self.assertEqual('c', interface3.name)
+        self.assertEqual(100.0, stats3.rx_bytes_rate)
+        self.assertEqual(100.0, stats3.tx_bytes_rate)

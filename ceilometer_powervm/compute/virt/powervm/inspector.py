@@ -14,13 +14,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import datetime
+
 from oslo_log import log as logging
 from pypowervm import adapter as pvm_adpt
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks.monitor import util as pvm_mon_util
 from pypowervm.utils import uuid as pvm_uuid
+from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
+from pypowervm.wrappers import network as pvm_net
 
 from ceilometer.compute.virt import inspector as virt_inspector
 from ceilometer.i18n import _
@@ -39,18 +43,18 @@ class PowerVMInspector(virt_inspector.Inspector):
         super(PowerVMInspector, self).__init__()
 
         # Build the adapter to the PowerVM API.
-        adpt = pvm_adpt.Adapter(
+        self.adpt = pvm_adpt.Adapter(
             pvm_adpt.Session(), helpers=[log_hlp.log_helper,
                                          vio_hlp.vios_busy_retry_helper])
 
         # Get the host system UUID
-        host_uuid = self._get_host_uuid(adpt)
+        host_uuid = self._get_host_uuid(self.adpt)
 
         # Ensure that metrics gathering is running for the host.
-        pvm_mon_util.ensure_ltm_monitors(adpt, host_uuid)
+        pvm_mon_util.ensure_ltm_monitors(self.adpt, host_uuid)
 
         # Get the VM Metric Utility
-        self.vm_metrics = pvm_mon_util.LparMetricCache(adpt, host_uuid)
+        self.vm_metrics = pvm_mon_util.LparMetricCache(self.adpt, host_uuid)
 
     @staticmethod
     def _puuid(instance):
@@ -189,3 +193,164 @@ class PowerVMInspector(virt_inspector.Inspector):
         # Utilization is reported as percents.  Therefore, multiply by 100.0
         # to get a readable percentage based format.
         return virt_inspector.CPUUtilStats(util=util * 100.0)
+
+    @staticmethod
+    def mac_for_metric_cna(metric_cna, client_cnas):
+        """Finds the mac address for a given metric.
+
+        :param metric_cna: The metric for a given client network adapter (CNA)
+        :param client_cnas: The list of wrappers from pypowervm for the CNAs
+                            attached to a given instance.
+        :return: Mac address of the adapter.  If unable to be found, then None
+                 is returned.
+        """
+        # TODO(thorst) Investigate optimization in pypowervm for this.
+        for client_cna in client_cnas:
+            if client_cna.loc_code == metric_cna.physical_location:
+                # Found the appropriate mac.  The PowerVM format is upper
+                # cased without colons.  Convert it.
+                mac = client_cna.mac.lower()
+                return ':'.join(mac[i:i + 2]
+                                for i in range(0, len(mac), 2))
+        return None
+
+    def _get_cnas(self, lpar_uuid):
+        """Returns the client VM's Network Adapters.
+
+        :param lpar_uuid: The UUID of the VM.
+        :return: A list of pypowervm CNA wrappers.
+        """
+        client_cna_resp = self.adpt.read(
+            pvm_lpar.LPAR.schema_type, root_id=lpar_uuid,
+            child_type=pvm_net.CNA.schema_type)
+        return pvm_net.CNA.wrap(client_cna_resp)
+
+    def inspect_vnics(self, instance):
+        """Inspect the vNIC statistics for an instance.
+
+        :param instance: the target instance
+        :return: for each vNIC, the number of bytes & packets
+                 received and transmitted
+        """
+        # Get the current and previous sample.  Delta is performed between
+        # these two.
+        uuid = self._puuid(instance)
+        cur_date, cur_metric = self.vm_metrics.get_latest_metric(uuid)
+
+        # If the cur_metric is none, then the instance can not be found in the
+        # sample and an error should be raised.
+        if cur_metric is None:
+            raise virt_inspector.InstanceNotFoundException(
+                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+
+        # If there isn't network information, this is because the Virtual
+        # I/O Metrics were turned off.  Have to pass through this method.
+        if cur_metric.network is None:
+            return
+
+        # Get the network interfaces.  A 'cna' is a Client VM's Network Adapter
+        client_cnas = self._get_cnas(uuid)
+
+        for metric_cna in cur_metric.network.cnas:
+            # Get the mac, but if it isn't found, then move to the next.  Might
+            # have been removed since the last sample.
+            mac = self.mac_for_metric_cna(metric_cna, client_cnas)
+            if mac is None:
+                continue
+
+            # The name will be the location code.  MAC is identified from
+            # above.  Others appear libvirt specific.
+            interface = virt_inspector.Interface(
+                name=metric_cna.physical_location,
+                mac=mac, fref=None, parameters=None)
+
+            stats = virt_inspector.InterfaceStats(
+                rx_bytes=metric_cna.received_bytes,
+                rx_packets=metric_cna.received_packets,
+                tx_bytes=metric_cna.sent_bytes,
+                tx_packets=metric_cna.sent_packets)
+
+            # Yield the stats up to the invoker
+            yield (interface, stats)
+
+    def inspect_vnic_rates(self, instance, duration=None):
+        """Inspect the vNIC rate statistics for an instance.
+
+        :param instance: the target instance
+        :param duration: the last 'n' seconds, over which the value should be
+               inspected
+
+               The PowerVM implementation does not make use of the duration
+               field.
+        :return: for each vNIC, the rate of bytes & packets
+                 received and transmitted
+        """
+        # Get the current and previous sample.  Delta is performed between
+        # these two.
+        uuid = self._puuid(instance)
+        cur_date, cur_metric = self.vm_metrics.get_latest_metric(uuid)
+        prev_date, prev_metric = self.vm_metrics.get_previous_metric(uuid)
+
+        # If the current is none, then the instance can not be found in the
+        # sample and an error should be raised.
+        if cur_metric is None:
+            raise virt_inspector.InstanceNotFoundException(
+                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+
+        # If there isn't network information, this is because the Virtual
+        # I/O Metrics were turned off.  Have to pass through this method.
+        if cur_metric.network is None:
+            return
+
+        # Get the network interfaces.  A 'cna' is a Client VM's Network Adapter
+        client_cnas = self._get_cnas(uuid)
+
+        def find_prev_net(metric_cna):
+            """Finds the metric vNIC from the previous sample's vNICs."""
+            # If no previous, return None
+            if prev_metric is None or prev_metric.network is None:
+                return None
+
+            for prev_cna in prev_metric.network.cnas:
+                if prev_cna.physical_location == metric_cna.physical_location:
+                    return prev_cna
+
+            # Couldn't find a previous.  Maybe the interface was recently
+            # added to the instance?  Return None
+            return None
+
+        # Need to determine the time delta between the samples.  This is
+        # usually 30 seconds from the API, but the metrics will be specific.
+        # However, if there is no previous sample, then we have to estimate.
+        # Therefore, we estimate 15 seconds - half of the standard 30 seconds.
+        date_delta = ((cur_date - prev_date) if prev_date is not None else
+                      datetime.timedelta(seconds=15))
+        date_delta_num = float(date_delta.seconds)
+
+        for metric_cna in cur_metric.network.cnas:
+            # Get the mac, but if it isn't found, then move to the next.  Might
+            # have been removed since the last sample.
+            mac = self.mac_for_metric_cna(metric_cna, client_cnas)
+            if mac is None:
+                continue
+
+            # The name will be the location code.  MAC is identified from
+            # above.  Others appear libvirt specific.
+            interface = virt_inspector.Interface(
+                name=metric_cna.physical_location,
+                mac=mac, fref=None, parameters=None)
+
+            prev = find_prev_net(metric_cna)
+            rx_bytes_diff = (metric_cna.received_bytes -
+                             (0 if prev is None else prev.received_bytes))
+            tx_bytes_diff = (metric_cna.sent_bytes -
+                             (0 if prev is None else prev.sent_bytes))
+
+            # Stats are the difference in the bytes, divided by the difference
+            # in time between the two samples.
+            rx_rate = float(rx_bytes_diff) / float(date_delta_num)
+            tx_rate = float(tx_bytes_diff) / float(date_delta_num)
+            stats = virt_inspector.InterfaceRateStats(rx_rate, tx_rate)
+
+            # Yield the results back to the invoker.
+            yield (interface, stats)
