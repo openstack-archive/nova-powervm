@@ -18,6 +18,7 @@ import math
 from nova.compute import arch
 from nova.compute import hv_type
 from nova.compute import vm_mode
+import subprocess
 
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
@@ -159,9 +160,12 @@ class HostCPUStats(pcm_util.MetricCache):
         # Idle is the subtraction of all.
         idle_cycles = tot_cycles - user_cycles - fw_cycles
 
+        # Get the processor frequency.
+        freq = self._get_cpu_freq()
+
         # Now save these cycles to the internal data structure.
         self.cur_data = {'idle': idle_cycles, 'kernel': fw_cycles,
-                         'user': user_cycles, 'iowait': 0}
+                         'user': user_cycles, 'iowait': 0, 'frequency': freq}
 
     def _gather_user_cycles(self):
         """The estimated total user cycles.
@@ -204,6 +208,12 @@ class HostCPUStats(pcm_util.MetricCache):
         prev_user_cycles = (0 if self.prev_data is None
                             else self.prev_data['user'])
         return prev_user_cycles + vm_delta_cycles + vios_delta_cycles
+
+    @staticmethod
+    def _get_cpu_freq():
+        # The output will be similar to '4116.000000MHz' on a POWER system.
+        cmd = ['/usr/bin/awk', '/clock/ {print $3; exit}', '/proc/cpuinfo']
+        return float(subprocess.check_output(cmd).rstrip("MHz\n"))
 
     def _delta_proc_cycles(self, samples, prev_samples):
         """Sums all the processor delta cycles for a set of VM/VIOS samples.

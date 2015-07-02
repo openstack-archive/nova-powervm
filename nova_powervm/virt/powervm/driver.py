@@ -172,12 +172,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def get_host_cpu_stats(self):
         """Return the current CPU state of the host."""
-        host_stats = self.host_cpu_stats.get_host_cpu_stats()
-
-        # TODO(thorst) Implement a frequency check.
-        host_stats['frequency'] = 3500
-
-        return host_stats
+        return self.host_cpu_stats.get_host_cpu_stats()
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None,
