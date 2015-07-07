@@ -51,7 +51,7 @@ def snapshot_metadata(context, image_api, image_id, instance):
         'is_public': False,
         'status': 'active',
         'disk_format': 'raw',
-        'container_format': 'base',
+        'container_format': 'bare',
         'properties': {
             'image_location': 'snapshot',
             'image_state': 'available',

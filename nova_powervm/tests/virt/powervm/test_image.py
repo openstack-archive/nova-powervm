@@ -48,7 +48,7 @@ class TestImage(test.TestCase):
             'is_public': False,
             'status': 'active',
             'disk_format': 'raw',
-            'container_format': 'base',
+            'container_format': 'bare',
             'properties': {
                 'image_location': 'snapshot',
                 'image_state': 'available',
