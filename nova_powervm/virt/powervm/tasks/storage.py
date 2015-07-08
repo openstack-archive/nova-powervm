@@ -470,3 +470,23 @@ class DeleteDisk(task.Task):
                  self.instance.name)
         self.disk_dvr.delete_disks(self.context, self.instance,
                                    stor_adpt_mappings)
+
+
+class SaveBDM(task.Task):
+    """Task to save an updated block device mapping."""
+
+    def __init__(self, bdm, instance):
+        """Creates the Task to save an updated block device mapping.
+
+        :param bdm: The updated bdm.
+        :param instance: The nova instance
+        """
+        self.bdm = bdm
+        self.instance = instance
+        super(SaveBDM, self).__init__(name='save_bdm_%s' % self.bdm.volume_id)
+
+    def execute(self):
+        LOG.info(_LI('Saving block device mapping for volume id %(vol_id)s '
+                     'on instance %(inst)s.'),
+                 {'vol_id': self.bdm.volume_id, 'inst': self.instance.name})
+        self.bdm.save()

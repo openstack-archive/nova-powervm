@@ -111,8 +111,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                           'volume_id': volume_id, 'status': str(status)})
                 self._add_mapping(adapter, host_uuid, vm_uuid, vio_wrap.uuid,
                                   device_name)
-                connection_info['data']['target_UDID'] = udid
-                self._set_udid(instance, vio_wrap.uuid, volume_id, udid)
+                self._set_udid(connection_info, vio_wrap.uuid, volume_id, udid)
                 LOG.info(_LI('Device attached: %s'), device_name)
                 hdisk_found = True
             elif status == hdisk.LUAStatus.DEVICE_IN_USE:
@@ -173,8 +172,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             for vio_wrap in vios_feed:
                 LOG.debug("vios uuid %s", vio_wrap.uuid)
                 try:
-                    volume_udid = self._get_udid(instance, vio_wrap.uuid,
-                                                 volume_id)
+                    volume_udid = self._get_udid(
+                        connection_info, vio_wrap.uuid, volume_id)
                     device_name = vio_wrap.hdisk_from_uuid(volume_udid)
 
                     if not device_name:
@@ -217,9 +216,6 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                              "%(disk)s from the Virtual I/O Server."),
                              {'disk': device_name})
                     LOG.warn(e)
-
-                # Disconnect volume complete, now remove key
-                self._delete_udid_key(instance, vio_wrap.uuid, volume_id)
 
         except Exception as e:
             LOG.error(_LE('Cannot detach volumes from virtual machine: %s'),
@@ -266,55 +262,35 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         pv = pvm_stor.PV.bld(adapter, device_name)
         tsk_map.add_vscsi_mapping(host_uuid, vios_uuid, vm_uuid, pv)
 
-    def _get_udid(self, instance, vios_uuid, volume_id):
-        """This method will return the hdisk udid stored in system metadata.
+    def _get_udid(self, connection_info, vios_uuid, volume_id):
+        """This method will return the hdisk udid stored in connection_info.
 
-        TODO(IBM):Temporary method to persist udid will be replaced with
-        vios read support
-        :param instance: The nova instance.
+        :param connection_info: The connection_info from the BDM.
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param volume_id: The lun volume id
         :returns: The target_udid associated with the hdisk
         """
         try:
             udid_key = self._build_udid_key(vios_uuid, volume_id)
-            return instance.system_metadata[udid_key]
+            return connection_info['data'][udid_key]
         except (KeyError, ValueError) as e:
             LOG.exception(_LE(u'Failed to retrieve deviceid key: %s'), e)
             return None
 
-    def _set_udid(self, instance, vios_uuid, volume_id, udid):
-        """This method will set the hdisk udid in the system_metadata.
+    def _set_udid(self, connection_info, vios_uuid, volume_id, udid):
+        """This method will set the hdisk udid in the connection_info.
 
-        TODO(IBM):Temporary method to persist udid will be replaced with
-        vios read support
-        :param instance: The nova instance.
+        :param connection_info: The connection_info from the BDM.
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param volume_id: The lun volume id
-        :param: The hdisk target_udid to be stored in system_metadata
+        :param udid: The hdisk target_udid to be stored in system_metadata
         """
         udid_key = self._build_udid_key(vios_uuid, volume_id)
-        instance.system_metadata[udid_key] = udid
-
-    def _delete_udid_key(self, instance, vios_uuid, volume_id):
-        """This method will delete udid key stored in the system_metadata.
-
-        TODO(IBM):Temporary method to persist udid will be replaced with
-        vios read support
-        :param instance: The nova instance.
-        :param volume_id: The lun volume id
-        """
-        try:
-            udid_key = self._build_udid_key(vios_uuid, volume_id)
-            instance.system_metadata.pop(udid_key)
-        except Exception as e:
-            LOG.exception(_LE(u'Failed to delete deviceid key: %s'), e)
+        connection_info['data'][udid_key] = udid
 
     def _build_udid_key(self, vios_uuid, volume_id):
         """This method will build the udid dictionary key.
 
-        TODO(IBM):Temporary method to persist udid will be replaced with
-        vios read support
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param volume_id: The lun volume id
         :returns: The udid dictionary key

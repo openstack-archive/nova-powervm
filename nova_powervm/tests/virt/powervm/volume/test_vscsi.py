@@ -86,27 +86,29 @@ class TestVSCSIAdapter(test.TestCase):
     def test_disconnect_volume(self, mock_hdisk_from_uuid,
                                mock_get_vm_id, mock_remove_pv_mapping,
                                mock_remove_hdisk):
+        vol_drv = vscsi.VscsiVolumeAdapter()
+
+        # Mock up the connection info
+        vios_uuid = '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'
+        volid_meta_key = vol_drv._build_udid_key(vios_uuid, 'id')
         con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
                                                       'i2': ['t2', 't3']},
+                             volid_meta_key: self.udid,
                     'target_lun': '1', 'volume_id': 'id'}}
-        # Build system_metadata key
+
+        # Build the mock instance
         instance = mock.Mock()
-        vios_uuid = '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'
-        volid_meta_key = vscsi.VscsiVolumeAdapter()._build_udid_key(vios_uuid,
-                                                                    'id')
-        instance.system_metadata = {volid_meta_key: self.udid}
+
         # Set test scenario
         self.adpt.read.return_value = self.vios_feed_resp
         mock_hdisk_from_uuid.return_value = 'device_name'
         mock_get_vm_id.return_value = 'partion_id'
+
         # Run the test
-        vscsi.VscsiVolumeAdapter().disconnect_volume(self.adpt, 'host_uuid',
-                                                     'vm_uuid',
-                                                     instance, con_info)
+        vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid', instance,
+                                  con_info)
         self.assertEqual(1, mock_remove_pv_mapping.call_count)
         self.assertEqual(1, mock_remove_hdisk.call_count)
-        # Verify entry deleted
-        self.assertDictEqual({}, instance.system_metadata)
 
     @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')
     def test_wwpns(self, mock_vio_wwpns):
@@ -118,43 +120,37 @@ class TestVSCSIAdapter(test.TestCase):
         self.assertListEqual(['aa', 'bb'], wwpns)
 
     def test_set_udid(self):
-        # Mock Data
-        instance = mock.Mock()
-        instance.system_metadata = {}
-        volid_meta_key = (vscsi.VscsiVolumeAdapter().
-                          _build_udid_key(self.vios_uuid, self.volume_id))
-        vscsi.VscsiVolumeAdapter()._set_udid(instance, self.vios_uuid,
-                                             self.volume_id, self.udid)
-        # Check
-        self.assertEqual(self.udid,
-                         instance.system_metadata[volid_meta_key])
+        vol_adpt = vscsi.VscsiVolumeAdapter()
+
+        # Mock connection info
+        connection_info = {'data': {}}
+        udid_key = vol_adpt._build_udid_key(self.vios_uuid, self.volume_id)
+
+        # Set the UDID
+        vol_adpt._set_udid(connection_info, self.vios_uuid, self.volume_id,
+                           self.udid)
+
+        # Verify
+        self.assertEqual(self.udid, connection_info['data'][udid_key])
 
     def test_get_udid(self):
-        instance = mock.Mock()
-        volid_meta_key = (vscsi.VscsiVolumeAdapter().
-                          _build_udid_key(self.vios_uuid, self.volume_id))
-        # set the key to retrieve
-        instance.system_metadata = {volid_meta_key: self.udid}
-        retrieved_udid = (vscsi.VscsiVolumeAdapter().
-                          _get_udid(instance, self.vios_uuid, self.volume_id))
+        vol_adpt = vscsi.VscsiVolumeAdapter()
+
+        # Mock connection info
+        connection_info = {'data': {}}
+        udid_key = vol_adpt._build_udid_key(self.vios_uuid, self.volume_id)
+        connection_info['data'][udid_key] = self.udid
+
+        # Set the key to retrieve
+        retrieved_udid = vol_adpt._get_udid(connection_info, self.vios_uuid,
+                                            self.volume_id)
+
         # Check key found
         self.assertEqual(self.udid, retrieved_udid)
 
-        # check key not found
+        # Check key not found
         retrieved_udid = (vscsi.VscsiVolumeAdapter().
-                          _get_udid(instance, self.vios_uuid,
+                          _get_udid(connection_info, self.vios_uuid,
                                     'non_existent_key'))
         # Check key not found
         self.assertIsNone(retrieved_udid)
-
-    def test_delete_udid_key(self):
-        instance = mock.Mock()
-        # set the key to delete
-        volid_meta_key = (vscsi.VscsiVolumeAdapter().
-                          _build_udid_key(self.vios_uuid, self.volume_id))
-        # set the key to retrieve
-        instance.system_metadata = {volid_meta_key: self.udid}
-        vscsi.VscsiVolumeAdapter()._delete_udid_key(instance, self.vios_uuid,
-                                                    self.volume_id)
-        # Verify empty list
-        self.assertDictEqual({}, instance.system_metadata)

@@ -207,8 +207,6 @@ class PowerVMDriver(driver.ComputeDriver):
                 flavor_obj.Flavor.get_by_id(admin_ctx,
                                             instance.instance_type_id))
 
-        is_boot_from_volume = self.\
-            _root_bdm_in_block_device_info(block_device_info)
         # Define the flow
         flow = lf.Flow("spawn")
 
@@ -222,6 +220,8 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_net.PlugMgmtVif(self.adapter, instance, self.host_uuid))
 
         # Only add the image disk if this is from Glance.
+        is_boot_from_volume = self._root_bdm_in_block_device_info(
+            block_device_info)
         if not is_boot_from_volume:
             # Creates the boot image.
             flow.add(tf_stg.CreateDiskForImg(
@@ -239,8 +239,15 @@ class PowerVMDriver(driver.ComputeDriver):
                 conn_info = bdm.get('connection_info')
                 drv_type = conn_info.get('driver_volume_type')
                 vol_drv = self.vol_drvs.get(drv_type)
+
+                # First connect the volume.  This will update the
+                # connection_info.
                 flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
                                               conn_info, self.host_uuid))
+
+                # Save the BDM so that the updated connection info is
+                # persisted.
+                flow.add(tf_stg.SaveBDM(bdm, instance))
 
         # If the config drive is needed, add those steps.
         if configdrive.required_by(instance):

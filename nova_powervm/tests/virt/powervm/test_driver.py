@@ -199,6 +199,7 @@ class TestPowerVMDriver(test.TestCase):
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
+    @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
@@ -210,7 +211,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_bdms(self, mock_pwron, mock_get_flv, mock_cfg_drv,
                              mock_plug_vifs, mock_plug_mgmt_vif,
-                             mock_get_root_bdm, mock_crt_img):
+                             mock_get_root_bdm, mock_crt_img, mock_save):
 
         """Validates the PowerVM spawn of an image that has a disk image
         and block device mappings are passed into spawn which originated from
@@ -247,6 +248,10 @@ class TestPowerVMDriver(test.TestCase):
         # Check that the connect volume was called
         self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
+        # Make sure the save was invoked
+        self.assertEqual(2, mock_save.call_count)
+
+    @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
@@ -259,7 +264,8 @@ class TestPowerVMDriver(test.TestCase):
     def test_spawn_with_image_meta_root_bdm(self, mock_pwron, mock_get_flv,
                                             mock_cfg_drv, mock_plug_vifs,
                                             mock_plug_mgmt_vif,
-                                            mock_get_root_bdm, mock_crt_img):
+                                            mock_get_root_bdm, mock_crt_img,
+                                            mock_save):
 
         """Validates the PowerVM spawn of an image that does not have a
         disk iamge and block device mappings are passed into spawn which
@@ -302,6 +308,7 @@ class TestPowerVMDriver(test.TestCase):
         # Check that the connect volume was called
         self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
+    @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
@@ -313,7 +320,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_root_bdm(self, mock_pwron, mock_get_flv, mock_cfg_drv,
                                  mock_plug_vifs, mock_plug_mgmt_vif,
-                                 mock_get_root_bdm, mock_crt_img):
+                                 mock_get_root_bdm, mock_crt_img, mock_save):
 
         """Validates the PowerVM spawn when no image is given and only block
         device mappings are given on the create server request.
@@ -347,6 +354,10 @@ class TestPowerVMDriver(test.TestCase):
         # Check that the connect volume was called
         self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
 
+        # Make sure the BDM save was invoked twice.
+        self.assertEqual(2, mock_save.call_count)
+
+    @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
@@ -356,7 +367,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_off')
     def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_get_flv,
                                 mock_cfg_drv, mock_dlt, mock_plug_vifs,
-                                mock_plug_mgmt_vifs):
+                                mock_plug_mgmt_vifs, mock_save):
         """Validates the PowerVM driver operations.  Will do a rollback."""
 
         # Set up the mocks to the tasks.
@@ -512,7 +523,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
 
         # Invoke the method.
-        self.drv.attach_volume('context', mock_bdm['connection_info'],
+        self.drv.attach_volume('context', mock_bdm.get('connection_info'),
                                inst, mock.Mock())
 
         # Verify the connect volume was invoked
@@ -532,7 +543,8 @@ class TestPowerVMDriver(test.TestCase):
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
 
         # Invoke the method.
-        self.drv.detach_volume(mock_bdm['connection_info'], inst, mock.Mock())
+        self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
+                               mock.Mock())
 
         # Verify the connect volume was invoked
         self.assertEqual(1, mock_disconn_volume.call_count)
@@ -850,13 +862,14 @@ class TestPowerVMDriver(test.TestCase):
                                         'target_lun': target_lun
                                         }
                                }
-            mapping_dict = {'source_type': 'volume',
+            mapping_dict = {'source_type': 'volume', 'volume_id': volume_id,
                             'destination_type': 'volume',
                             'connection_info':
                                 jsonutils.dumps(connection_info),
                             }
             bdm_dict = nova_block_device.BlockDeviceDict(mapping_dict)
             bdm_obj = bdmobj.BlockDeviceMapping(**bdm_dict)
+
             return nova_virt_bdm.DriverVolumeBlockDevice(bdm_obj)
 
         bdm_list = [_fake_bdm('fake_vol1', 0), _fake_bdm('fake_vol2', 1)]
