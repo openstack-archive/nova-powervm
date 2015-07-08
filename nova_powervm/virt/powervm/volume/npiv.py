@@ -382,4 +382,4 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     def _ports_per_fabric(self):
         """Returns the number of virtual ports that should be used per fabric.
         """
-        return CONF.npiv.ports_per_fabric
+        return CONF.powervm.ports_per_fabric
