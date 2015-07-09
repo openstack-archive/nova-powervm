@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nova import block_device
 from nova.compute import task_states
 from nova.compute import utils as compute_utils
 from nova.console import type as console_type
@@ -198,8 +199,8 @@ class PowerVMDriver(driver.ComputeDriver):
                 flavor_obj.Flavor.get_by_id(admin_ctx,
                                             instance.instance_type_id))
 
-        is_boot_from_volume = (image_meta.get('id') is None)
-
+        is_boot_from_volume = self.\
+            _root_bdm_in_block_device_info(block_device_info)
         # Define the flow
         flow = lf.Flow("spawn")
 
@@ -249,6 +250,22 @@ class PowerVMDriver(driver.ComputeDriver):
         # Build the engine & run!
         engine = taskflow.engines.load(flow)
         engine.run()
+
+    def _root_bdm_in_block_device_info(self, block_device_info):
+        """Determine whether the root device is listed in block_device_info.
+
+        :param block_device_info: The block device info from the compute
+                                  manager.
+        :returns: True if the root device is in block_device_info and False if
+                  it is not.
+        """
+        root_bdm = block_device.get_root_bdm(
+            driver.block_device_info_get_mapping(block_device_info))
+        return (root_bdm is not None)
+
+    @property
+    def need_legacy_block_device_info(self):
+        return False
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True, migrate_data=None):
@@ -948,34 +965,36 @@ class PowerVMDriver(driver.ComputeDriver):
     def _extract_bdm(block_device_info):
         """Returns the block device mapping out of the block device info.
 
-        The block device mapping is a list of dictionaries.  Each dictionary
+        The block device mapping is a list of instances of block device
+        classes from nova.virt.block_device.  Each block device
         represents one volume connection.
 
-        Example:
-        [
-          {
-             'connection_info' {
-                'driver_volume_type':'fibre_channel',
-                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                'data':{
-                   'initiator_target_map':{
-                      '21000024FF649105':['500507680210E522'],
-                      '21000024FF649104':['500507680210E522'],
-                      '21000024FF649107':['500507680210E522'],
-                      '21000024FF649106':['500507680210E522']
-                   },
-                   'target_discovered':False,
-                   'qos_specs':None,
-                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                   'target_lun':0,
-                   'access_mode':'rw',
-                   'target_wwn':'500507680210E522'
-                }
-             },
-             'mount_device':'/dev/vda',
-             'delete_on_termination':False
-          }
-       ]
+        An example string representation of the a DriverVolumeBlockDevice
+        from the early Liberty time frame is:
+        {'guest_format': None,
+        'boot_index': 0,
+        'mount_device': u'/dev/sda',
+        'connection_info': {u'driver_volume_type': u'fibre_channel',
+                            u'serial': u'e11765ea-dd14-4aa9-a953-4fd6b4999635',
+                            u'data': {u'initiator_target_map':
+                                        {u'21000024ff747e59':
+                                            [u'500507680220E522',
+                                            u'500507680210E522'],
+                                        u'21000024ff747e58':
+                                            [u'500507680220E522',
+                                            u'500507680210E522']},
+                                        u'vendor': u'IBM',
+                                        u'target_discovered':False,
+                                        u'target_UID': u'600507680282...',
+                                        u'qos_specs': None,
+                                        u'volume_id': u'e11765ea-...',
+                                        u'target_lun': u'2',
+                                        u'access_mode': u'rw',
+                                        u'target_wwn': u'500507680220E522'}
+                            },
+        'disk_bus': None,
+        'device_type': u'disk',
+        'delete_on_termination': True}
         """
         if block_device_info is None:
             return []
