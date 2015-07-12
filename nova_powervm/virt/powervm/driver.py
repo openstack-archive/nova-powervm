@@ -99,6 +99,10 @@ class PowerVMDriver(driver.ComputeDriver):
         # Initialize the volume drivers
         self.vol_drvs = _inst_dict(VOLUME_DRIVER_MAPPINGS)
 
+        # Init Host CPU Statistics
+        self.host_cpu_stats = pvm_host.HostCPUStats(self.adapter,
+                                                    self.host_uuid)
+
         LOG.info(_LI("The compute driver has been initialized."))
 
     def _get_adapter(self):
@@ -165,6 +169,15 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         lpar_list = vm.get_lpar_names(self.adapter)
         return lpar_list
+
+    def get_host_cpu_stats(self):
+        """Return the current CPU state of the host."""
+        host_stats = self.host_cpu_stats.get_host_cpu_stats()
+
+        # TODO(thorst) Implement a frequency check.
+        host_stats['frequency'] = 3500
+
+        return host_stats
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None,

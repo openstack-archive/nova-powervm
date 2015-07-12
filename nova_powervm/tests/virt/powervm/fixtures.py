@@ -31,9 +31,6 @@ MS_HTTPRESP_FILE = "managedsystem.txt"
 class PyPowerVM(fixtures.Fixture):
     """Patch out PyPowerVM Session and Adapter."""
 
-    def __init__(self):
-        pass
-
     def setUp(self):
         super(PyPowerVM, self).setUp()
         self._sess_patcher = mock.patch('pypowervm.adapter.Session')
@@ -48,9 +45,6 @@ class PyPowerVM(fixtures.Fixture):
 class ImageAPI(fixtures.Fixture):
     """Mock out the Glance API."""
 
-    def __init__(self):
-        pass
-
     def setUp(self):
         super(ImageAPI, self).setUp()
         self._img_api_patcher = mock.patch('nova.image.API')
@@ -62,9 +56,6 @@ class ImageAPI(fixtures.Fixture):
 class DiskAdapter(fixtures.Fixture):
     """Mock out the DiskAdapter."""
 
-    def __init__(self):
-        pass
-
     def setUp(self):
         super(DiskAdapter, self).setUp()
         self._std_disk_adpt = mock.patch('nova_powervm.virt.powervm.disk.'
@@ -73,11 +64,19 @@ class DiskAdapter(fixtures.Fixture):
         self.addCleanup(self._std_disk_adpt.stop)
 
 
+class HostCPUStats(fixtures.Fixture):
+    """Mock out the HostCPUStats."""
+
+    def setUp(self):
+        super(HostCPUStats, self).setUp()
+        self._host_cpu_stats = mock.patch('nova_powervm.virt.powervm.host.'
+                                          'HostCPUStats')
+        self.host_cpu_stats = self._host_cpu_stats.start()
+        self.addCleanup(self._host_cpu_stats.stop)
+
+
 class VolumeAdapter(fixtures.Fixture):
     """Mock out the VolumeAdapter."""
-
-    def __init__(self):
-        pass
 
     def setUp(self):
         super(VolumeAdapter, self).setUp()
@@ -89,9 +88,6 @@ class VolumeAdapter(fixtures.Fixture):
 
 class PowerVMComputeDriver(fixtures.Fixture):
     """Construct a fake compute driver."""
-
-    def __init__(self):
-        pass
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._get_adapter')
@@ -109,6 +105,9 @@ class PowerVMComputeDriver(fixtures.Fixture):
         self.pypvm = PyPowerVM()
         self.pypvm.setUp()
         self.addCleanup(self.pypvm.cleanUp)
+
+        # Set up the mock CPU stats (init_host uses it)
+        self.useFixture(HostCPUStats())
 
         self.drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         self.drv.adapter = self.pypvm.apt
