@@ -185,6 +185,7 @@ class TestVM(test.TestCase):
         flavor = instance.get_flavor()
         lpar_attrs = {'memory': 2048,
                       'name': 'instance-00000001',
+                      'uuid': '49629a5c-f4c4-4721-9511-9725786ff2e5',
                       'vcpu': 1}
 
         # Test dedicated procs
