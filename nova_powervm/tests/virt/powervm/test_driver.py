@@ -731,6 +731,21 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual(1, mock_vm_crt.call_count)
         self.assertEqual(0, mock_crt_rmc_vif.call_count)
 
+        # Test exception handling - return VirtualInterfacePlugException
+        with mock.patch('taskflow.engines') as mock_tf:
+            # Test instance not found handling
+            mock_tf.load.return_value.run.side_effect = exc.InstanceNotFound(
+                instance_id=inst)
+            # Run method
+            self.assertRaises(exc.VirtualInterfacePlugException,
+                              self.drv.plug_vifs, inst, net_info)
+
+            # Test a random Exception
+            mock_tf.load.return_value.run.side_effect = ValueError()
+            # Run method
+            self.assertRaises(exc.VirtualInterfacePlugException,
+                              self.drv.plug_vifs, inst, net_info)
+
     def test_extract_bdm(self):
         """Tests the _extract_bdm method."""
         self.assertEqual([], self.drv._extract_bdm(None))

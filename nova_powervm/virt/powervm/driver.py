@@ -636,7 +636,16 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Build the engine & run!
         engine = taskflow.engines.load(flow)
-        engine.run()
+        try:
+            engine.run()
+        except exception.InstanceNotFound:
+            raise exception.VirtualInterfacePlugException(
+                _("Plug vif failed because instance %s was not found.")
+                % instance.name)
+        except Exception as e:
+            LOG.exception(e)
+            raise exception.VirtualInterfacePlugException(
+                _("Plug vif failed because of an unexpected error."))
 
     def unplug_vifs(self, instance, network_info):
         """Unplug VIFs from networks."""
