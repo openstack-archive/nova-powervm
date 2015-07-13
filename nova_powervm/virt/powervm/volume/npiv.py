@@ -161,7 +161,8 @@ class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                 break
 
             # Must have been set.  Extend the wwpn keys with each element.
-            wwpn_keys.extend([meta_val[1] for meta_val in metas])
+            for meta_val in metas:
+                wwpn_keys.extend(meta_val[1].split(' '))
 
         # A 'bad_fabric' is when we had one fabric that was missing.  So
         # we just kick off a rebuild.

@@ -237,6 +237,6 @@ class TestNPIVAdapter(test.TestCase):
         wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', inst)
 
         # Verify
-        self.assertListEqual(['a b', 'c d'], wwpns)
+        self.assertListEqual(['a', 'b', 'c', 'd'], wwpns)
         fc_state = self.vol_drv._get_fabric_state(inst, 'A')
         self.assertEqual(npiv.FS_UNMAPPED, fc_state)
