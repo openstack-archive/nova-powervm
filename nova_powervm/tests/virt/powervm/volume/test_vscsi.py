@@ -154,3 +154,19 @@ class TestVSCSIAdapter(test.TestCase):
                                     'non_existent_key'))
         # Check key not found
         self.assertIsNone(retrieved_udid)
+
+    def test_wwpns_on_vios(self):
+        """Validates the _wwpns_on_vios method."""
+        vol_adpt = vscsi.VscsiVolumeAdapter()
+
+        mock_vios = mock.MagicMock()
+        mock_vios.get_active_pfc_wwpns.return_value = ['A', 'B', 'C']
+
+        self.assertListEqual(
+            ['A'], vol_adpt._wwpns_on_vios(['A', 'D'], mock_vios))
+
+        self.assertListEqual(
+            ['A', 'C'], vol_adpt._wwpns_on_vios(['A', 'C', 'D'], mock_vios))
+
+        self.assertListEqual(
+            [], vol_adpt._wwpns_on_vios(['D'], mock_vios))

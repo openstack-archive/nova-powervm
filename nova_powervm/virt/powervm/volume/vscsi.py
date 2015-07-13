@@ -94,12 +94,13 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         vios_feed = vios.get_active_vioses(adapter, host_uuid)
 
         # Iterate through host vios list to find valid hdisks and map to VM.
-        # TODO(IBM): The VIOS should only include the intersection with
-        # defined SCG targets when they are available.
         for vio_wrap in vios_feed:
-            # TODO(IBM): Investigate if i_wwpns passed to discover_hdisk
-            # should be intersection with VIOS pfc_wwpns
-            itls = hdisk.build_itls(i_wwpns, t_wwpns, lun)
+            # Reduce the initiatior WWPNs to the list on this given VIOS.
+            vio_wwpns = self._wwpns_on_vios(i_wwpns, vio_wrap)
+
+            # Build the ITL map and discover the hdisks on the Virtual I/O
+            # Server (if any).
+            itls = hdisk.build_itls(vio_wwpns, t_wwpns, lun)
             status, device_name, udid = hdisk.discover_hdisk(
                 adapter, vio_wrap.uuid, itls)
             if device_name is not None and status in [
@@ -109,16 +110,23 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                          'volume %(volume_id)s. Status code: %(status)s.'),
                          {'hdisk': device_name, 'vios': vio_wrap.name,
                           'volume_id': volume_id, 'status': str(status)})
+
+                # Found a hdisk on this Virtual I/O Server.  Add a vSCSI
+                # mapping to the Virtual Machine so that it can use the hdisk.
                 self._add_mapping(adapter, host_uuid, vm_uuid, vio_wrap.uuid,
                                   device_name)
+
+                # Save the UDID for the disk in the connection info.  It is
+                # used for the detach.
                 self._set_udid(connection_info, vio_wrap.uuid, volume_id, udid)
                 LOG.info(_LI('Device attached: %s'), device_name)
                 hdisk_found = True
             elif status == hdisk.LUAStatus.DEVICE_IN_USE:
                 LOG.warn(_LW('Discovered device %(dev)s for volume %(volume)s '
-                             'on %(vios)s is in use Errorcode: %(status)s.'),
+                             'on %(vios)s is in use. Error code: %(status)s.'),
                          {'dev': device_name, 'volume': volume_id,
                           'vios': vio_wrap.name, 'status': str(status)})
+
         # A valid hdisk was not found so log and exit
         if not hdisk_found:
             msg = (_('Failed to discover valid hdisk on any Virtual I/O '
@@ -127,9 +135,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             LOG.error(msg)
             if device_name is None:
                 device_name = 'None'
-            ex_args = {'backing_dev': device_name,
-                       'instance_name': instance.name,
-                       'reason': msg}
+            ex_args = {'backing_dev': device_name, 'reason': msg,
+                       'instance_name': instance.name}
             raise pexc.VolumeAttachFailed(**ex_args)
 
     def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
@@ -160,7 +167,6 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                    'target_wwn':'500507680210E522'
                 }
         """
-
         volume_id = connection_info['data']['volume_id']
 
         try:
@@ -273,8 +279,9 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         try:
             udid_key = self._build_udid_key(vios_uuid, volume_id)
             return connection_info['data'][udid_key]
-        except (KeyError, ValueError) as e:
-            LOG.exception(_LE(u'Failed to retrieve deviceid key: %s'), e)
+        except (KeyError, ValueError):
+            LOG.warn(_LW(u'Failed to retrieve device_id key from BDM for '
+                         'volume id %s'), volume_id)
             return None
 
     def _set_udid(self, connection_info, vios_uuid, volume_id, udid):
@@ -296,3 +303,18 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :returns: The udid dictionary key
         """
         return vios_uuid + volume_id
+
+    def _wwpns_on_vios(self, i_wwpns, vios_w):
+        """Returns the subset of wwpns from i_wwpns that the VIOS owns.
+
+        A PowerVM system may have multiple Virtual I/O Servers to virtualize
+        the I/O to the virtual machines.  The initiator WWPNs are the wwpns
+        across the entire host.  This method will determine which WWPNs from
+        the initiator list are part of a given VIOS.
+
+        :param i_wwpns: The initiator WWPNs that are valid for a given fabric.
+        :param vios_w: A virtual I/O Server wrapper.
+        :return: List of the i_wwpns that are part of the vios_w.
+        """
+        active_wwpns = vios_w.get_active_pfc_wwpns()
+        return [x for x in i_wwpns if x in active_wwpns]
