@@ -28,6 +28,7 @@ from pypowervm.tasks import cna
 from pypowervm.tasks import power
 from pypowervm.tasks import vterm
 from pypowervm.utils import lpar_builder as lpar_bldr
+from pypowervm.utils import uuid as pvm_uuid
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -252,6 +253,8 @@ def _build_attrs(instance, flavor):
     attrs = {}
 
     attrs[lpar_bldr.NAME] = instance.name
+    # The uuid is only actually set on a create of an LPAR
+    attrs[lpar_bldr.UUID] = pvm_uuid.convert_uuid_to_pvm(instance.uuid)
     attrs[lpar_bldr.MEM] = flavor.memory_mb
     attrs[lpar_bldr.VCPU] = flavor.vcpus
 
