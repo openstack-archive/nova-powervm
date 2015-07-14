@@ -21,7 +21,7 @@ from oslo_log import log as logging
 
 from nova.compute import power_state
 from nova import exception
-from nova.i18n import _LI, _LE
+from nova.i18n import _LI, _LE, _
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import cna
@@ -33,6 +33,7 @@ from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
+from pypowervm.wrappers import shared_proc_pool as pvm_spp
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -61,38 +62,6 @@ POWERVM_TO_NOVA_STATE = {
 
 POWERVM_STARTABLE_STATE = ("not activated")
 POWERVM_STOPABLE_STATE = ("running", "starting", "open firmware")
-
-PVM_UNCAPPED = 'powervm:uncapped'
-PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
-DED_SHARING_MODES_MAP = {
-    'share_idle_procs': pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS,
-    'keep_idle_procs': pvm_bp.DedicatedSharingMode.KEEP_IDLE_PROCS,
-    'share_idle_procs_active':
-        pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS_ACTIVE,
-    'share_idle_procs_always':
-        pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS_ALWAYS
-}
-
-# Map of PowerVM extra specs to the lpar builder attributes.
-# '' is used for attributes that are not implemented yet.
-# None means there is no direct attribute mapping and must
-# be handled individually
-ATTRS_MAP = {
-    'powervm:min_mem': 'min_mem',
-    'powervm:max_mem': 'max_mem',
-    'powervm:min_vcpu': 'min_vcpu',
-    'powervm:max_vcpu': 'max_vcpu',
-    'powervm:proc_units': 'proc_units',
-    'powervm:min_proc_units': 'min_proc_units',
-    'powervm:max_proc_units': 'max_proc_units',
-    'powervm:dedicated_proc': 'dedicated_proc',
-    'powervm:uncapped': None,
-    'powervm:dedicated_sharing_mode': None,
-    'powervm:processor_compatibility': '',
-    'powervm:srr_capability': '',
-    'powervm:shared_weight': 'uncapped_weight',
-    'powervm:availability_priority': 'avail_priority'
-}
 
 # Attributes for secure RMC
 # TODO(thorst) The name of the secure RMC vswitch will change.
@@ -192,6 +161,207 @@ class InstanceInfo(hardware.InstanceInfo):
                 self._uuid == other._uuid)
 
 
+class VMBuilder(object):
+    """Converts a Nova Instance/Flavor into a pypowervm LPARBuilder."""
+
+    # Map of PowerVM extra specs to the lpar builder attributes.
+    # '' is used for attributes that are not implemented yet.
+    # None means there is no direct attribute mapping and must
+    # be handled individually
+    _ATTRS_MAP = {
+        'powervm:min_mem': lpar_bldr.MIN_MEM,
+        'powervm:max_mem': lpar_bldr.MAX_MEM,
+        'powervm:min_vcpu': lpar_bldr.MIN_VCPU,
+        'powervm:max_vcpu': lpar_bldr.MAX_VCPU,
+        'powervm:proc_units': lpar_bldr.PROC_UNITS,
+        'powervm:min_proc_units': lpar_bldr.MIN_PROC_U,
+        'powervm:max_proc_units': lpar_bldr.MAX_PROC_U,
+        'powervm:dedicated_proc': lpar_bldr.DED_PROCS,
+        'powervm:uncapped': None,
+        'powervm:dedicated_sharing_mode': None,
+        'powervm:processor_compatibility': '',
+        'powervm:srr_capability': '',
+        'powervm:shared_weight': lpar_bldr.UNCAPPED_WEIGHT,
+        'powervm:availability_priority': lpar_bldr.AVAIL_PRIORITY,
+        'powervm:shared_proc_pool_name': None
+    }
+
+    _PVM_UNCAPPED = 'powervm:uncapped'
+    _PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
+    _PVM_SHAR_PROC_POOL = 'powervm:shared_proc_pool_name'
+    _DED_SHARING_MODES_MAP = {
+        'share_idle_procs': pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS,
+        'keep_idle_procs': pvm_bp.DedicatedSharingMode.KEEP_IDLE_PROCS,
+        'share_idle_procs_active':
+            pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS_ACTIVE,
+        'share_idle_procs_always':
+            pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS_ALWAYS
+    }
+
+    def __init__(self, host_w, adapter):
+        """Initialize the converter.
+
+        :param host_w: The host system wrapper.
+        """
+        self.adapter = adapter
+        self.host_w = host_w
+        self.stdz = lpar_bldr.DefaultStandardize(
+            self.host_w, proc_units_factor=CONF.powervm.proc_units_factor)
+
+    def lpar_builder(self, instance, flavor):
+        """Returns the pypowervm LPARBuilder for a given Nova flavor.
+
+        :param instance: the VM instance
+        :param flavor: The Nova instance flavor.
+        """
+        attrs = self._format_flavor(instance, flavor)
+        return lpar_bldr.LPARBuilder(self.adapter, attrs, self.stdz)
+
+    def _format_flavor(self, instance, flavor):
+        """Returns the pypowervm format of the flavor.
+
+        :param instance: the VM instance
+        :param flavor: The Nova instance flavor.
+        :returns: a dict that can be used by the LPAR builder
+        """
+        # The attrs are what is sent to pypowervm to convert the lpar.
+        attrs = {}
+
+        attrs[lpar_bldr.NAME] = instance.name
+        # The uuid is only actually set on a create of an LPAR
+        attrs[lpar_bldr.UUID] = pvm_uuid.convert_uuid_to_pvm(instance.uuid)
+        attrs[lpar_bldr.MEM] = flavor.memory_mb
+        attrs[lpar_bldr.VCPU] = flavor.vcpus
+
+        # Loop through the extra specs and process powervm keys
+        for key in flavor.extra_specs.keys():
+            # If it is not a valid key, then can skip.
+            if not self._is_pvm_valid_key(key):
+                continue
+
+            # Look for the mapping to the lpar builder
+            bldr_key = self._ATTRS_MAP.get(key)
+
+            # Check for no direct mapping, if the value is none, need to
+            # derive the complex type
+            if bldr_key is None:
+                self._build_complex_type(key, attrs, flavor)
+            else:
+                # We found a direct mapping
+                attrs[bldr_key] = flavor.extra_specs[key]
+
+        return attrs
+
+    def _is_pvm_valid_key(self, key):
+        """Will return if this is a valid PowerVM key.
+
+        :param key: The powervm key.
+        :return: True if valid key.  False if non-powervm key and should be
+                 skipped.  Raises an InvalidAttribute exception if is an
+                 unknown PowerVM key.
+        """
+        # If not a powervm key, then it is not 'pvm_valid'
+        if not key.startswith('powervm:'):
+            return False
+
+        # Check if this is a valid attribute
+        if key not in self._ATTRS_MAP.keys():
+            exc = exception.InvalidAttribute(attr=key)
+            LOG.exception(exc)
+            raise exc
+
+        return True
+
+    def _build_complex_type(self, key, attrs, flavor):
+        """If a key does not directly map, this method derives the right value.
+
+        Some types are complex, in that the flavor may have one key that maps
+        to several different attributes in the lpar builder.  This method
+        handles the complex types.
+
+        :param key: The flavor's key.
+        :param attrs: The attribute map to put the value into.
+        :param flavor: The Nova instance flavor.
+        :return: The value to put in for the key.
+        """
+        # Map uncapped to sharing mode
+        if key == self._PVM_UNCAPPED:
+            is_uncapped = self._flavor_bool(flavor.extra_specs[key], key)
+            shar_mode = (pvm_bp.SharingMode.UNCAPPED if is_uncapped
+                         else pvm_bp.SharingMode.CAPPED)
+            attrs[lpar_bldr.SHARING_MODE] = shar_mode
+        elif key == self._PVM_DED_SHAR_MODE:
+            # Dedicated sharing modes...map directly
+            mode = self._DED_SHARING_MODES_MAP.get(
+                flavor.extra_specs[key])
+            if mode is not None:
+                attrs[lpar_bldr.SHARING_MODE] = mode
+            else:
+                attr = key + '=' + flavor.extra_specs[key]
+                exc = exception.InvalidAttribute(attr=attr)
+                LOG.exception(exc)
+                raise exc
+        elif key == self._PVM_SHAR_PROC_POOL:
+            pool_name = flavor.extra_specs[key]
+            attrs[lpar_bldr.SPP] = self._spp_pool_id(pool_name)
+        # TODO(IBM): Handle other attributes
+        else:
+            # There was no mapping or we didn't handle it.
+            exc = exception.InvalidAttribute(attr=key)
+            LOG.exception(exc)
+            raise exc
+
+    def _spp_pool_id(self, pool_name):
+        """Returns the shared proc pool id for a given pool name.
+
+        :param pool_name: The shared proc pool name.
+        :return: The internal API id for the shared proc pool.
+        """
+        if (pool_name is None or
+                pool_name == pvm_spp.DEFAULT_POOL_DISPLAY_NAME):
+            # The default pool is 0
+            return 0
+
+        # Search for the pool with this name
+        pool_wraps = pvm_spp.SharedProcPool.search(
+            self.adapter, name=pool_name,
+            parent_type=pvm_ms.System.schema_type,
+            parent_uuid=self.host_w.uuid)
+
+        # Check to make sure there is a pool with the name, and only one pool.
+        if len(pool_wraps) > 1:
+            msg = (_('Multiple Shared Processing Pools with name %(pool)s.') %
+                   {'pool': pool_name})
+            raise exception.ValidationError(msg)
+        elif len(pool_wraps) == 0:
+            msg = (_('Unable to find Shared Processing Pool %(pool)s') %
+                   {'pool': pool_name})
+            raise exception.ValidationError(msg)
+
+        # Return the singular pool id.
+        return pool_wraps[0].id
+
+    def _flavor_bool(self, val, key):
+        """Will validate and return the boolean for a given value.
+
+        :param val: The value to parse into a boolean.
+        :param key: The flavor key.
+        :return: The boolean value for the attribute.  If is not well formed
+                 will raise an ValidationError.
+        """
+        trues = ['true', 't', 'yes', 'y']
+        falses = ['false', 'f', 'no', 'n']
+        if val.lower() in trues:
+            return True
+        elif val.lower() in falses:
+            return False
+        else:
+            msg = (_('Flavor attribute %(attr)s must be either True or '
+                     'False.  Current value %(val)s is not allowed.') %
+                   {'attr': key, 'val': val})
+            raise exception.ValidationError(msg)
+
+
 def get_lpars(adapter):
     """Get a list of the LPAR wrappers."""
     return pvm_lpar.LPAR.search(adapter, is_mgmt_partition=False)
@@ -240,69 +410,6 @@ def instance_exists(adapter, instance, host_uuid):
         return False
 
 
-def _build_attrs(instance, flavor):
-    """Builds LPAR attributes that are used by the LPAR builder.
-
-    This method translates instance and flavor values to those
-    that can be used by the LPAR builder.
-
-    :param instance: the VM instance
-    :param flavor: the instance flavor
-    :returns: a dict that can be used by the LPAR builder
-    """
-    attrs = {}
-
-    attrs[lpar_bldr.NAME] = instance.name
-    # The uuid is only actually set on a create of an LPAR
-    attrs[lpar_bldr.UUID] = pvm_uuid.convert_uuid_to_pvm(instance.uuid)
-    attrs[lpar_bldr.MEM] = flavor.memory_mb
-    attrs[lpar_bldr.VCPU] = flavor.vcpus
-
-    # Loop through the extra specs and process powervm keys
-    for key in flavor.extra_specs.keys():
-        if not key.startswith('powervm:'):
-            # Skip since it's not ours
-            continue
-
-        # Check if this is a valid attribute
-        if key not in ATTRS_MAP.keys():
-            exc = exception.InvalidAttribute(attr=key)
-            LOG.exception(exc)
-            raise exc
-
-        # Look for the mapping to the lpar builder
-        bldr_key = ATTRS_MAP.get(key)
-        # Check for no direct mapping, handle them individually
-        if bldr_key is None:
-            # Map uncapped to sharing mode
-            if key == PVM_UNCAPPED:
-                attrs[lpar_bldr.SHARING_MODE] = (
-                    pvm_bp.SharingMode.UNCAPPED
-                    if flavor.extra_specs[key].lower() == 'true' else
-                    pvm_bp.SharingMode.CAPPED)
-            elif key == PVM_DED_SHAR_MODE:
-                # Dedicated sharing modes...map directly
-                mode = DED_SHARING_MODES_MAP.get(flavor.extra_specs[key])
-                if mode is not None:
-                    attrs[lpar_bldr.SHARING_MODE] = mode
-                else:
-                    attr = key + '=' + flavor.extra_specs[key]
-                    exc = exception.InvalidAttribute(attr=attr)
-                    LOG.exception(exc)
-                    raise exc
-            # TODO(IBM): Handle other attributes
-            else:
-                # There was no mapping or we didn't handle it.
-                exc = exception.InvalidAttribute(attr=key)
-                LOG.exception(exc)
-                raise exc
-
-        else:
-            # We found a mapping
-            attrs[bldr_key] = flavor.extra_specs[key]
-    return attrs
-
-
 def get_vm_id(adapter, lpar_uuid):
     """Returns the client LPAR ID for a given UUID.
 
@@ -337,22 +444,6 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None):
     return json.loads(resp.body)
 
 
-def _crt_lpar_builder(adapter, host_wrapper, instance, flavor):
-    """Create an LPAR builder loaded with the instance and flavor attributes
-
-    :param adapter: The adapter for the pypowervm API
-    :param host_wrapper: The host wrapper
-    :param instance: The nova instance.
-    :param flavor: The nova flavor.
-    :returns: The LPAR builder.
-    """
-
-    attrs = _build_attrs(instance, flavor)
-    stdz = lpar_bldr.DefaultStandardize(
-        host_wrapper, proc_units_factor=CONF.powervm.proc_units_factor)
-    return lpar_bldr.LPARBuilder(adapter, attrs, stdz)
-
-
 def crt_lpar(adapter, host_wrapper, instance, flavor):
     """Create an LPAR based on the host based on the instance
 
@@ -362,10 +453,9 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
     :param flavor: The nova flavor.
     :returns: The LPAR response from the API.
     """
-
-    lpar_w = _crt_lpar_builder(
-        adapter, host_wrapper, instance, flavor).build().create(
-        parent_type=pvm_ms.System, parent_uuid=host_wrapper.uuid)
+    lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
+    lpar_w = lpar_b.build().create(parent_type=pvm_ms.System,
+                                   parent_uuid=host_wrapper.uuid)
     # Add the uuid to the cache.
     UUIDCache.get_cache().add(instance.name, lpar_w.uuid)
 
@@ -386,7 +476,8 @@ def update(adapter, host_wrapper, instance, flavor, entry=None):
     if not entry:
         entry = get_instance_wrapper(adapter, instance, host_wrapper.uuid)
 
-    _crt_lpar_builder(adapter, host_wrapper, instance, flavor).rebuild(entry)
+    lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
+    lpar_b.rebuild(entry)
 
     # Write out the new specs
     entry.update()
