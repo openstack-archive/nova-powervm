@@ -318,14 +318,18 @@ class PowerVMDriver(driver.ComputeDriver):
                                                      instance, conn_info,
                                                      self.host_uuid,
                                                      pvm_inst_uuid))
+            is_boot_from_volume = self.\
+                _root_bdm_in_block_device_info(block_device_info)
 
-            # Detach the disk storage adapters
-            flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
-                                       pvm_inst_uuid))
+            if not is_boot_from_volume:
+                # Detach the disk storage adapters
+                flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
+                                           pvm_inst_uuid))
 
-            # Delete the storage disks
-            if destroy_disks:
-                flow.add(tf_stg.DeleteDisk(self.disk_dvr, context, instance))
+                # Delete the storage disks
+                if destroy_disks:
+                    flow.add(tf_stg.DeleteDisk(self.disk_dvr, context,
+                                               instance))
 
             # Last step is to delete the LPAR from the system.
             # Note: If moving to a Graph Flow, will need to change to depend on
