@@ -49,6 +49,108 @@ class FakeAdapterResponse(object):
         self.status = status
 
 
+class TestVMBuilder(test.TestCase):
+
+    def setUp(self):
+        super(TestVMBuilder, self).setUp()
+
+        self.adpt = mock.MagicMock()
+        self.host_w = mock.MagicMock()
+        self.lpar_b = vm.VMBuilder(self.host_w, self.adpt)
+
+    def test_format_flavor(self):
+        """Perform tests against _format_flavor."""
+        instance = objects.Instance(**powervm.TEST_INSTANCE)
+        flavor = instance.get_flavor()
+        lpar_attrs = {'memory': 2048,
+                      'name': 'instance-00000001',
+                      'uuid': '49629a5c-f4c4-4721-9511-9725786ff2e5',
+                      'vcpu': 1}
+
+        # Test dedicated procs
+        flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
+        test_attrs = dict(lpar_attrs, **{'dedicated_proc': 'true'})
+
+        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
+                         test_attrs)
+
+        # Test dedicated procs, min/max vcpu and sharing mode
+        flavor.extra_specs = {'powervm:dedicated_proc': 'true',
+                              'powervm:dedicated_sharing_mode':
+                                  'share_idle_procs_active',
+                              'powervm:min_vcpu': '1',
+                              'powervm:max_vcpu': '3'}
+        test_attrs = dict(lpar_attrs,
+                          **{'dedicated_proc': 'true',
+                             'sharing_mode': 'sre idle procs active',
+                             'min_vcpu': '1', 'max_vcpu': '3'})
+        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
+                         test_attrs)
+
+        # Test shared proc sharing mode
+        flavor.extra_specs = {'powervm:uncapped': 'true'}
+        test_attrs = dict(lpar_attrs, **{'sharing_mode': 'uncapped'})
+        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
+                         test_attrs)
+
+        # Test availability priority
+        flavor.extra_specs = {'powervm:availability_priority': '150'}
+        test_attrs = dict(lpar_attrs, **{'avail_priority': '150'})
+        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
+                         test_attrs)
+
+        # Test min, max proc units
+        flavor.extra_specs = {'powervm:min_proc_units': '0.5',
+                              'powervm:max_proc_units': '2.0'}
+        test_attrs = dict(lpar_attrs, **{'min_proc_units': '0.5',
+                                         'max_proc_units': '2.0'})
+        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
+                         test_attrs)
+
+        # Test min, max mem
+        flavor.extra_specs = {'powervm:min_mem': '1024',
+                              'powervm:max_mem': '4096'}
+        test_attrs = dict(lpar_attrs, **{'min_mem': '1024', 'max_mem': '4096'})
+        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
+                         test_attrs)
+
+    @mock.patch('pypowervm.wrappers.shared_proc_pool.SharedProcPool.search')
+    def test_spp_pool_id(self, mock_search):
+        # The default pool is always zero.  Validate the path.
+        self.assertEqual(0, self.lpar_b._spp_pool_id('DefaultPool'))
+        self.assertEqual(0, self.lpar_b._spp_pool_id(None))
+
+        # Further invocations require calls to the adapter.  Build a minimal
+        # mocked SPP wrapper
+        spp = mock.MagicMock()
+        spp.id = 1
+
+        # Three invocations.  First has too many elems.  Second has none.
+        # Third is just right.  :-)
+        mock_search.side_effect = [[spp, spp], [], [spp]]
+
+        self.assertRaises(exception.ValidationError, self.lpar_b._spp_pool_id,
+                          'fake_name')
+        self.assertRaises(exception.ValidationError, self.lpar_b._spp_pool_id,
+                          'fake_name')
+
+        self.assertEqual(1, self.lpar_b._spp_pool_id('fake_name'))
+
+    def test_flavor_bool(self):
+        true_iterations = ['true', 't', 'yes', 'y', 'TrUe', 'YeS', 'Y', 'T']
+        for t in true_iterations:
+            self.assertTrue(self.lpar_b._flavor_bool(t, 'key'))
+
+        false_iterations = ['false', 'f', 'no', 'n', 'FaLSe', 'nO', 'F', 'N']
+        for f in false_iterations:
+            self.assertFalse(self.lpar_b._flavor_bool(f, 'key'))
+
+        raise_iterations = ['NotGood', '', 'invalid']
+        for r in raise_iterations:
+            self.assertRaises(exception.ValidationError,
+                              self.lpar_b._flavor_bool, r, 'key')
+
+
 class TestVM(test.TestCase):
     def setUp(self):
         super(TestVM, self).setUp()
@@ -178,55 +280,6 @@ class TestVM(test.TestCase):
                           vm.dlt_lpar, self.apt, '12345')
         self.assertEqual(1, mock_vterm.call_count)
         self.assertEqual(1, self.apt.delete.call_count)
-
-    def test_build_attr(self):
-        """Perform tests against _build_attrs."""
-        instance = objects.Instance(**powervm.TEST_INSTANCE)
-        flavor = instance.get_flavor()
-        lpar_attrs = {'memory': 2048,
-                      'name': 'instance-00000001',
-                      'uuid': '49629a5c-f4c4-4721-9511-9725786ff2e5',
-                      'vcpu': 1}
-
-        # Test dedicated procs
-        flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
-        test_attrs = dict(lpar_attrs, **{'dedicated_proc': 'true'})
-        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
-
-        # Test dedicated procs, min/max vcpu and sharing mode
-        flavor.extra_specs = {'powervm:dedicated_proc': 'true',
-                              'powervm:dedicated_sharing_mode':
-                                  'share_idle_procs_active',
-                              'powervm:min_vcpu': '1',
-                              'powervm:max_vcpu': '3'}
-        test_attrs = dict(lpar_attrs,
-                          **{'dedicated_proc': 'true',
-                             'sharing_mode': 'sre idle procs active',
-                             'min_vcpu': '1', 'max_vcpu': '3'})
-        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
-
-        # Test shared proc sharing mode
-        flavor.extra_specs = {'powervm:uncapped': 'true'}
-        test_attrs = dict(lpar_attrs, **{'sharing_mode': 'uncapped'})
-        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
-
-        # Test availability priority
-        flavor.extra_specs = {'powervm:availability_priority': '150'}
-        test_attrs = dict(lpar_attrs, **{'avail_priority': '150'})
-        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
-
-        # Test min, max proc units
-        flavor.extra_specs = {'powervm:min_proc_units': '0.5',
-                              'powervm:max_proc_units': '2.0'}
-        test_attrs = dict(lpar_attrs, **{'min_proc_units': '0.5',
-                                         'max_proc_units': '2.0'})
-        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
-
-        # Test min, max mem
-        flavor.extra_specs = {'powervm:min_mem': '1024',
-                              'powervm:max_mem': '4096'}
-        test_attrs = dict(lpar_attrs, **{'min_mem': '1024', 'max_mem': '4096'})
-        self.assertEqual(vm._build_attrs(instance, flavor), test_attrs)
 
     @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
