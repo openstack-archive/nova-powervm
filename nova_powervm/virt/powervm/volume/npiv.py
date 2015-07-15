@@ -37,7 +37,7 @@ FS_INST_MAPPED = 'inst_mapped'
 TASK_STATES_FOR_DISCONNECT = [task_states.DELETING, task_states.SPAWNING]
 
 
-class NPIVVolumeAdapter(v_driver.PowerVMVolumeAdapter):
+class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     """The NPIV implementation of the Volume Adapter.
 
     NPIV stands for N_Port ID Virtualization.  It is a means of providing
