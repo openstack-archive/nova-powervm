@@ -91,7 +91,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             t_wwpns.extend(it_list)
 
         # Get VIOS feed
-        vios_feed = vios.get_active_vioses(adapter, host_uuid)
+        vios_feed = vios.get_active_vioses(adapter, host_uuid, xag=_XAGS)
 
         # Iterate through host vios list to find valid hdisks and map to VM.
         for vio_wrap in vios_feed:
