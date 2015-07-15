@@ -220,9 +220,7 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_net.PlugMgmtVif(self.adapter, instance, self.host_uuid))
 
         # Only add the image disk if this is from Glance.
-        is_boot_from_volume = self._root_bdm_in_block_device_info(
-            block_device_info)
-        if not is_boot_from_volume:
+        if not self._is_booted_from_volume(block_device_info):
             # Creates the boot image.
             flow.add(tf_stg.CreateDiskForImg(
                 self.disk_dvr, context, instance, image_meta,
@@ -266,8 +264,10 @@ class PowerVMDriver(driver.ComputeDriver):
         engine = taskflow.engines.load(flow)
         engine.run()
 
-    def _root_bdm_in_block_device_info(self, block_device_info):
+    def _is_booted_from_volume(self, block_device_info):
         """Determine whether the root device is listed in block_device_info.
+
+        If it is, this can be considered a 'boot from Cinder Volume'.
 
         :param block_device_info: The block device info from the compute
                                   manager.
@@ -325,10 +325,9 @@ class PowerVMDriver(driver.ComputeDriver):
                                                      instance, conn_info,
                                                      self.host_uuid,
                                                      pvm_inst_uuid))
-            is_boot_from_volume = self.\
-                _root_bdm_in_block_device_info(block_device_info)
 
-            if not is_boot_from_volume:
+            # Only attach the disk adapters if this is not a boot from volume.
+            if not self._is_booted_from_volume(block_device_info):
                 # Detach the disk storage adapters
                 flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
                                            pvm_inst_uuid))
