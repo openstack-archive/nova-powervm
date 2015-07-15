@@ -413,6 +413,8 @@ class TestPowerVMDriver(test.TestCase):
         self.assertFalse(ret)
         self.assertEqual(1, mock_get_mapping.call_count)
 
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_root_bdm_in_block_device_info')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -425,7 +427,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy(
         self, mock_get_flv, mock_cache, mock_pvmuuid, mock_inst_wrap,
-        mock_val_vopt, mock_dlt_vopt, mock_pwroff, mock_dlt):
+        mock_val_vopt, mock_dlt_vopt, mock_pwroff, mock_dlt, mock_root_bdm):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
@@ -437,7 +439,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_cache.get_cache.return_value = singleton
         # BDMs
         mock_bdms = self._fake_bdms()
-
+        mock_root_bdm.return_value = False
         # Invoke the method.
         self.drv.destroy('context', inst, mock.Mock(),
                          block_device_info=mock_bdms)
@@ -455,11 +457,18 @@ class TestPowerVMDriver(test.TestCase):
         mock_dlt.assert_called_with(self.apt, mock.ANY)
         singleton.remove.assert_called_with(inst.name)
 
-        # Start negative tests
+        # Validate root device in bdm was checked.
+        mock_root_bdm.assert_called_with(mock_bdms)
+
+        # Validate disk driver detach and delete disk methods were called.
+        self.assertTrue(self.drv.disk_dvr.delete_disks.called)
+        self.assertTrue(self.drv.disk_dvr.disconnect_image_disk.called)
+
         def reset_mocks():
-            # Reset the mocks for a bad case test
+            # Reset the mocks
             for mk in [mock_pwroff, mock_dlt, mock_dlt_vopt,
-                       self.fc_vol_drv.disconnect_volume, mock_dlt, singleton]:
+                       self.fc_vol_drv.disconnect_volume, mock_dlt, singleton,
+                       mock_root_bdm]:
                 mk.reset_mock()
 
         def assert_not_called():
@@ -476,6 +485,24 @@ class TestPowerVMDriver(test.TestCase):
             self.assertFalse(mock_dlt.called)
             singleton.remove.assert_called_with(inst.name)
 
+        # Test when the VM's root device is a BDM.
+        reset_mocks()
+        mock_root_bdm.return_value = True
+        self.drv.disk_dvr.delete_disks.reset_mock()
+        self.drv.disk_dvr.disconnect_image_disk.reset_mock()
+
+        # Invoke the method.
+        self.drv.destroy('context', inst, mock.Mock(),
+                         block_device_info=mock_bdms)
+
+        # Validate root device in bdm was checked.
+        mock_root_bdm.assert_called_with(mock_bdms)
+
+        # Validate disk driver detach and delete disk methods were called.
+        self.assertFalse(self.drv.disk_dvr.delete_disks.called)
+        self.assertFalse(self.drv.disk_dvr.disconnect_image_disk.called)
+
+        # Start negative tests
         reset_mocks()
         # Pretend we didn't find the VM on the system
         mock_pvmuuid.side_effect = exc.InstanceNotFound(instance_id=inst.name)
