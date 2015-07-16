@@ -23,7 +23,6 @@ from nova.compute import power_state
 from nova import exception
 from nova import objects
 from nova import test
-from pypowervm import adapter as pvm_adp
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import logical_partition as pvm_lpar
@@ -164,43 +163,6 @@ class TestVM(test.TestCase):
 
         self.resp = lpar_http.response
 
-    def test_uuid_cache(self):
-        cache = vm.UUIDCache(self.apt)
-        cache.add('n1', '123')
-        self.assertEqual(cache.lookup('n1'), '123')
-
-        self.assertEqual(cache.lookup('nothing', fetch=False), None)
-
-        cache.remove('n1')
-        self.assertEqual(cache.lookup('n1', fetch=False), None)
-        # Not in cache, search returns no results (empty feed)
-        emptyfeed = pvm_adp.Response('meth', 'path', 200, 'reason', {})
-        emptyfeed.feed = mock.MagicMock()
-        emptyfeed.feed.entries = []
-        self.apt.read.return_value = emptyfeed
-        self.assertRaises(exception.InstanceNotFound,
-                          cache.lookup, 'n1', fetch=True)
-        # Ensure removing one that doesn't exist is just ignored
-        self.assertEqual(cache.remove('nonexistent'), None)
-
-        cache.load_from_lpar_wraps(pvm_lpar.LPAR.wrap(self.resp))
-        for lpar in LPAR_MAPPING:
-            self.assertEqual(cache.lookup(lpar), LPAR_MAPPING[lpar].upper())
-
-        # Test fetching. Start with a fresh cache and try to look it up
-        cache = vm.UUIDCache(self.apt)
-
-        self.apt.read.return_value = self.resp
-        self.assertEqual(cache.lookup('z3-9-5-126-127-00000001'),
-                         '089ffb20-5d19-4a8c-bb80-13650627d985'.upper())
-        # Test it returns None even when we try to look it up
-        self.assertEqual(cache.lookup('Nonexistent'), None)
-
-        exc = pvm_exc.Error('Not found', response=FakeAdapterResponse(404))
-        self.apt.read.side_effect = exc
-        self.assertRaises(exception.InstanceNotFound,
-                          cache.lookup, 'Nonexistent')
-
     def test_instance_info(self):
 
         # Test at least one state translation
@@ -281,23 +243,19 @@ class TestVM(test.TestCase):
         self.assertEqual(1, mock_vterm.call_count)
         self.assertEqual(1, self.apt.delete.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
     @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder.build')
-    def test_crt_lpar(self, mock_bld, mock_stdz, mock_cache):
+    def test_crt_lpar(self, mock_bld, mock_stdz):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
 
         host_wrapper = mock.Mock()
-        singleton = mock.Mock()
-        mock_cache.get_cache.return_value = singleton
         lparw = pvm_lpar.LPAR.wrap(self.resp.feed.entries[0])
         mock_bld.return_value = lparw
         self.apt.create.return_value = lparw.entry
         vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
         self.assertTrue(self.apt.create.called)
-        singleton.add.assert_called_with(instance.name, mock.ANY)
 
         flavor.extra_specs = {'powervm:BADATTR': 'true'}
         host_wrapper = mock.Mock()
@@ -329,30 +287,17 @@ class TestVM(test.TestCase):
         self.assertIsNotNone(resp)
         self.assertIsInstance(resp, pvm_net.CNA)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache.remove')
-    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache.lookup')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
-    def test_instance_exists(self, mock_getvmqp, mock_getuuid, mock_lookup,
-                             mock_remove):
-
-        # Make sure the cache is initialized
-        vm.UUIDCache(self.apt)
-        # Try the good case where it exist and it's in our cache
-        mock_lookup.side_effect = '123'
+    def test_instance_exists(self, mock_getvmqp, mock_getuuid):
+        # Try the good case where it exists
         mock_getvmqp.side_effect = 'fake_state'
         mock_parms = (mock.Mock(), mock.Mock(), mock.Mock())
         self.assertTrue(vm.instance_exists(*mock_parms))
 
-        # It's in our cache but not on the system...
-        mock_lookup.side_effect = '123'
+        # Test the scenario where it does not exist.
         mock_getvmqp.side_effect = exception.InstanceNotFound(instance_id=123)
         self.assertFalse(vm.instance_exists(*mock_parms))
-        self.assertEqual(1, mock_remove.call_count)
-
-        # It's not in our cache but on the system...
-        mock_lookup.side_effect = [None, '123']
-        self.assertTrue(vm.instance_exists(*mock_parms))
 
     def test_get_vm_qp(self):
         def adapter_read(root_type, root_id=None, suffix_type=None,

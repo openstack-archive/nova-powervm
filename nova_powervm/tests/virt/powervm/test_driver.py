@@ -423,12 +423,10 @@ class TestPowerVMDriver(test.TestCase):
                 '_validate_vopt_vg')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('nova_powervm.virt.powervm.vm.UUIDCache')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy(
-        self, mock_get_flv, mock_cache, mock_pvmuuid, mock_inst_wrap,
-        mock_val_vopt, mock_dlt_vopt, mock_pwroff, mock_dlt,
-        mock_boot_from_vol):
+        self, mock_get_flv, mock_pvmuuid, mock_inst_wrap, mock_val_vopt,
+        mock_dlt_vopt, mock_pwroff, mock_dlt, mock_boot_from_vol):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
@@ -436,8 +434,6 @@ class TestPowerVMDriver(test.TestCase):
         inst.task_state = None
         mock_get_flv.return_value = inst.get_flavor()
 
-        singleton = mock.Mock()
-        mock_cache.get_cache.return_value = singleton
         # BDMs
         mock_bdms = self._fake_bdms()
         mock_boot_from_vol.return_value = False
@@ -454,9 +450,8 @@ class TestPowerVMDriver(test.TestCase):
         # Validate that the volume detach was called
         self.assertEqual(2, self.fc_vol_drv.disconnect_volume.call_count)
 
-        # Delete LPAR was called, and removed from the cache
+        # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
-        singleton.remove.assert_called_with(inst.name)
 
         # Validate root device in bdm was checked.
         mock_boot_from_vol.assert_called_with(mock_bdms)
@@ -468,7 +463,7 @@ class TestPowerVMDriver(test.TestCase):
         def reset_mocks():
             # Reset the mocks
             for mk in [mock_pwroff, mock_dlt, mock_dlt_vopt,
-                       self.fc_vol_drv.disconnect_volume, mock_dlt, singleton,
+                       self.fc_vol_drv.disconnect_volume, mock_dlt,
                        mock_boot_from_vol]:
                 mk.reset_mock()
 
@@ -482,9 +477,8 @@ class TestPowerVMDriver(test.TestCase):
             # Validate that the volume detach was not called
             self.assertFalse(self.fc_vol_drv.disconnect_volume.called)
 
-            # Delete LPAR was not called, but it was removed from the cache
+            # Delete LPAR was not called
             self.assertFalse(mock_dlt.called)
-            singleton.remove.assert_called_with(inst.name)
 
         # Test when the VM's root device is a BDM.
         reset_mocks()

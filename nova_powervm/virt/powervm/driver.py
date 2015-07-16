@@ -90,8 +90,6 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_host_uuid()
         # Get the management partition
         self.mp_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
-        # Initialize the UUID Cache. Let's not prime it at this time.
-        vm.UUIDCache(self.adapter)
 
         # Initialize the disk adapter.  Sets self.disk_dvr
         self._get_disk_adapter()
@@ -373,11 +371,6 @@ class PowerVMDriver(driver.ComputeDriver):
                 return
             else:
                 raise
-
-        finally:
-            # Delete the lpar from the cache so if it gets rebuilt it won't
-            # have the old lpar uuid.
-            vm.UUIDCache.get_cache().remove(instance.name)
 
     def attach_volume(self, context, connection_info, instance, mountpoint,
                       disk_bus=None, device_type=None, encryption=None):

@@ -396,17 +396,10 @@ def instance_exists(adapter, instance, host_uuid):
     :returns: boolean, whether the instance exists.
     """
     try:
-        cache = UUIDCache.get_cache()
-        uuid = cache.lookup(instance.name, fetch=False)
-        if uuid is not None:
-            # Getting the uuid from the cache doesn't mean it exists...
-            get_vm_qp(adapter, uuid, 'PartitionState')
-        else:
-            # It wasn't in the cache, so we can try to get it now
-            cache.lookup(instance.name)
+        # If we're able to get the property, then it exists.
+        get_vm_id(adapter, instance.uuid)
         return True
     except exception.InstanceNotFound:
-        cache.remove(instance.name)
         return False
 
 
@@ -456,8 +449,6 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
     lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
     lpar_w = lpar_b.build().create(parent_type=pvm_ms.System,
                                    parent_uuid=host_wrapper.uuid)
-    # Add the uuid to the cache.
-    UUIDCache.get_cache().add(instance.name, lpar_w.uuid)
 
     return lpar_w
 
@@ -536,17 +527,15 @@ def power_off(adapter, instance, host_uuid, entry=None, add_parms=None):
 def get_pvm_uuid(instance):
     """Get the corresponding PowerVM VM uuid of an instance uuid
 
-    Maps a OpenStack instance uuid to a PowerVM uuid.  For now, this
-    just uses a cache or looks up the value from PowerVM.  When we're
-    able to set a uuid in PowerVM, then it will be a simple conversion
-    between formats.  (Stay tuned.)
+    Maps a OpenStack instance uuid to a PowerVM uuid.  The UUID between the
+    Nova instance and PowerVM will be 1 to 1 mapped.  This method runs the
+    algorithm against the instance's uuid to convert it to the PowerVM
+    UUID.
 
     :param instance: nova.objects.instance.Instance
     :returns: pvm_uuid.
     """
-
-    cache = UUIDCache.get_cache()
-    return cache.lookup(instance.name)
+    return pvm_uuid.convert_uuid_to_pvm(instance.uuid).upper()
 
 
 def get_cnas(adapter, instance, host_uuid):
@@ -623,69 +612,3 @@ def norm_mac(mac):
     """
     mac = mac.lower().replace(':', '')
     return ':'.join(mac[i:i + 2] for i in range(0, len(mac), 2))
-
-
-class UUIDCache(object):
-    """Cache of instance names to PVM UUID value
-
-    Keeps track of mappings between the instance names and the PowerVM
-    UUID values.
-
-    :param adapter: python-powervm adapter.
-    """
-    _single = None
-
-    def __new__(cls, *args, **kwds):
-        if not isinstance(cls._single, cls):
-            # Create it
-            cls._single = object.__new__(cls, *args, **kwds)
-        return cls._single
-
-    @classmethod
-    def get_cache(cls):
-        return cls._single
-
-    def __init__(self, adapter):
-        self._adapter = adapter
-        self._cache = {}
-
-    def lookup(self, name, fetch=True):
-        # Lookup the instance name, if we don't find it fetch it, if specified
-        uuid = self._cache.get(name, None)
-        if uuid is None and fetch:
-            # Try to look it up
-            try:
-                lpars = pvm_lpar.LPAR.search(self._adapter, name=name)
-            except pvm_exc.Error as e:
-                if e.response.status == 404:
-                    raise exception.InstanceNotFound(instance_id=name)
-                else:
-                    LOG.exception(e)
-                    raise
-            except Exception as e:
-                LOG.exception(e)
-                raise
-
-            # Process the response
-            if len(lpars) == 0:
-                raise exception.InstanceNotFound(instance_id=name)
-
-            self.load_from_lpar_wraps(lpars)
-            uuid = self._cache.get(name, None)
-        return uuid
-
-    def add(self, name, uuid):
-        # Add the name mapping to the cache
-        self._cache[name] = uuid.upper()
-
-    def remove(self, name):
-        # Remove the name mapping, if it exists
-        try:
-            del self._cache[name]
-        except KeyError:
-            pass
-
-    def load_from_lpar_wraps(self, lpar_wraps):
-        """Add the name-to-uuid mapping of each LPAR to the cache."""
-        for lpar in lpar_wraps:
-            self.add(lpar.name, lpar.uuid)
