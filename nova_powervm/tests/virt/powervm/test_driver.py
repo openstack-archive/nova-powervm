@@ -131,14 +131,14 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
-                '_root_bdm_in_block_device_info')
+                '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_ops(self, mock_pwron, mock_get_flv, mock_cfg_drv,
-                       mock_plug_vifs, mock_plug_mgmt_vif, mock_root_bdm,
+                       mock_plug_vifs, mock_plug_mgmt_vif, mock_boot_from_vol,
                        mock_crt_disk_img, mock_conn_vol, mock_crt_cfg_drv):
 
         """Validates the 'typical' spawn flow of the spawn of an instance
@@ -149,7 +149,7 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
-        mock_root_bdm.return_value = False
+        mock_boot_from_vol.return_value = False
         # Invoke the method.
         self.drv.spawn('context', inst, mock.Mock(),
                        'injected_files', 'admin_password')
@@ -203,7 +203,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
-                '_root_bdm_in_block_device_info')
+                '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
@@ -211,7 +211,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_bdms(self, mock_pwron, mock_get_flv, mock_cfg_drv,
                              mock_plug_vifs, mock_plug_mgmt_vif,
-                             mock_get_root_bdm, mock_crt_img, mock_save):
+                             mock_boot_from_vol, mock_crt_img, mock_save):
 
         """Validates the PowerVM spawn of an image that has a disk image
         and block device mappings are passed into spawn which originated from
@@ -224,7 +224,7 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
-        mock_get_root_bdm.return_value = False
+        mock_boot_from_vol.return_value = False
 
         # Create some fake BDMs
         block_device_info = self._fake_bdms()
@@ -234,7 +234,7 @@ class TestPowerVMDriver(test.TestCase):
                        'injected_files', 'admin_password',
                        block_device_info=block_device_info)
 
-        self.assertTrue(mock_get_root_bdm.called)
+        self.assertTrue(mock_boot_from_vol.called)
         # Since the root device is not in the BDMs we expect the image disk to
         # be created.
         self.assertTrue(mock_crt_img.called)
@@ -255,7 +255,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
-                '_root_bdm_in_block_device_info')
+                '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
@@ -264,7 +264,7 @@ class TestPowerVMDriver(test.TestCase):
     def test_spawn_with_image_meta_root_bdm(self, mock_pwron, mock_get_flv,
                                             mock_cfg_drv, mock_plug_vifs,
                                             mock_plug_mgmt_vif,
-                                            mock_get_root_bdm, mock_crt_img,
+                                            mock_boot_from_vol, mock_crt_img,
                                             mock_save):
 
         """Validates the PowerVM spawn of an image that does not have a
@@ -284,7 +284,7 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
-        mock_get_root_bdm.return_value = True
+        mock_boot_from_vol.return_value = True
 
         # Create some fake BDMs
         block_device_info = self._fake_bdms()
@@ -294,7 +294,7 @@ class TestPowerVMDriver(test.TestCase):
                        'injected_files', 'admin_password',
                        block_device_info=block_device_info)
 
-        self.assertTrue(mock_get_root_bdm.called)
+        self.assertTrue(mock_boot_from_vol.called)
         # Since the root device is in the BDMs we do not expect the image disk
         # to be created.
         self.assertFalse(mock_crt_img.called)
@@ -312,7 +312,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
-                '_root_bdm_in_block_device_info')
+                '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
@@ -320,7 +320,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_root_bdm(self, mock_pwron, mock_get_flv, mock_cfg_drv,
                                  mock_plug_vifs, mock_plug_mgmt_vif,
-                                 mock_get_root_bdm, mock_crt_img, mock_save):
+                                 mock_boot_from_vol, mock_crt_img, mock_save):
 
         """Validates the PowerVM spawn when no image is given and only block
         device mappings are given on the create server request.
@@ -330,7 +330,7 @@ class TestPowerVMDriver(test.TestCase):
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
-        mock_get_root_bdm.return_value = True
+        mock_boot_from_vol.return_value = True
 
         # Create some fake BDMs
         block_device_info = self._fake_bdms()
@@ -340,7 +340,7 @@ class TestPowerVMDriver(test.TestCase):
                        'injected_files', 'admin_password',
                        block_device_info=block_device_info)
 
-        self.assertTrue(mock_get_root_bdm.called)
+        self.assertTrue(mock_boot_from_vol.called)
         # Since the root device is in the BDMs we do not expect the image disk
         # to be created.
         self.assertFalse(mock_crt_img.called)
@@ -398,10 +398,9 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('nova.block_device.get_root_bdm')
     @mock.patch('nova.virt.driver.block_device_info_get_mapping')
-    def test_root_bdm_in_block_device_info(self, mock_get_mapping,
-                                           mock_get_root_bdm):
+    def test_is_booted_from_volume(self, mock_get_mapping, mock_get_root_bdm):
         block_device_info = self._fake_bdms()
-        ret = self.drv._root_bdm_in_block_device_info(block_device_info)
+        ret = self.drv._is_booted_from_volume(block_device_info)
         mock_get_root_bdm.\
             assert_called_once_with(mock_get_mapping.return_value)
         self.assertTrue(ret)
@@ -409,12 +408,12 @@ class TestPowerVMDriver(test.TestCase):
 
         mock_get_mapping.reset_mock()
         mock_get_root_bdm.return_value = None
-        ret = self.drv._root_bdm_in_block_device_info(block_device_info)
+        ret = self.drv._is_booted_from_volume(block_device_info)
         self.assertFalse(ret)
         self.assertEqual(1, mock_get_mapping.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
-                '_root_bdm_in_block_device_info')
+                '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -427,7 +426,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy(
         self, mock_get_flv, mock_cache, mock_pvmuuid, mock_inst_wrap,
-        mock_val_vopt, mock_dlt_vopt, mock_pwroff, mock_dlt, mock_root_bdm):
+        mock_val_vopt, mock_dlt_vopt, mock_pwroff, mock_dlt,
+        mock_boot_from_vol):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
@@ -439,7 +439,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_cache.get_cache.return_value = singleton
         # BDMs
         mock_bdms = self._fake_bdms()
-        mock_root_bdm.return_value = False
+        mock_boot_from_vol.return_value = False
         # Invoke the method.
         self.drv.destroy('context', inst, mock.Mock(),
                          block_device_info=mock_bdms)
@@ -458,7 +458,7 @@ class TestPowerVMDriver(test.TestCase):
         singleton.remove.assert_called_with(inst.name)
 
         # Validate root device in bdm was checked.
-        mock_root_bdm.assert_called_with(mock_bdms)
+        mock_boot_from_vol.assert_called_with(mock_bdms)
 
         # Validate disk driver detach and delete disk methods were called.
         self.assertTrue(self.drv.disk_dvr.delete_disks.called)
@@ -468,7 +468,7 @@ class TestPowerVMDriver(test.TestCase):
             # Reset the mocks
             for mk in [mock_pwroff, mock_dlt, mock_dlt_vopt,
                        self.fc_vol_drv.disconnect_volume, mock_dlt, singleton,
-                       mock_root_bdm]:
+                       mock_boot_from_vol]:
                 mk.reset_mock()
 
         def assert_not_called():
@@ -487,7 +487,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Test when the VM's root device is a BDM.
         reset_mocks()
-        mock_root_bdm.return_value = True
+        mock_boot_from_vol.return_value = True
         self.drv.disk_dvr.delete_disks.reset_mock()
         self.drv.disk_dvr.disconnect_image_disk.reset_mock()
 
@@ -496,7 +496,7 @@ class TestPowerVMDriver(test.TestCase):
                          block_device_info=mock_bdms)
 
         # Validate root device in bdm was checked.
-        mock_root_bdm.assert_called_with(mock_bdms)
+        mock_boot_from_vol.assert_called_with(mock_bdms)
 
         # Validate disk driver detach and delete disk methods were called.
         self.assertFalse(self.drv.disk_dvr.delete_disks.called)
