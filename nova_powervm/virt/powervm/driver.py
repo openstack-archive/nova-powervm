@@ -41,6 +41,7 @@ from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.tasks import power as pvm_pwr
 from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm.utils import retry as pvm_retry
+from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
@@ -587,14 +588,16 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation(reboot_type + ' reboot', instance)
         force_immediate = reboot_type == 'HARD'
         entry = vm.get_instance_wrapper(self.adapter, instance, self.host_uuid)
-        # Note: We're bypassing vm.power_off/_on because we don't want the
-        # state checks imposed thereby.
-        pvm_pwr.power_off(entry, self.host_uuid,
-                          force_immediate=force_immediate)
-        # pypowervm does NOT throw an exception if "already down".  Any other
-        # exception from pypowervm is a legitimate failure; let it raise up.
-        # If we get here, pypowervm thinks the instance is down.
-        pvm_pwr.power_on(entry, self.host_uuid)
+        if entry.state != pvm_bp.LPARState.NOT_ACTIVATED:
+            pvm_pwr.power_off(entry, self.host_uuid, restart=True,
+                              force_immediate=force_immediate)
+        else:
+            # pypowervm does NOT throw an exception if "already down".
+            # Any other exception from pypowervm is a legitimate failure;
+            # let it raise up.
+            # If we get here, pypowervm thinks the instance is down.
+            pvm_pwr.power_on(entry, self.host_uuid)
+
         # Again, pypowervm exceptions are sufficient to indicate real failure.
         # Otherwise, pypowervm thinks the instance is up.
         return True

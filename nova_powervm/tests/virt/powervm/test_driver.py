@@ -32,6 +32,7 @@ from nova.virt import fake
 import pypowervm.adapter as pvm_adp
 import pypowervm.exceptions as pvm_exc
 from pypowervm.tests.wrappers.util import pvmhttp
+import pypowervm.wrappers.base_partition as pvm_bp
 import pypowervm.wrappers.logical_partition as pvm_lpar
 import pypowervm.wrappers.managed_system as pvm_ms
 
@@ -833,39 +834,51 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_off')
     def test_reboot(self, mock_pwroff, mock_pwron, mock_instw):
         entry = mock.Mock()
-        # State doesn't matter
-        entry.state = "whatever"
         mock_instw.return_value = entry
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
+        # VM is in 'not activated' state
         # Validate SOFT vs HARD and power_on called with each.
+        entry.state = pvm_bp.LPARState.NOT_ACTIVATED
         self.assertTrue(self.drv.reboot('context', inst, None, 'SOFT'))
-        mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
-                                       force_immediate=False)
+        # Make sure power off is not called
+        self.assertEqual(0, mock_pwroff.call_count)
         mock_pwron.assert_called_with(entry, self.drv.host_uuid)
         self.assertTrue(self.drv.reboot('context', inst, None, 'HARD'))
-        mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
-                                       force_immediate=True)
+        # Make sure power off is not called
+        self.assertEqual(0, mock_pwroff.call_count)
         self.assertEqual(2, mock_pwron.call_count)
         mock_pwron.assert_called_with(entry, self.drv.host_uuid)
 
-        # If power_on raises an exception, it percolates up.
-        mock_pwron.side_effect = pvm_exc.VMPowerOnFailure(lpar_nm='lpar',
-                                                          reason='reason')
-        self.assertRaises(pvm_exc.VMPowerOnFailure, self.drv.reboot, 'context',
-                          inst, None, 'SOFT')
-        # But power_off was called first.
+        # VM is not in 'not activated' state
+        # reset mock_pwron
+        mock_pwron.reset_mock()
+        entry.state = 'whatever'
+        self.assertTrue(self.drv.reboot('context', inst, None, 'SOFT'))
         mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
+                                       restart=True,
                                        force_immediate=False)
+        self.assertEqual(0, mock_pwron.call_count)
+        self.assertTrue(self.drv.reboot('context', inst, None, 'HARD'))
+        mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
+                                       restart=True,
+                                       force_immediate=True)
+        self.assertEqual(0, mock_pwron.call_count)
 
         # If power_off raises an exception, power_on is not called, and the
         # exception percolates up.
-        pwron_count = mock_pwron.call_count
+        entry.state = 'whatever'
         mock_pwroff.side_effect = pvm_exc.VMPowerOffFailure(lpar_nm='lpar',
                                                             reason='reason')
         self.assertRaises(pvm_exc.VMPowerOffFailure, self.drv.reboot,
                           'context', inst, None, 'HARD')
-        self.assertEqual(pwron_count, mock_pwron.call_count)
+
+        # If power_on raises an exception, it percolates up.
+        entry.state = pvm_bp.LPARState.NOT_ACTIVATED
+        mock_pwron.side_effect = pvm_exc.VMPowerOnFailure(lpar_nm='lpar',
+                                                          reason='reason')
+        self.assertRaises(pvm_exc.VMPowerOnFailure, self.drv.reboot, 'context',
+                          inst, None, 'SOFT')
 
     @mock.patch('pypowervm.tasks.vterm.open_vnc_vterm')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
