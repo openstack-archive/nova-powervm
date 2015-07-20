@@ -48,106 +48,51 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     will have its own WWPNs and own Virtual FC adapter.  The Virtual I/O
     Server only passes through communication directly to the VM itself.
     """
+    def connect_volume(self):
+        """Connects the volume."""
 
-    def connect_volume(self, adapter, host_uuid, vm_uuid, instance,
-                       connection_info):
-        """Connects the volume.
-
-        :param adapter: The pypowervm adapter.
-        :param host_uuid: The pypowervm UUID of the host.
-        :param vios_uuid: The pypowervm UUID of the VIOS.
-        :param vm_uuid: The powervm UUID of the VM.
-        :param instance: The nova instance that the volume should connect to.
-        :param connection_info: Comes from the BDM.  Example connection_info:
-                {
-                'driver_volume_type':'fibre_channel',
-                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                'data':{
-                   'initiator_target_map':{
-                      '21000024FF649105':['500507680210E522'],
-                      '21000024FF649104':['500507680210E522'],
-                      '21000024FF649107':['500507680210E522'],
-                      '21000024FF649106':['500507680210E522']
-                   },
-                   'target_discovered':False,
-                   'qos_specs':None,
-                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                   'target_lun':0,
-                   'access_mode':'rw',
-                   'target_wwn':'500507680210E522'
-                }
-        """
         # We need to gather each fabric's port mappings
         npiv_port_mappings = []
         for fabric in self._fabric_names():
-            npiv_port_mappings = self._get_fabric_meta(instance, fabric)
-            self._remove_npiv_mgmt_mappings(adapter, fabric, host_uuid,
-                                            instance, npiv_port_mappings)
+            npiv_port_mappings = self._get_fabric_meta(fabric)
+            self._remove_npiv_mgmt_mappings(fabric, npiv_port_mappings)
             # This method should no-op if the mappings are already attached to
             # the instance...so it won't duplicate the settings every time an
             # attach volume is called.
-            LOG.info(_LI("Adding NPIV mapping for instance %s"), instance.name)
-            pvm_vfcm.add_npiv_port_mappings(adapter, host_uuid, vm_uuid,
-                                            npiv_port_mappings)
+            LOG.info(_LI("Adding NPIV mapping for instance %s"),
+                     self.instance.name)
+            pvm_vfcm.add_npiv_port_mappings(self.adapter, self.host_uuid,
+                                            self.vm_uuid, npiv_port_mappings)
 
-            self._set_fabric_state(instance, fabric, FS_INST_MAPPED)
+            self._set_fabric_state(fabric, FS_INST_MAPPED)
 
-    def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
-                          connection_info):
-        """Disconnect the volume.
+    def disconnect_volume(self):
+        """Disconnect the volume."""
 
-        :param adapter: The pypowervm adapter.
-        :param host_uuid: The pypowervm UUID of the host.
-        :param vm_uuid: The powervm UUID of the VM.
-        :param instance: The nova instance that the volume should disconnect
-                         from.
-        :param connection_info: Comes from the BDM.  Example connection_info:
-                {
-                'driver_volume_type':'fibre_channel',
-                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                'data':{
-                   'initiator_target_map':{
-                      '21000024FF649105':['500507680210E522'],
-                      '21000024FF649104':['500507680210E522'],
-                      '21000024FF649107':['500507680210E522'],
-                      '21000024FF649106':['500507680210E522']
-                   },
-                   'target_discovered':False,
-                   'qos_specs':None,
-                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                   'target_lun':0,
-                   'access_mode':'rw',
-                   'target_wwn':'500507680210E522'
-                }
-        """
         # We should only delete the NPIV mappings if we are running through a
         # VM deletion.  VM deletion occurs when the task state is deleting.
         # However, it can also occur during a 'roll-back' of the spawn.
         # Disconnect of the volumes will only be called during a roll back
         # of the spawn.
-        if instance.task_state not in TASK_STATES_FOR_DISCONNECT:
+        if self.instance.task_state not in TASK_STATES_FOR_DISCONNECT:
             # NPIV should only remove the VFC mapping upon a destroy of the VM
             return
 
         # We need to gather each fabric's port mappings
         npiv_port_mappings = []
         for fabric in self._fabric_names():
-            npiv_port_mappings.extend(self._get_fabric_meta(instance, fabric))
+            npiv_port_mappings.extend(self._get_fabric_meta(fabric))
 
         # Now that we've collapsed all of the varying fabrics' port mappings
         # into one list, we can call down into pypowervm to remove them in one
         # action.
-        LOG.info(_LI("Removing NPIV mapping for instance %s"), instance.name)
-        pvm_vfcm.remove_npiv_port_mappings(adapter, host_uuid,
+        LOG.info(_LI("Removing NPIV mapping for instance %s"),
+                 self.instance.name)
+        pvm_vfcm.remove_npiv_port_mappings(self.adapter, self.host_uuid,
                                            npiv_port_mappings)
 
-    def wwpns(self, adapter, host_uuid, instance):
+    def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports.
-
-        :param adapter: The pypowervm API adapter.
-        :param host_uuid: The UUID of the host for the pypowervm adapter.
-        :param instance: The nova instance.
-        :returns: The list of WWPNs that need to be included in the zone set.
         """
         vios_wraps, mgmt_uuid = None, None
         resp_wwpns = []
@@ -161,13 +106,13 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # If a mapping already exists, we can instead just pull the data off
         # of the system metadata from the nova instance.
         for fabric in self._fabric_names():
-            fc_state = self._get_fabric_state(instance, fabric)
+            fc_state = self._get_fabric_state(fabric)
             LOG.info(_LI("NPIV wwpns fabric state=%(st)s for "
                          "instance %(inst)s") %
-                     {'st': fc_state, 'inst': instance.name})
+                     {'st': fc_state, 'inst': self.instance.name})
 
             if (fc_state == FS_UNMAPPED and
-                    instance.task_state not in [task_states.DELETING]):
+                    self.instance.task_state not in [task_states.DELETING]):
 
                 # At this point we've determined that we need to do a mapping.
                 # So we go and obtain the mgmt uuid and the VIOS wrappers.
@@ -175,11 +120,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 # that we do not keep invoking these expensive calls
                 # unnecessarily.
                 if mgmt_uuid is None:
-                    mgmt_uuid = mgmt.get_mgmt_partition(adapter).uuid
+                    mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
 
                     # The VIOS wrappers are also not set at this point.  Seed
                     # them as well.  Will get reused on subsequent loops.
-                    vios_resp = adapter.read(
+                    vios_resp = self.adapter.read(
                         pvm_vios.VIOS.schema_type,
                         xag=[pvm_vios.VIOS.xags.FC_MAPPING,
                              pvm_vios.VIOS.xags.STORAGE])
@@ -200,20 +145,20 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 # Check if the fabrics are unmapped then we need to map it
                 # temporarily with the management partition.
                 LOG.info(_LI("Adding NPIV Mapping with mgmt partition for "
-                             "instance %s") % instance.name)
+                             "instance %s") % self.instance.name)
                 port_maps = pvm_vfcm.add_npiv_port_mappings(
-                    adapter, host_uuid, mgmt_uuid, port_maps)
+                    self.adapter, self.host_uuid, mgmt_uuid, port_maps)
 
                 # Set the fabric meta (which indicates on the instance how
                 # the fabric is mapped to the physical port) and the fabric
                 # state.
-                self._set_fabric_meta(instance, fabric, port_maps)
-                self._set_fabric_state(instance, fabric, FS_MGMT_MAPPED)
+                self._set_fabric_meta(fabric, port_maps)
+                self._set_fabric_state(fabric, FS_MGMT_MAPPED)
             else:
                 # This specific fabric had been previously set.  Just pull
                 # from the meta (as it is likely already mapped to the
                 # instance)
-                port_maps = self._get_fabric_meta(instance, fabric)
+                port_maps = self._get_fabric_meta(fabric)
 
             # Port map is set by either conditional, but may be set to None.
             # If not None, then add the WWPNs to the response.
@@ -224,8 +169,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # The return object needs to be a list for the volume connector.
         return resp_wwpns
 
-    def _remove_npiv_mgmt_mappings(self, adapter, fabric, host_uuid, instance,
-                                   npiv_port_map):
+    def _remove_npiv_mgmt_mappings(self, fabric, npiv_port_map):
         """Remove the fabric from the management partition if necessary.
 
         Check if the Fabric is mapped to the management partition, if yes then
@@ -235,35 +179,27 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         from the management partition so that they can be remapped to the
         actual client VM.
 
-        :param adapter: The pypowervm adapter.
         :param fabric: fabric name
-        :param host_uuid: The pypowervm UUID of the host.
-        :param instance: The nova instance that the volume should disconnect
-                         from.
-        :param npiv_port_map: NPIV port mappings needs to be removed.
+        :param npiv_port_map: NPIV Port mappings which needs to be removed.
         """
 
-        if self._get_fabric_state(instance, fabric) == FS_MGMT_MAPPED:
+        if self._get_fabric_state(fabric) == FS_MGMT_MAPPED:
             LOG.info(_LI("Removing NPIV mapping for mgmt partition "
-                         "for instance=%s") % instance.name)
-            pvm_vfcm.remove_npiv_port_mappings(adapter, host_uuid,
+                         "for instance=%s") % self.instance.name)
+            pvm_vfcm.remove_npiv_port_mappings(self.adapter, self.host_uuid,
                                                npiv_port_map)
-            self._set_fabric_state(instance, fabric, FS_UNMAPPED)
+            self._set_fabric_state(fabric, FS_UNMAPPED)
         return
 
-    def host_name(self, adapter, host_uuid, instance):
+    def host_name(self):
         """Derives the host name that should be used for the storage device.
 
-        :param adapter: The pypowervm API adapter.
-        :param host_uuid: The UUID of the host for the pypowervm adapter.
-        :param instance: The nova instance.
         :returns: The host name.
         """
-        return instance.name
+        return self.instance.name
 
-    def _set_fabric_state(self, instance, fabric, state):
+    def _set_fabric_state(self, fabric, state):
         """Sets the fabric state into the instance's system metadata.
-        :param instance: The nova instance
         :param fabric: The name of the fabric
         :param state: state of the fabric whicn needs to be set
          Possible Valid States:-
@@ -274,12 +210,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         meta_key = self._sys_fabric_state_key(fabric)
         LOG.info(_LI("Setting Fabric state=%(st)s for instance=%(inst)s") %
-                 {'st': state, 'inst': instance.name})
-        instance.system_metadata[meta_key] = state
+                 {'st': state, 'inst': self.instance.name})
+        self.instance.system_metadata[meta_key] = state
 
-    def _get_fabric_state(self, instance, fabric):
+    def _get_fabric_state(self, fabric):
         """Gets the fabric state from the instance's system metadata.
-        :param instance: The nova instance
         :param fabric: The name of the fabric
         :Returns state: state of the fabric whicn needs to be set
          Possible Valid States:-
@@ -288,16 +223,16 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
          FS_INST_MAPPED: Fabric is mapped with the nova instance.
         """
         meta_key = self._sys_fabric_state_key(fabric)
-        if instance.system_metadata.get(meta_key) is None:
-            instance.system_metadata[meta_key] = FS_UNMAPPED
+        if self.instance.system_metadata.get(meta_key) is None:
+            self.instance.system_metadata[meta_key] = FS_UNMAPPED
 
-        return instance.system_metadata[meta_key]
+        return self.instance.system_metadata[meta_key]
 
     def _sys_fabric_state_key(self, fabric):
         """Returns the nova system metadata key for a given fabric."""
         return FABRIC_STATE_METADATA_KEY + '_' + fabric
 
-    def _set_fabric_meta(self, instance, fabric, port_map):
+    def _set_fabric_meta(self, fabric, port_map):
         """Sets the port map into the instance's system metadata.
 
         The system metadata will store a per-fabric port map that links the
@@ -305,7 +240,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         nature between the wwpns call (get_volume_connector) and the
         connect_volume (spawn).
 
-        :param instance: The nova instance.
         :param fabric: The name of the fabric.
         :param port_map: The port map (as defined via the derive_npiv_map
                          pypowervm method).
@@ -322,23 +256,22 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         meta_value = ",".join(meta_elems)
         meta_key = self._sys_meta_fabric_key(fabric)
 
-        instance.system_metadata[meta_key] = meta_value
+        self.instance.system_metadata[meta_key] = meta_value
 
-    def _get_fabric_meta(self, instance, fabric):
+    def _get_fabric_meta(self, fabric):
         """Gets the port map from the instance's system metadata.
 
         See _set_fabric_meta.
 
-        :param instance: The nova instance.
         :param fabric: The name of the fabric.
         :return: The port map (as defined via the derive_npiv_map pypowervm
                  method.
         """
         meta_key = self._sys_meta_fabric_key(fabric)
-        if instance.system_metadata.get(meta_key) is None:
+        if self.instance.system_metadata.get(meta_key) is None:
             return None
 
-        meta_value = instance.system_metadata[meta_key]
+        meta_value = self.instance.system_metadata[meta_key]
         wwpns = meta_value.split(",")
 
         # Rebuild the WWPNs into the natural structure.

@@ -24,7 +24,6 @@ from nova_powervm.virt.powervm import driver
 
 from nova.virt import fake
 from pypowervm.tests.wrappers.util import pvmhttp
-
 MS_HTTPRESP_FILE = "managedsystem.txt"
 
 
@@ -83,6 +82,14 @@ class VolumeAdapter(fixtures.Fixture):
         self._std_vol_adpt = mock.patch('nova_powervm.virt.powervm.volume.'
                                         'vscsi.VscsiVolumeAdapter')
         self.std_vol_adpt = self._std_vol_adpt.start()
+        # We want to mock out the connection_info individually so it gives
+        # back a new mock on every call.  That's because the vol id is
+        # used for task names and we can't have duplicates.  Here we have
+        # just one mock for simplicity of the vol driver but we need
+        # mulitiple names.
+        self.std_vol_adpt.return_value.connection_info.__getitem__\
+            .side_effect = mock.MagicMock
+        self.drv = self.std_vol_adpt.return_value
         self.addCleanup(self._std_vol_adpt.stop)
 
 
@@ -113,10 +120,6 @@ class PowerVMComputeDriver(fixtures.Fixture):
         self.drv.adapter = self.pypvm.apt
         self._init_host()
         self.drv.image_api = mock.Mock()
-
-        # Set up the mock volume and disk drivers.
-        vol_adpt = self.useFixture(VolumeAdapter())
-        self.drv.vol_drvs['fibre_channel'] = vol_adpt.std_vol_adpt
 
         disk_adpt = self.useFixture(DiskAdapter())
         self.drv.disk_dvr = disk_adpt.std_disk_adpt

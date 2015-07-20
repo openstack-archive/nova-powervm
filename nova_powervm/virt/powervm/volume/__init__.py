@@ -15,7 +15,30 @@
 #    under the License.
 
 # Defines the various volume connectors that can be used.
+from oslo_config import cfg
+CONF = cfg.CONF
+
+
+vol_adapter_opts = [
+    cfg.StrOpt('fc_attach_strategy',
+               default='vscsi',
+               help='The Fibre Channel Volume Strategy defines how FC Cinder '
+                    'volumes should be attached to the Virtual Machine.  The '
+                    'options are: npiv or vscsi.'),
+    cfg.StrOpt('fc_npiv_adapter_api',
+               default='nova_powervm.virt.powervm.volume.npiv.'
+               'NPIVVolumeAdapter',
+               help='Volume Adapter API to connect FC volumes using NPIV'
+                    'connection mechanism'),
+    cfg.StrOpt('fc_vscsi_adapter_api',
+               default='nova_powervm.virt.powervm.volume.vscsi.'
+               'VscsiVolumeAdapter',
+               help='Volume Adapter API to connect FC volumes through Virtual '
+                    'I/O Server using PowerVM vSCSI connection mechanism')
+]
+CONF.register_opts(vol_adapter_opts, group='powervm')
+
 FC_STRATEGY_MAPPING = {
-    'npiv': 'nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter',
-    'vscsi': 'nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter'
+    'npiv': CONF.powervm.fc_npiv_adapter_api,
+    'vscsi': CONF.powervm.fc_vscsi_adapter_api
 }

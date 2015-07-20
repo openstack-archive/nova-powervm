@@ -97,9 +97,6 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_disk_adapter()
         self.image_api = image.API()
 
-        # Initialize the volume drivers
-        self.vol_drvs = _inst_dict(VOLUME_DRIVER_MAPPINGS)
-
         # Init Host CPU Statistics
         self.host_cpu_stats = pvm_host.HostCPUStats(self.adapter,
                                                     self.host_uuid)
@@ -242,14 +239,11 @@ class PowerVMDriver(driver.ComputeDriver):
         if bdms is not None:
             for bdm in bdms:
                 conn_info = bdm.get('connection_info')
-                drv_type = conn_info.get('driver_volume_type')
-                vol_drv = self.vol_drvs.get(drv_type)
-
+                vol_drv = self._get_inst_vol_adpt(context, instance,
+                                                  conn_info=conn_info)
                 # First connect the volume.  This will update the
                 # connection_info.
-                flow_stor.add(tf_stg.ConnectVolume(
-                    self.adapter, vol_drv, instance, conn_info,
-                    self.host_uuid))
+                flow_stor.add(tf_stg.ConnectVolume(vol_drv))
 
                 # Save the BDM so that the updated connection info is
                 # persisted.
@@ -330,12 +324,9 @@ class PowerVMDriver(driver.ComputeDriver):
             if bdms is not None:
                 for bdm in bdms:
                     conn_info = bdm.get('connection_info')
-                    drv_type = conn_info.get('driver_volume_type')
-                    vol_drv = self.vol_drvs.get(drv_type)
-                    flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv,
-                                                     instance, conn_info,
-                                                     self.host_uuid,
-                                                     pvm_inst_uuid))
+                    vol_drv = self._get_inst_vol_adpt(context, instance,
+                                                      conn_info=conn_info)
+                    flow.add(tf_stg.DisconnectVolume(vol_drv))
 
             # Only attach the disk adapters if this is not a boot from volume.
             if not self._is_booted_from_volume(block_device_info):
@@ -397,10 +388,9 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
-        drv_type = connection_info.get('driver_volume_type')
-        vol_drv = self.vol_drvs.get(drv_type)
-        flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
-                                      connection_info, self.host_uuid))
+        vol_drv = self._get_inst_vol_adpt(context, instance,
+                                          conn_info=connection_info)
+        flow.add(tf_stg.ConnectVolume(vol_drv))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
@@ -416,12 +406,10 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
-        drv_type = connection_info.get('driver_volume_type')
-        vol_drv = self.vol_drvs.get(drv_type)
-        pvm_inst_uuid = vm.get_pvm_uuid(instance)
-        flow.add(tf_stg.DisconnectVolume(self.adapter, vol_drv, instance,
-                                         connection_info, self.host_uuid,
-                                         pvm_inst_uuid))
+        vol_drv = self._get_inst_vol_adpt(ctx.get_admin_context(), instance,
+                                          conn_info=connection_info)
+
+        flow.add(tf_stg.DisconnectVolume(vol_drv))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
@@ -736,19 +724,18 @@ class PowerVMDriver(driver.ComputeDriver):
         connector = {'host': CONF.host}
 
         # The WWPNs in case of FC connection.
-        if self.vol_drvs['fibre_channel'] is not None:
+        vol_drv = self._get_inst_vol_adpt(ctx.get_admin_context(),
+                                          instance)
+
+        # The WWPNs in case of FC connection.
+        if vol_drv is not None:
             # Override the host name.
             # TODO(IBM) See if there is a way to support a FC host name that
             # is independent of overall host name.
-            connector['host'] = self.vol_drvs['fibre_channel'].host_name(
-                self.adapter, self.host_uuid, instance)
+            connector['host'] = vol_drv.host_name()
 
-            # TODO(IBM) WWPNs should be resolved from instance if previously
-            # invoked (ex. Destroy)
             # Set the WWPNs
-            wwpn_list = self.vol_drvs['fibre_channel'].wwpns(self.adapter,
-                                                             self.host_uuid,
-                                                             instance)
+            wwpn_list = vol_drv.wwpns()
             if wwpn_list is not None:
                 connector["wwpns"] = wwpn_list
         return connector
@@ -1049,6 +1036,33 @@ class PowerVMDriver(driver.ComputeDriver):
                                         bind_ip=CONF.vnc.vncserver_listen)
         host = CONF.vnc.vncserver_proxyclient_address
         return console_type.ConsoleVNC(host=host, port=port)
+
+    def _get_inst_vol_adpt(self, context, instance, conn_info=None):
+        """Returns the appropriate volume driver based on connection type.
+
+        Checks the connection info for connection-type and return the
+        connector, if no connection info is provided returns the default
+        connector.
+        :param context: security context
+        :param instance: Nova instance for which the volume adapter is needed.
+        :param conn_info: BDM connection information of the instance to
+                          get the volume adapter type (vSCSI/NPIV) requested.
+        :returns: Returns the volume adapter, if conn_info is not passed then
+                  returns the volume adapter based on the CONF
+                  fc_attach_strategy property (npiv/vscsi). Otherwise returns
+                  the adapter based on the connection-type of
+                  connection_info.
+        """
+        adp_type = vol_attach.FC_STRATEGY_MAPPING[
+            CONF.powervm.fc_attach_strategy]
+        vol_cls = importutils.import_class(adp_type)
+        if conn_info:
+            LOG.debug('Volume Adapter returned for connection_info=%s' %
+                      conn_info)
+        LOG.debug('Volume Adapter class %(cls)s for instance %(inst)s' %
+                  {'cls': vol_cls, 'inst': instance})
+        return vol_cls(self.adapter, self.host_uuid,
+                       instance, conn_info)
 
 
 def _inst_dict(input_dict):

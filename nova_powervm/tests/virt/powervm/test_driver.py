@@ -76,8 +76,9 @@ class TestPowerVMDriver(test.TestCase):
         self.drv = self.drv_fix.drv
         self.apt = self.drv_fix.pypvm.apt
 
-        self.fc_vol_drv = self.drv.vol_drvs['fibre_channel']
         self.disk_dvr = self.drv.disk_dvr
+        self.vol_fix = self.useFixture(fx.VolumeAdapter())
+        self.vol_drv = self.vol_fix.drv
 
         self.crt_lpar_p = mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
         self.crt_lpar = self.crt_lpar_p.start()
@@ -94,7 +95,9 @@ class TestPowerVMDriver(test.TestCase):
         test_drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         self.assertIsNotNone(test_drv)
 
-    def test_get_volume_connector(self):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_get_volume_connector(self, mock_getuuid):
+        mock_getuuid.return_value = '1234'
         vol_connector = self.drv.get_volume_connector(None)
         self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
@@ -247,7 +250,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_pwron.called)
 
         # Check that the connect volume was called
-        self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
+        self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
         # Make sure the save was invoked
         self.assertEqual(2, mock_save.call_count)
@@ -307,7 +310,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_pwron.called)
 
         # Check that the connect volume was called
-        self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
+        self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -353,7 +356,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_pwron.called)
 
         # Check that the connect volume was called
-        self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
+        self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
         # Make sure the BDM save was invoked twice.
         self.assertEqual(2, mock_save.call_count)
@@ -389,13 +392,13 @@ class TestPowerVMDriver(test.TestCase):
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
                                          inst, my_flavor)
-        self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
+        self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
         # Power on was called
         self.assertTrue(mock_pwron.called)
 
         # Validate the rollbacks were called
-        self.assertEqual(2, self.fc_vol_drv.disconnect_volume.call_count)
+        self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
 
     @mock.patch('nova.block_device.get_root_bdm')
     @mock.patch('nova.virt.driver.block_device_info_get_mapping')
@@ -448,8 +451,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_dlt_vopt.called)
 
         # Validate that the volume detach was called
-        self.assertEqual(2, self.fc_vol_drv.disconnect_volume.call_count)
-
+        self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
 
@@ -463,7 +465,7 @@ class TestPowerVMDriver(test.TestCase):
         def reset_mocks():
             # Reset the mocks
             for mk in [mock_pwroff, mock_dlt, mock_dlt_vopt,
-                       self.fc_vol_drv.disconnect_volume, mock_dlt,
+                       self.vol_drv, mock_dlt,
                        mock_boot_from_vol]:
                 mk.reset_mock()
 
@@ -475,7 +477,7 @@ class TestPowerVMDriver(test.TestCase):
             self.assertFalse(mock_dlt_vopt.called)
 
             # Validate that the volume detach was not called
-            self.assertFalse(self.fc_vol_drv.disconnect_volume.called)
+            self.assertFalse(self.vol_drv.disconnect_volume.called)
 
             # Delete LPAR was not called
             self.assertFalse(mock_dlt.called)
@@ -531,16 +533,13 @@ class TestPowerVMDriver(test.TestCase):
                           mock.Mock(), block_device_info=mock_bdms)
         assert_not_called()
 
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
-                'connect_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
-    def test_attach_volume(self, mock_inst_wrap, mock_conn_volume):
+    def test_attach_volume(self, mock_inst_wrap):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         inst.task_state = None
-
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
 
@@ -549,12 +548,10 @@ class TestPowerVMDriver(test.TestCase):
                                inst, mock.Mock())
 
         # Verify the connect volume was invoked
-        self.assertEqual(1, mock_conn_volume.call_count)
+        self.assertEqual(1, self.vol_drv.connect_volume.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
-                'disconnect_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    def test_detach_volume(self, mock_pvmuuid, mock_disconn_volume):
+    def test_detach_volume(self, mock_pvmuuid):
 
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
@@ -563,13 +560,12 @@ class TestPowerVMDriver(test.TestCase):
 
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
-
         # Invoke the method.
         self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
                                mock.Mock())
 
         # Verify the connect volume was invoked
-        self.assertEqual(1, mock_disconn_volume.call_count)
+        self.assertEqual(1, self.vol_drv.disconnect_volume.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
@@ -604,13 +600,13 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_dlt_vopt.called)
 
         # Validate that the volume detach was called
-        self.assertEqual(2, self.fc_vol_drv.disconnect_volume.call_count)
+        self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
 
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
 
         # Validate the rollbacks were called.
-        self.assertEqual(2, self.fc_vol_drv.connect_volume.call_count)
+        self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
@@ -897,9 +893,9 @@ class TestPowerVMDriver(test.TestCase):
         def _fake_bdm(volume_id, target_lun):
             connection_info = {'driver_volume_type': 'fibre_channel',
                                'data': {'volume_id': volume_id,
-                                        'target_lun': target_lun
-                                        }
-                               }
+                                        'target_lun': target_lun,
+                                        'initiator_target_map':
+                                        {'21000024F5': ['50050768']}}}
             mapping_dict = {'source_type': 'volume', 'volume_id': volume_id,
                             'destination_type': 'volume',
                             'connection_info':

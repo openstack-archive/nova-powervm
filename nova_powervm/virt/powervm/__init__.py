@@ -40,11 +40,6 @@ pvm_opts = [
                default='/tmp/cfgdrv/',
                help='The location where the config drive ISO files should be '
                     'built.'),
-    cfg.StrOpt('fc_attach_strategy',
-               default='vscsi',
-               help='The Fibre Channel Volume Strategy defines how FC Cinder '
-                    'volumes should be attached to the Virtual Machine.  The '
-                    'options are: npiv or vscsi.'),
     cfg.StrOpt('disk_driver',
                default='localdisk',
                help='The disk driver to use for PowerVM disks. '

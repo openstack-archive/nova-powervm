@@ -32,38 +32,26 @@ LOG = logging.getLogger(__name__)
 class ConnectVolume(task.Task):
     """The task to connect a volume to an instance."""
 
-    def __init__(self, adapter, vol_drv, instance, connection_info, host_uuid):
+    def __init__(self, vol_drv):
         """Create the task.
 
         Requires LPAR info through requirement of lpar_wrap.
 
-        :param adapter: The pypowervm adapter.
         :param vol_drv: The volume driver (see volume folder).  Ties the
                         storage to a connection type (ex. vSCSI or NPIV).
-        :param instance: The nova instance.
-        :param connection_info: The connection info from the block device
-                                mapping.
-        :param host_uuid: The pypowervm UUID of the host.
         """
-        self.adapter = adapter
         self.vol_drv = vol_drv
-        self.instance = instance
-        self.connection_info = connection_info
-        self.vol_id = self.connection_info['data']['volume_id']
-        self.host_uuid = host_uuid
+        self.vol_id = self.vol_drv.connection_info['data']['volume_id']
 
         super(ConnectVolume, self).__init__(name='connect_vol_%s' %
-                                            self.vol_id,
-                                            requires=['lpar_wrap'])
+                                            self.vol_id)
 
-    def execute(self, lpar_wrap):
+    def execute(self):
         LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s'),
-                 {'vol': self.vol_id, 'inst': self.instance.name})
-        return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
-                                           lpar_wrap.uuid, self.instance,
-                                           self.connection_info)
+                 {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
+        return self.vol_drv.connect_volume()
 
-    def revert(self, lpar_wrap, result, flow_failures):
+    def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
         if result is None or isinstance(result, task_fail.Failure):
@@ -72,48 +60,32 @@ class ConnectVolume(task.Task):
 
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
                      'disconnected'),
-                 {'vol': self.vol_id, 'inst': self.instance.name})
+                 {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
 
-        return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
-                                              lpar_wrap.uuid, self.instance,
-                                              self.connection_info)
+        return self.vol_drv.disconnect_volume()
 
 
 class DisconnectVolume(task.Task):
     """The task to disconnect a volume from an instance."""
 
-    def __init__(self, adapter, vol_drv, instance, connection_info,
-                 host_uuid, vm_uuid):
+    def __init__(self, vol_drv):
         """Create the task.
 
         Requires LPAR info through requirement of lpar_wrap.
 
-        :param adapter: The pypowervm adapter.
         :param vol_drv: The volume driver (see volume folder).  Ties the
                         storage to a connection type (ex. vSCSI or NPIV).
-        :param instance: The nova instance.
-        :param connection_info: The connection info from the block device
-                                mapping.
-        :param host_uuid: The pypowervm UUID of the host.
         :param vm_uuid: The pypowervm UUID of the VM.
         """
-        self.adapter = adapter
         self.vol_drv = vol_drv
-        self.instance = instance
-        self.connection_info = connection_info
-        self.vol_id = self.connection_info['data']['volume_id']
-        self.host_uuid = host_uuid
-        self.vm_uuid = vm_uuid
-
+        self.vol_id = self.vol_drv.connection_info['data']['volume_id']
         super(DisconnectVolume, self).__init__(name='disconnect_vol_%s' %
                                                self.vol_id)
 
     def execute(self):
         LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s'),
-                 {'vol': self.vol_id, 'inst': self.instance.name})
-        return self.vol_drv.disconnect_volume(self.adapter, self.host_uuid,
-                                              self.vm_uuid, self.instance,
-                                              self.connection_info)
+                 {'vol': self.vol_id, 'inst': self.vol_drv.instance})
+        return self.vol_drv.disconnect_volume()
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
@@ -124,10 +96,8 @@ class DisconnectVolume(task.Task):
 
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
                      're-connected'),
-                 {'vol': self.vol_id, 'inst': self.instance.name})
-        return self.vol_drv.connect_volume(self.adapter, self.host_uuid,
-                                           self.vm_uuid, self.instance,
-                                           self.connection_info)
+                 {'vol': self.vol_id, 'inst': self.vol_drv.instance})
+        return self.vol_drv.connect_volume()
 
 
 class CreateDiskForImg(task.Task):

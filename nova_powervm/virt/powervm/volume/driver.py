@@ -14,7 +14,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import abc
+from nova_powervm.virt.powervm import vm
+import six
 
+
+@six.add_metaclass(abc.ABCMeta)
 class PowerVMVolumeAdapter(object):
     """The volume adapter connects a Cinder volume to a VM.
 
@@ -25,67 +30,34 @@ class PowerVMVolumeAdapter(object):
 
     This is built similarly to the LibvirtBaseVolumeDriver.
     """
-
-    def connect_volume(self, adapter, host_uuid, vm_uuid, instance,
-                       connection_info):
-        """Connects the volume.
+    def __init__(self, adapter, host_uuid, instance, connection_info):
+        """Initialize the PowerVMVolumeAdapter
 
         :param adapter: The pypowervm adapter.
         :param host_uuid: The pypowervm UUID of the host.
-        :param vm_uuid: The powervm UUID of the VM.
         :param instance: The nova instance that the volume should connect to.
-        :param connection_info: Comes from the BDM.  Example connection_info:
-                {
-                'driver_volume_type':'fibre_channel',
-                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                'data':{
-                   'initiator_target_map':{
-                      '21000024FF649105':['500507680210E522'],
-                      '21000024FF649104':['500507680210E522'],
-                      '21000024FF649107':['500507680210E522'],
-                      '21000024FF649106':['500507680210E522']
-                   },
-                   'target_discovered':False,
-                   'qos_specs':None,
-                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                   'target_lun':0,
-                   'access_mode':'rw',
-                   'target_wwn':'500507680210E522'
-                }
+        :param connection_info: The volume connection info generated from the
+                                BDM. Used to determine how to connect the
+                                volume to the VM.
+        """
+        self.adapter = adapter
+        self.host_uuid = host_uuid
+        self.instance = instance
+        self.connection_info = connection_info
+        self.vm_uuid = vm.get_pvm_uuid(instance)
+
+    def connect_volume(self):
+        """Connects the volume.
         """
         raise NotImplementedError()
 
-    def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
-                          connection_info):
+    def disconnect_volume(self):
         """Disconnect the volume.
-
-        :param adapter: The pypowervm adapter.
-        :param host_uuid: The pypowervm UUID of the host.
-        :param vm_uuid: The powervm UUID of the VM.
-        :param instance: The nova instance that the volume should disconnect
-                         from.
-        :param connection_info: Comes from the BDM.  Example connection_info:
-                {
-                'driver_volume_type':'fibre_channel',
-                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                'data':{
-                   'initiator_target_map':{
-                      '21000024FF649105':['500507680210E522'],
-                      '21000024FF649104':['500507680210E522'],
-                      '21000024FF649107':['500507680210E522'],
-                      '21000024FF649106':['500507680210E522']
-                   },
-                   'target_discovered':False,
-                   'qos_specs':None,
-                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                   'target_lun':0,
-                   'access_mode':'rw',
-                   'target_wwn':'500507680210E522'
-                }
         """
         raise NotImplementedError()
 
 
+@six.add_metaclass(abc.ABCMeta)
 class FibreChannelVolumeAdapter(PowerVMVolumeAdapter):
     """Defines a Fibre Channel specific volume adapter.
 
@@ -94,22 +66,16 @@ class FibreChannelVolumeAdapter(PowerVMVolumeAdapter):
     sub classes can support them.
     """
 
-    def wwpns(self, adapter, host_uuid, instance):
+    def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports.
 
-        :param adapter: The pypowervm API adapter.
-        :param host_uuid: The UUID of the host for the pypowervm adapter.
-        :param instance: The nova instance.
         :returns: The list of WWPNs that need to be included in the zone set.
         """
         raise NotImplementedError()
 
-    def host_name(self, adapter, host_uuid, instance):
+    def host_name(self):
         """Derives the host name that should be used for the storage device.
 
-        :param adapter: The pypowervm API adapter.
-        :param host_uuid: The UUID of the host for the pypowervm adapter.
-        :param instance: The nova instance.
         :returns: The host name.
         """
         raise NotImplementedError()

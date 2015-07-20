@@ -59,12 +59,20 @@ class TestNPIVAdapter(test.TestCase):
         self.mock_fabric_ports = self.mock_fabric_ports_p.start()
         self.mock_fabric_ports.return_value = [self.wwpn1, self.wwpn2]
 
-        # The volume driver, that uses the mocking
-        self.vol_drv = npiv.NPIVVolumeAdapter()
-
         # Fixtures
         self.adpt_fix = self.useFixture(fx.PyPowerVM())
         self.adpt = self.adpt_fix.apt
+
+        @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+        def init_vol_adpt(mock_pvm_uuid):
+            con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
+                                                          'i2': ['t2', 't3']},
+                        'target_lun': '1', 'volume_id': 'id'}}
+            mock_inst = mock.MagicMock()
+            mock_pvm_uuid.return_value = '1234'
+            return npiv.NPIVVolumeAdapter(self.adpt, 'host_uuid',
+                                          mock_inst, con_info)
+        self.vol_drv = init_vol_adpt()
 
     def tearDown(self):
         super(TestNPIVAdapter, self).tearDown()
@@ -77,12 +85,10 @@ class TestNPIVAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_connect_volume(self, mock_remove_p_maps, mock_add_p_maps):
         # Invoke
-        inst = mock.MagicMock()
         meta_key = self.vol_drv._sys_fabric_state_key('A')
+        self.vol_drv.instance.system_metadata = {meta_key: npiv.FS_MGMT_MAPPED}
         # Test connect volume when the fabric is mapped with mgmt partition
-        inst.system_metadata = {meta_key: npiv.FS_MGMT_MAPPED}
-        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                    inst, mock.MagicMock())
+        self.vol_drv.connect_volume()
 
         # Verify
         # Mgmt mapping should be removed
@@ -90,7 +96,7 @@ class TestNPIVAdapter(test.TestCase):
         self.assertEqual(1, mock_add_p_maps.call_count)
         self.assertEqual(1, mock_remove_p_maps.call_count)
         # Check the fabric state should be mapped to instance
-        fc_state = self.vol_drv._get_fabric_state(inst, 'A')
+        fc_state = self.vol_drv._get_fabric_state('A')
         self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
 
     @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
@@ -98,13 +104,11 @@ class TestNPIVAdapter(test.TestCase):
     def test_connect_volume_inst_mapped(self, mock_remove_p_maps,
                                         mock_add_p_maps):
         # Invoke
-        inst = mock.MagicMock()
         meta_key = self.vol_drv._sys_fabric_state_key('A')
         # Test subsequent connect volume calls when the fabric
         # is mapped with inst partition
-        inst.system_metadata = {meta_key: npiv.FS_INST_MAPPED}
-        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                    inst, mock.MagicMock())
+        self.vol_drv.instance.system_metadata = {meta_key: npiv.FS_INST_MAPPED}
+        self.vol_drv.connect_volume()
 
         # Verify
         # Remove mapping should not be called
@@ -112,7 +116,7 @@ class TestNPIVAdapter(test.TestCase):
         self.assertEqual(1, mock_add_p_maps.call_count)
         self.assertEqual(0, mock_remove_p_maps.call_count)
         # Check the fabric state should be mapped to instance
-        fc_state = self.vol_drv._get_fabric_state(inst, 'A')
+        fc_state = self.vol_drv._get_fabric_state('A')
         self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
 
     @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
@@ -120,12 +124,10 @@ class TestNPIVAdapter(test.TestCase):
     def test_connect_volume_fc_unmap(self, mock_remove_p_maps,
                                      mock_add_p_maps):
         # Invoke
-        inst = mock.MagicMock()
         meta_key = self.vol_drv._sys_fabric_state_key('A')
         # TestCase when there is no mapping
-        inst.system_metadata = {meta_key: npiv.FS_UNMAPPED}
-        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                    inst, mock.MagicMock())
+        self.vol_drv.instance.system_metadata = {meta_key: npiv.FS_UNMAPPED}
+        self.vol_drv.connect_volume()
 
         # Verify
         # Remove mapping should not be called
@@ -133,18 +135,16 @@ class TestNPIVAdapter(test.TestCase):
         self.assertEqual(1, mock_add_p_maps.call_count)
         self.assertEqual(0, mock_remove_p_maps.call_count)
         # Check the fabric state should be mapped to instance
-        fc_state = self.vol_drv._get_fabric_state(inst, 'A')
+        fc_state = self.vol_drv._get_fabric_state('A')
         self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
 
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_disconnect_volume(self, mock_remove_p_maps):
         # Mock Data
-        inst = mock.MagicMock()
-        inst.task_state = 'deleting'
+        self.vol_drv.instance.task_state = 'deleting'
 
         # Invoke
-        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                       inst, mock.MagicMock())
+        self.vol_drv.disconnect_volume()
 
         # Verify
         self.assertEqual(1, mock_remove_p_maps.call_count)
@@ -152,31 +152,26 @@ class TestNPIVAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_disconnect_volume_no_op(self, mock_remove_p_maps):
         """Tests that when the task state is not set, connections are left."""
-        # Mock Data
-        inst = mock.MagicMock()
-        inst.task_state = None
-
         # Invoke
-        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                       inst, mock.MagicMock())
+        self.vol_drv.disconnect_volume()
 
         # Verify
         self.assertEqual(0, mock_remove_p_maps.call_count)
 
     def test_disconnect_volume_no_op_other_state(self):
         """Tests that the deletion doesn't go through on certain states."""
-        inst = mock.MagicMock()
-        inst.task_state = task_states.RESUMING
-        self.vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                       inst, mock.ANY)
+        self.vol_drv.instance.task_state = task_states.RESUMING
+
+        # Invoke
+        self.vol_drv.disconnect_volume()
         self.assertEqual(0, self.adpt.read.call_count)
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
     def test_connect_volume_no_map(self, mock_vio_wrap):
         """Tests that if the VFC Mapping exists, another is not added."""
         # Mock Data
-        con_info = {'data': {'initiator_target_map': {'a': None,
-                                                      'b': None}}}
+        self.vol_drv.connection_info = {'data': {'initiator_target_map':
+                                                 {'a': None, 'b': None}}}
 
         mock_mapping = mock.MagicMock()
         mock_mapping.client_adapter.wwpns = {'a', 'b'}
@@ -187,8 +182,7 @@ class TestNPIVAdapter(test.TestCase):
         mock_vio_wrap.return_value = mock_vios
 
         # Invoke
-        self.vol_drv.connect_volume(self.adpt, 'host_uuid', 'vm_uuid',
-                                    mock.MagicMock(), con_info)
+        self.vol_drv.connect_volume()
 
         # Verify
         self.assertEqual(0, self.adpt.update.call_count)
@@ -198,9 +192,6 @@ class TestNPIVAdapter(test.TestCase):
     def test_wwpns(self, mock_add_port, mock_mgmt_part):
         """Tests that new WWPNs get generated properly."""
         # Mock Data
-        inst = mock.Mock()
-        meta_key = self.vol_drv._sys_meta_fabric_key('A')
-        inst.system_metadata = {meta_key: None}
         mock_add_port.return_value = [('21000024FF649104', 'AA BB'),
                                       ('21000024FF649105', 'CC DD')]
         mock_vios = mock.MagicMock()
@@ -208,13 +199,16 @@ class TestNPIVAdapter(test.TestCase):
         mock_mgmt_part.return_value = mock_vios
         self.adpt.read.return_value = self.vios_feed_resp
 
+        meta_key = self.vol_drv._sys_meta_fabric_key('A')
+        self.vol_drv.instance.system_metadata = {meta_key: None}
+
         # Invoke
-        wwpns = self.vol_drv.wwpns(self.adpt, 'host_uuid', inst)
+        wwpns = self.vol_drv.wwpns()
 
         # Check
         self.assertListEqual(['AA', 'BB', 'CC', 'DD'], wwpns)
         self.assertEqual('21000024FF649104,AA,BB,21000024FF649105,CC,DD',
-                         inst.system_metadata[meta_key])
+                         self.vol_drv.instance.system_metadata[meta_key])
         xags = [pvm_vios.VIOS.xags.FC_MAPPING, pvm_vios.VIOS.xags.STORAGE]
         self.adpt.read.assert_called_once_with('VirtualIOServer', xag=xags)
         self.assertEqual(1, mock_add_port.call_count)
@@ -222,23 +216,19 @@ class TestNPIVAdapter(test.TestCase):
         # Check when mgmt_uuid is None
         mock_add_port.reset_mock()
         mock_vios.uuid = None
-        wwpns = self.vol_drv.wwpns(self.adpt, 'host_uuid', inst)
+        self.vol_drv.wwpns()
         self.assertEqual(0, mock_add_port.call_count)
         self.assertEqual('mgmt_mapped',
-                         self.vol_drv._get_fabric_state(inst, 'A'))
+                         self.vol_drv._get_fabric_state('A'))
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_get_fabric_state')
     def test_wwpns_on_sys_meta(self, mock_fabric_state):
         """Tests that previously stored WWPNs are returned."""
         # Mock
-        inst = mock.MagicMock()
-        inst.system_metadata = {self.vol_drv._sys_meta_fabric_key('A'):
-                                'phys1,a,b,phys2,c,d'}
         mock_fabric_state.return_value = npiv.FS_INST_MAPPED
+        self.vol_drv.instance.system_metadata = {
+            self.vol_drv._sys_meta_fabric_key('A'): 'phys1,a,b,phys2,c,d'}
 
-        # Invoke
-        wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', inst)
-
-        # Verify
-        self.assertListEqual(['a', 'b', 'c', 'd'], wwpns)
+        # Invole and Verify
+        self.assertListEqual(['a', 'b', 'c', 'd'], self.vol_drv.wwpns())

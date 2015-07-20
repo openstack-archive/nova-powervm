@@ -37,6 +37,16 @@ LOG = logging.getLogger(__name__)
 _XAGS = [pvm_vios.VIOS.xags.STORAGE]
 
 
+def _build_udid_key(vios_uuid, volume_id):
+    """This method will build the udid dictionary key.
+
+    :param vios_uuid: The UUID of the vios for the pypowervm adapter.
+    :param volume_id: The lun volume id
+    :returns: The udid dictionary key
+    """
+    return vios_uuid + volume_id
+
+
 class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     """The vSCSI implementation of the Volume Adapter.
 
@@ -45,49 +55,33 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     information from the driver and link it to a given virtual machine.
     """
 
-    def __init__(self):
-        super(VscsiVolumeAdapter, self).__init__()
-        self._pfc_wwpns = None
-
-    def connect_volume(self, adapter, host_uuid, vm_uuid, instance,
-                       connection_info):
-        """Connects the volume.
+    def __init__(self, adapter, host_uuid, instance, connection_info):
+        """Initializes the vSCSI Volume Adapter.
 
         :param adapter: The pypowervm adapter.
         :param host_uuid: The pypowervm UUID of the host.
-        :param vm_uuid: The powervm UUID of the VM.
         :param instance: The nova instance that the volume should connect to.
-        :param connection_info: Comes from the BDM.  Example connection_info:
-                {
-                'driver_volume_type':'fibre_channel',
-                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                'data':{
-                   'initiator_target_map':{
-                      '21000024FF649105':['500507680210E522'],
-                      '21000024FF649104':['500507680210E522'],
-                      '21000024FF649107':['500507680210E522'],
-                      '21000024FF649106':['500507680210E522']
-                   },
-                   'target_discovered':False,
-                   'qos_specs':None,
-                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                   'target_lun':0,
-                   'access_mode':'rw',
-                   'target_wwn':'500507680210E522'
-                }
+        :param connection_info: Comes from the BDM.
         """
+        super(VscsiVolumeAdapter, self).__init__(adapter, host_uuid, instance,
+                                                 connection_info)
+        self._pfc_wwpns = None
+
+    def connect_volume(self):
+        """Connects the volume."""
 
         # Get the initiators
-        it_map = connection_info['data']['initiator_target_map']
-        volume_id = connection_info['data']['volume_id']
-        lun = connection_info['data']['target_lun']
+        it_map = self.connection_info['data']['initiator_target_map']
+        volume_id = self.connection_info['data']['volume_id']
+        lun = self.connection_info['data']['target_lun']
         hdisk_found = False
         device_name = None
 
         i_wwpns = it_map.keys()
 
         # Get VIOS feed
-        vios_feed = vios.get_active_vioses(adapter, host_uuid, xag=_XAGS)
+        vios_feed = vios.get_active_vioses(self.adapter, self.host_uuid,
+                                           xag=_XAGS)
 
         # Iterate through host vios list to find valid hdisks and map to VM.
         for vio_wrap in vios_feed:
@@ -108,7 +102,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 continue
 
             status, device_name, udid = hdisk.discover_hdisk(
-                adapter, vio_wrap.uuid, itls)
+                self.adapter, vio_wrap.uuid, itls)
             if device_name is not None and status in [
                     hdisk.LUAStatus.DEVICE_AVAILABLE,
                     hdisk.LUAStatus.FOUND_ITL_ERR]:
@@ -119,12 +113,11 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
                 # Found a hdisk on this Virtual I/O Server.  Add a vSCSI
                 # mapping to the Virtual Machine so that it can use the hdisk.
-                self._add_mapping(adapter, host_uuid, vm_uuid, vio_wrap.uuid,
-                                  device_name)
+                self._add_mapping(vio_wrap.uuid, device_name)
 
                 # Save the UDID for the disk in the connection info.  It is
                 # used for the detach.
-                self._set_udid(connection_info, vio_wrap.uuid, volume_id, udid)
+                self._set_udid(vio_wrap.uuid, volume_id, udid)
                 LOG.info(_LI('Device attached: %s'), device_name)
                 hdisk_found = True
             elif status == hdisk.LUAStatus.DEVICE_IN_USE:
@@ -142,50 +135,25 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             if device_name is None:
                 device_name = 'None'
             ex_args = {'backing_dev': device_name, 'reason': msg,
-                       'instance_name': instance.name}
+                       'instance_name': self.instance.name}
             raise pexc.VolumeAttachFailed(**ex_args)
 
-    def disconnect_volume(self, adapter, host_uuid, vm_uuid, instance,
-                          connection_info):
-        """Disconnect the volume.
+    def disconnect_volume(self):
+        """Disconnect the volume."""
 
-        :param adapter: The pypowervm adapter.
-        :param host_uuid: The pypowervm UUID of the host.
-        :param vm_uuid: The powervm UUID of the VM.
-        :param instance: The nova instance that the volume should disconnect
-                         from.
-        :param connection_info: Comes from the BDM.  Example connection_info:
-                {
-                'driver_volume_type':'fibre_channel',
-                'serial':u'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                'data':{
-                   'initiator_target_map':{
-                      '21000024FF649105':['500507680210E522'],
-                      '21000024FF649104':['500507680210E522'],
-                      '21000024FF649107':['500507680210E522'],
-                      '21000024FF649106':['500507680210E522']
-                   },
-                   'target_discovered':False,
-                   'qos_specs':None,
-                   'volume_id':'10d9934e-b031-48ff-9f02-2ac533e331c8',
-                   'target_lun':0,
-                   'access_mode':'rw',
-                   'target_wwn':'500507680210E522'
-                }
-        """
-        volume_id = connection_info['data']['volume_id']
-
+        volume_id = self.connection_info['data']['volume_id']
+        device_name = None
+        volume_udid = None
         try:
             # Get VIOS feed
-            vios_feed = vios.get_active_vioses(adapter, host_uuid,
+            vios_feed = vios.get_active_vioses(self.adapter, self.host_uuid,
                                                xag=_XAGS)
 
             # Iterate through host vios list to find hdisks to disconnect.
             for vio_wrap in vios_feed:
                 LOG.debug("vios uuid %s", vio_wrap.uuid)
                 try:
-                    volume_udid = self._get_udid(
-                        connection_info, vio_wrap.uuid, volume_id)
+                    volume_udid = self._get_udid(vio_wrap.uuid, volume_id)
                     device_name = vio_wrap.hdisk_from_uuid(volume_udid)
 
                     if not device_name:
@@ -214,13 +182,13 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                              "%(volume_id)s. volume_uid: %(volume_uid)s."),
                          {'volume_uid': volume_udid, 'volume_id': volume_id,
                           'vios_name': vio_wrap.name, 'hdisk': device_name})
-                partition_id = vm.get_vm_id(adapter, vm_uuid)
-                tsk_map.remove_pv_mapping(adapter, vio_wrap.uuid,
+                partition_id = vm.get_vm_id(self.adapter, self.vm_uuid)
+                tsk_map.remove_pv_mapping(self.adapter, vio_wrap.uuid,
                                           partition_id, device_name)
 
                 try:
                     # Attempt to remove the hDisk
-                    hdisk.remove_hdisk(adapter, CONF.host, device_name,
+                    hdisk.remove_hdisk(self.adapter, CONF.host, device_name,
                                        vio_wrap.uuid)
                 except Exception as e:
                     # If there is a failure, log it, but don't stop the process
@@ -231,84 +199,49 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         except Exception as e:
             LOG.error(_LE('Cannot detach volumes from virtual machine: %s'),
-                      vm_uuid)
+                      self.vm_uuid)
             LOG.exception(_LE(u'Error: %s'), e)
             ex_args = {'backing_dev': device_name,
-                       'instance_name': instance.name,
+                       'instance_name': self.instance.name,
                        'reason': six.text_type(e)}
             raise pexc.VolumeDetachFailed(**ex_args)
 
-    def wwpns(self, adapter, host_uuid, instance):
+    def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports.
 
-        :param adapter: The pypowervm API adapter.
-        :param host_uuid: The UUID of the host for the pypowervm adapter.
-        :param instance: The nova instance.
         :returns: The list of WWPNs that need to be included in the zone set.
         """
         if self._pfc_wwpns is None:
-            self._pfc_wwpns = vios.get_physical_wwpns(adapter, host_uuid)
+            self._pfc_wwpns = vios.get_physical_wwpns(self.adapter,
+                                                      self.host_uuid)
         return self._pfc_wwpns
 
-    def host_name(self, adapter, host_uuid, instance):
+    def host_name(self):
         """Derives the host name that should be used for the storage device.
 
-        :param adapter: The pypowervm API adapter.
-        :param host_uuid: The UUID of the host for the pypowervm adapter.
-        :param instance: The nova instance.
         :returns: The host name.
         """
         return CONF.host
 
-    def _add_mapping(self, adapter, host_uuid, vm_uuid, vios_uuid,
-                     device_name):
+    def _add_mapping(self, vios_uuid, device_name):
         """This method builds the vscsi map and adds the mapping to
         the given VIOS.
 
-        :param adapter: The pypowervm API adapter.
-        :param host_uuid: The UUID of the target host
-        :param vm_uuid" The UUID of the VM instance
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param device_name: The The hdisk device name
         """
-        pv = pvm_stor.PV.bld(adapter, device_name)
-        tsk_map.add_vscsi_mapping(host_uuid, vios_uuid, vm_uuid, pv)
+        pv = pvm_stor.PV.bld(self.adapter, device_name)
+        tsk_map.add_vscsi_mapping(self.host_uuid, vios_uuid, self.vm_uuid, pv)
 
-    def _get_udid(self, connection_info, vios_uuid, volume_id):
-        """This method will return the hdisk udid stored in connection_info.
-
-        :param connection_info: The connection_info from the BDM.
-        :param vios_uuid: The UUID of the vios for the pypowervm adapter.
-        :param volume_id: The lun volume id
-        :returns: The target_udid associated with the hdisk
-        """
-        try:
-            udid_key = self._build_udid_key(vios_uuid, volume_id)
-            return connection_info['data'][udid_key]
-        except (KeyError, ValueError):
-            LOG.warn(_LW(u'Failed to retrieve device_id key from BDM for '
-                         'volume id %s'), volume_id)
-            return None
-
-    def _set_udid(self, connection_info, vios_uuid, volume_id, udid):
+    def _set_udid(self, vios_uuid, volume_id, udid):
         """This method will set the hdisk udid in the connection_info.
 
-        :param connection_info: The connection_info from the BDM.
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param volume_id: The lun volume id
         :param udid: The hdisk target_udid to be stored in system_metadata
         """
-        udid_key = self._build_udid_key(vios_uuid, volume_id)
-        connection_info['data'][udid_key] = udid
-
-    def _build_udid_key(self, vios_uuid, volume_id):
-        """This method will build the udid dictionary key.
-
-        :param vios_uuid: The UUID of the vios for the pypowervm adapter.
-        :param volume_id: The lun volume id
-        :returns: The udid dictionary key
-        """
-        return vios_uuid + volume_id
+        udid_key = _build_udid_key(vios_uuid, volume_id)
+        self.connection_info['data'][udid_key] = udid
 
     def _wwpns_on_vios(self, i_wwpns, vios_w):
         """Returns the subset of wwpns from i_wwpns that the VIOS owns.
@@ -324,3 +257,18 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         active_wwpns = vios_w.get_active_pfc_wwpns()
         return [x for x in i_wwpns if x in active_wwpns]
+
+    def _get_udid(self, vios_uuid, volume_id):
+        """This method will return the hdisk udid stored in connection_info.
+
+        :param vios_uuid: The UUID of the vios for the pypowervm adapter.
+        :param volume_id: The lun volume id
+        :returns: The target_udid associated with the hdisk
+        """
+        try:
+            udid_key = _build_udid_key(vios_uuid, volume_id)
+            return self.connection_info['data'][udid_key]
+        except (KeyError, ValueError):
+            LOG.warn(_LW(u'Failed to retrieve device_id key from BDM for '
+                         'volume id %s'), volume_id)
+            return None

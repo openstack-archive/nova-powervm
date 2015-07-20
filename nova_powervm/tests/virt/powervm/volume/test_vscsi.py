@@ -37,12 +37,22 @@ I_WWPN_1 = '21000024FF649104'
 
 class TestVSCSIAdapter(test.TestCase):
     """Tests the vSCSI Volume Connector Adapter."""
-
     def setUp(self):
         super(TestVSCSIAdapter, self).setUp()
         self.pypvm_fix = self.useFixture(fx.PyPowerVM())
         self.adpt = self.pypvm_fix.apt
 
+        @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+        def init_vol_adpt(mock_pvm_uuid):
+            con_info = {'data': {'initiator_target_map': {I_WWPN_1: ['t1'],
+                                                          I_WWPN_1: ['t2',
+                                                                     't3']},
+                        'target_lun': '1', 'volume_id': 'id'}}
+            mock_inst = mock.MagicMock()
+            mock_pvm_uuid.return_value = '1234'
+            return vscsi.VscsiVolumeAdapter(self.adpt, 'host_uuid',
+                                            mock_inst, con_info)
+        self.vol_drv = init_vol_adpt()
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, '../data')
@@ -63,25 +73,18 @@ class TestVSCSIAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     def test_connect_volume(self, mock_add_vscsi_mapping,
                             mock_discover_hdisk, mock_build_itls):
-        con_info = {'data': {'initiator_target_map': {I_WWPN_1: ['t1'],
-                                                      I_WWPN_1: ['t2', 't3']},
-                    'target_lun': '1', 'volume_id': 'id'}}
         mock_discover_hdisk.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
 
         self.adpt.read.return_value = self.vios_feed_resp
-        mock_instance = mock.Mock()
-        mock_instance.system_metadata = {}
-
         mock_build_itls.return_value = [mock.MagicMock()]
 
-        vscsi.VscsiVolumeAdapter().connect_volume(self.adpt, 'host_uuid',
-                                                  'vm_uuid', mock_instance,
-                                                  con_info)
+        self.vol_drv.connect_volume()
+
         # Single mapping
         self.assertEqual(1, mock_add_vscsi_mapping.call_count)
         mock_add_vscsi_mapping.assert_called_with(
-            'host_uuid', '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089', 'vm_uuid',
+            'host_uuid', '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089', '1234',
             mock.ANY)
 
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
@@ -91,9 +94,6 @@ class TestVSCSIAdapter(test.TestCase):
                                            mock_discover_hdisk,
                                            mock_build_itls):
         """Tests that the connect w/out initiators throws errors."""
-        con_info = {'data': {'initiator_target_map': {I_WWPN_1: ['t1'],
-                                                      I_WWPN_1: ['t2', 't3']},
-                    'target_lun': '1', 'volume_id': 'id'}}
         mock_discover_hdisk.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
 
@@ -102,11 +102,8 @@ class TestVSCSIAdapter(test.TestCase):
         mock_instance.system_metadata = {}
 
         mock_build_itls.return_value = []
-
         self.assertRaises(pexc.VolumeAttachFailed,
-                          vscsi.VscsiVolumeAdapter().connect_volume,
-                          self.adpt, 'host_uuid', 'vm_uuid', mock_instance,
-                          con_info)
+                          self.vol_drv.connect_volume)
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_pv_mapping')
@@ -115,18 +112,6 @@ class TestVSCSIAdapter(test.TestCase):
     def test_disconnect_volume(self, mock_hdisk_from_uuid,
                                mock_get_vm_id, mock_remove_pv_mapping,
                                mock_remove_hdisk):
-        vol_drv = vscsi.VscsiVolumeAdapter()
-
-        # Mock up the connection info
-        vios_uuid = '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'
-        volid_meta_key = vol_drv._build_udid_key(vios_uuid, 'id')
-        con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
-                                                      'i2': ['t2', 't3']},
-                             volid_meta_key: self.udid,
-                    'target_lun': '1', 'volume_id': 'id'}}
-
-        # Build the mock instance
-        instance = mock.Mock()
 
         # Set test scenario
         self.adpt.read.return_value = self.vios_feed_resp
@@ -134,8 +119,8 @@ class TestVSCSIAdapter(test.TestCase):
         mock_get_vm_id.return_value = 'partion_id'
 
         # Run the test
-        vol_drv.disconnect_volume(self.adpt, 'host_uuid', 'vm_uuid', instance,
-                                  con_info)
+        self.vol_drv.disconnect_volume()
+
         self.assertEqual(1, mock_remove_pv_mapping.call_count)
         self.assertEqual(1, mock_remove_hdisk.call_count)
 
@@ -143,59 +128,54 @@ class TestVSCSIAdapter(test.TestCase):
     def test_wwpns(self, mock_vio_wwpns):
         mock_vio_wwpns.return_value = ['aa', 'bb']
 
-        vol_drv = vscsi.VscsiVolumeAdapter()
-        wwpns = vol_drv.wwpns(mock.ANY, 'host_uuid', mock.ANY)
+        wwpns = self.vol_drv.wwpns()
 
         self.assertListEqual(['aa', 'bb'], wwpns)
 
     def test_set_udid(self):
-        vol_adpt = vscsi.VscsiVolumeAdapter()
 
         # Mock connection info
-        connection_info = {'data': {}}
-        udid_key = vol_adpt._build_udid_key(self.vios_uuid, self.volume_id)
+        udid_key = vscsi._build_udid_key(self.vios_uuid, self.volume_id)
+        self.vol_drv.connection_info['data'][udid_key] = self.udid
 
         # Set the UDID
-        vol_adpt._set_udid(connection_info, self.vios_uuid, self.volume_id,
-                           self.udid)
+        self.vol_drv._set_udid(self.vios_uuid, self.volume_id,
+                               self.udid)
 
         # Verify
-        self.assertEqual(self.udid, connection_info['data'][udid_key])
+        self.assertEqual(self.udid,
+                         self.vol_drv.connection_info['data'][udid_key])
 
     def test_get_udid(self):
-        vol_adpt = vscsi.VscsiVolumeAdapter()
 
-        # Mock connection info
-        connection_info = {'data': {}}
-        udid_key = vol_adpt._build_udid_key(self.vios_uuid, self.volume_id)
-        connection_info['data'][udid_key] = self.udid
+        udid_key = vscsi._build_udid_key(self.vios_uuid, self.volume_id)
+        self.vol_drv.connection_info['data'][udid_key] = self.udid
 
         # Set the key to retrieve
-        retrieved_udid = vol_adpt._get_udid(connection_info, self.vios_uuid,
-                                            self.volume_id)
+        retrieved_udid = self.vol_drv._get_udid(self.vios_uuid, self.volume_id)
 
         # Check key found
         self.assertEqual(self.udid, retrieved_udid)
 
         # Check key not found
-        retrieved_udid = (vscsi.VscsiVolumeAdapter().
-                          _get_udid(connection_info, self.vios_uuid,
-                                    'non_existent_key'))
+        retrieved_udid = (self.vol_drv._get_udid(self.vios_uuid,
+                                                 'non_existent_key'))
+
         # Check key not found
         self.assertIsNone(retrieved_udid)
 
     def test_wwpns_on_vios(self):
         """Validates the _wwpns_on_vios method."""
-        vol_adpt = vscsi.VscsiVolumeAdapter()
 
         mock_vios = mock.MagicMock()
         mock_vios.get_active_pfc_wwpns.return_value = ['A', 'B', 'C']
 
         self.assertListEqual(
-            ['A'], vol_adpt._wwpns_on_vios(['A', 'D'], mock_vios))
+            ['A'], self.vol_drv._wwpns_on_vios(['A', 'D'], mock_vios))
 
         self.assertListEqual(
-            ['A', 'C'], vol_adpt._wwpns_on_vios(['A', 'C', 'D'], mock_vios))
+            ['A', 'C'],
+            self.vol_drv._wwpns_on_vios(['A', 'C', 'D'], mock_vios))
 
         self.assertListEqual(
-            [], vol_adpt._wwpns_on_vios(['D'], mock_vios))
+            [], self.vol_drv._wwpns_on_vios(['D'], mock_vios))
