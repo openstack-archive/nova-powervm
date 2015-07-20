@@ -40,6 +40,8 @@ LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
 
+_LLA_SUBNET = "fe80::/64"
+
 
 class ConfigDrivePowerVM(object):
 
@@ -137,11 +139,37 @@ class ConfigDrivePowerVM(object):
 
     def _mgmt_cna_to_vif(self, cna):
         """Converts the mgmt CNA to VIF format for network injection."""
-        subnet = network_model.Subnet(version='6', dhcp_server='link_local')
+        # See IEFT RFC 4291 appendix A for information on this algorithm
+        mac = vm.norm_mac(cna.mac)
+        ipv6_link_local = self._mac_to_link_local(mac)
+
+        subnet = network_model.Subnet(
+            version=6, cidr=_LLA_SUBNET,
+            ips=[network_model.FixedIP(address=ipv6_link_local)])
         network = network_model.Network(id='mgmt', subnets=[subnet],
                                         injected='yes')
-        return network_model.VIF(id='mgmt_vif', address=vm.norm_mac(cna.mac),
+        return network_model.VIF(id='mgmt_vif', address=mac,
                                  network=network)
+
+    @staticmethod
+    def _mac_to_link_local(mac):
+        # Convert the address to IPv6.  The first step is to separate out the
+        # mac address
+        splits = mac.split(':')
+
+        # Insert into the middle the key ff:fe
+        splits.insert(3, 'ff')
+        splits.insert(4, 'fe')
+
+        # Do the bit flip on the first octet.
+        splits[0] = "%.2x" % (int(splits[0], 16) ^ 0b00000010)
+
+        # Convert to the IPv6 link local format.  The prefix is fe80::.  Join
+        # the hexes together at every other digit.
+        ll = ['fe80:']
+        ll.extend([splits[x] + splits[x + 1]
+                   for x in range(0, len(splits), 2)])
+        return ':'.join(ll)
 
     def _upload_vopt(self, iso_path, file_name, file_size):
         with open(iso_path, 'rb') as d_stream:

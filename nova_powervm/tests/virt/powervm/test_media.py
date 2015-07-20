@@ -118,7 +118,7 @@ class TestConfigDrivePowerVM(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
-    def test_cna_to_vif(self, mock_validate):
+    def test_mgmt_cna_to_vif(self, mock_validate):
         mock_cna = mock.MagicMock()
         mock_cna.mac = "FAD4433ED120"
 
@@ -131,8 +131,24 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertEqual(vif.get('id'), 'mgmt_vif')
         self.assertIsNotNone(vif.get('network'))
         self.assertEqual(1, len(vif.get('network').get('subnets')))
-        self.assertEqual('6',
-                         vif.get('network').get('subnets')[0].get('version'))
+        subnet = vif.get('network').get('subnets')[0]
+        self.assertEqual(6, subnet.get('version'))
+        self.assertEqual('fe80::/64', subnet.get('cidr'))
+        ip = subnet.get('ips')[0]
+        self.assertEqual('fe80::f8d4:43ff:fe3e:d120', ip.get('address'))
+
+    def test_mac_to_link_local(self):
+        mac = 'fa:d4:43:3e:d1:20'
+        self.assertEqual('fe80::f8d4:43ff:fe3e:d120',
+                         m.ConfigDrivePowerVM._mac_to_link_local(mac))
+
+        mac = '00:00:00:00:00:00'
+        self.assertEqual('fe80::0200:00ff:fe00:0000',
+                         m.ConfigDrivePowerVM._mac_to_link_local(mac))
+
+        mac = 'ff:ff:ff:ff:ff:ff'
+        self.assertEqual('fe80::fdff:ffff:feff:ffff',
+                         m.ConfigDrivePowerVM._mac_to_link_local(mac))
 
     def test_validate_opt_vg(self):
         self.apt.read.side_effect = [self.vio_feed, self.vol_grp_resp]
