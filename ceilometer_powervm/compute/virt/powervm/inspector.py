@@ -16,6 +16,8 @@
 
 from oslo_log import log as logging
 from pypowervm import adapter as pvm_adpt
+from pypowervm.helpers import log_helper as log_hlp
+from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks.monitor import util as pvm_mon_util
 from pypowervm.utils import uuid as pvm_uuid
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -37,7 +39,9 @@ class PowerVMInspector(virt_inspector.Inspector):
         super(PowerVMInspector, self).__init__()
 
         # Build the adapter to the PowerVM API.
-        adpt = pvm_adpt.Adapter(pvm_adpt.Session())
+        adpt = pvm_adpt.Adapter(
+            pvm_adpt.Session(), helpers=[log_hlp.log_helper,
+                                         vio_hlp.vios_busy_retry_helper])
 
         # Get the host system UUID
         host_uuid = self._get_host_uuid(adpt)
