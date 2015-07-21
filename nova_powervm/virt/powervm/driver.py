@@ -38,6 +38,7 @@ from taskflow.patterns import linear_flow as lf
 from pypowervm import adapter as pvm_apt
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
+from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks import power as pvm_pwr
 from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm.utils import retry as pvm_retry
@@ -106,8 +107,9 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def _get_adapter(self):
         self.session = pvm_apt.Session()
-        self.adapter = pvm_apt.Adapter(self.session,
-                                       helpers=log_hlp.log_helper)
+        self.adapter = pvm_apt.Adapter(
+            self.session, helpers=[log_hlp.log_helper,
+                                   vio_hlp.vios_busy_retry_helper])
 
     def _get_disk_adapter(self):
         conn_info = {'adapter': self.adapter, 'host_uuid': self.host_uuid,
