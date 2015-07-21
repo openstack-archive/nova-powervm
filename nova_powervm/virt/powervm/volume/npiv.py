@@ -19,7 +19,7 @@ from oslo_log import log as logging
 
 from nova.compute import task_states
 from nova.i18n import _LI
-from pypowervm.tasks import wwpn as pvm_wwpn
+from pypowervm.tasks import vfc_mapper as pvm_vfcm
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt import powervm
@@ -87,7 +87,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             # the instance...so it won't duplicate the settings every time an
             # attach volume is called.
             LOG.info(_LI("Adding NPIV mapping for instance %s"), instance.name)
-            pvm_wwpn.add_npiv_port_mappings(adapter, host_uuid, vm_uuid,
+            pvm_vfcm.add_npiv_port_mappings(adapter, host_uuid, vm_uuid,
                                             npiv_port_mappings)
 
             self._set_fabric_state(instance, fabric, FS_INST_MAPPED)
@@ -138,7 +138,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # into one list, we can call down into pypowervm to remove them in one
         # action.
         LOG.info(_LI("Removing NPIV mapping for instance %s"), instance.name)
-        pvm_wwpn.remove_npiv_port_mappings(adapter, host_uuid,
+        pvm_vfcm.remove_npiv_port_mappings(adapter, host_uuid,
                                            npiv_port_mappings)
 
     def wwpns(self, adapter, host_uuid, instance):
@@ -184,7 +184,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             resp_wwpns.extend(v_port_wwpns)
 
             # Derive the virtual to physical port mapping
-            port_map = pvm_wwpn.derive_npiv_map(vios_wraps,
+            port_map = pvm_vfcm.derive_npiv_map(vios_wraps,
                                                 self._fabric_ports(fabric),
                                                 v_port_wwpns)
 
@@ -233,7 +233,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             mg_wrap = mgmt.get_mgmt_partition(adapter)
             LOG.info(_LI("Adding NPIV Mapping with mgmt partition for "
                          "instance=%s") % instance.name)
-            pvm_wwpn.add_npiv_port_mappings(adapter, host_uuid,
+            pvm_vfcm.add_npiv_port_mappings(adapter, host_uuid,
                                             mg_wrap.uuid, npiv_port_map)
             self._set_fabric_state(instance, fabric, FS_MGMT_MAPPED)
         return
@@ -260,7 +260,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         if self._get_fabric_state(instance, fabric) == FS_MGMT_MAPPED:
             LOG.info(_LI("Removing NPIV mapping for mgmt partition "
                          "for instance=%s") % instance.name)
-            pvm_wwpn.remove_npiv_port_mappings(adapter, host_uuid,
+            pvm_vfcm.remove_npiv_port_mappings(adapter, host_uuid,
                                                npiv_port_map)
             self._set_fabric_state(instance, fabric, FS_UNMAPPED)
         return
@@ -368,7 +368,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         wwpns = []
         i = 0
         while i < self._ports_per_fabric():
-            wwpns.extend(pvm_wwpn.build_wwpn_pair(adapter, host_uuid))
+            wwpns.extend(pvm_vfcm.build_wwpn_pair(adapter, host_uuid))
             i += 1
         return wwpns
 

@@ -73,8 +73,8 @@ class TestNPIVAdapter(test.TestCase):
         self.mock_fabric_names_p.stop()
         self.mock_fabric_ports_p.stop()
 
-    @mock.patch('pypowervm.tasks.wwpn.add_npiv_port_mappings')
-    @mock.patch('pypowervm.tasks.wwpn.remove_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_connect_volume(self, mock_remove_p_maps, mock_add_p_maps):
         # Invoke
         inst = mock.MagicMock()
@@ -93,8 +93,8 @@ class TestNPIVAdapter(test.TestCase):
         fc_state = self.vol_drv._get_fabric_state(inst, 'A')
         self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
 
-    @mock.patch('pypowervm.tasks.wwpn.add_npiv_port_mappings')
-    @mock.patch('pypowervm.tasks.wwpn.remove_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_connect_volume_inst_mapped(self, mock_remove_p_maps,
                                         mock_add_p_maps):
         # Invoke
@@ -115,8 +115,8 @@ class TestNPIVAdapter(test.TestCase):
         fc_state = self.vol_drv._get_fabric_state(inst, 'A')
         self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
 
-    @mock.patch('pypowervm.tasks.wwpn.add_npiv_port_mappings')
-    @mock.patch('pypowervm.tasks.wwpn.remove_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_connect_volume_fc_unmap(self, mock_remove_p_maps,
                                      mock_add_p_maps):
         # Invoke
@@ -136,7 +136,7 @@ class TestNPIVAdapter(test.TestCase):
         fc_state = self.vol_drv._get_fabric_state(inst, 'A')
         self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
 
-    @mock.patch('pypowervm.tasks.wwpn.remove_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_disconnect_volume(self, mock_remove_p_maps):
         # Mock Data
         inst = mock.MagicMock()
@@ -149,7 +149,7 @@ class TestNPIVAdapter(test.TestCase):
         # Verify
         self.assertEqual(1, mock_remove_p_maps.call_count)
 
-    @mock.patch('pypowervm.tasks.wwpn.remove_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_disconnect_volume_no_op(self, mock_remove_p_maps):
         """Tests that when the task state is not set, connections are left."""
         # Mock Data
@@ -193,9 +193,9 @@ class TestNPIVAdapter(test.TestCase):
         # Verify
         self.assertEqual(0, self.adpt.update.call_count)
 
-    @mock.patch('pypowervm.tasks.wwpn.build_wwpn_pair')
+    @mock.patch('pypowervm.tasks.vfc_mapper.build_wwpn_pair')
     @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
-    @mock.patch('pypowervm.tasks.wwpn.add_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
     def test_wwpns(self, mock_add_port, mock_mgmt_part, mock_build_wwpns):
         """Tests that new WWPNs get generated properly."""
         # Mock Data
