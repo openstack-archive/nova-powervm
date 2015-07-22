@@ -15,7 +15,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -104,7 +103,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         return float(vg_wrap.capacity) - float(vg_wrap.available_size)
 
     def delete_disks(self, context, instance, storage_elems):
-        """Removes the disks specified by the mappings.
+        """Removes the specified disks.
 
         :param context: nova context for operation
         :param instance: instance to delete the disk for.
@@ -113,28 +112,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
                               disconnect_image_disk.
         """
         # All of local disk is done against the volume group.  So reload
-        # that (to get new etag) and then do an update against it.
-        vg_wrap = self._get_vg_wrap()
-
-        # We know that the mappings are VSCSIMappings.  Remove the storage that
-        # resides in the scsi map from the volume group.
-        existing_vds = vg_wrap.virtual_disks
-        for removal in storage_elems:
-            LOG.info(_LI('Deleting disk: %s'), removal.name, instance=instance)
-
-            # Can't just call direct on remove, because attribs are off.
-            # May want to evaluate change in pypowervm for this.
-            match = None
-            for existing_vd in existing_vds:
-                if existing_vd.name == removal.name:
-                    match = existing_vd
-                    break
-
-            if match is not None:
-                existing_vds.remove(match)
-
-        # Now update the volume group to remove the storage.
-        vg_wrap.update()
+        # that (to get new etag) and then update against it.
+        tsk_stg.rm_vg_storage(self._get_vg_wrap(), vdisks=storage_elems)
 
     def disconnect_image_disk(self, context, instance, lpar_uuid,
                               disk_type=None):

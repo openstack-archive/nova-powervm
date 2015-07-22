@@ -261,10 +261,4 @@ class ConfigDrivePowerVM(object):
                                    root_id=self.vios_uuid,
                                    child_type=pvm_stg.VG.schema_type,
                                    child_id=self.vg_uuid)
-        volgrp = pvm_stg.VG.wrap(vg_rsp)
-        optical_medias = volgrp.vmedia_repos[0].optical_media
-        for media_elem in media_elems:
-            optical_medias.remove(media_elem)
-
-        # Now we can do an update...and be done with it.
-        volgrp.update()
+        tsk_stg.rm_vg_storage(pvm_stg.VG.wrap(vg_rsp), vopts=media_elems)
