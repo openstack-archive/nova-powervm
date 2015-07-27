@@ -193,26 +193,27 @@ class TestNPIVAdapter(test.TestCase):
         # Verify
         self.assertEqual(0, self.adpt.update.call_count)
 
-    @mock.patch('pypowervm.tasks.vfc_mapper.build_wwpn_pair')
     @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
-    def test_wwpns(self, mock_add_port, mock_mgmt_part, mock_build_wwpns):
+    def test_wwpns(self, mock_add_port, mock_mgmt_part):
         """Tests that new WWPNs get generated properly."""
         # Mock Data
         inst = mock.Mock()
         meta_key = self.vol_drv._sys_meta_fabric_key('A')
         inst.system_metadata = {meta_key: None}
-        mock_build_wwpns.return_value = ['aa', 'bb']
+        mock_add_port.return_value = [('21000024FF649104', 'AA BB'),
+                                      ('21000024FF649105', 'CC DD')]
         mock_vios = mock.MagicMock()
         mock_vios.uuid = '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'
         mock_mgmt_part.return_value = mock_vios
         self.adpt.read.return_value = self.vios_feed_resp
-        # invoke
+
+        # Invoke
         wwpns = self.vol_drv.wwpns(self.adpt, 'host_uuid', inst)
 
         # Check
-        self.assertListEqual(['aa', 'bb'], wwpns)
-        self.assertEqual('21000024FF649104,AA,BB',
+        self.assertListEqual(['AA', 'BB', 'CC', 'DD'], wwpns)
+        self.assertEqual('21000024FF649104,AA,BB,21000024FF649105,CC,DD',
                          inst.system_metadata[meta_key])
         xags = [pvm_vios.VIOS.xags.FC_MAPPING, pvm_vios.VIOS.xags.STORAGE]
         self.adpt.read.assert_called_once_with('VirtualIOServer', xag=xags)
@@ -226,17 +227,18 @@ class TestNPIVAdapter(test.TestCase):
         self.assertEqual('mgmt_mapped',
                          self.vol_drv._get_fabric_state(inst, 'A'))
 
-    def test_wwpns_on_sys_meta(self):
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_state')
+    def test_wwpns_on_sys_meta(self, mock_fabric_state):
         """Tests that previously stored WWPNs are returned."""
         # Mock
         inst = mock.MagicMock()
         inst.system_metadata = {self.vol_drv._sys_meta_fabric_key('A'):
                                 'phys1,a,b,phys2,c,d'}
+        mock_fabric_state.return_value = npiv.FS_INST_MAPPED
 
         # Invoke
         wwpns = self.vol_drv.wwpns(mock.ANY, 'host_uuid', inst)
 
         # Verify
         self.assertListEqual(['a', 'b', 'c', 'd'], wwpns)
-        fc_state = self.vol_drv._get_fabric_state(inst, 'A')
-        self.assertEqual(npiv.FS_UNMAPPED, fc_state)
