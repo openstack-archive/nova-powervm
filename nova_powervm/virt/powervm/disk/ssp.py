@@ -131,11 +131,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                               ElementWrappers) that are to be deleted.  Derived
                               from the return value from disconnect_image_disk.
         """
-        ssp = self._ssp
-        for lu_to_rm in storage_elems:
-            ssp = tsk_stg.remove_lu_linked_clone(
-                ssp, lu_to_rm, del_unused_image=True, update=False)
-        ssp.update()
+        tsk_stg.rm_ssp_storage(self._ssp, storage_elems)
 
     def create_disk_from_image(self, context, instance, img_meta, disk_size_gb,
                                image_type=disk_drv.DiskType.BOOT):

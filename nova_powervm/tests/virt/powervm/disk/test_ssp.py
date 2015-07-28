@@ -359,14 +359,14 @@ class TestSSPDiskAdapter(test.TestCase):
         def _mk_img_lu(idx):
             lu = pvm_stg.LU.bld(None, 'img_lu%d' % idx, 123,
                                 typ=pvm_stg.LUType.IMAGE)
-            lu._udid('xxImage-LU-UDID-%d' % idx)
+            lu._udid('xxabc123%d' % idx)
             return lu
 
         def _mk_dsk_lu(idx, cloned_from_idx):
             lu = pvm_stg.LU.bld(None, 'dsk_lu%d' % idx, 123,
                                 typ=pvm_stg.LUType.DISK)
-            lu._udid('xxDisk-LU-UDID-%d' % idx)
-            lu._cloned_from_udid('yyImage-LU-UDID-%d' % cloned_from_idx)
+            lu._udid('xxabc123%d' % idx)
+            lu._cloned_from_udid('yyabc123%d' % cloned_from_idx)
             return lu
 
         # We should be ignoring the return value from update - but it still
