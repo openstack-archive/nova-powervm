@@ -179,7 +179,7 @@ class TestNPIVAdapter(test.TestCase):
                                                       'b': None}}}
 
         mock_mapping = mock.MagicMock()
-        mock_mapping.client_adapter.wwpns = set(['a', 'b'])
+        mock_mapping.client_adapter.wwpns = {'a', 'b'}
 
         mock_vios = mock.MagicMock()
         mock_vios.vfc_mappings = [mock_mapping]

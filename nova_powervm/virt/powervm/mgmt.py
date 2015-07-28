@@ -24,7 +24,7 @@ The PowerVM Nova Compute service runs on the management partition.
 """
 import glob
 from nova import exception
-from nova.storage import linuxscsi
+from nova import utils
 import os
 from os import path
 from pypowervm.wrappers import logical_partition as pvm_lpar
@@ -35,6 +35,15 @@ from oslo_log import log as logging
 import retrying
 
 LOG = logging.getLogger(__name__)
+
+
+def _tee_as_root(fpath, payload):
+    """Executes 'echo $payload | sudo tee -a $fpath'.
+
+    :param fpath: The file system path to which to tee.
+    :param payload: The string to pipe to the file.
+    """
+    utils.execute('tee', '-a', fpath, process_input=payload, run_as_root=True)
 
 
 def get_mgmt_partition(adapter):
@@ -87,7 +96,7 @@ def discover_vscsi_disk(mapping, scan_timeout=10):
     for scanpath in glob.glob(
             '/sys/bus/vio/devices/%x/host*/scsi_host/host*/scan' % lslot):
         # echo '- - -' | sudo tee -a /path/to/scan
-        linuxscsi.echo_scsi_command(scanpath, '- - -')
+        _tee_as_root(scanpath, '- - -')
 
     # Now see if our device showed up.  If so, we can reliably match it based
     # on its Linux ID, which ends with the disk's UDID.
@@ -151,7 +160,7 @@ def remove_block_dev(devpath, scan_timeout=10):
     LOG.debug("Deleting block device %(devpath)s from the management "
               "partition via special file %(delpath)s.",
               {'devpath': devpath, 'delpath': delpath})
-    linuxscsi.echo_scsi_command(delpath, '1')
+    _tee_as_root(delpath, '1')
 
     # The bus scan is asynchronous.  Need to poll, waiting for the device to
     # disappear.  Stop when stat raises OSError (dev file not found) - which is
