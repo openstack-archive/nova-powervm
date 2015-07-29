@@ -397,7 +397,7 @@ def instance_exists(adapter, instance, host_uuid):
     """
     try:
         # If we're able to get the property, then it exists.
-        get_vm_id(adapter, instance.uuid)
+        get_vm_id(adapter, get_pvm_uuid(instance))
         return True
     except exception.InstanceNotFound:
         return False
