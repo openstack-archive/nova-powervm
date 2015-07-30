@@ -267,7 +267,6 @@ class VMBuilder(object):
         # Check if this is a valid attribute
         if key not in self._ATTRS_MAP.keys():
             exc = exception.InvalidAttribute(attr=key)
-            LOG.exception(exc)
             raise exc
 
         return True

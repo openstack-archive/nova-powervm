@@ -15,16 +15,22 @@
 #    under the License.
 
 import mock
+import six
 
 from nova import test
 
 from nova_powervm.virt.powervm import image
 
+if six.PY2:
+    _BUILTIN = '__builtin__'
+else:
+    _BUILTIN = 'builtins'
+
 
 class TestImage(test.TestCase):
 
     @mock.patch('nova.utils.temporary_chown')
-    @mock.patch('__builtin__.open')
+    @mock.patch(_BUILTIN + '.open')
     @mock.patch('nova.image.api.API')
     def test_stream_blockdev_to_glance(self, mock_api, mock_open, mock_chown):
         mock_open.return_value.__enter__.return_value = 'mock_stream'
