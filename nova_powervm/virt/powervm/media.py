@@ -212,9 +212,9 @@ class ConfigDrivePowerVM(object):
             except Exception:
                 pass
 
-            LOG.log(_LI("An error occurred querying the virtual optical media "
-                        "repository.  Attempting to re-establish connection "
-                        "with a virtual optical media repository"))
+            LOG.info(_LI("An error occurred querying the virtual optical "
+                         "media repository.  Attempting to re-establish "
+                         "connection with a virtual optical media repository"))
 
         # If we're hitting this, either it's our first time booting up, or the
         # previously used Volume Group went offline (ex. VIOS went down for
