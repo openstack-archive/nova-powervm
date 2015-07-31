@@ -24,12 +24,15 @@ from oslo_config import cfg
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.volume import vscsi
 
+import pypowervm.exceptions as pexc
 from pypowervm.tasks import hdisk
 from pypowervm.tests.wrappers.util import pvmhttp
 
 CONF = cfg.CONF
 
 VIOS_FEED = 'fake_vios_feed.txt'
+
+I_WWPN_1 = '21000024FF649104'
 
 
 class TestVSCSIAdapter(test.TestCase):
@@ -60,8 +63,8 @@ class TestVSCSIAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     def test_connect_volume(self, mock_add_vscsi_mapping,
                             mock_discover_hdisk, mock_build_itls):
-        con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
-                                                      'i2': ['t2', 't3']},
+        con_info = {'data': {'initiator_target_map': {I_WWPN_1: ['t1'],
+                                                      I_WWPN_1: ['t2', 't3']},
                     'target_lun': '1', 'volume_id': 'id'}}
         mock_discover_hdisk.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
@@ -69,6 +72,8 @@ class TestVSCSIAdapter(test.TestCase):
         self.adpt.read.return_value = self.vios_feed_resp
         mock_instance = mock.Mock()
         mock_instance.system_metadata = {}
+
+        mock_build_itls.return_value = [mock.MagicMock()]
 
         vscsi.VscsiVolumeAdapter().connect_volume(self.adpt, 'host_uuid',
                                                   'vm_uuid', mock_instance,
@@ -78,6 +83,30 @@ class TestVSCSIAdapter(test.TestCase):
         mock_add_vscsi_mapping.assert_called_with(
             'host_uuid', '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089', 'vm_uuid',
             mock.ANY)
+
+    @mock.patch('pypowervm.tasks.hdisk.build_itls')
+    @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
+    def test_connect_volume_to_initiatiors(self, mock_add_vscsi_mapping,
+                                           mock_discover_hdisk,
+                                           mock_build_itls):
+        """Tests that the connect w/out initiators throws errors."""
+        con_info = {'data': {'initiator_target_map': {I_WWPN_1: ['t1'],
+                                                      I_WWPN_1: ['t2', 't3']},
+                    'target_lun': '1', 'volume_id': 'id'}}
+        mock_discover_hdisk.return_value = (
+            hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
+
+        self.adpt.read.return_value = self.vios_feed_resp
+        mock_instance = mock.Mock()
+        mock_instance.system_metadata = {}
+
+        mock_build_itls.return_value = []
+
+        self.assertRaises(pexc.VolumeAttachFailed,
+                          vscsi.VscsiVolumeAdapter().connect_volume,
+                          self.adpt, 'host_uuid', 'vm_uuid', mock_instance,
+                          con_info)
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_pv_mapping')
