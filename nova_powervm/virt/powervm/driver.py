@@ -32,8 +32,9 @@ import time
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import importutils
-import taskflow.engines
-from taskflow.patterns import linear_flow as lf
+from taskflow import engines as tf_eng
+from taskflow.patterns import linear_flow as tf_lf
+from taskflow.patterns import unordered_flow as tf_uf
 
 from pypowervm import adapter as pvm_apt
 from pypowervm import exceptions as pvm_exc
@@ -209,26 +210,31 @@ class PowerVMDriver(driver.ComputeDriver):
                                             instance.instance_type_id))
 
         # Define the flow
-        flow = lf.Flow("spawn")
+        flow_spawn = tf_lf.Flow("spawn")
 
         # Create the LPAR
-        flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
-                              flavor))
+        flow_spawn.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
+                                    flavor))
 
-        # Plug the VIFs
-        flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
-                                 network_info, self.host_uuid))
-        flow.add(tf_net.PlugMgmtVif(self.adapter, instance, self.host_uuid))
+        # Create a linear flow for the network.
+        flow_net = tf_lf.Flow("spawn-network")
+        flow_net.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
+                                     network_info, self.host_uuid))
+        flow_net.add(tf_net.PlugMgmtVif(self.adapter, instance,
+                                        self.host_uuid))
+
+        # Create a linear flow for the storage items.
+        flow_stor = tf_lf.Flow("spawn-storage")
 
         # Only add the image disk if this is from Glance.
         if not self._is_booted_from_volume(block_device_info):
             # Creates the boot image.
-            flow.add(tf_stg.CreateDiskForImg(
+            flow_stor.add(tf_stg.CreateDiskForImg(
                 self.disk_dvr, context, instance, image_meta,
                 disk_size=flavor.root_gb))
 
             # Connects up the disk to the LPAR
-            flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance))
+            flow_stor.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance))
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
@@ -241,28 +247,32 @@ class PowerVMDriver(driver.ComputeDriver):
 
                 # First connect the volume.  This will update the
                 # connection_info.
-                flow.add(tf_stg.ConnectVolume(self.adapter, vol_drv, instance,
-                                              conn_info, self.host_uuid))
+                flow_stor.add(tf_stg.ConnectVolume(
+                    self.adapter, vol_drv, instance, conn_info,
+                    self.host_uuid))
 
                 # Save the BDM so that the updated connection info is
                 # persisted.
-                flow.add(tf_stg.SaveBDM(bdm, instance))
+                flow_stor.add(tf_stg.SaveBDM(bdm, instance))
 
-        # If the config drive is needed, add those steps.
+        # The network and the storage flows can run in parallel.  Create an
+        # unordered flow to run those.
+        flow_io = tf_uf.Flow("spawn-io")
+        flow_io.add(flow_net, flow_stor)
+        flow_spawn.add(flow_io)
+
+        # If the config drive is needed, add those steps.  Should be done
+        # after all the other I/O.
         if configdrive.required_by(instance):
-            flow.add(tf_stg.CreateAndConnectCfgDrive(self.adapter,
-                                                     self.host_uuid,
-                                                     instance, injected_files,
-                                                     network_info,
-                                                     admin_password))
+            flow_spawn.add(tf_stg.CreateAndConnectCfgDrive(
+                self.adapter, self.host_uuid, instance, injected_files,
+                network_info, admin_password))
 
         # Last step is to power on the system.
-        # Note: If moving to a Graph Flow, will need to change to depend on
-        # the prior step.
-        flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
+        flow_spawn.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
 
         # Build the engine & run!
-        engine = taskflow.engines.load(flow)
+        engine = tf_eng.load(flow_spawn, engine='parallel', max_workers=3)
         engine.run()
 
     def _is_booted_from_volume(self, block_device_info):
@@ -304,7 +314,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         def _run_flow():
             # Define the flow
-            flow = lf.Flow("destroy")
+            flow = tf_lf.Flow("destroy")
 
             # Power Off the LPAR
             flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
@@ -344,7 +354,7 @@ class PowerVMDriver(driver.ComputeDriver):
             flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
 
             # Build the engine & run!
-            engine = taskflow.engines.load(flow)
+            engine = tf_eng.load(flow)
             engine.run()
 
         self._log_operation('destroy', instance)
@@ -380,7 +390,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('attach_volume', instance)
 
         # Define the flow
-        flow = lf.Flow("attach_volume")
+        flow = tf_lf.Flow("attach_volume")
 
         # Get the LPAR Wrapper
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
@@ -393,7 +403,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                       connection_info, self.host_uuid))
 
         # Build the engine & run!
-        engine = taskflow.engines.load(flow)
+        engine = tf_eng.load(flow)
         engine.run()
 
     def detach_volume(self, connection_info, instance, mountpoint,
@@ -402,7 +412,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('detach_volume', instance)
 
         # Define the flow
-        flow = lf.Flow("detach_volume")
+        flow = tf_lf.Flow("detach_volume")
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
@@ -414,7 +424,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                          pvm_inst_uuid))
 
         # Build the engine & run!
-        engine = taskflow.engines.load(flow)
+        engine = tf_eng.load(flow)
         engine.run()
 
     def snapshot(self, context, instance, image_id, update_task_state):
@@ -439,7 +449,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('snapshot', instance)
 
         # Define the flow
-        flow = lf.Flow("snapshot")
+        flow = tf_lf.Flow("snapshot")
 
         # Notify that we're starting the process
         flow.add(tf_img.UpdateTaskState(update_task_state,
@@ -463,7 +473,7 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_stg.RemoveInstanceDiskFromMgmt(self.disk_dvr, instance))
 
         # Build the engine & run
-        taskflow.engines.load(flow).run()
+        tf_eng.load(flow).run()
 
     def rescue(self, context, instance, network_info, image_meta,
                rescue_password):
@@ -479,7 +489,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         pvm_inst_uuid = vm.get_pvm_uuid(instance)
         # Define the flow
-        flow = lf.Flow("rescue")
+        flow = tf_lf.Flow("rescue")
 
         # Get the LPAR Wrapper
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
@@ -504,7 +514,7 @@ class PowerVMDriver(driver.ComputeDriver):
         #                       instance, pwr_opts=dict(bootmode='sms')))
 
         # Build the engine & run!
-        engine = taskflow.engines.load(flow)
+        engine = tf_eng.load(flow)
         engine.run()
 
     def unrescue(self, instance, network_info):
@@ -518,7 +528,7 @@ class PowerVMDriver(driver.ComputeDriver):
         context = ctx.get_admin_context()
 
         # Define the flow
-        flow = lf.Flow("unrescue")
+        flow = tf_lf.Flow("unrescue")
 
         # Get the LPAR Wrapper
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
@@ -539,7 +549,7 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
 
         # Build the engine & run!
-        engine = taskflow.engines.load(flow)
+        engine = tf_eng.load(flow)
         engine.run()
 
     def power_off(self, instance, timeout=0, retry_interval=0):
@@ -641,7 +651,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('plug_vifs', instance)
 
         # Define the flow
-        flow = lf.Flow("plug_vifs")
+        flow = tf_lf.Flow("plug_vifs")
 
         # Get the LPAR Wrapper
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
@@ -651,7 +661,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                  network_info, self.host_uuid))
 
         # Build the engine & run!
-        engine = taskflow.engines.load(flow)
+        engine = tf_eng.load(flow)
         try:
             engine.run()
         except exception.InstanceNotFound:
@@ -668,7 +678,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('unplug_vifs', instance)
 
         # Define the flow
-        flow = lf.Flow("unplug_vifs")
+        flow = tf_lf.Flow("unplug_vifs")
 
         # Get the LPAR Wrapper
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
@@ -678,7 +688,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                    self.host_uuid))
 
         # Build the engine & run!
-        engine = taskflow.engines.load(flow)
+        engine = tf_eng.load(flow)
         engine.run()
 
     def get_available_nodes(self, refresh=False):
