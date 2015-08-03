@@ -85,10 +85,6 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         device_name = None
 
         i_wwpns = it_map.keys()
-        t_wwpns = []
-        # Build single list of target wwpns
-        for it_list in it_map.values():
-            t_wwpns.extend(it_list)
 
         # Get VIOS feed
         vios_feed = vios.get_active_vioses(adapter, host_uuid, xag=_XAGS)
@@ -98,9 +94,19 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             # Reduce the initiatior WWPNs to the list on this given VIOS.
             vio_wwpns = self._wwpns_on_vios(i_wwpns, vio_wrap)
 
+            # Build single list of target wwpns
+            t_wwpns = []
+            for it_key in vio_wwpns:
+                t_wwpns.extend(it_map[it_key])
+
             # Build the ITL map and discover the hdisks on the Virtual I/O
             # Server (if any).
             itls = hdisk.build_itls(vio_wwpns, t_wwpns, lun)
+            if len(itls) == 0:
+                LOG.debug('No ITLs for VIOS %(vios)s for volume %(volume_id)s.'
+                          % {'vios': vio_wrap.name, 'volume_id': volume_id})
+                continue
+
             status, device_name, udid = hdisk.discover_hdisk(
                 adapter, vio_wrap.uuid, itls)
             if device_name is not None and status in [
