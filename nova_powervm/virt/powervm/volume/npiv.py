@@ -16,6 +16,7 @@
 
 from oslo_config import cfg
 from oslo_log import log as logging
+from taskflow import task
 
 from nova.compute import task_states
 from nova.i18n import _LI
@@ -48,27 +49,20 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     will have its own WWPNs and own Virtual FC adapter.  The Virtual I/O
     Server only passes through communication directly to the VM itself.
     """
-    def connect_volume(self):
+
+    @property
+    def min_xags(self):
+        """List of pypowervm XAGs needed to support this adapter."""
+        return [pvm_vios.VIOS.xags.FC_MAPPING, pvm_vios.VIOS.xags.STORAGE]
+
+    def _connect_volume(self):
         """Connects the volume."""
-
-        # We need to gather each fabric's port mappings
-        npiv_port_mappings = []
+        # Run the add for each fabric.
         for fabric in self._fabric_names():
-            npiv_port_mappings = self._get_fabric_meta(fabric)
-            self._remove_npiv_mgmt_mappings(fabric, npiv_port_mappings)
-            # This method should no-op if the mappings are already attached to
-            # the instance...so it won't duplicate the settings every time an
-            # attach volume is called.
-            LOG.info(_LI("Adding NPIV mapping for instance %s"),
-                     self.instance.name)
-            pvm_vfcm.add_npiv_port_mappings(self.adapter, self.host_uuid,
-                                            self.vm_uuid, npiv_port_mappings)
+            self._add_maps_for_fabric(fabric)
 
-            self._set_fabric_state(fabric, FS_INST_MAPPED)
-
-    def disconnect_volume(self):
+    def _disconnect_volume(self):
         """Disconnect the volume."""
-
         # We should only delete the NPIV mappings if we are running through a
         # VM deletion.  VM deletion occurs when the task state is deleting.
         # However, it can also occur during a 'roll-back' of the spawn.
@@ -78,22 +72,12 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             # NPIV should only remove the VFC mapping upon a destroy of the VM
             return
 
-        # We need to gather each fabric's port mappings
-        npiv_port_mappings = []
+        # Run the disconnect for each fabric
         for fabric in self._fabric_names():
-            npiv_port_mappings.extend(self._get_fabric_meta(fabric))
-
-        # Now that we've collapsed all of the varying fabrics' port mappings
-        # into one list, we can call down into pypowervm to remove them in one
-        # action.
-        LOG.info(_LI("Removing NPIV mapping for instance %s"),
-                 self.instance.name)
-        pvm_vfcm.remove_npiv_port_mappings(self.adapter, self.host_uuid,
-                                           npiv_port_mappings)
+            self._remove_maps_for_fabric(fabric)
 
     def wwpns(self):
-        """Builds the WWPNs of the adapters that will connect the ports.
-        """
+        """Builds the WWPNs of the adapters that will connect the ports."""
         vios_wraps, mgmt_uuid = None, None
         resp_wwpns = []
 
@@ -124,11 +108,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
                     # The VIOS wrappers are also not set at this point.  Seed
                     # them as well.  Will get reused on subsequent loops.
-                    vios_resp = self.adapter.read(
-                        pvm_vios.VIOS.schema_type,
-                        xag=[pvm_vios.VIOS.xags.FC_MAPPING,
-                             pvm_vios.VIOS.xags.STORAGE])
-                    vios_wraps = pvm_vios.VIOS.wrap(vios_resp)
+                    vios_wraps = self.tx_mgr.feed
 
                 # Derive the virtual to physical port mapping
                 port_maps = pvm_vfcm.derive_base_npiv_map(
@@ -169,27 +149,67 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # The return object needs to be a list for the volume connector.
         return resp_wwpns
 
-    def _remove_npiv_mgmt_mappings(self, fabric, npiv_port_map):
-        """Remove the fabric from the management partition if necessary.
+    def _add_maps_for_fabric(self, fabric):
+        """Adds the vFC storage mappings to the VM for a given fabric.
 
-        Check if the Fabric is mapped to the management partition, if yes then
-        remove the mappings and update the fabric state. In order for the WWPNs
-        to be on the fabric(for cinder) before the VM is online, the WWPNs get
-        mapped to the management partition. This method remove those mappings
-        from the management partition so that they can be remapped to the
-        actual client VM.
+        Will check if the Fabric is mapped to the management partition.  If it
+        is, then it will remove the mappings and update the fabric state. This
+        is because, in order for the WWPNs to be on the fabric (for Cinder)
+        before the VM is online, the WWPNs get mapped to the management
+        partition.
 
-        :param fabric: fabric name
-        :param npiv_port_map: NPIV Port mappings which needs to be removed.
+        This method will remove from the management partition (if needed), and
+        then assign it to the instance itself.
+
+        :param fabric: The fabric to add the mappings to.
         """
+        npiv_port_maps = self._get_fabric_meta(fabric)
+        vios_wraps = self.tx_mgr.feed
 
+        # TODO(thorst) determine best approach to fold this into the
+        # transactions themselves.
         if self._get_fabric_state(fabric) == FS_MGMT_MAPPED:
             LOG.info(_LI("Removing NPIV mapping for mgmt partition "
                          "for instance=%s") % self.instance.name)
             pvm_vfcm.remove_npiv_port_mappings(self.adapter, self.host_uuid,
-                                               npiv_port_map)
-            self._set_fabric_state(fabric, FS_UNMAPPED)
-        return
+                                               npiv_port_maps)
+
+        for npiv_port_map in npiv_port_maps:
+            def add_func(vios_w):
+                LOG.info(_LI("Adding NPIV mapping for instance %(inst)s for "
+                             "Virtual I/O Server %(vios)s"),
+                         {'inst': self.instance.name, 'vios': vios_w.name})
+                return pvm_vfcm.add_map(vios_w, self.host_uuid, self.vm_uuid,
+                                        npiv_port_map)
+
+            vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
+            self.tx_mgr.wrapper_tasks[vios_w.uuid].add_functor_subtask(
+                add_func)
+
+        # After all the mappings, make sure the fabric state is updated.
+        def set_state():
+            self._set_fabric_state(fabric, FS_INST_MAPPED)
+        self.tx_mgr.add_post_execute(task.FunctorTask(set_state,
+                                                      name='fab_%s' % fabric))
+
+    def _remove_maps_for_fabric(self, fabric):
+        """Removes the vFC storage mappings from the VM for a given fabric.
+
+        :param fabric: The fabric to remove the mappings from.
+        """
+        npiv_port_maps = self._get_fabric_meta(fabric)
+        vios_wraps = self.tx_mgr.feed
+
+        for npiv_port_map in npiv_port_maps:
+            def rm_func(vios_w):
+                LOG.info(_LI("Removing a NPIV mapping for instance %(inst)s "
+                             "for fabric %(fabric)s"),
+                         {'inst': self.instance.name, 'fabric': fabric})
+                return pvm_vfcm.remove_maps(vios_w, self.vm_uuid,
+                                            port_map=npiv_port_map)
+
+            vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
+            self.tx_mgr.wrapper_tasks[vios_w.uuid].add_functor_subtask(rm_func)
 
     def host_name(self):
         """Derives the host name that should be used for the storage device.
@@ -208,7 +228,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
          FS_MGMT_MAPPED: Fabric is mapped with the management partition
          FS_INST_MAPPED: Fabric is mapped with the nova instance.
         """
-
         meta_key = self._sys_fabric_state_key(fabric)
         LOG.info(_LI("Setting Fabric state=%(st)s for instance=%(inst)s") %
                  {'st': state, 'inst': self.instance.name})

@@ -251,13 +251,18 @@ class DiskAdapter(object):
                 disk_bytes = floor
         return disk_bytes
 
-    def disconnect_image_disk(self, context, instance, lpar_uuid,
+    def disconnect_image_disk(self, context, instance, tx_mgr=None,
                               disk_type=None):
         """Disconnects the storage adapters from the image disk.
 
         :param context: nova context for operation
         :param instance: instance to disconnect the image for.
-        :param lpar_uuid: The UUID for the pypowervm LPAR element.
+        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
+                       the I/O Operations.  If provided, the Virtual I/O Server
+                       mapping updates will be added to the FeedTask.  This
+                       defers the updates to some later point in time.  If the
+                       FeedTask is not provided, the updates will be run
+                       immediately when this method is executed.
         :param disk_type: The list of disk types to remove or None which means
             to remove all disks from the VM.
         :return: A list of all the backing storage elements that were
@@ -292,7 +297,7 @@ class DiskAdapter(object):
         """
         pass
 
-    def connect_disk(self, context, instance, disk_info, lpar_uuid):
+    def connect_disk(self, context, instance, disk_info, tx_mgr=None):
         """Connects the disk image to the Virtual Machine.
 
         :param context: nova context for the transaction.
@@ -300,7 +305,12 @@ class DiskAdapter(object):
         :param disk_info: The pypowervm storage element returned from
                           create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
                           or PV.
-        :param lpar_uuid: The pypowervm UUID that corresponds to the VM.
+        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
+                       the I/O Operations.  If provided, the Virtual I/O Server
+                       mapping updates will be added to the FeedTask.  This
+                       defers the updates to some later point in time.  If the
+                       FeedTask is not provided, the updates will be run
+                       immediately when this method is executed.
         """
         pass
 

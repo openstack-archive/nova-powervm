@@ -20,6 +20,7 @@ import logging
 import mock
 from oslo_config import cfg
 from oslo_serialization import jsonutils
+from taskflow.patterns import unordered_flow as tf_uf
 
 from nova import block_device as nova_block_device
 from nova import exception as exc
@@ -56,6 +57,12 @@ class FakeClass(object):
     pass
 
 
+class FakeFeedTask(tf_uf.Flow):
+
+    def execute(self):
+        pass
+
+
 class TestPowerVMDriver(test.TestCase):
     def setUp(self):
         super(TestPowerVMDriver, self).setUp()
@@ -90,6 +97,12 @@ class TestPowerVMDriver(test.TestCase):
         resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
         resp.entry = pvm_lpar.LPAR._bld(None).entry
         self.crt_lpar.return_value = pvm_lpar.LPAR.wrap(resp)
+
+        self.build_tx_feed_p = mock.patch('nova_powervm.virt.powervm.vios.'
+                                          'build_tx_feed_task')
+        self.build_tx_feed = self.build_tx_feed_p.start()
+        self.addCleanup(self.build_tx_feed_p.stop)
+        self.build_tx_feed.return_value = FakeFeedTask('fake')
 
     def _setup_lpm(self):
         """Setup the lpm environment.

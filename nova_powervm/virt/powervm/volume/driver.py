@@ -15,8 +15,15 @@
 #    under the License.
 
 import abc
-from nova_powervm.virt.powervm import vm
+from abc import abstractproperty
 import six
+
+from pypowervm.utils import transaction as pvm_tx
+from pypowervm.wrappers import virtual_io_server as pvm_vios
+
+from nova_powervm.virt.powervm import vm
+
+LOCAL_FEED_TASK = 'local_feed_task'
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -30,7 +37,8 @@ class PowerVMVolumeAdapter(object):
 
     This is built similarly to the LibvirtBaseVolumeDriver.
     """
-    def __init__(self, adapter, host_uuid, instance, connection_info):
+    def __init__(self, adapter, host_uuid, instance, connection_info,
+                 tx_mgr=None):
         """Initialize the PowerVMVolumeAdapter
 
         :param adapter: The pypowervm adapter.
@@ -39,6 +47,12 @@ class PowerVMVolumeAdapter(object):
         :param connection_info: The volume connection info generated from the
                                 BDM. Used to determine how to connect the
                                 volume to the VM.
+        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
+                       the I/O Operations.  If provided, the Virtual I/O Server
+                       mapping updates will be added to the FeedTask.  This
+                       defers the updates to some later point in time.  If the
+                       FeedTask is not provided, the updates will be run
+                       immediately when this method is executed.
         """
         self.adapter = adapter
         self.host_uuid = host_uuid
@@ -46,12 +60,60 @@ class PowerVMVolumeAdapter(object):
         self.connection_info = connection_info
         self.vm_uuid = vm.get_pvm_uuid(instance)
 
+        self.reset_tx_mgr(tx_mgr=tx_mgr)
+
+    def reset_tx_mgr(self, tx_mgr=None):
+        """Resets the pypowervm transaction FeedTask to a new value.
+
+        The previous updates from the original FeedTask WILL NOT be migrated
+        to this new FeedTask.
+
+        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
+                       the I/O Operations.  If provided, the Virtual I/O Server
+                       mapping updates will be added to the FeedTask.  This
+                       defers the updates to some later point in time.  If the
+                       FeedTask is not provided, the updates will be run
+                       immediately when this method is executed.
+        """
+        if tx_mgr is None:
+            getter = pvm_vios.VIOS.getter(self.adapter, xag=self.min_xags)
+            self.tx_mgr = pvm_tx.FeedTask(LOCAL_FEED_TASK, getter)
+        else:
+            self.tx_mgr = tx_mgr
+
+    @abstractproperty
+    def min_xags(self):
+        """List of pypowervm XAGs needed to support this adapter."""
+        raise NotImplementedError()
+
     def connect_volume(self):
         """Connects the volume."""
-        raise NotImplementedError()
+        self._connect_volume()
+
+        if self.tx_mgr.name == LOCAL_FEED_TASK:
+            self.tx_mgr.execute()
 
     def disconnect_volume(self):
         """Disconnect the volume."""
+        self._disconnect_volume()
+
+        if self.tx_mgr.name == LOCAL_FEED_TASK:
+            self.tx_mgr.execute()
+
+    def _connect_volume(self):
+        """Connects the volume.
+
+        This is the actual method to implement within the subclass.  Some
+        transaction maintenance is done by the parent class.
+        """
+        raise NotImplementedError()
+
+    def _disconnect_volume(self):
+        """Disconnect the volume.
+
+        This is the actual method to implement within the subclass.  Some
+        transaction maintenance is done by the parent class.
+        """
         raise NotImplementedError()
 
 

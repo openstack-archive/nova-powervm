@@ -20,6 +20,7 @@ import copy
 from nova import exception as nova_exc
 from nova import test
 import os
+from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -110,54 +111,145 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual(5120.0, local.capacity)
         self.assertEqual(3072.0, local.capacity_used)
 
-    @mock.patch('pypowervm.tasks.scsi_mapper.remove_vdisk_mapping')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
-    def test_disconnect_image_disk(self, mock_get_vm_id, mock_remove):
-        """Tests the disconnect_image_disk method."""
-        # Set up the mock data.
-        mock_get_vm_id.return_value = '2'
-        mock_remove.return_value = ('fake_vios', [])
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    def test_disconnect_image_disk(self, mock_active_vioses, mock_rm_maps):
+        # vio_to_vg is a single-entry response.  Wrap it and put it in a list
+        # to act as the feed for FeedTaskFx and FeedTask.
+        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        mock_active_vioses.return_value = feed
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
 
+        # The mock return values
+        mock_rm_maps.return_value = True
+
+        # Need the driver to return the actual UUID of the VIOS in the feed,
+        # to match the FeedTask.
+        self.mock_vg_uuid.return_value = (feed[0].uuid, 'vg_uuid')
+
+        # Create the feed task
         local = self.get_ls(self.apt)
-        local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2')
+        inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
-        # Validate
-        mock_remove.assert_called_once_with(mock.ANY, mock.ANY, '2',
-                                            disk_prefixes=None)
-        self.assertEqual(1, mock_remove.call_count)
+        # As initialized above, remove_maps returns True to trigger update.
+        local.disconnect_image_disk(mock.MagicMock(), inst, tx_mgr=None,
+                                    disk_type=[disk_dvr.DiskType.BOOT])
+        self.assertEqual(1, mock_rm_maps.call_count)
+        self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
+        mock_rm_maps.assert_called_once_with(feed[0], fx.FAKE_INST_UUID_PVM,
+                                             match_func=mock.ANY)
 
-    @mock.patch('pypowervm.tasks.scsi_mapper.remove_vdisk_mapping')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
-    def test_disconnect_image_disk_disktype(self, mock_get_vm_id, mock_remove):
-        """Tests the disconnect_image_disk method."""
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    def test_disconnect_image_disk_no_update(self, mock_active_vioses,
+                                             mock_rm_maps):
+        # vio_to_vg is a single-entry response.  Wrap it and put it in a list
+        # to act as the feed for FeedTaskFx and FeedTask.
+        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        mock_active_vioses.return_value = feed
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
+
+        # The mock return values
+        mock_rm_maps.return_value = False
+
+        # Need the driver to return the actual UUID of the VIOS in the feed,
+        # to match the FeedTask.
+        self.mock_vg_uuid.return_value = (feed[0].uuid, 'vg_uuid')
+
+        # Create the feed task
+        local = self.get_ls(self.apt)
+        inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
+
+        # As initialized above, remove_maps returns True to trigger update.
+        local.disconnect_image_disk(mock.MagicMock(), inst, tx_mgr=None,
+                                    disk_type=[disk_dvr.DiskType.BOOT])
+        self.assertEqual(1, mock_rm_maps.call_count)
+        self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)
+        mock_rm_maps.assert_called_once_with(feed[0], fx.FAKE_INST_UUID_PVM,
+                                             match_func=mock.ANY)
+
+    @mock.patch('pypowervm.tasks.scsi_mapper.gen_match_func')
+    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
+    def test_disconnect_image_disk_disktype(self, mock_find_maps,
+                                            mock_match_func):
+        """Ensures that the match function passes in the right prefix."""
         # Set up the mock data.
-        mock_get_vm_id.return_value = '2'
-        mock_remove.return_value = ('fake_vios', [])
+        inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
+        mock_match_func.return_value = 'test'
 
         # Invoke
         local = self.get_ls(self.apt)
-        local.disconnect_image_disk(mock.MagicMock(), mock.MagicMock(), '2',
+        local.disconnect_image_disk(mock.MagicMock(), inst,
+                                    tx_mgr=mock.MagicMock(),
                                     disk_type=[disk_dvr.DiskType.BOOT])
 
-        # Validate
-        mock_remove.assert_called_once_with(mock.ANY, mock.ANY, '2',
-                                            disk_prefixes=[
-                                                disk_dvr.DiskType.BOOT])
-        self.assertEqual(1, mock_remove.call_count)
+        # Make sure the find maps is invoked once.
+        mock_find_maps.assert_called_once_with(mock.ANY, fx.FAKE_INST_UUID_PVM,
+                                               match_func='test')
 
-    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
-                '_client_lpar_href')
-    def test_connect_disk(self, mock_lpar_href, mock_add_mapping):
-        mock_lpar_href.return_value = 'client_lpar_href'
+        # Make sure the matching function is generated with the right disk type
+        mock_match_func.assert_called_once_with(
+            pvm_stor.VDisk, prefixes=[disk_dvr.DiskType.BOOT])
 
-        mock_vdisk = mock.MagicMock()
-        mock_vdisk.name = 'vdisk'
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    def test_connect_image_disk(self, mock_active_vioses, mock_add_map,
+                                mock_build_map):
+        # vio_to_vg is a single-entry response.  Wrap it and put it in a list
+        # to act as the feed for FeedTaskFx and FeedTask.
+        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        mock_active_vioses.return_value = feed
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
 
-        ls = self.get_ls(self.apt)
-        ls.connect_disk(mock.MagicMock(), mock.MagicMock(),
-                        mock_vdisk, 'lpar_UUID')
-        self.assertEqual(1, mock_add_mapping.call_count)
+        # The mock return values
+        mock_add_map.return_value = True
+        self.mock_vg_uuid.return_value = (feed[0].uuid, 'vg_uuid')
+        mock_build_map.return_value = 'fake_map'
+
+        # Need the driver to return the actual UUID of the VIOS in the feed,
+        # to match the FeedTask.
+        local = self.get_ls(self.apt)
+        inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
+
+        # As initialized above, remove_maps returns True to trigger update.
+        local.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
+                           tx_mgr=None)
+        self.assertEqual(1, mock_add_map.call_count)
+        mock_add_map.assert_called_once_with(feed[0], 'fake_map')
+        self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
+
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    def test_connect_image_disk_no_update(self, mock_active_vioses,
+                                          mock_add_map, mock_build_map):
+        # vio_to_vg is a single-entry response.  Wrap it and put it in a list
+        # to act as the feed for FeedTaskFx and FeedTask.
+        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        mock_active_vioses.return_value = feed
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
+
+        # The mock return values
+        mock_add_map.return_value = False
+        self.mock_vg_uuid.return_value = (feed[0].uuid, 'vg_uuid')
+        mock_build_map.return_value = 'fake_map'
+
+        # Need the driver to return the actual UUID of the VIOS in the feed,
+        # to match the FeedTask.
+        local = self.get_ls(self.apt)
+        inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
+
+        # As initialized above, remove_maps returns True to trigger update.
+        local.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
+                           tx_mgr=None)
+        self.assertEqual(1, mock_add_map.call_count)
+        mock_add_map.assert_called_once_with(feed[0], 'fake_map')
+        self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)
 
     @mock.patch('pypowervm.wrappers.storage.VG.update')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'

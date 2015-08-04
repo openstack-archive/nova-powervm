@@ -27,6 +27,9 @@ from nova.virt import fake
 from pypowervm.tests.wrappers.util import pvmhttp
 MS_HTTPRESP_FILE = "fake_managedsystem.txt"
 
+FAKE_INST_UUID = 'b6513403-fd7f-4ad0-ab27-f73bacbd3929'
+FAKE_INST_UUID_PVM = '36513403-FD7F-4AD0-AB27-F73BACBD3929'
+
 
 class PyPowerVM(fixtures.Fixture):
     """Patch out PyPowerVM Session and Adapter."""

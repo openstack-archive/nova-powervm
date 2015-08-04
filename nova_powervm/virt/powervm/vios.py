@@ -17,6 +17,7 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 
+from pypowervm.utils import transaction as pvm_tx
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -73,3 +74,29 @@ def get_physical_wwpns(adapter, ms_uuid):
     for vios in vios_feed:
         wwpn_list.extend(vios.get_active_pfc_wwpns())
     return wwpn_list
+
+
+def build_tx_feed_task(adapter, host_uuid, name='vio_feed_mgr',
+                       xag=[pvm_vios.VIOS.xags.STORAGE,
+                            pvm_vios.VIOS.xags.SCSI_MAPPING,
+                            pvm_vios.VIOS.xags.FC_MAPPING]):
+    """Builds the pypowervm transaction FeedTask.
+
+    The transaction FeedTask enables users to collect a set of
+    'WrapperTasks' against a feed of entities (in this case a set of VIOSes).
+    The WrapperTask (within the FeedTask) handles lock and retry.
+
+    This is useful to batch together a set of updates across a feed of elements
+    (and multiple updates within a given wrapper).  This allows for significant
+    performance improvements.
+
+    :param adapter: The pypowervm adapter for the query.
+    :param host_uuid: The host server's UUID.
+    :param name: (Optional) The name of the feed manager.  Defaults to
+                 vio_feed_mgr.
+    :param xag: (Optional) List of extended attributes to use.  If not passed
+                in defaults to all storage options (as this is most common
+                case for using a transaction manager).
+    """
+    return pvm_tx.FeedTask(name,
+                           get_active_vioses(adapter, host_uuid, xag=xag))

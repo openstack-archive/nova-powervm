@@ -35,8 +35,6 @@ class ConnectVolume(task.Task):
     def __init__(self, vol_drv):
         """Create the task.
 
-        Requires LPAR info through requirement of lpar_wrap.
-
         :param vol_drv: The volume driver (see volume folder).  Ties the
                         storage to a connection type (ex. vSCSI or NPIV).
         """
@@ -62,6 +60,9 @@ class ConnectVolume(task.Task):
                      'disconnected'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
 
+        # Note that the rollback is *instant*.  Resetting the FeedTask ensures
+        # immediate rollback.
+        self.vol_drv.reset_tx_mgr()
         return self.vol_drv.disconnect_volume()
 
 
@@ -71,11 +72,8 @@ class DisconnectVolume(task.Task):
     def __init__(self, vol_drv):
         """Create the task.
 
-        Requires LPAR info through requirement of lpar_wrap.
-
         :param vol_drv: The volume driver (see volume folder).  Ties the
                         storage to a connection type (ex. vSCSI or NPIV).
-        :param vm_uuid: The pypowervm UUID of the VM.
         """
         self.vol_drv = vol_drv
         self.vol_id = self.vol_drv.connection_info['data']['volume_id']
@@ -97,6 +95,10 @@ class DisconnectVolume(task.Task):
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
                      're-connected'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance})
+
+        # Note that the rollback is *instant*.  Resetting the FeedTask ensures
+        # immediate rollback.
+        self.vol_drv.reset_tx_mgr()
         return self.vol_drv.connect_volume()
 
 
@@ -150,7 +152,7 @@ class CreateDiskForImg(task.Task):
 class ConnectDisk(task.Task):
     """The task to connect the disk to the instance."""
 
-    def __init__(self, disk_dvr, context, instance):
+    def __init__(self, disk_dvr, context, instance, tx_mgr=None):
         """Create the Task for the connect disk to instance method.
 
         Requires LPAR info through requirement of lpar_wrap.
@@ -161,24 +163,30 @@ class ConnectDisk(task.Task):
         :param disk_dvr: The disk driver.
         :param context: The context passed into the spawn method.
         :param instance: The nova instance.
+        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
+                       the I/O Operations.  If provided, the Virtual I/O Server
+                       mapping updates will be added to the FeedTask.  This
+                       defers the updates to some later point in time.  If the
+                       FeedTask is not provided, the updates will be run
+                       immediately when this method is executed.
         """
         super(ConnectDisk, self).__init__(name='connect_disk',
-                                          requires=['lpar_wrap',
-                                                    'disk_dev_info'])
+                                          requires=['disk_dev_info'])
         self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
+        self.tx_mgr = tx_mgr
 
-    def execute(self, lpar_wrap, disk_dev_info):
+    def execute(self, disk_dev_info,):
         LOG.info(_LI('Connecting disk to instance: %s'), self.instance.name)
         self.disk_dvr.connect_disk(self.context, self.instance, disk_dev_info,
-                                   lpar_wrap.uuid)
+                                   tx_mgr=self.tx_mgr)
 
-    def revert(self, lpar_wrap, disk_dev_info, result, flow_failures):
+    def revert(self, disk_dev_info, result, flow_failures):
         LOG.warn(_LW('Disk image being disconnected from instance %s'),
                  self.instance.name)
-        self.disk_dvr.disconnect_image_disk(self.context, self.instance,
-                                            lpar_wrap.uuid)
+        # Note that the FeedTask is None - to force instant disconnect.
+        self.disk_dvr.disconnect_image_disk(self.context, self.instance)
 
 
 class InstanceDiskToMgmt(task.Task):
@@ -388,7 +396,7 @@ class DeleteVOpt(task.Task):
 class DetachDisk(task.Task):
     """The task to detach the disk storage from the instance."""
 
-    def __init__(self, disk_dvr, context, instance, lpar_uuid,
+    def __init__(self, disk_dvr, context, instance, tx_mgr=None,
                  disk_type=None):
         """Creates the Task to detach the storage adapters.
 
@@ -398,7 +406,12 @@ class DetachDisk(task.Task):
         :param disk_dvr: The DiskAdapter for the VM.
         :param context: The nova context.
         :param instance: The nova instance.
-        :param lpar_uuid: The UUID of the lpar.
+        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
+                       the I/O Operations.  If provided, the Virtual I/O Server
+                       mapping updates will be added to the FeedTask.  This
+                       defers the updates to some later point in time.  If the
+                       FeedTask is not provided, the updates will be run
+                       immediately when this method is executed.
         :param disk_type: List of disk types to detach. None means detach all.
         """
         super(DetachDisk, self).__init__(name='detach_storage',
@@ -406,15 +419,15 @@ class DetachDisk(task.Task):
         self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
-        self.lpar_uuid = lpar_uuid
+        self.tx_mgr = tx_mgr
         self.disk_type = disk_type
 
     def execute(self):
         LOG.info(_LI('Detaching disk storage adapters for instance %s'),
                  self.instance.name)
-        return self.disk_dvr.disconnect_image_disk(self.context, self.instance,
-                                                   self.lpar_uuid,
-                                                   disk_type=self.disk_type)
+        return self.disk_dvr.disconnect_image_disk(
+            self.context, self.instance, tx_mgr=self.tx_mgr,
+            disk_type=self.disk_type)
 
 
 class DeleteDisk(task.Task):

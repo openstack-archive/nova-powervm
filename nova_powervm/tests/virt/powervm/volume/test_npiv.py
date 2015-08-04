@@ -19,6 +19,7 @@ import mock
 from nova.compute import task_states
 from nova import test
 import os
+from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -44,6 +45,12 @@ class TestNPIVAdapter(test.TestCase):
         self.vios_feed_resp = resp(VIOS_FEED)
         self.wwpn1 = '21000024FF649104'
         self.wwpn2 = '21000024FF649107'
+        self.vios_uuid = '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'
+
+        # Set up the transaction manager
+        feed = pvm_vios.VIOS.wrap(self.vios_feed_resp)
+        self.ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(self.ft_fx)
 
         # Set up the mocks for the internal volume driver
         name = 'nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
@@ -63,15 +70,21 @@ class TestNPIVAdapter(test.TestCase):
         self.adpt_fix = self.useFixture(fx.PyPowerVM())
         self.adpt = self.adpt_fix.apt
 
+        @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.getter')
         @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-        def init_vol_adpt(mock_pvm_uuid):
+        def init_vol_adpt(mock_pvm_uuid, mock_getter):
             con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
                                                           'i2': ['t2', 't3']},
                         'target_lun': '1', 'volume_id': 'id'}}
             mock_inst = mock.MagicMock()
             mock_pvm_uuid.return_value = '1234'
-            return npiv.NPIVVolumeAdapter(self.adpt, 'host_uuid',
-                                          mock_inst, con_info)
+
+            # The getter can just return the VIOS values (to remove a read
+            # that would otherwise need to be mocked).
+            mock_getter.return_value = feed
+
+            return npiv.NPIVVolumeAdapter(self.adpt, 'host_uuid', mock_inst,
+                                          con_info)
         self.vol_drv = init_vol_adpt()
 
     def tearDown(self):
@@ -81,82 +94,108 @@ class TestNPIVAdapter(test.TestCase):
         self.mock_fabric_names_p.stop()
         self.mock_fabric_ports_p.stop()
 
-    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
-    def test_connect_volume(self, mock_remove_p_maps, mock_add_p_maps):
-        # Invoke
-        meta_key = self.vol_drv._sys_fabric_state_key('A')
-        self.vol_drv.instance.system_metadata = {meta_key: npiv.FS_MGMT_MAPPED}
+    def test_connect_volume(self, mock_remove_p_maps,
+                            mock_add_map):
+        # Mock
+        self._basic_system_metadata(npiv.FS_MGMT_MAPPED)
+
+        def add_map(vios_w, host_uuid, vm_uuid, port_map):
+            self.assertIsInstance(vios_w, pvm_vios.VIOS)
+            self.assertEqual('host_uuid', host_uuid)
+            self.assertEqual('1234', vm_uuid)
+            self.assertEqual(('21000024FF649104', 'AA BB'), port_map)
+            return 'good'
+        mock_add_map.side_effect = add_map
+
         # Test connect volume when the fabric is mapped with mgmt partition
         self.vol_drv.connect_volume()
 
-        # Verify
-        # Mgmt mapping should be removed
-        # Add the mapping with the instance.
-        self.assertEqual(1, mock_add_p_maps.call_count)
+        # Verify.  Mgmt mapping should be removed
         self.assertEqual(1, mock_remove_p_maps.call_count)
-        # Check the fabric state should be mapped to instance
-        fc_state = self.vol_drv._get_fabric_state('A')
-        self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
+        self.assertEqual(1, mock_add_map.call_count)
+        self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
+        self.assertEqual(npiv.FS_INST_MAPPED,
+                         self.vol_drv._get_fabric_state('A'))
 
-    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_connect_volume_inst_mapped(self, mock_remove_p_maps,
-                                        mock_add_p_maps):
-        # Invoke
-        meta_key = self.vol_drv._sys_fabric_state_key('A')
-        # Test subsequent connect volume calls when the fabric
-        # is mapped with inst partition
-        self.vol_drv.instance.system_metadata = {meta_key: npiv.FS_INST_MAPPED}
+                                        mock_add_map):
+        """Test if already connected to an instance, don't do anything"""
+        self._basic_system_metadata(npiv.FS_INST_MAPPED)
+        mock_add_map.return_value = None
+
+        # Test subsequent connect volume calls when the fabric is mapped with
+        # inst partition
         self.vol_drv.connect_volume()
 
         # Verify
         # Remove mapping should not be called
-        # Add the mapping with the instance.
-        self.assertEqual(1, mock_add_p_maps.call_count)
         self.assertEqual(0, mock_remove_p_maps.call_count)
-        # Check the fabric state should be mapped to instance
-        fc_state = self.vol_drv._get_fabric_state('A')
-        self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
+        self.assertEqual(1, mock_add_map.call_count)
+        self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
 
-    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
+        # Check the fabric state remains mapped to instance
+        self.assertEqual(npiv.FS_INST_MAPPED,
+                         self.vol_drv._get_fabric_state('A'))
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_connect_volume_fc_unmap(self, mock_remove_p_maps,
-                                     mock_add_p_maps):
-        # Invoke
-        meta_key = self.vol_drv._sys_fabric_state_key('A')
+                                     mock_add_map):
+        # Mock
+        self._basic_system_metadata(npiv.FS_UNMAPPED)
+
+        def add_map(vios_w, host_uuid, vm_uuid, port_map):
+            self.assertIsInstance(vios_w, pvm_vios.VIOS)
+            self.assertEqual('host_uuid', host_uuid)
+            self.assertEqual('1234', vm_uuid)
+            self.assertEqual(('21000024FF649104', 'AA BB'), port_map)
+            return 'good'
+        mock_add_map.side_effect = add_map
+
         # TestCase when there is no mapping
-        self.vol_drv.instance.system_metadata = {meta_key: npiv.FS_UNMAPPED}
         self.vol_drv.connect_volume()
 
-        # Verify
         # Remove mapping should not be called
-        # Add the mapping with the instance.
-        self.assertEqual(1, mock_add_p_maps.call_count)
         self.assertEqual(0, mock_remove_p_maps.call_count)
-        # Check the fabric state should be mapped to instance
-        fc_state = self.vol_drv._get_fabric_state('A')
-        self.assertEqual(npiv.FS_INST_MAPPED, fc_state)
+        self.assertEqual(1, mock_add_map.call_count)
+        self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
 
-    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
-    def test_disconnect_volume(self, mock_remove_p_maps):
+    def _basic_system_metadata(self, fabric_state):
+        meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
+        meta_fb_map = '21000024FF649104,AA,BB'
+        meta_st_key = self.vol_drv._sys_fabric_state_key('A')
+        self.vol_drv.instance.system_metadata = {meta_st_key: fabric_state,
+                                                 meta_fb_key: meta_fb_map}
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_maps')
+    def test_disconnect_volume(self, mock_remove_maps):
         # Mock Data
         self.vol_drv.instance.task_state = 'deleting'
+
+        meta_key = self.vol_drv._sys_meta_fabric_key('A')
+        meta_map = '21000024FF649104,AA,BB,21000024FF649105,CC,DD'
+        self.vol_drv.instance.system_metadata = {meta_key: meta_map}
 
         # Invoke
         self.vol_drv.disconnect_volume()
 
-        # Verify
-        self.assertEqual(1, mock_remove_p_maps.call_count)
+        # Two maps removed on one VIOS
+        self.assertEqual(2, mock_remove_maps.call_count)
+        self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
 
-    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
-    def test_disconnect_volume_no_op(self, mock_remove_p_maps):
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_remove_maps_for_fabric')
+    def test_disconnect_volume_no_op(self, mock_remove_maps):
         """Tests that when the task state is not set, connections are left."""
         # Invoke
         self.vol_drv.disconnect_volume()
 
         # Verify
-        self.assertEqual(0, mock_remove_p_maps.call_count)
+        self.assertEqual(0, mock_remove_maps.call_count)
 
     def test_disconnect_volume_no_op_other_state(self):
         """Tests that the deletion doesn't go through on certain states."""
@@ -166,8 +205,7 @@ class TestNPIVAdapter(test.TestCase):
         self.vol_drv.disconnect_volume()
         self.assertEqual(0, self.adpt.read.call_count)
 
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
-    def test_connect_volume_no_map(self, mock_vio_wrap):
+    def test_connect_volume_no_map(self):
         """Tests that if the VFC Mapping exists, another is not added."""
         # Mock Data
         self.vol_drv.connection_info = {'data': {'initiator_target_map':
@@ -179,13 +217,8 @@ class TestNPIVAdapter(test.TestCase):
         mock_vios = mock.MagicMock()
         mock_vios.vfc_mappings = [mock_mapping]
 
-        mock_vio_wrap.return_value = mock_vios
-
         # Invoke
         self.vol_drv.connect_volume()
-
-        # Verify
-        self.assertEqual(0, self.adpt.update.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
@@ -209,8 +242,6 @@ class TestNPIVAdapter(test.TestCase):
         self.assertListEqual(['AA', 'BB', 'CC', 'DD'], wwpns)
         self.assertEqual('21000024FF649104,AA,BB,21000024FF649105,CC,DD',
                          self.vol_drv.instance.system_metadata[meta_key])
-        xags = [pvm_vios.VIOS.xags.FC_MAPPING, pvm_vios.VIOS.xags.STORAGE]
-        self.adpt.read.assert_called_once_with('VirtualIOServer', xag=xags)
         self.assertEqual(1, mock_add_port.call_count)
 
         # Check when mgmt_uuid is None

@@ -23,6 +23,7 @@ from nova import test
 import os
 import pypowervm.adapter as pvm_adp
 import pypowervm.entities as pvm_ent
+from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import cluster as pvm_clust
 from pypowervm.wrappers import storage as pvm_stg
@@ -35,6 +36,7 @@ from nova_powervm.virt.powervm import exception as npvmex
 
 SSP = 'fake_ssp.txt'
 CLUST = 'fake_cluster.txt'
+VIO = 'fake_vios_with_volume_group_data.txt'
 
 
 class SSPFixture(fixtures.Fixture):
@@ -68,7 +70,7 @@ class TestSSPDiskAdapter(test.TestCase):
         super(TestSSPDiskAdapter, self).setUp()
 
         class Instance(object):
-            uuid = 'instance-uuid'
+            uuid = fx.FAKE_INST_UUID
             name = 'instance-name'
 
         self.instance = Instance()
@@ -87,6 +89,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         self.ssp_resp = resp(SSP)
         self.clust_resp = resp(CLUST)
+        self.vio = resp(VIO)
 
         self.sspfx = self.useFixture(SSPFixture())
 
@@ -336,24 +339,67 @@ class TestSSPDiskAdapter(test.TestCase):
         lu = ssp_stor.create_disk_from_image(None, Instance(), img, 1)
         self.assertEqual('new_lu', lu)
 
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VSCSIMapping.'
-                '_client_lpar_href')
-    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    def test_connect_disk(self, mock_add_map, mock_href):
-        ms_uuid = '67dca605-3923-34da-bd8f-26a378fc817f'
+    @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
+                'vios_uuids')
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    def test_connect_disk(self, mock_active_vioses, mock_add_map,
+                          mock_build_map, mock_vio_uuids):
+        # vio is a single-entry response.  Wrap it and put it in a list
+        # to act as the feed for FeedTaskFx and FeedTask.
+        feed = [pvm_vios.VIOS.wrap(self.vio)]
+        mock_active_vioses.return_value = feed
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
 
-        def validate_add_vscsi_mapping(host_uuid, vios_uuid, lpar_uuid, inlu):
-            self.assertEqual(ms_uuid, host_uuid)
-            self.assertIn(vios_uuid, ('6424120D-CA95-437D-9C18-10B06F4B3400',
-                                      '10B06F4B-437D-9C18-CA95-34006424120D'))
-            self.assertEqual('lpar_uuid', lpar_uuid)
-            self.assertEqual(lu, inlu)
-        mock_add_map.side_effect = validate_add_vscsi_mapping
+        # The mock return values
+        mock_add_map.return_value = True
+        mock_build_map.return_value = 'fake_map'
 
-        ssp_stor = self._get_ssp_stor()
-        lu = ssp_stor._ssp_wrap.logical_units[0]
-        ssp_stor.connect_disk(None, self.instance, lu, 'lpar_uuid')
-        self.assertEqual(2, mock_add_map.call_count)
+        # Need the driver to return the actual UUID of the VIOS in the feed,
+        # to match the FeedTask.
+        ssp = self._get_ssp_stor()
+        ssp.vios_uuids = [feed[0].uuid]
+        inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
+
+        # As initialized above, remove_maps returns True to trigger update.
+        ssp.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
+                         tx_mgr=None)
+        self.assertEqual(1, mock_add_map.call_count)
+        mock_add_map.assert_called_once_with(feed[0], 'fake_map')
+        self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
+                'vios_uuids')
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    def test_connect_disk_no_update(self, mock_active_vioses, mock_add_map,
+                                    mock_build_map, mock_vio_uuids):
+        # vio is a single-entry response.  Wrap it and put it in a list
+        # to act as the feed for FeedTaskFx and FeedTask.
+        feed = [pvm_vios.VIOS.wrap(self.vio)]
+        mock_active_vioses.return_value = feed
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
+
+        # The mock return values
+        mock_add_map.return_value = None
+        mock_build_map.return_value = 'fake_map'
+
+        # Need the driver to return the actual UUID of the VIOS in the feed,
+        # to match the FeedTask.
+        ssp = self._get_ssp_stor()
+        ssp.vios_uuids = [feed[0].uuid]
+        inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
+
+        # As initialized above, remove_maps returns True to trigger update.
+        ssp.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
+                         tx_mgr=None)
+        self.assertEqual(1, mock_add_map.call_count)
+        mock_add_map.assert_called_once_with(feed[0], 'fake_map')
+        self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)
 
     def test_delete_disks(self):
         def _mk_img_lu(idx):
@@ -392,12 +438,30 @@ class TestSSPDiskAdapter(test.TestCase):
         # Update should have been called only once.
         self.assertEqual(1, self.apt.update_by_path.call_count)
 
-    @mock.patch('pypowervm.tasks.scsi_mapper.remove_lu_mapping')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
-    def test_disconnect_image_disk(self, mock_vm_id, mock_rm_lu_map):
-        ssp_stor = self._get_ssp_stor()
-        mock_vm_id.return_value = 'lpar_id'
+    @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
+                'vios_uuids')
+    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    def test_disconnect_disk(self, mock_active_vioses, mock_build_map,
+                             mock_remove_maps, mock_find_maps, mock_vio_uuids):
+        # vio is a single-entry response.  Wrap it and put it in a list
+        # to act as the feed for FeedTaskFx and FeedTask.
+        feed = [pvm_vios.VIOS.wrap(self.vio)]
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        mock_active_vioses.return_value = feed
+        self.useFixture(ft_fx)
 
+        # The mock return values
+        mock_build_map.return_value = 'fake_map'
+
+        # Need the driver to return the actual UUID of the VIOS in the feed,
+        # to match the FeedTask.
+        ssp = self._get_ssp_stor()
+        ssp.vios_uuids = [feed[0].uuid]
+
+        # Make the LU's to remove
         def mklu(udid):
             lu = pvm_stg.LU.bld(None, 'lu_%s' % udid, 1)
             lu._udid('27%s' % udid)
@@ -406,17 +470,20 @@ class TestSSPDiskAdapter(test.TestCase):
         lu1 = mklu('abc')
         lu2 = mklu('def')
 
-        def remove_lu_mapping(adapter, vios_uuid, lpar_id, disk_prefixes=None):
-            """Mock returning different sets of LUs for each VIOS."""
-            self.assertEqual(adapter, self.apt)
-            self.assertEqual('lpar_id', lpar_id)
-            self.assertIn(vios_uuid, ('6424120D-CA95-437D-9C18-10B06F4B3400',
-                                      '10B06F4B-437D-9C18-CA95-34006424120D'))
-            return 'fake_vios', [lu1, lu2]
+        def remove_resp(vios_w, lpar_uuid, match_func=None,
+                        include_orphans=False):
+            return [mock.Mock(backing_storage=lu1),
+                    mock.Mock(backing_storage=lu2)]
 
-        mock_rm_lu_map.side_effect = remove_lu_mapping
-        lu_list = ssp_stor.disconnect_image_disk(None, None, None)
+        mock_remove_maps.side_effect = remove_resp
+        mock_find_maps.side_effect = remove_resp
+
+        # As initialized above, remove_maps returns True to trigger update.
+        lu_list = ssp.disconnect_image_disk(mock.Mock(), self.instance,
+                                            tx_mgr=None)
         self.assertEqual({lu1, lu2}, set(lu_list))
+        self.assertEqual(1, mock_remove_maps.call_count)
+        self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
 
     def test_shared_stg_calls(self):
 
