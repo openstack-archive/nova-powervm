@@ -33,6 +33,7 @@ CONF = cfg.CONF
 VIOS_FEED = 'fake_vios_feed.txt'
 
 I_WWPN_1 = '21000024FF649104'
+I_WWPN_2 = '21000024FF649105'
 
 
 class TestVSCSIAdapter(test.TestCase):
@@ -45,7 +46,7 @@ class TestVSCSIAdapter(test.TestCase):
         @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
         def init_vol_adpt(mock_pvm_uuid):
             con_info = {'data': {'initiator_target_map': {I_WWPN_1: ['t1'],
-                                                          I_WWPN_1: ['t2',
+                                                          I_WWPN_2: ['t2',
                                                                      't3']},
                         'target_lun': '1', 'volume_id': 'id'}}
             mock_inst = mock.MagicMock()
@@ -86,6 +87,8 @@ class TestVSCSIAdapter(test.TestCase):
         mock_add_vscsi_mapping.assert_called_with(
             'host_uuid', '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089', '1234',
             mock.ANY)
+        self.assertListEqual(['3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'],
+                             self.vol_drv._vioses_modified)
 
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
     @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
@@ -164,18 +167,22 @@ class TestVSCSIAdapter(test.TestCase):
         # Check key not found
         self.assertIsNone(retrieved_udid)
 
-    def test_wwpns_on_vios(self):
-        """Validates the _wwpns_on_vios method."""
+    def test_get_hdisk_itls(self):
+        """Validates the _get_hdisk_itls method."""
 
         mock_vios = mock.MagicMock()
-        mock_vios.get_active_pfc_wwpns.return_value = ['A', 'B', 'C']
+        mock_vios.get_active_pfc_wwpns.return_value = [I_WWPN_1]
 
-        self.assertListEqual(
-            ['A'], self.vol_drv._wwpns_on_vios(['A', 'D'], mock_vios))
+        i_wwpn, t_wwpns, lun = self.vol_drv._get_hdisk_itls(mock_vios)
+        self.assertListEqual([I_WWPN_1], i_wwpn)
+        self.assertListEqual(['t1'], t_wwpns)
+        self.assertEqual('1', lun)
 
-        self.assertListEqual(
-            ['A', 'C'],
-            self.vol_drv._wwpns_on_vios(['A', 'C', 'D'], mock_vios))
+        mock_vios.get_active_pfc_wwpns.return_value = [I_WWPN_2]
+        i_wwpn, t_wwpns, lun = self.vol_drv._get_hdisk_itls(mock_vios)
+        self.assertListEqual([I_WWPN_2], i_wwpn)
+        self.assertListEqual(['t2', 't3'], t_wwpns)
 
-        self.assertListEqual(
-            [], self.vol_drv._wwpns_on_vios(['D'], mock_vios))
+        mock_vios.get_active_pfc_wwpns.return_value = ['12345']
+        i_wwpn, t_wwpns, lun = self.vol_drv._get_hdisk_itls(mock_vios)
+        self.assertListEqual([], i_wwpn)
