@@ -42,7 +42,7 @@ def _build_udid_key(vios_uuid, volume_id):
 
     :param vios_uuid: The UUID of the vios for the pypowervm adapter.
     :param volume_id: The lun volume id
-    :returns: The udid dictionary key
+    :return: The udid dictionary key
     """
     return vios_uuid + volume_id
 
@@ -209,7 +209,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports.
 
-        :returns: The list of WWPNs that need to be included in the zone set.
+        :return: The list of WWPNs that need to be included in the zone set.
         """
         if self._pfc_wwpns is None:
             self._pfc_wwpns = vios.get_physical_wwpns(self.adapter,
@@ -219,7 +219,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     def host_name(self):
         """Derives the host name that should be used for the storage device.
 
-        :returns: The host name.
+        :return: The host name.
         """
         return CONF.host
 
@@ -263,7 +263,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param volume_id: The lun volume id
-        :returns: The target_udid associated with the hdisk
+        :return: The target_udid associated with the hdisk
         """
         try:
             udid_key = _build_udid_key(vios_uuid, volume_id)

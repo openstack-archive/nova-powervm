@@ -288,7 +288,7 @@ class DiskAdapter(object):
                           must be at least as big as the image).  Must be an
                           int.
         :param image_type: the image type. See disk constants above.
-        :returns: The backing pypowervm storage object that was created.
+        :return: The backing pypowervm storage object that was created.
         """
         pass
 
@@ -300,7 +300,7 @@ class DiskAdapter(object):
         :param disk_info: The pypowervm storage element returned from
                           create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
                           or PV.
-        :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
+        :param lpar_uuid: The pypowervm UUID that corresponds to the VM.
         """
         pass
 

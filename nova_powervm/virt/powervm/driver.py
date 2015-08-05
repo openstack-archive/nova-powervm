@@ -276,8 +276,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
         :param block_device_info: The block device info from the compute
                                   manager.
-        :returns: True if the root device is in block_device_info and False if
-                  it is not.
+        :return: True if the root device is in block_device_info and False if
+                 it is not.
         """
         root_bdm = block_device.get_root_bdm(
             driver.block_device_info_get_mapping(block_device_info))
@@ -604,7 +604,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param nodename:
             node which the caller want to get resources from
             a driver that manages only one node can safely ignore this
-        :returns: Dictionary describing resources
+        :return: Dictionary describing resources
         """
 
         resp = self.adapter.read(pvm_ms.System.schema_type,
@@ -880,7 +880,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param dst_compute_info: destination host information
         :param block_migration: if true, prepare for block migration
         :param disk_over_commit: if true, allow disk over commit
-        :returns dest_check_data: dictionary containing destination data
+        :return: dictionary containing destination data
         """
         # dest_check_data = \
         # TODO(IBM): Implement live migration check
@@ -897,7 +897,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: nova.db.sqlalchemy.models.Instance
         :param dest_check_data: result of check_can_live_migrate_destination
         :param block_device_info: result of _get_instance_block_device_info
-        :returns: a dict containing migration info (hypervisor-dependent)
+        :return: a dict containing migration info (hypervisor-dependent)
         """
         # migrate_data = \
         # TODO(IBM): Implement live migration check
@@ -1028,7 +1028,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param context: security context
         :param instance: nova.objects.instance.Instance
 
-        :returns an instance of console.type.ConsoleVNC
+        :return: An instance of console.type.ConsoleVNC
         """
         self._log_operation('get_vnc_console', instance)
         lpar_uuid = vm.get_pvm_uuid(instance)
@@ -1047,11 +1047,11 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: Nova instance for which the volume adapter is needed.
         :param conn_info: BDM connection information of the instance to
                           get the volume adapter type (vSCSI/NPIV) requested.
-        :returns: Returns the volume adapter, if conn_info is not passed then
-                  returns the volume adapter based on the CONF
-                  fc_attach_strategy property (npiv/vscsi). Otherwise returns
-                  the adapter based on the connection-type of
-                  connection_info.
+        :return: Returns the volume adapter, if conn_info is not passed then
+                 returns the volume adapter based on the CONF
+                 fc_attach_strategy property (npiv/vscsi). Otherwise returns
+                 the adapter based on the connection-type of
+                 connection_info.
         """
         adp_type = vol_attach.FC_STRATEGY_MAPPING[
             CONF.powervm.fc_attach_strategy]
@@ -1070,8 +1070,8 @@ def _inst_dict(input_dict):
 
     :param input_dict: A dictionary with keys, whose values are class
                        names.
-    :returns: A dictionary with the same keys.  But the values are instances
-              of the class.  No parameters are passed in  to the init methods.
+    :return: A dictionary with the same keys.  But the values are instances
+             of the class.  No parameters are passed in  to the init methods.
     """
     response = dict()
 

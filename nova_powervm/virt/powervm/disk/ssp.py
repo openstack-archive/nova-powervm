@@ -151,7 +151,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                              must be at least as big as the image).  Must be an
                              int.
         :param image_type: The image type. See disk_drv.DiskType.
-        :returns: The backing pypowervm LU storage object that was created.
+        :return: The backing pypowervm LU storage object that was created.
         """
         LOG.info(_LI('SSP: Create %(image_type)s disk from image %(image_id)s '
                      'for instance %(instance_uuid)s.'),
@@ -211,7 +211,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :param disk_info: The pypowervm storage element returned from
                           create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
                           or PV.
-        :param: lpar_uuid: The pypowervm UUID that corresponds to the VM.
+        :param lpar_uuid: The pypowervm UUID that corresponds to the VM.
         """
         # Create the LU structure
         lu = pvm_stg.LU.bld_ref(self.adapter, disk_info.name, disk_info.udid)

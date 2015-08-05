@@ -162,7 +162,7 @@ class FakePowerVMDriver(driver.ComputeDriver):
         :param nodename:
             node which the caller want to get resources from
             a driver that manages only one node can safely ignore this
-        :returns: Dictionary describing resources
+        :return: Dictionary describing resources
         """
 
         data = self._fake.get_available_resource(nodename)
@@ -215,7 +215,7 @@ class FakePowerVMDriver(driver.ComputeDriver):
         :param dst_compute_info: destination host information
         :param block_migration: if true, prepare for block migration
         :param disk_over_commit: if true, allow disk over commit
-        :returns dest_check_data: dictionary containing destination data
+        :return: dictionary containing destination data
         """
         dest_check_data = \
             self._fake.check_can_live_migrate_destination(
@@ -231,8 +231,8 @@ class FakePowerVMDriver(driver.ComputeDriver):
         :param context: security context
         :param instance_ref: instance to be migrated
         :param dest_check_data: results from check_can_live_migrate_destination
-        :returns migrate_data: dictionary containing source and
-            destination data for migration
+        :return: dictionary containing source and destination data for
+                 migration
         """
         migrate_data = \
             self._fake.check_can_live_migrate_source(ctxt,

@@ -73,7 +73,7 @@ def _translate_vm_state(pvm_state):
     """Find the current state of the lpar and convert it to
     the appropriate nova.compute.power_state
 
-    :returns: The appropriate integer state value from power_state
+    :return: The appropriate integer state value from power_state
     """
 
     if pvm_state is None:
@@ -222,7 +222,7 @@ class VMBuilder(object):
 
         :param instance: the VM instance
         :param flavor: The Nova instance flavor.
-        :returns: a dict that can be used by the LPAR builder
+        :return: a dict that can be used by the LPAR builder
         """
         # The attrs are what is sent to pypowervm to convert the lpar.
         attrs = {}
@@ -377,7 +377,7 @@ def get_instance_wrapper(adapter, instance, host_uuid):
     :param adapter: The adapter for the pypowervm API
     :param instance: The nova instance.
     :param host_uuid: (TEMPORARY) The host UUID
-    :returns: The pypowervm logical_partition wrapper.
+    :return: The pypowervm logical_partition wrapper.
     """
     pvm_inst_uuid = get_pvm_uuid(instance)
     resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
@@ -392,7 +392,7 @@ def instance_exists(adapter, instance, host_uuid):
     :param adapter: The adapter for the pypowervm API
     :param instance: The nova instance.
     :param host_uuid: The host UUID
-    :returns: boolean, whether the instance exists.
+    :return: boolean, whether the instance exists.
     """
     try:
         # If we're able to get the property, then it exists.
@@ -407,7 +407,7 @@ def get_vm_id(adapter, lpar_uuid):
 
     :param adapter: The pypowervm adapter.
     :param lpar_uuid: The UUID for the LPAR.
-    :returns: The system id (an integer value).
+    :return: The system id (an integer value).
     """
     return get_vm_qp(adapter, lpar_uuid, qprop='PartitionID')
 
@@ -443,7 +443,7 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
     :param host_wrapper: The host wrapper
     :param instance: The nova instance.
     :param flavor: The nova flavor.
-    :returns: The LPAR response from the API.
+    :return: The LPAR response from the API.
     """
     lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
     lpar_w = lpar_b.build().create(parent_type=pvm_ms.System,
@@ -532,7 +532,7 @@ def get_pvm_uuid(instance):
     UUID.
 
     :param instance: nova.objects.instance.Instance
-    :returns: pvm_uuid.
+    :return: pvm_uuid.
     """
     return pvm_uuid.convert_uuid_to_pvm(instance.uuid).upper()
 
@@ -544,8 +544,7 @@ def get_cnas(adapter, instance, host_uuid):
     :param adapter: The pypowervm adapter.
     :param instance: The nova instance.
     :param host_uuid: The host system UUID.
-    :returns The CNA wrappers that represent the ClientNetworkAdapters on the
-             VM.
+    :return The CNA wrappers that represent the ClientNetworkAdapters on the VM
     """
     cna_resp = adapter.read(pvm_lpar.LPAR.schema_type,
                             root_id=get_pvm_uuid(instance),
@@ -606,8 +605,8 @@ def norm_mac(mac):
     have colons added.
 
     :param mac: A pypowervm mac address.  Ex. 1234567890AB
-    :returns: A mac that matches the standard neutron format.
-              Ex. 12:34:56:78:90:ab
+    :return: A mac that matches the standard neutron format.
+             Ex. 12:34:56:78:90:ab
     """
     mac = mac.lower().replace(':', '')
     return ':'.join(mac[i:i + 2] for i in range(0, len(mac), 2))

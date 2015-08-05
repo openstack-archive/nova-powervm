@@ -47,13 +47,11 @@ class PowerVMVolumeAdapter(object):
         self.vm_uuid = vm.get_pvm_uuid(instance)
 
     def connect_volume(self):
-        """Connects the volume.
-        """
+        """Connects the volume."""
         raise NotImplementedError()
 
     def disconnect_volume(self):
-        """Disconnect the volume.
-        """
+        """Disconnect the volume."""
         raise NotImplementedError()
 
 
@@ -69,13 +67,13 @@ class FibreChannelVolumeAdapter(PowerVMVolumeAdapter):
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports.
 
-        :returns: The list of WWPNs that need to be included in the zone set.
+        :return: The list of WWPNs that need to be included in the zone set.
         """
         raise NotImplementedError()
 
     def host_name(self):
         """Derives the host name that should be used for the storage device.
 
-        :returns: The host name.
+        :return: The host name.
         """
         raise NotImplementedError()

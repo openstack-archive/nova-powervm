@@ -230,5 +230,5 @@ class TestNPIVAdapter(test.TestCase):
         self.vol_drv.instance.system_metadata = {
             self.vol_drv._sys_meta_fabric_key('A'): 'phys1,a,b,phys2,c,d'}
 
-        # Invole and Verify
+        # Invoke and Verify
         self.assertListEqual(['a', 'b', 'c', 'd'], self.vol_drv.wwpns())

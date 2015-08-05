@@ -194,15 +194,16 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     def host_name(self):
         """Derives the host name that should be used for the storage device.
 
-        :returns: The host name.
+        :return: The host name.
         """
         return self.instance.name
 
     def _set_fabric_state(self, fabric, state):
         """Sets the fabric state into the instance's system metadata.
         :param fabric: The name of the fabric
-        :param state: state of the fabric whicn needs to be set
-         Possible Valid States:-
+        :param state: state of the fabric which needs to be set
+
+         Possible Valid States:
          FS_UNMAPPED: Initial state unmapped.
          FS_MGMT_MAPPED: Fabric is mapped with the management partition
          FS_INST_MAPPED: Fabric is mapped with the nova instance.
@@ -215,9 +216,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
     def _get_fabric_state(self, fabric):
         """Gets the fabric state from the instance's system metadata.
+
         :param fabric: The name of the fabric
-        :Returns state: state of the fabric whicn needs to be set
-         Possible Valid States:-
+        :return: The state of the fabric which needs to be set
+
+         Possible Valid States:
          FS_UNMAPPED: Initial state unmapped.
          FS_MGMT_MAPPED: Fabric is mapped with the management partition
          FS_INST_MAPPED: Fabric is mapped with the nova instance.
