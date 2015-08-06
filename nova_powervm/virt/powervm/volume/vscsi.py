@@ -157,7 +157,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     device_name = vio_wrap.hdisk_from_uuid(volume_udid)
 
                     if not device_name:
-                        LOG.info(_LI(u"Disconnect Volume: No mapped device "
+                        LOG.warn(_LW(u"Disconnect Volume: No mapped device "
                                      "found on vios %(vios)s for volume "
                                      "%(volume_id)s. volume_uid: "
                                      "%(volume_uid)s "),
@@ -167,13 +167,13 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                         continue
 
                 except Exception as e:
-                    LOG.error(_LE(u"Disconnect Volume: Failed to find disk "
-                                  "on vios %(vios_name)s for volume "
-                                  "%(volume_id)s. volume_uid: %(volume_uid)s."
-                                  "Error: %(error)s"),
-                              {'error': e, 'volume_uid': volume_udid,
-                               'volume_id': volume_id,
-                               'vios_name': vio_wrap.name})
+                    LOG.warn(_LW(u"Disconnect Volume: Failed to find disk "
+                                 "on vios %(vios_name)s for volume "
+                                 "%(volume_id)s. volume_uid: %(volume_uid)s."
+                                 "Error: %(error)s"),
+                             {'error': e, 'volume_uid': volume_udid,
+                              'volume_id': volume_id,
+                              'vios_name': vio_wrap.name})
                     continue
 
                 # We have found the device name
