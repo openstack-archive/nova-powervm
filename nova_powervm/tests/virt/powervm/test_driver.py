@@ -39,6 +39,7 @@ import pypowervm.wrappers.managed_system as pvm_ms
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import driver
+from nova_powervm.virt.powervm import live_migration as lpm
 
 MS_HTTPRESP_FILE = "managedsystem.txt"
 MS_NAME = 'HV4'
@@ -76,6 +77,8 @@ class TestPowerVMDriver(test.TestCase):
         self.drv = self.drv_fix.drv
         self.apt = self.drv_fix.pypvm.apt
 
+        self._setup_lpm()
+
         self.disk_dvr = self.drv.disk_dvr
         self.vol_fix = self.useFixture(fx.VolumeAdapter())
         self.vol_drv = self.vol_fix.drv
@@ -87,6 +90,17 @@ class TestPowerVMDriver(test.TestCase):
         resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
         resp.entry = pvm_lpar.LPAR._bld(None).entry
         self.crt_lpar.return_value = pvm_lpar.LPAR.wrap(resp)
+
+    def _setup_lpm(self):
+        """Setup the lpm environment.
+
+        This may have to be called directly by tests since the lpm code
+        cleans up the dict entry on the last expected lpm method.
+        """
+        self.lpm = mock.Mock()
+        self.lpm_inst = mock.Mock()
+        self.lpm_inst.uuid = 'inst1'
+        self.drv.live_migrations = {'inst1': self.lpm}
 
     def test_driver_create(self):
         """Validates that a driver of the PowerVM type can just be
@@ -928,3 +942,79 @@ class TestPowerVMDriver(test.TestCase):
         mock_stream.assert_called_with(disk_path='disk_path')
         mock_rm.assert_called_with(stg_elem='stg_elem', vios_wrap='vios_wrap',
                                    disk_path='disk_path')
+
+    @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationDest')
+    def test_can_migrate_dest(self, mock_lpm):
+        mock_lpm.return_value.check_destination.return_value = 'dest_data'
+        dest_data = self.drv.check_can_live_migrate_destination(
+            'context', mock.Mock(), 'src_compute_info', 'dst_compute_info')
+        self.assertEqual('dest_data', dest_data)
+
+    def test_can_live_mig_dest_clnup(self):
+        self.drv.check_can_live_migrate_destination_cleanup(
+            'context', 'dest_data')
+
+    @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationSrc')
+    def test_can_live_mig_src(self, mock_lpm):
+        mock_lpm.return_value.check_source.return_value = (
+            'src_data')
+        src_data = self.drv.check_can_live_migrate_source(
+            'context', mock.Mock(), 'dest_check_data')
+        self.assertEqual('src_data', src_data)
+
+    def test_pre_live_migr(self):
+        self.drv.pre_live_migration(
+            'context', self.lpm_inst, 'block_device_info', 'network_info',
+            'disk_info', migrate_data='migrate_data')
+
+    @mock.patch('nova.utils.spawn_n')
+    def test_live_migration(self, mock_spawn):
+        self.drv.live_migration('context', self.lpm_inst, 'dest',
+                                'post_method', 'recover_method')
+        mock_spawn.assert_called_once_with(
+            self.drv._live_migration_thread, 'context', self.lpm_inst, 'dest',
+            'post_method', 'recover_method', False, None)
+
+    def test_live_migr_thread(self):
+        mock_post_meth = mock.Mock()
+        mock_rec_meth = mock.Mock()
+
+        # Good path
+        self.drv._live_migration_thread(
+            'context', self.lpm_inst, 'dest', mock_post_meth, mock_rec_meth,
+            'block_mig', 'migrate_data')
+
+        mock_post_meth.assert_called_once_with(
+            'context', self.lpm_inst, 'dest', mock.ANY, mock.ANY)
+        self.assertEqual(0, mock_rec_meth.call_count)
+
+        # Exception path
+        self._setup_lpm()
+        mock_post_meth.reset_mock()
+        self.lpm.live_migration.side_effect = ValueError()
+        self.assertRaises(
+            lpm.LiveMigrationFailed, self.drv._live_migration_thread,
+            'context', self.lpm_inst, 'dest', mock_post_meth, mock_rec_meth,
+            'block_mig', 'migrate_data')
+        mock_rec_meth.assert_called_once_with(
+            'context', self.lpm_inst, 'dest', mock.ANY, mock.ANY)
+        self.lpm.rollback_live_migration.assert_called_once_with('context')
+        self.assertEqual(0, mock_post_meth.call_count)
+
+    def test_rollbk_lpm_dest(self):
+        self.drv.rollback_live_migration_at_destination(
+            'context', self.lpm_inst, 'network_info', 'block_device_info')
+        self.assertRaises(
+            KeyError, lambda: self.drv.live_migrations[self.lpm_inst.uuid])
+
+    def test_post_live_mig_src(self):
+        self.drv.post_live_migration_at_source('context', self.lpm_inst,
+                                               'network_info')
+        self.lpm.post_live_migration_at_source.assert_called_once_with(
+            'network_info')
+
+    def test_post_live_mig_dest(self):
+        self.drv.post_live_migration_at_destination(
+            'context', self.lpm_inst, 'network_info')
+        self.lpm.post_live_migration_at_destination.assert_called_once_with(
+            'network_info')
