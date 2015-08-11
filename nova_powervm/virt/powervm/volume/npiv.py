@@ -166,14 +166,27 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         npiv_port_maps = self._get_fabric_meta(fabric)
         vios_wraps = self.tx_mgr.feed
 
-        # TODO(thorst) determine best approach to fold this into the
-        # transactions themselves.
+        # If currently mapped to the mgmt partition, remove the mappings so
+        # that they can be added to the client.
         if self._get_fabric_state(fabric) == FS_MGMT_MAPPED:
-            LOG.info(_LI("Removing NPIV mapping for mgmt partition "
-                         "for instance=%s") % self.instance.name)
-            pvm_vfcm.remove_npiv_port_mappings(self.adapter, self.host_uuid,
-                                               npiv_port_maps)
+            mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
 
+            # Each port mapping should be removed from the VIOS.
+            for npiv_port_map in npiv_port_maps:
+                def rm_mgmt_func(vios_w):
+                    LOG.info(_LI("Removing NPIV mapping for mgmt partition "
+                                 "for instance %(inst)s on VIOS %(vios)s") %
+                             {'inst': self.instance.name, 'vios': vios_w.name})
+                    pvm_vfcm.remove_maps(vios_w, mgmt_uuid,
+                                         port_map=npiv_port_map)
+
+                # This should be added for the appropriate VIOS
+                vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps,
+                                                         npiv_port_map)
+                self.tx_mgr.wrapper_tasks[vios_w.uuid].add_functor_subtask(
+                    rm_mgmt_func)
+
+        # This loop adds the maps from the appropriate VIOS to the client VM
         for npiv_port_map in npiv_port_maps:
             def add_func(vios_w):
                 LOG.info(_LI("Adding NPIV mapping for instance %(inst)s for "

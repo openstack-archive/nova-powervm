@@ -94,12 +94,23 @@ class TestNPIVAdapter(test.TestCase):
         self.mock_fabric_names_p.stop()
         self.mock_fabric_ports_p.stop()
 
+    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
-    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
-    def test_connect_volume(self, mock_remove_p_maps,
-                            mock_add_map):
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_maps')
+    def test_connect_volume(self, mock_remove_maps, mock_add_map,
+                            mock_mgmt_lpar_id):
         # Mock
         self._basic_system_metadata(npiv.FS_MGMT_MAPPED)
+        mock_mgmt_lpar_id.return_value = mock.Mock(uuid='1')
+
+        def validate_remove_maps(vios_w, lpar_uuid, client_adpt=None,
+                                 port_map=None):
+            self.assertEqual('1', lpar_uuid)
+            self.assertIsInstance(vios_w, pvm_vios.VIOS)
+            self.assertIsNone(client_adpt)
+            self.assertEqual(('21000024FF649104', 'AA BB'), port_map)
+            return 'removed'
+        mock_remove_maps.side_effect = validate_remove_maps
 
         def add_map(vios_w, host_uuid, vm_uuid, port_map):
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
@@ -113,7 +124,7 @@ class TestNPIVAdapter(test.TestCase):
         self.vol_drv.connect_volume()
 
         # Verify.  Mgmt mapping should be removed
-        self.assertEqual(1, mock_remove_p_maps.call_count)
+        self.assertEqual(1, mock_remove_maps.call_count)
         self.assertEqual(1, mock_add_map.call_count)
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(npiv.FS_INST_MAPPED,
