@@ -427,6 +427,46 @@ class TestPowerVMDriver(test.TestCase):
         # Validate the rollbacks were called
         self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
 
+    @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
+    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova.virt.configdrive.required_by')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('pypowervm.tasks.power.power_off')
+    def test_spawn_ops_rollback_on_vol_connect(
+        self, mock_pwroff, mock_pwron, mock_get_flv, mock_cfg_drv, mock_dlt,
+            mock_plug_vifs, mock_plug_mgmt_vifs, mock_save):
+        """Validates the rollbacks on a volume connect failure."""
+
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        my_flavor = inst.get_flavor()
+        mock_get_flv.return_value = my_flavor
+        mock_cfg_drv.return_value = False
+        block_device_info = self._fake_bdms()
+
+        # Have the connect fail.
+        self.vol_drv.connect_volume.side_effect = exc.Forbidden()
+
+        # Invoke the method.
+        self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', inst,
+                          mock.Mock(), 'injected_files', 'admin_password',
+                          block_device_info=block_device_info)
+
+        # Create LPAR was called
+        self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
+                                         inst, my_flavor)
+        self.assertEqual(1, self.vol_drv.connect_volume.call_count)
+
+        # Power on should not be called.  Shouldn't get that far in flow.
+        self.assertFalse(mock_pwron.called)
+
+        # Disconnect should, as it may need to remove from one of the VIOSes
+        # (but maybe failed on another).
+        self.assertTrue(self.vol_drv.disconnect_volume.called)
+
     @mock.patch('nova.block_device.get_root_bdm')
     @mock.patch('nova.virt.driver.block_device_info_get_mapping')
     def test_is_booted_from_volume(self, mock_get_mapping, mock_get_root_bdm):
