@@ -28,6 +28,7 @@ from pypowervm import const as pvm_const
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 from pypowervm import util as pvm_util
+from pypowervm.utils import transaction as pvm_tx
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
@@ -106,7 +107,8 @@ class ConfigDrivePowerVM(object):
             return iso_path, file_name
 
     def create_cfg_drv_vopt(self, instance, injected_files, network_info,
-                            lpar_uuid, admin_pass=None, mgmt_cna=None):
+                            lpar_uuid, admin_pass=None, mgmt_cna=None,
+                            tx_mgr=None):
         """Creates the config drive virtual optical and attach to VM.
 
         :param instance: The VM instance from OpenStack.
@@ -116,6 +118,11 @@ class ConfigDrivePowerVM(object):
         :param lpar_uuid: The UUID of the client LPAR
         :param admin_pass: (Optional) password to inject for the VM.
         :param mgmt_cna: (Optional) The management (RMC) CNA wrapper.
+        :param tx_mgr: (Optional) If provided, the storage mappings to connect
+                       the Media to the VM will be deferred on to the
+                       FeedTask passed in.  The execute can be done all in one
+                       method (batched together).  If None (the default) will
+                       be attached immediately.
         """
         # If there is a management client network adapter, then we should
         # convert that to a VIF and add it to the network info
@@ -133,9 +140,47 @@ class ConfigDrivePowerVM(object):
         # Delete the media
         os.remove(iso_path)
 
-        # Add the mapping to the virtual machine
-        tsk_map.add_vscsi_mapping(self.host_uuid, self.vios_uuid, lpar_uuid,
-                                  vopt)
+        # Run the attach of the virtual optical
+        self._attach_vopt(instance, lpar_uuid, vopt, tx_mgr)
+
+    def _attach_vopt(self, instance, lpar_uuid, vopt, tx_mgr=None):
+        """Will attach the vopt to the VIOS.
+
+        If the tx_mgr is provided, adds the mapping to the tx_mgr, but won't
+        attach until the tx_mgr is independently executed.
+
+        :param instance: The VM instance from OpenStack.
+        :param lpar_uuid: The UUID of the client LPAR
+        :param vopt: The virtual optical device to add.
+        :param tx_mgr: (Optional) If provided, the storage mappings to connect
+                       the Media to the VM will be deferred on to the
+                       FeedTask passed in.  The execute can be done all in one
+                       method (batched together).  If None (the default) will
+                       be attached immediately.
+        """
+        # If no transaction manager, build locally so that we can run
+        # immediately
+        if tx_mgr is None:
+            wtsk = pvm_tx.WrapperTask('media_attach', pvm_vios.VIOS.getter(
+                self.adapter, entry_uuid=self.vios_uuid,
+                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING]))
+        else:
+            wtsk = tx_mgr.wrapper_tasks[self.vios_uuid]
+
+        # Define the function to build and add the mapping
+        def add_func(vios_w):
+            LOG.info(_LI("Adding cfg drive mapping for instance %(inst)s for "
+                         "Virtual I/O Server %(vios)s"),
+                     {'inst': instance.name, 'vios': vios_w.name})
+            mapping = tsk_map.build_vscsi_mapping(self.host_uuid, vios_w,
+                                                  lpar_uuid, vopt)
+            return tsk_map.add_map(vios_w, mapping)
+
+        wtsk.add_functor_subtask(add_func)
+
+        # If built locally, then execute
+        if tx_mgr is None:
+            wtsk.execute()
 
     def _mgmt_cna_to_vif(self, cna):
         """Converts the mgmt CNA to VIF format for network injection."""

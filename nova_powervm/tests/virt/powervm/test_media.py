@@ -18,8 +18,10 @@ import mock
 
 from nova import test
 import os
+from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import exception as npvmex
@@ -101,8 +103,9 @@ class TestConfigDrivePowerVM(test.TestCase):
     @mock.patch('os.remove')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_upload_vopt')
-    @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    def test_crt_cfg_drv_vopt(self, mock_add_map, mock_upld,
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_attach_vopt')
+    def test_crt_cfg_drv_vopt(self, mock_attach, mock_upld,
                               mock_rm, mock_size, mock_validate, mock_cfg_iso):
         # Mock Returns
         mock_cfg_iso.return_value = '/tmp/cfgdrv/fake.iso', 'fake.iso'
@@ -114,7 +117,46 @@ class TestConfigDrivePowerVM(test.TestCase):
         cfg_dr_builder.create_cfg_drv_vopt(mock.MagicMock(), mock.MagicMock(),
                                            mock.MagicMock(), 'fake_lpar')
         self.assertTrue(mock_upld.called)
-        self.assertTrue(mock_add_map.called)
+        self.assertTrue(mock_attach.called)
+        mock_attach.assert_called_with(mock.ANY, 'fake_lpar', mock.ANY, None)
+
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_validate_vopt_vg')
+    def test_attach_vopt(self, mock_validate, mock_build_map, mock_add_map):
+        # to act as the feed for FeedTaskFx and FeedTask.
+        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
+
+        mock_instance = mock.MagicMock(name='fake-instance')
+
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        cfg_dr_builder.vios_uuid = feed[0].uuid
+        vopt = mock.Mock()
+        self.apt.read.return_value = self.vio_to_vg
+
+        def validate_build(host_uuid, vios_w, lpar_uuid, vopt_elem):
+            self.assertEqual('fake_host', host_uuid)
+            self.assertIsInstance(vios_w, pvm_vios.VIOS)
+            self.assertEqual('lpar_uuid', lpar_uuid)
+            self.assertEqual(vopt, vopt_elem)
+            return 'map'
+        mock_build_map.side_effect = validate_build
+
+        def validate_add(vios_w, mapping):
+            self.assertIsInstance(vios_w, pvm_vios.VIOS)
+            self.assertEqual(mapping, 'map')
+            return 'added'
+        mock_add_map.side_effect = validate_add
+
+        cfg_dr_builder._attach_vopt(mock_instance, 'lpar_uuid', vopt)
+
+        # Make sure they were called and validated
+        self.assertEqual(1, mock_build_map.call_count)
+        self.assertEqual(1, mock_add_map.call_count)
+        self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')

@@ -323,7 +323,7 @@ class CreateAndConnectCfgDrive(task.Task):
     """The task to create the configuration drive."""
 
     def __init__(self, adapter, host_uuid, instance, injected_files,
-                 network_info, admin_pass):
+                 network_info, admin_pass, tx_mgr=None):
         """Create the Task that create and connect the config drive.
 
         Requires the 'lpar_wrap' and 'mgmt_cna'
@@ -337,6 +337,12 @@ class CreateAndConnectCfgDrive(task.Task):
                                the ISO.
         :param network_info: The network_info from the nova spawn method.
         :param admin_pass: Optional password to inject for the VM.
+        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
+                       the I/O Operations.  If provided, the Virtual I/O Server
+                       mapping updates will be added to the FeedTask.  This
+                       defers the updates to some later point in time.  If the
+                       FeedTask is not provided, the updates will be run
+                       immediately when this method is executed.
         """
         super(CreateAndConnectCfgDrive, self).__init__(
             name='cfg_drive', requires=['lpar_wrap', 'mgmt_cna'])
@@ -347,6 +353,7 @@ class CreateAndConnectCfgDrive(task.Task):
         self.network_info = network_info
         self.ad_pass = admin_pass
         self.mb = None
+        self.tx_mgr = tx_mgr
 
     def execute(self, lpar_wrap, mgmt_cna):
         LOG.info(_LI('Creating Config Drive for instance: %s'),
@@ -355,7 +362,7 @@ class CreateAndConnectCfgDrive(task.Task):
         self.mb.create_cfg_drv_vopt(self.instance, self.injected_files,
                                     self.network_info, lpar_wrap.uuid,
                                     admin_pass=self.ad_pass,
-                                    mgmt_cna=mgmt_cna)
+                                    mgmt_cna=mgmt_cna, tx_mgr=self.tx_mgr)
 
     def revert(self, lpar_wrap, mgmt_cna, result, flow_failures):
         # The parameters have to match the execute method, plus the response +

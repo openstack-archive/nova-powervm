@@ -35,7 +35,6 @@ from oslo_utils import importutils
 import six
 from taskflow import engines as tf_eng
 from taskflow.patterns import linear_flow as tf_lf
-from taskflow.patterns import unordered_flow as tf_uf
 
 from pypowervm import adapter as pvm_apt
 from pypowervm import exceptions as pvm_exc
@@ -218,15 +217,11 @@ class PowerVMDriver(driver.ComputeDriver):
         flow_spawn.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
                                     flavor))
 
-        # Create a linear flow for the network.
-        flow_net = tf_lf.Flow("spawn-network")
-        flow_net.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
-                                     network_info, self.host_uuid))
-        flow_net.add(tf_net.PlugMgmtVif(self.adapter, instance,
-                                        self.host_uuid))
-
-        # Create a linear flow for the storage items.
-        flow_stor = tf_lf.Flow("spawn-storage")
+        # Create a flow for the IO
+        flow_spawn.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
+                                       network_info, self.host_uuid))
+        flow_spawn.add(tf_net.PlugMgmtVif(self.adapter, instance,
+                                          self.host_uuid))
 
         # Create the transaction manager (FeedTask) for Storage I/O.
         tx_mgr = vios.build_tx_feed_task(self.adapter, self.host_uuid)
@@ -234,13 +229,13 @@ class PowerVMDriver(driver.ComputeDriver):
         # Only add the image disk if this is from Glance.
         if not self._is_booted_from_volume(block_device_info):
             # Creates the boot image.
-            flow_stor.add(tf_stg.CreateDiskForImg(
+            flow_spawn.add(tf_stg.CreateDiskForImg(
                 self.disk_dvr, context, instance, image_meta,
                 disk_size=flavor.root_gb))
 
             # Connects up the disk to the LPAR
-            flow_stor.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance,
-                                             tx_mgr))
+            flow_spawn.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance,
+                                              tx_mgr))
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
@@ -253,21 +248,11 @@ class PowerVMDriver(driver.ComputeDriver):
 
                 # First connect the volume.  This will update the
                 # connection_info.
-                flow_stor.add(tf_stg.ConnectVolume(vol_drv))
+                flow_spawn.add(tf_stg.ConnectVolume(vol_drv))
 
                 # Save the BDM so that the updated connection info is
                 # persisted.
-                flow_stor.add(tf_stg.SaveBDM(bdm, instance))
-
-        # Add the transaction manager flow to the end of the 'storage
-        # connection' tasks.  This will run all the connections in parallel.
-        flow_stor.add(tx_mgr)
-
-        # The network and the storage flows can run in parallel.  Create an
-        # unordered flow to run those.
-        flow_io = tf_uf.Flow("spawn-io")
-        flow_io.add(flow_net, flow_stor)
-        flow_spawn.add(flow_io)
+                flow_spawn.add(tf_stg.SaveBDM(bdm, instance))
 
         # If the config drive is needed, add those steps.  Should be done
         # after all the other I/O.
@@ -275,6 +260,10 @@ class PowerVMDriver(driver.ComputeDriver):
             flow_spawn.add(tf_stg.CreateAndConnectCfgDrive(
                 self.adapter, self.host_uuid, instance, injected_files,
                 network_info, admin_password))
+
+        # Add the transaction manager flow to the end of the 'I/O
+        # connection' tasks.  This will run all the connections in parallel.
+        flow_spawn.add(tx_mgr)
 
         # Last step is to power on the system.
         flow_spawn.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
