@@ -99,3 +99,13 @@ class TooManyClustersFound(AbstractDiskException):
 class NoConfigTooManyClusters(AbstractDiskException):
     msg_fmt = _("No cluster_name specified.  Refusing to select one of the "
                 "%(clust_count)d Clusters found.")
+
+
+class VolumeAttachFailed(nex.NovaException):
+    msg_fmt = _("Unable to attach storage (id: %(volume_id)s) to virtual "
+                "machine %(instance_name)s.  %(reason)s")
+
+
+class VolumeDetachFailed(nex.NovaException):
+    msg_fmt = _("Unable to detach volume (id: %(volume_id)s) from virtual "
+                "machine %(instance_name)s.  %(reason)s")

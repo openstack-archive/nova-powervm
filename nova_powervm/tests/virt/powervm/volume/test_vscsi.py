@@ -22,9 +22,9 @@ import os
 from oslo_config import cfg
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
+from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.volume import vscsi
 
-import pypowervm.exceptions as pexc
 from pypowervm.tasks import hdisk
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
@@ -143,7 +143,7 @@ class TestVSCSIAdapter(test.TestCase):
         mock_instance.system_metadata = {}
 
         mock_build_itls.return_value = []
-        self.assertRaises(pexc.VolumeAttachFailed,
+        self.assertRaises(p_exc.VolumeAttachFailed,
                           self.vol_drv.connect_volume)
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
@@ -189,6 +189,24 @@ class TestVSCSIAdapter(test.TestCase):
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_remove_maps.call_count)
         self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
+        self.assertEqual(1, len(self.vol_drv._vioses_modified))
+
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
+    def test_disconnect_volume_no_valid_vio(self, mock_remove_maps,
+                                            mock_hdisk_from_uuid):
+        """Validate that if all VIOSes are invalid, the vio updates are 0."""
+        # The mock return values
+        mock_remove_maps.return_value = None
+        mock_hdisk_from_uuid.return_value = None
+
+        # Run the method
+        self.vol_drv.disconnect_volume()
+
+        # As initialized above, remove_maps returns True to trigger update.
+        self.assertEqual(0, mock_remove_maps.call_count)
+        self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
+        self.assertEqual(0, len(self.vol_drv._vioses_modified))
 
     @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')
     def test_wwpns(self, mock_vio_wwpns):
