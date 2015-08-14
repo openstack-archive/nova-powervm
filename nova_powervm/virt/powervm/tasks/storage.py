@@ -19,7 +19,6 @@ from pypowervm.tasks import scsi_mapper as pvm_smap
 
 from oslo_log import log as logging
 from taskflow import task
-from taskflow.types import failure as task_fail
 
 from nova_powervm.virt.powervm.disk import driver as disk_driver
 from nova_powervm.virt.powervm import exception as npvmex
@@ -47,15 +46,11 @@ class ConnectVolume(task.Task):
     def execute(self):
         LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
-        return self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume()
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        if result is None or isinstance(result, task_fail.Failure):
-            # No result means no disk to clean up.
-            return
-
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
                      'disconnected'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
@@ -63,7 +58,7 @@ class ConnectVolume(task.Task):
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
         self.vol_drv.reset_tx_mgr()
-        return self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume()
 
 
 class DisconnectVolume(task.Task):
@@ -83,15 +78,11 @@ class DisconnectVolume(task.Task):
     def execute(self):
         LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance})
-        return self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume()
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        if result is None or isinstance(result, task_fail.Failure):
-            # No result means no disk to clean up.
-            return
-
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
                      're-connected'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance})
@@ -99,7 +90,7 @@ class DisconnectVolume(task.Task):
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
         self.vol_drv.reset_tx_mgr()
-        return self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume()
 
 
 class CreateDiskForImg(task.Task):
@@ -140,9 +131,6 @@ class CreateDiskForImg(task.Task):
         # failures even if only a subset are used.
         LOG.warn(_LW('Image for instance %s to be deleted'),
                  self.instance.name)
-        if result is None or isinstance(result, task_fail.Failure):
-            # No result means no disk to clean up.
-            return
 
         # Run the delete.  The result is a single disk.  Wrap into list
         # as the method works with plural disks.
