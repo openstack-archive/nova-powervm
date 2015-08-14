@@ -206,15 +206,20 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertRaises(npvmex.NoMediaRepoVolumeGroupFound,
                           m.ConfigDrivePowerVM, self.apt, 'fake_host')
 
+    @mock.patch('pypowervm.tasks.storage.rm_vg_storage')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_vopt_mapping')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
-    def test_dlt_vopt(self, mock_vop_valid, mock_remove_map):
+    def test_dlt_vopt(self, mock_vop_valid, mock_vm_id, mock_remove_map,
+                      rm_vg_stor):
+        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
 
         # Set up the mock data.
-        resp = mock.MagicMock(name='resp')
-        type(resp).body = mock.PropertyMock(return_value='2')
-        self.apt.read.side_effect = [resp, self.vg_to_vio]
+        self.apt.read.side_effect = [self.vio_to_vg, self.vg_to_vio]
+        mock_vm_id.return_value = '2'
 
         # We tell it to remove all the optical medias.
         vg = pvm_stor.VG.wrap(self.vg_to_vio)
@@ -232,8 +237,16 @@ class TestConfigDrivePowerVM(test.TestCase):
 
         self.apt.update_by_path.side_effect = validate_update
 
+        def validate_remove_stor(vg_w, vopts=[]):
+            self.assertIsInstance(vg_w, pvm_stor.VG)
+            self.assertEqual(1, len(vopts))
+            self.assertIsInstance(vopts[0], pvm_stor.VOptMedia)
+        rm_vg_stor.side_effect = validate_remove_stor
+
         # Invoke the operation
         cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
-        cfg_dr.dlt_vopt('fake_lpar_uuid')
+        cfg_dr.vios_uuid = feed[0].uuid
+        cfg_dr.dlt_vopt('2')
 
-        self.assertEqual(1, self.apt.update_by_path.call_count)
+        self.assertTrue(ft_fx.patchers['update'].mock.called)
+        self.assertTrue(rm_vg_stor.called)

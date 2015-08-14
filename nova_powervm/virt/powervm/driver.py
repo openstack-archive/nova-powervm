@@ -306,7 +306,6 @@ class PowerVMDriver(driver.ComputeDriver):
                                   be detached from the instance.
         :param destroy_disks: Indicates if disks should be destroyed
         :param migrate_data: implementation specific params
-
         """
 
         def _run_flow():
@@ -317,15 +316,16 @@ class PowerVMDriver(driver.ComputeDriver):
             flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
                                     pvm_inst_uuid, instance))
 
-            # Delete the virtual optical
-            flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
-                                       pvm_inst_uuid))
-
             # Create the transaction manager (FeedTask) for Storage I/O.
             tx_mgr = vios.build_tx_feed_task(self.adapter, self.host_uuid)
 
+            # Add the disconnect/deletion of the vOpt to the transaction
+            # manager.
+            flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
+                                       pvm_inst_uuid, tx_mgr=tx_mgr))
+
             # Determine if there are volumes to disconnect.  If so, remove each
-            # volume
+            # volume (within the transaction manager)
             bdms = self._extract_bdm(block_device_info)
             if bdms is not None:
                 for bdm in bdms:
@@ -337,7 +337,7 @@ class PowerVMDriver(driver.ComputeDriver):
             # Only attach the disk adapters if this is not a boot from volume.
             destroy_disk_task = None
             if not self._is_booted_from_volume(block_device_info):
-                # Detach the disk storage adapters
+                # Detach the disk storage adapters (when the tx_mgr runs)
                 flow.add(tf_stg.DetachDisk(
                     self.disk_dvr, context, instance, tx_mgr))
 

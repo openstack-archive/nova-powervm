@@ -20,6 +20,7 @@ from nova.i18n import _LI, _LW
 from nova.network import model as network_model
 from nova.virt import configdrive
 import os
+from taskflow import task
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -319,19 +320,70 @@ class ConfigDrivePowerVM(object):
         ConfigDrivePowerVM._cur_vios_uuid = found_vios.uuid
         ConfigDrivePowerVM._cur_vios_name = found_vios.name
 
-    def dlt_vopt(self, lpar_uuid):
-        """Deletes the virtual optical and scsi mappings for a VM."""
+    def dlt_vopt(self, lpar_uuid, tx_mgr=None):
+        """Deletes the virtual optical and scsi mappings for a VM.
+
+        :param lpar_uuid: The pypowervm UUID of the LPAR to remove.
+        :param tx_mgr: (Optional) A FeedTask. If provided, the actions to
+                       modify the storage will be added as batched functions
+                       onto the FeedTask.  If not provided (the default) the
+                       operation to delete the vOpt will execute immediately.
+        """
+        # If no transaction manager, build locally so that we can run
+        # immediately
+        if tx_mgr is None:
+            built_tx_mgr = True
+            vio_resp = self.adapter.read(
+                pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
+                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+            vio_w = pvm_vios.VIOS.wrap(vio_resp)
+            tx_mgr = pvm_tx.FeedTask('media_detach', [vio_w])
+        else:
+            built_tx_mgr = False
+
+        # Run the remove maps method.
+        self.add_dlt_vopt_tasks(lpar_uuid, tx_mgr)
+
+        # If built locally, then execute
+        if built_tx_mgr:
+            tx_mgr.execute()
+
+    def add_dlt_vopt_tasks(self, lpar_uuid, tx_mgr):
+        """Deletes the virtual optical and scsi mappings for a VM.
+
+        :param lpar_uuid: The pypowervm UUID of the LPAR to remove.
+        :param tx_mgr: A FeedTask.  The storage mappings to remove the Media to
+                       the VM will be deferred on to the FeedTask passed in.
+                       The execute can be done all in one method (batched
+                       together).  No updates are actually made, they are
+                       simply added to the FeedTask.
+        """
+        # The function to find the VOpt
+        match_func = tsk_map.gen_match_func(pvm_stg.VOptMedia)
+
+        def rm_vopt_mapping(vios_w):
+            return tsk_map.remove_maps(vios_w, lpar_uuid,
+                                       match_func=match_func)
+
+        # Add a function to remove the map
+        tx_mgr.wrapper_tasks[self.vios_uuid].add_functor_subtask(
+            rm_vopt_mapping)
+
+        # Find the vOpt device (before the remove is done) so that it can be
+        # removed.
         partition_id = vm.get_vm_id(self.adapter, lpar_uuid)
+        media_mappings = tsk_map.find_maps(
+            tx_mgr.get_wrapper(self.vios_uuid).scsi_mappings,
+            partition_id, match_func=match_func)
+        media_elems = [x.backing_storage for x in media_mappings]
 
-        # Remove the SCSI mappings to all vOpt Media.  This returns the media
-        # devices that were removed from the bus.
-        vios, media_elems = tsk_map.remove_vopt_mapping(
-            self.adapter, self.vios_uuid, partition_id)
+        def rm_vopt():
+            LOG.info(_LI("Removing virtual optical for VM with UUID %s."),
+                     lpar_uuid)
+            vg_rsp = self.adapter.read(pvm_vios.VIOS.schema_type,
+                                       root_id=self.vios_uuid,
+                                       child_type=pvm_stg.VG.schema_type,
+                                       child_id=self.vg_uuid)
+            tsk_stg.rm_vg_storage(pvm_stg.VG.wrap(vg_rsp), vopts=media_elems)
 
-        # Next delete the media from the volume group.  To do so, remove the
-        # media from the volume group, which triggers a delete.
-        vg_rsp = self.adapter.read(pvm_vios.VIOS.schema_type,
-                                   root_id=self.vios_uuid,
-                                   child_type=pvm_stg.VG.schema_type,
-                                   child_id=self.vg_uuid)
-        tsk_stg.rm_vg_storage(pvm_stg.VG.wrap(vg_rsp), vopts=media_elems)
+        tx_mgr.add_post_execute(task.FunctorTask(rm_vopt))
