@@ -1,4 +1,4 @@
-# Copyright 2014 IBM Corp.
+# Copyright 2014, 2015 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -214,7 +214,7 @@ class HostCPUStats(pcm_util.MetricCache):
     def _get_cpu_freq():
         # The output will be similar to '4116.000000MHz' on a POWER system.
         cmd = ['/usr/bin/awk', '/clock/ {print $3; exit}', '/proc/cpuinfo']
-        return float(subprocess.check_output(cmd).rstrip("MHz\n"))
+        return int(float(subprocess.check_output(cmd).rstrip("MHz\n")))
 
     def _delta_proc_cycles(self, samples, prev_samples):
         """Sums all the processor delta cycles for a set of VM/VIOS samples.

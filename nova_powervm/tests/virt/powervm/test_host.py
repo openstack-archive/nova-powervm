@@ -113,7 +113,7 @@ class TestHostCPUStats(test.TestCase):
     def test_update_internal_metric(self, mock_ensure_ltm, mock_refresh,
                                     mock_cpu_freq):
         host_stats = pvm_host.HostCPUStats(self.adpt, 'host_uuid')
-        mock_cpu_freq.return_value = 4116.0
+        mock_cpu_freq.return_value = 4116
 
         # Make sure None is returned if there is no data.
         host_stats.cur_phyp = None
@@ -128,7 +128,7 @@ class TestHostCPUStats(test.TestCase):
         # Validate the dictionary...
         expect = {'iowait': 0, 'idle': 1.6125096675799704e+16,
                   'kernel': 58599310268, 'user': 789903553028,
-                  'frequency': 4116.0}
+                  'frequency': 4116}
         self.assertEqual(expect, host_stats.cur_data)
 
         # Now 'increment' it with a new current/previous
@@ -140,7 +140,7 @@ class TestHostCPUStats(test.TestCase):
         # overall, even though we add the 'deltas' from each VM.
         expect = {'iowait': 0, 'idle': 1.6125066665694504e+16,
                   'kernel': 58599310268, 'user': 819913658228,
-                  'frequency': 4116.0}
+                  'frequency': 4116}
         self.assertEqual(expect, host_stats.cur_data)
 
     @mock.patch('subprocess.check_output')
@@ -149,7 +149,8 @@ class TestHostCPUStats(test.TestCase):
     def test_get_cpu_freq(self, mock_ensure_ltm, mock_refresh, mock_cmd):
         host_stats = pvm_host.HostCPUStats(self.adpt, 'host_uuid')
         mock_cmd.return_value = '4116.000000MHz\n'
-        self.assertEqual(4116.0, host_stats._get_cpu_freq())
+        self.assertEqual(4116, host_stats._get_cpu_freq())
+        self.assertEqual(int, type(host_stats._get_cpu_freq()))
 
     @mock.patch('pypowervm.tasks.monitor.util.MetricCache._refresh_if_needed')
     @mock.patch('pypowervm.tasks.monitor.util.ensure_ltm_monitors')
