@@ -245,7 +245,8 @@ class TestVM(test.TestCase):
 
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
     @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder.build')
-    def test_crt_lpar(self, mock_bld, mock_stdz):
+    @mock.patch('pypowervm.utils.validation.LPARWrapperValidator.validate_all')
+    def test_crt_lpar(self, mock_vld_all, mock_bld, mock_stdz):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
@@ -256,6 +257,7 @@ class TestVM(test.TestCase):
         self.apt.create.return_value = lparw.entry
         vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
         self.assertTrue(self.apt.create.called)
+        self.assertTrue(mock_vld_all.called)
 
         flavor.extra_specs = {'powervm:BADATTR': 'true'}
         host_wrapper = mock.Mock()

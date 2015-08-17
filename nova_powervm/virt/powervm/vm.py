@@ -29,6 +29,7 @@ from pypowervm.tasks import power
 from pypowervm.tasks import vterm
 from pypowervm.utils import lpar_builder as lpar_bldr
 from pypowervm.utils import uuid as pvm_uuid
+from pypowervm.utils import validation as vldn
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -446,7 +447,9 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
     :return: The LPAR response from the API.
     """
     lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
-    lpar_w = lpar_b.build().create(parent_type=pvm_ms.System,
+    pending_lpar_w = lpar_b.build()
+    vldn.LPARWrapperValidator(pending_lpar_w, host_wrapper).validate_all()
+    lpar_w = pending_lpar_w.create(parent_type=pvm_ms.System,
                                    parent_uuid=host_wrapper.uuid)
 
     return lpar_w
