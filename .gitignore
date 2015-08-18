@@ -3,3 +3,4 @@
 .tox/
 ceilometer_powervm.egg-info/
 *.pyc
+doc/build

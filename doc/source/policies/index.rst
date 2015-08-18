@@ -14,32 +14,27 @@
       License for the specific language governing permissions and limitations
       under the License.
 
-Welcome to Ceilometer-PowerVM's documentation!
-==============================================
-
-This project will provide Ceilometer-compatible compute agent plugins
-for monitoring instance utilization and statistics on PowerVM systems.
-
-Documentation on Ceilometer can be found at the `Ceilometer documentation`_.
-
-.. _`Ceilometer documentation`: http://docs.openstack.org/developer/ceilometer
-
 Ceilometer-PowerVM Policies
 ===========================
 
-Contents:
+In the Policies Guide, you will find documented policies for developing with
+Ceilometer-PowerVM. This includes the processes we use for blueprints and specs,
+bugs, contributor onboarding, and other procedural items.
 
+Policies
+--------
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 3
 
-   policies/index
+    bugs
+    contributing
+    code-reviews
+    readme
 
-Ceilometer-PowerVM Devref
-=========================
+Indices and tables
+------------------
 
-Contents:
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
 
-.. toctree::
-   :maxdepth: 1
-
-   devref/index

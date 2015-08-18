@@ -14,32 +14,8 @@
       License for the specific language governing permissions and limitations
       under the License.
 
-Welcome to Ceilometer-PowerVM's documentation!
-==============================================
-
-This project will provide Ceilometer-compatible compute agent plugins
-for monitoring instance utilization and statistics on PowerVM systems.
-
-Documentation on Ceilometer can be found at the `Ceilometer documentation`_.
-
-.. _`Ceilometer documentation`: http://docs.openstack.org/developer/ceilometer
-
-Ceilometer-PowerVM Policies
-===========================
-
-Contents:
-
-.. toctree::
-   :maxdepth: 1
-
-   policies/index
-
-Ceilometer-PowerVM Devref
-=========================
-
-Contents:
-
-.. toctree::
-   :maxdepth: 1
-
-   devref/index
+Usage
+=====
+- Install the ceilometer-powervm plugin on the compute server
+- Set the hypervisor_inspector in the ceilometer.conf to "powervm"
+- Start the ceilometer-agent-compute on the compute server
