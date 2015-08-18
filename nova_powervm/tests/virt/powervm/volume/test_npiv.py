@@ -231,6 +231,12 @@ class TestNPIVAdapter(test.TestCase):
         # Invoke
         self.vol_drv.connect_volume()
 
+    def test_min_xags(self):
+        xags = self.vol_drv.min_xags
+        self.assertEqual(2, len(xags))
+        self.assertIn(pvm_vios.VIOS.xags.STORAGE, xags)
+        self.assertIn(pvm_vios.VIOS.xags.FC_MAPPING, xags)
+
     @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
     def test_wwpns(self, mock_add_port, mock_mgmt_part):
