@@ -53,6 +53,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     @property
     def min_xags(self):
         """List of pypowervm XAGs needed to support this adapter."""
+        # Storage are so physical FC ports are available
+        # FC mapping is for the connections between VIOS and client VM
         return [pvm_vios.VIOS.xags.FC_MAPPING, pvm_vios.VIOS.xags.STORAGE]
 
     def _connect_volume(self):

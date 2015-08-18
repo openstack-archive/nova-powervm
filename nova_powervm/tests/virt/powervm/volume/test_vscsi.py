@@ -216,6 +216,12 @@ class TestVSCSIAdapter(test.TestCase):
 
         self.assertListEqual(['aa', 'bb'], wwpns)
 
+    def test_min_xags(self):
+        xags = self.vol_drv.min_xags
+        self.assertEqual(2, len(xags))
+        self.assertIn(pvm_vios.VIOS.xags.STORAGE, xags)
+        self.assertIn(pvm_vios.VIOS.xags.SCSI_MAPPING, xags)
+
     def test_set_udid(self):
 
         # Mock connection info

@@ -77,7 +77,9 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     @property
     def min_xags(self):
         """List of pypowervm XAGs needed to support this adapter."""
-        return [pvm_vios.VIOS.xags.STORAGE]
+        # Storage are so hdisks get listed on the VIOS
+        # SCSI mapping is for the connections between VIOS and client VM
+        return [pvm_vios.VIOS.xags.STORAGE, pvm_vios.VIOS.xags.SCSI_MAPPING]
 
     def _connect_volume(self):
         """Connects the volume."""
