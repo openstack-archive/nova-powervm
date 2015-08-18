@@ -242,7 +242,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                          "%(disk)s from the Virtual I/O Server."),
                          {'disk': device_name})
                 LOG.warn(e)
-        self.tx_mgr.add_post_execute(task.FunctorTask(rm_hdisk))
+        name = 'rm_hdisk_%s_%s' % (vio_wrap.name, device_name)
+        self.tx_mgr.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
 
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports.
