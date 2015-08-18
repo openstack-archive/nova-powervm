@@ -202,8 +202,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # After all the mappings, make sure the fabric state is updated.
         def set_state():
             self._set_fabric_state(fabric, FS_INST_MAPPED)
-        self.tx_mgr.add_post_execute(task.FunctorTask(set_state,
-                                                      name='fab_%s' % fabric))
+        volume_id = self.connection_info['data']['volume_id']
+        self.tx_mgr.add_post_execute(task.FunctorTask(
+            set_state, name='fab_%s_%s' % (fabric, volume_id)))
 
     def _remove_maps_for_fabric(self, fabric):
         """Removes the vFC storage mappings from the VM for a given fabric.
