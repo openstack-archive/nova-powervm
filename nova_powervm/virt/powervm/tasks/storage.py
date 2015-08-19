@@ -19,6 +19,7 @@ from pypowervm.tasks import scsi_mapper as pvm_smap
 
 from oslo_log import log as logging
 from taskflow import task
+from taskflow.types import failure as task_fail
 
 from nova_powervm.virt.powervm.disk import driver as disk_driver
 from nova_powervm.virt.powervm import exception as npvmex
@@ -131,6 +132,11 @@ class CreateDiskForImg(task.Task):
         # failures even if only a subset are used.
         LOG.warn(_LW('Image for instance %s to be deleted'),
                  self.instance.name)
+
+        # If there is no result, or its a direct failure, then there isn't
+        # anything to delete.
+        if result is None or isinstance(result, task_fail.Failure):
+            return
 
         # Run the delete.  The result is a single disk.  Wrap into list
         # as the method works with plural disks.

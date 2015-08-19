@@ -427,6 +427,41 @@ class TestPowerVMDriver(test.TestCase):
         # Validate the rollbacks were called
         self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
 
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
+                'delete_disks')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg.'
+                'execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
+    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova.virt.configdrive.required_by')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    def test_spawn_ops_rollback_disk(
+            self, mock_get_flv, mock_cfg_drv, mock_dlt, mock_plug_vifs,
+            mock_plug_mgmt_vifs, mock_crt_disk, mock_delete_disks):
+        """Validates the rollback if failure occurs on disk create."""
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        my_flavor = inst.get_flavor()
+        mock_get_flv.return_value = my_flavor
+        mock_cfg_drv.return_value = False
+
+        # Make sure power on fails.
+        mock_crt_disk.side_effect = exc.Forbidden()
+
+        # Invoke the method.
+        self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', inst,
+                          mock.Mock(), 'injected_files', 'admin_password',
+                          block_device_info=None)
+
+        # Create LPAR was called
+        self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
+                                         inst, my_flavor)
+
+        # Since the create disks method failed, the delete disks should not
+        # have been called
+        self.assertFalse(mock_delete_disks.called)
+
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
