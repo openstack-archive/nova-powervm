@@ -220,7 +220,8 @@ class TestNPIVAdapter(test.TestCase):
         """Tests that if the VFC Mapping exists, another is not added."""
         # Mock Data
         self.vol_drv.connection_info = {'data': {'initiator_target_map':
-                                                 {'a': None, 'b': None}}}
+                                                 {'a': None, 'b': None},
+                                                 'volume_id': 'vid'}}
 
         mock_mapping = mock.MagicMock()
         mock_mapping.client_adapter.wwpns = {'a', 'b'}
