@@ -19,6 +19,7 @@ import mock
 
 from ceilometer.compute.virt import inspector as virt_inspector
 from oslotest import base
+from pypowervm.tasks.monitor import lpar as pvm_lpar_stat
 from pypowervm.tests import test_fixtures as api_fx
 
 from ceilometer_powervm.compute.virt.powervm import inspector as p_inspect
@@ -146,13 +147,10 @@ class TestPowerVMInspector(base.BaseTestCase):
     @staticmethod
     def _mock_vnic_metric(rec_bytes, tx_bytes, rec_pkts, tx_pkts, phys_loc):
         """Helper method to create a specific mock network metric."""
-        metric = mock.MagicMock()
-        metric.received_bytes = rec_bytes
-        metric.sent_bytes = tx_bytes
-        metric.received_packets = rec_pkts
-        metric.sent_packets = tx_pkts
-        metric.physical_location = phys_loc
-        return metric
+        return pvm_lpar_stat.LparCNA(mock.Mock(
+            received_bytes=rec_bytes, sent_bytes=tx_bytes,
+            received_packets=rec_pkts, sent_packets=tx_pkts,
+            physical_location=phys_loc))
 
     def _build_cur_mock_vnic_metrics(self):
         """Helper method to create mock network metrics."""
@@ -277,3 +275,127 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.assertEqual('c', interface3.name)
         self.assertEqual(100.0, stats3.rx_bytes_rate)
         self.assertEqual(100.0, stats3.tx_bytes_rate)
+
+    @staticmethod
+    def _mock_stor_metric(num_reads, num_writes, read_bytes, write_bytes,
+                          name):
+        """Helper method to create a specific mock storage metric."""
+        m = mock.Mock(num_reads=num_reads, num_writes=num_writes,
+                      read_bytes=read_bytes, write_bytes=write_bytes)
+        # Have to do this method as name is a special field.
+        m.configure_mock(name=name)
+        return pvm_lpar_stat.LparVirtStorageAdpt(m)
+
+    def _build_cur_mock_stor_metrics(self):
+        """Helper method to create mock storage metrics."""
+        vscsi1 = self._mock_stor_metric(1000, 1000, 100000, 100000, 'vscsi1')
+        vscsi2 = self._mock_stor_metric(2000, 2000, 200000, 200000, 'vscsi2')
+        vfc1 = self._mock_stor_metric(3000, 3000, 300000, 300000, 'vfc1')
+
+        storage = mock.Mock(virt_adpts=[vscsi1, vscsi2], vfc_adpts=[vfc1])
+        metric = mock.MagicMock(storage=storage)
+        return metric
+
+    def _build_prev_mock_stor_metrics(self):
+        """Helper method to create mock storage metrics."""
+        vscsi1 = self._mock_stor_metric(500, 500, 50000, 50000, 'vscsi1')
+        vfc1 = self._mock_stor_metric(2000, 2000, 20000, 200000, 'vfc1')
+
+        storage = mock.Mock(virt_adpts=[vscsi1], vfc_adpts=[vfc1])
+        metric = mock.MagicMock(storage=storage)
+        return metric
+
+    def test_inspect_disk_iops(self):
+        """Tests the inspect_disk_iops inspector method for PowerVM."""
+        # Validate that an error is raised if the instance can't be found in
+        # the sample data.
+        self.mock_metrics.get_latest_metric.return_value = None, None
+        self.mock_metrics.get_previous_metric.return_value = None, None
+        self.assertRaises(virt_inspector.InstanceNotFoundException,
+                          list, self.inspector.inspect_disk_iops(mock.Mock()))
+
+        # Validate that no data is returned if there is a current metric,
+        # just no storage within it.
+        mock_empty_st = mock.MagicMock(storage=None)
+        self.mock_metrics.get_latest_metric.return_value = None, mock_empty_st
+        self.assertEqual([],
+                         list(self.inspector.inspect_disk_iops(mock.Mock())))
+
+        # Current metric data
+        mock_cur = self._build_cur_mock_stor_metrics()
+        cur_date = datetime.datetime.now()
+        self.mock_metrics.get_latest_metric.return_value = cur_date, mock_cur
+
+        # Validate that if there is no previous data, get no data back.
+        self.assertEqual([],
+                         list(self.inspector.inspect_disk_iops(mock.Mock())))
+
+        # Build the previous
+        mock_prev = self._build_prev_mock_stor_metrics()
+        prev_date = cur_date - datetime.timedelta(seconds=30)
+        self.mock_metrics.get_previous_metric.return_value = (prev_date,
+                                                              mock_prev)
+
+        # Execute
+        resp = list(self.inspector.inspect_disk_iops(mock.Mock()))
+        self.assertEqual(2, len(resp))
+
+        # Only one vSCSI.  Should be the first metric.
+        disk1, stats1 = resp[0]
+        self.assertEqual('vscsi1', disk1.device)
+        self.assertEqual(33, stats1.iops_count)
+
+        # Next is the vFC metric
+        disk2, stats2 = resp[1]
+        self.assertEqual('vfc1', disk2.device)
+        self.assertEqual(66, stats2.iops_count)
+
+    def test_inspect_disks(self):
+        """Tests the inspect_disks inspector method for PowerVM."""
+        # Validate that an error is raised if the instance can't be found in
+        # the sample data.
+        self.mock_metrics.get_latest_metric.return_value = None, None
+        self.assertRaises(virt_inspector.InstanceNotFoundException,
+                          list, self.inspector.inspect_disks(mock.Mock()))
+
+        # Validate that no data is returned if there is a current metric,
+        # just no storage within it.
+        mock_empty_st = mock.MagicMock(storage=None)
+        self.mock_metrics.get_latest_metric.return_value = None, mock_empty_st
+        self.assertEqual([],
+                         list(self.inspector.inspect_disks(mock.Mock())))
+
+        # Current metric data
+        mock_cur = self._build_cur_mock_stor_metrics()
+        cur_date = datetime.datetime.now()
+        self.mock_metrics.get_latest_metric.return_value = cur_date, mock_cur
+
+        # Execute
+        resp = list(self.inspector.inspect_disks(mock.Mock()))
+        self.assertEqual(3, len(resp))
+
+        # Two vSCSIs.
+        disk1, stats1 = resp[0]
+        self.assertEqual('vscsi1', disk1.device)
+        self.assertEqual(1000, stats1.read_requests)
+        self.assertEqual(100000, stats1.read_bytes)
+        self.assertEqual(1000, stats1.write_requests)
+        self.assertEqual(100000, stats1.write_bytes)
+        self.assertEqual(0, stats1.errors)
+
+        disk2, stats2 = resp[1]
+        self.assertEqual('vscsi2', disk2.device)
+        self.assertEqual(2000, stats2.read_requests)
+        self.assertEqual(200000, stats2.read_bytes)
+        self.assertEqual(2000, stats2.write_requests)
+        self.assertEqual(200000, stats2.write_bytes)
+        self.assertEqual(0, stats1.errors)
+
+        # Next is the vFC metric
+        disk3, stats3 = resp[2]
+        self.assertEqual('vfc1', disk3.device)
+        self.assertEqual(3000, stats3.read_requests)
+        self.assertEqual(300000, stats3.read_bytes)
+        self.assertEqual(3000, stats3.write_requests)
+        self.assertEqual(300000, stats3.write_bytes)
+        self.assertEqual(0, stats3.errors)
