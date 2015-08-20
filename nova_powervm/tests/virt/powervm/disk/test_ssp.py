@@ -95,9 +95,9 @@ class TestSSPDiskAdapter(test.TestCase):
 
         # For _fetch_cluster() with configured name
         self.mock_search = self.sspfx.mock_search
-        # EntryWrapper.search always returns a feed.
-        self.mock_search.return_value = self._bld_resp(
-            entry_or_list=[self.clust_resp.entry])
+        # EntryWrapper.search always returns a list of wrappers.
+        self.mock_search.return_value = [pvm_clust.Cluster.wrap(
+            self.clust_resp)]
 
         # For _refresh_cluster()
         self.mock_clust_refresh = self.sspfx.mock_clust_refresh
@@ -174,7 +174,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_init_ClusterNotFoundByName(self):
         """Empty feed comes back from search - no cluster by that name."""
-        self.mock_search.return_value = self._bld_resp(status=204)
+        self.mock_search.return_value = []
         self.assertRaises(npvmex.ClusterNotFoundByName, self._get_ssp_stor)
 
     def test_init_TooManyClustersFound(self):
@@ -185,8 +185,7 @@ class TestSSPDiskAdapter(test.TestCase):
         clust2 = pvm_clust.Cluster.bld(None, 'newclust2',
                                        pvm_stg.PV.bld(None, 'hdisk2'),
                                        pvm_clust.Node.bld(None, 'vios2'))
-        self.mock_search.return_value = self._bld_resp(
-            entry_or_list=[clust1.entry, clust2.entry])
+        self.mock_search.return_value = [clust1.entry, clust2.entry]
         self.assertRaises(npvmex.TooManyClustersFound, self._get_ssp_stor)
 
     def test_init_NoConfigNoClusterFound(self):

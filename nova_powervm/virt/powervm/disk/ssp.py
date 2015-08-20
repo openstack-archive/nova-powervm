@@ -360,8 +360,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         try:
             # Did config provide a name?
             if clust_name:
-                resp = pvm_clust.Cluster.search(self.adapter, name=clust_name)
-                wraps = pvm_clust.Cluster.wrap(resp)
+                # Search returns a list of wrappers
+                wraps = pvm_clust.Cluster.search(self.adapter, name=clust_name)
                 if len(wraps) == 0:
                     raise npvmex.ClusterNotFoundByName(clust_name=clust_name)
                 if len(wraps) > 1:
