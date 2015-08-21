@@ -373,25 +373,31 @@ class CreateAndConnectCfgDrive(task.Task):
 class DeleteVOpt(task.Task):
     """The task to delete the virtual optical."""
 
-    def __init__(self, adapter, host_uuid, instance, lpar_uuid):
+    def __init__(self, adapter, host_uuid, instance, lpar_uuid,
+                 tx_mgr=None):
         """Creates the Task to delete the instances virtual optical media.
 
         :param adapter: The adapter for the pypowervm API
         :param host_uuid: The host UUID of the system.
         :param instance: The nova instance.
         :param lpar_uuid: The UUID of the lpar that has media.
+        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
+                       the I/O Operations.  If provided, the Virtual I/O Server
+                       mapping updates will be added to the FeedTask.  This
+                       defers the updates to some later point in time.  If the
+                       FeedTask is not provided, the updates will be run
+                       immediately when this method is executed.
         """
         super(DeleteVOpt, self).__init__(name='vopt_delete')
         self.adapter = adapter
         self.host_uuid = host_uuid
         self.instance = instance
         self.lpar_uuid = lpar_uuid
+        self.tx_mgr = tx_mgr
 
     def execute(self):
-        LOG.info(_LI('Deleting Virtual Optical Media for instance %s'),
-                 self.instance.name)
         media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
-        media_builder.dlt_vopt(self.lpar_uuid)
+        media_builder.dlt_vopt(self.lpar_uuid, tx_mgr=self.tx_mgr)
 
 
 class DetachDisk(task.Task):
