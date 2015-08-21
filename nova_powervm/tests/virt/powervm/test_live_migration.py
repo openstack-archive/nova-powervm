@@ -48,7 +48,7 @@ class TestLPM(test.TestCase):
         mock_migrdata.return_value = migr_data
 
         with mock.patch.object(
-            self.lpmsrc, '_check_dlpar_rmc', return_value=None):
+            self.lpmsrc, '_check_migration_ready', return_value=None):
 
             # Test the bad path first, then patch in values to make suceed
             self.lpmsrc.dest_data = {'dest_proc_compat': 'a,b,c'}
@@ -162,15 +162,11 @@ class TestLPM(test.TestCase):
         self.assertTrue(self.lpmsrc.lpar_w.refresh.called)
         mock_migr.assert_called_once_with(self.lpmsrc.lpar_w, force=True)
 
-    def test_check_dlpar_rmc(self):
-        lpar_w = mock.Mock()
-        lpar_w.check_dlpar_connectivity.return_value = (1, 'active')
-        self.lpmsrc._check_dlpar_rmc(lpar_w)
+    def test_check_migration_ready(self):
+        lpar_w, host_w = mock.Mock(), mock.Mock()
+        lpar_w.can_lpm.return_value = (True, None)
+        self.lpmsrc._check_migration_ready(lpar_w, host_w)
 
-        lpar_w.check_dlpar_connectivity.return_value = (0, 'active')
-        self.assertRaises(lpm.LiveMigrationDLPAR,
-                          self.lpmsrc._check_dlpar_rmc, lpar_w)
-
-        lpar_w.check_dlpar_connectivity.return_value = (1, 'not active')
-        self.assertRaises(lpm.LiveMigrationRMC,
-                          self.lpmsrc._check_dlpar_rmc, lpar_w)
+        lpar_w.can_lpm.return_value = (False, 'Not ready for migration reason')
+        self.assertRaises(lpm.LiveMigrationNotReady,
+                          self.lpmsrc._check_migration_ready, lpar_w, host_w)

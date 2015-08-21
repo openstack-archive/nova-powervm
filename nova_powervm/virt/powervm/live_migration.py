@@ -20,7 +20,6 @@ from nova import exception
 from nova.i18n import _, _LE
 from pypowervm.tasks import management_console as mgmt_task
 from pypowervm.tasks import migration as mig
-from pypowervm.wrappers import base_partition as pvm_bp
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -43,14 +42,9 @@ class LiveMigrationInvalidState(exception.NovaException):
                 "migration state is: %(state)s")
 
 
-class LiveMigrationRMC(exception.NovaException):
-    msg_fmt = _("Live migration of instance '%(name)s' failed because RMC is "
-                "not active.")
-
-
-class LiveMigrationDLPAR(exception.NovaException):
-    msg_fmt = _("Live migration of instance '%(name)s' failed because DLPAR "
-                "is not available.")
+class LiveMigrationNotReady(exception.NovaException):
+    msg_fmt = _("Live migration of instance '%(name)s' failed because it is "
+                "not ready. Reason: %(reason)s")
 
 
 class LiveMigrationMRS(exception.NovaException):
@@ -215,8 +209,8 @@ class LiveMigrationSrc(LiveMigration):
                 name=self.instance.name, mode=lpar_w.proc_compat_mode,
                 modes=', '.join(self.dest_data['dest_proc_compat'].split(',')))
 
-        # Check for RMC connection
-        self._check_dlpar_rmc(lpar_w)
+        # Check if VM is ready for migration
+        self._check_migration_ready(lpar_w, self.drvr.host_wrapper)
 
         if lpar_w.migration_state != 'Not_Migrating':
             raise LiveMigrationInvalidState(name=self.instance.name,
@@ -281,16 +275,12 @@ class LiveMigrationSrc(LiveMigration):
         finally:
             LOG.debug("Finished migration rollback.", instance=self.instance)
 
-    def _check_dlpar_rmc(self, lpar_w):
+    def _check_migration_ready(self, lpar_w, host_w):
         """See if the lpar is ready for LPM.
 
         :param lpar_w: LogicalPartition wrapper
+        :param host_w: ManagedSystem wrapper
         """
-        dlpar, rmc = lpar_w.check_dlpar_connectivity()
-        LOG.debug("Check dlpar: %s and RMC: %s." % (dlpar, rmc),
-                  instance=self.instance)
-
-        if rmc != pvm_bp.RMCState.ACTIVE:
-            raise LiveMigrationRMC(name=self.instance.name)
-        if not dlpar:
-            raise LiveMigrationDLPAR(name=self.instance.name)
+        ready, msg = lpar_w.can_lpm(host_w)
+        if not ready:
+            raise LiveMigrationNotReady(name=self.instance.name, reason=msg)
