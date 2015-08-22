@@ -18,6 +18,7 @@ import math
 from nova.compute import arch
 from nova.compute import hv_type
 from nova.compute import vm_mode
+from nova.i18n import _LW
 import subprocess
 
 from oslo_concurrency import lockutils
@@ -158,6 +159,16 @@ class HostCPUStats(pcm_util.MetricCache):
         # Get the total user cycles.
         user_cycles = self._gather_user_cycles()
 
+        # Make sure that the total cycles is higher than the user/fw cycles.
+        # Should not happen, but just in case there is any precision loss from
+        # CPU data back to system.
+        if user_cycles + fw_cycles > tot_cycles:
+            LOG.warn(_LW("Host CPU Metrics determined that the total cycles "
+                         "reported was less than the used cycles.  This "
+                         "indicates an issue with the PCM data.  Please "
+                         "investigate the results."))
+            tot_cycles = user_cycles + fw_cycles
+
         # Idle is the subtraction of all.
         idle_cycles = tot_cycles - user_cycles - fw_cycles
 
@@ -244,8 +255,18 @@ class HostCPUStats(pcm_util.MetricCache):
                  then all of the cycles from the current sample will be
                  considered the delta.
         """
-        prev_amount = (0 if prev_sample is None else
-                       prev_sample.processor.util_cap_proc_cycles +
+        # If the previous sample for this VM is None it could be one of two
+        # conditions.  It could be a new spawn or a live migration.  The cycles
+        # from a live migrate are brought over from the previous host.  That
+        # can disorient the calculation because all of a sudden you could get
+        # months of cycles.  Since we can not discern between the two
+        # scenarios, we return 0 (effectively throwing the sample out).
+        # The next pass through will have the previous sample and will be
+        # included.
+        if prev_sample is None:
+            return 0
+
+        prev_amount = (prev_sample.processor.util_cap_proc_cycles +
                        prev_sample.processor.util_uncap_proc_cycles)
         cur_amount = (cur_sample.processor.util_cap_proc_cycles +
                       cur_sample.processor.util_uncap_proc_cycles)

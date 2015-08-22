@@ -125,9 +125,10 @@ class TestHostCPUStats(test.TestCase):
         host_stats.prev_phyp = None
         host_stats._update_internal_metric()
 
-        # Validate the dictionary...
-        expect = {'iowait': 0, 'idle': 1.6125096675799704e+16,
-                  'kernel': 58599310268, 'user': 789903553028,
+        # Validate the dictionary...  No user cycles because all of the
+        # previous data is empty.
+        expect = {'iowait': 0, 'idle': 1.6125886579352732e+16,
+                  'kernel': 58599310268, 'user': 0,
                   'frequency': 4116}
         self.assertEqual(expect, host_stats.cur_data)
 
@@ -138,9 +139,35 @@ class TestHostCPUStats(test.TestCase):
 
         # Validate this dictionary.  Note that the values are still higher
         # overall, even though we add the 'deltas' from each VM.
-        expect = {'iowait': 0, 'idle': 1.6125066665694504e+16,
-                  'kernel': 58599310268, 'user': 819913658228,
+        expect = {'iowait': 0, 'idle': 1.6125856569262732e+16,
+                  'kernel': 58599310268, 'user': 30010090000,
                   'frequency': 4116}
+        self.assertEqual(expect, host_stats.cur_data)
+
+    @mock.patch('nova_powervm.virt.powervm.host.HostCPUStats.'
+                '_get_total_cycles')
+    @mock.patch('nova_powervm.virt.powervm.host.HostCPUStats._get_cpu_freq')
+    @mock.patch('pypowervm.tasks.monitor.util.MetricCache._refresh_if_needed')
+    @mock.patch('pypowervm.tasks.monitor.util.ensure_ltm_monitors')
+    def test_update_internal_metric_bad_total(
+            self, mock_ensure_ltm, mock_refresh, mock_cpu_freq,
+            mock_tot_cycles):
+        """Validates that if the total cycles are off, we handle."""
+        host_stats = pvm_host.HostCPUStats(self.adpt, 'host_uuid')
+        mock_cpu_freq.return_value = 4116
+
+        # Mock the total cycles to some really low number.
+        mock_tot_cycles.return_value = 5
+
+        # Now 'increment' it with a new current/previous
+        host_stats.cur_phyp = self.phyp
+        host_stats.prev_phyp = self.prev_phyp
+        host_stats._update_internal_metric()
+
+        # Validate this dictionary.  Note that the idle is now 0...not a
+        # negative number.
+        expect = {'iowait': 0, 'idle': 0, 'kernel': 58599310268,
+                  'user': 30010090000, 'frequency': 4116}
         self.assertEqual(expect, host_stats.cur_data)
 
     @mock.patch('subprocess.check_output')
@@ -161,17 +188,19 @@ class TestHostCPUStats(test.TestCase):
         host_stats.cur_phyp = self.phyp
         host_stats.prev_phyp = self.prev_phyp
         resp = host_stats._gather_user_cycles()
-        self.assertEqual(30010105200, resp)
+        self.assertEqual(30010090000, resp)
 
         # Last, test to make sure the previous data is used.
         host_stats.prev_data = {'user': 1000000}
         resp = host_stats._gather_user_cycles()
-        self.assertEqual(30011105200, resp)
+        self.assertEqual(30011090000, resp)
 
-        # Now test if there is no previous sample.
+        # Now test if there is no previous sample.  Since there are no previous
+        # samples, it will be 0 (except it WILL default up to the previous
+        # min cycles, which we just set to 1000000).
         host_stats.prev_phyp = None
         resp = host_stats._gather_user_cycles()
-        self.assertEqual(819914643228, resp)
+        self.assertEqual(1000000, resp)
 
     @mock.patch('pypowervm.tasks.monitor.util.MetricCache._refresh_if_needed')
     @mock.patch('pypowervm.tasks.monitor.util.ensure_ltm_monitors')
@@ -183,13 +212,14 @@ class TestHostCPUStats(test.TestCase):
         # is deleted and a new one takes its place (LPAR ID 6)
         delta = host_stats._delta_proc_cycles(self.phyp.sample.lpars,
                                               self.prev_phyp.sample.lpars)
-        self.assertEqual(10010105200, delta)
+        self.assertEqual(10010090000, delta)
 
-        # Now test as if there is no previous data.  Should result in higher
-        # numbers.
+        # Now test as if there is no previous data.  This results in 0 as they
+        # could have all been LPMs with months of cycles (rather than 30
+        # seconds delta).
         delta2 = host_stats._delta_proc_cycles(self.phyp.sample.lpars, None)
-        self.assertEqual(265260844203, delta2)
-        self.assertTrue(delta2 > delta)
+        self.assertEqual(0, delta2)
+        self.assertNotEqual(delta2, delta)
 
         # Test that we can do this with the VIOSes as well.
         delta = host_stats._delta_proc_cycles(self.phyp.sample.vioses,
@@ -207,9 +237,11 @@ class TestHostCPUStats(test.TestCase):
         delta = host_stats._delta_user_cycles(new_elem, old_elem)
         self.assertEqual(45000, delta)
 
-        # Validate the scenario where we don't have a previous
+        # Validate the scenario where we don't have a previous.  Should default
+        # to 0, given no context of why the previous sample did not have the
+        # data.
         delta = host_stats._delta_user_cycles(new_elem, None)
-        self.assertEqual(60000, delta)
+        self.assertEqual(0, delta)
 
     @mock.patch('pypowervm.tasks.monitor.util.MetricCache._refresh_if_needed')
     @mock.patch('pypowervm.tasks.monitor.util.ensure_ltm_monitors')
