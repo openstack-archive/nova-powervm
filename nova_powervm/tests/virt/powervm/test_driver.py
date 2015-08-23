@@ -1055,20 +1055,12 @@ class TestPowerVMDriver(test.TestCase):
             'context', self.lpm_inst, 'block_device_info', 'network_info',
             'disk_info', migrate_data='migrate_data')
 
-    @mock.patch('nova.utils.spawn_n')
-    def test_live_migration(self, mock_spawn):
-        self.drv.live_migration('context', self.lpm_inst, 'dest',
-                                'post_method', 'recover_method')
-        mock_spawn.assert_called_once_with(
-            self.drv._live_migration_thread, 'context', self.lpm_inst, 'dest',
-            'post_method', 'recover_method', False, None)
-
-    def test_live_migr_thread(self):
+    def test_live_migration(self):
         mock_post_meth = mock.Mock()
         mock_rec_meth = mock.Mock()
 
         # Good path
-        self.drv._live_migration_thread(
+        self.drv.live_migration(
             'context', self.lpm_inst, 'dest', mock_post_meth, mock_rec_meth,
             'block_mig', 'migrate_data')
 
@@ -1081,7 +1073,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_post_meth.reset_mock()
         self.lpm.live_migration.side_effect = ValueError()
         self.assertRaises(
-            lpm.LiveMigrationFailed, self.drv._live_migration_thread,
+            lpm.LiveMigrationFailed, self.drv.live_migration,
             'context', self.lpm_inst, 'dest', mock_post_meth, mock_rec_meth,
             'block_mig', 'migrate_data')
         mock_rec_meth.assert_called_once_with(

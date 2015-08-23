@@ -999,30 +999,6 @@ class PowerVMDriver(driver.ComputeDriver):
 
         """
         self._log_operation('live_migration', instance)
-        # Spawn off a thread to handle this migration
-        n_utils.spawn_n(self._live_migration_thread, context, instance, dest,
-                        post_method, recover_method, block_migration,
-                        migrate_data)
-
-    def _live_migration_thread(self, context, instance, dest, post_method,
-                               recover_method, block_migration, migrate_data):
-        """Live migration of an instance to another host.
-
-        :param context: security context
-        :param instance:
-            nova.db.sqlalchemy.models.Instance object
-            instance object that is migrated.
-        :param dest: destination host
-        :param post_method:
-            post operation method.
-            expected nova.compute.manager._post_live_migration.
-        :param recover_method:
-            recovery method when any exception occurs.
-            expected nova.compute.manager._rollback_live_migration.
-        :param block_migration: if true, migrate VM disk.
-        :param migrate_data: implementation specific params.
-
-        """
         try:
             mig = self.live_migrations[instance.uuid]
             try:
