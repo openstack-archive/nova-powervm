@@ -45,6 +45,7 @@ from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import host as pvm_host
@@ -210,6 +211,9 @@ class PowerVMDriver(driver.ComputeDriver):
                 flavor_obj.Flavor.get_by_id(admin_ctx,
                                             instance.instance_type_id))
 
+        # Extract the block devices.
+        bdms = self._extract_bdm(block_device_info)
+
         # Define the flow
         flow_spawn = tf_lf.Flow("spawn")
 
@@ -224,7 +228,8 @@ class PowerVMDriver(driver.ComputeDriver):
                                           self.host_uuid))
 
         # Create the transaction manager (FeedTask) for Storage I/O.
-        tx_mgr = vios.build_tx_feed_task(self.adapter, self.host_uuid)
+        xag = self._get_inst_xag(instance, bdms)
+        tx_mgr = vios.build_tx_feed_task(self.adapter, self.host_uuid, xag=xag)
 
         # Only add the image disk if this is from Glance.
         if not self._is_booted_from_volume(block_device_info):
@@ -239,7 +244,6 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
-        bdms = self._extract_bdm(block_device_info)
         if bdms is not None:
             for bdm in bdms:
                 conn_info = bdm.get('connection_info')
@@ -309,6 +313,9 @@ class PowerVMDriver(driver.ComputeDriver):
         """
 
         def _run_flow():
+            # Extract the block devices.
+            bdms = self._extract_bdm(block_device_info)
+
             # Define the flow
             flow = tf_lf.Flow("destroy")
 
@@ -317,7 +324,9 @@ class PowerVMDriver(driver.ComputeDriver):
                                     pvm_inst_uuid, instance))
 
             # Create the transaction manager (FeedTask) for Storage I/O.
-            tx_mgr = vios.build_tx_feed_task(self.adapter, self.host_uuid)
+            xag = self._get_inst_xag(instance, bdms)
+            tx_mgr = vios.build_tx_feed_task(self.adapter, self.host_uuid,
+                                             xag=xag)
 
             # Add the disconnect/deletion of the vOpt to the transaction
             # manager.
@@ -326,7 +335,6 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Determine if there are volumes to disconnect.  If so, remove each
             # volume (within the transaction manager)
-            bdms = self._extract_bdm(block_device_info)
             if bdms is not None:
                 for bdm in bdms:
                     conn_info = bdm.get('connection_info')
@@ -1168,6 +1176,35 @@ class PowerVMDriver(driver.ComputeDriver):
         port = pvm_vterm.open_localhost_vnc_vterm(self.adapter, lpar_uuid)
         host = CONF.vnc.vncserver_proxyclient_address
         return console_type.ConsoleVNC(host=host, port=port)
+
+    def _get_inst_xag(self, instance, bdms):
+        """Returns the extended attributes required for a given instance.
+
+        This is used in coordination with the FeedTask.  It identifies ahead
+        of time what each request requires for its general operations.
+
+        :param instance: Nova instance for which the volume adapter is needed.
+        :param bdms: The BDMs for the operation.
+        :return: List of extended attributes required for the operation.
+        """
+        # All operations for deploy/destroy require scsi by default.  This is
+        # either vopt, local/SSP disks, etc...
+        xags = {pvm_vios.VIOS.xags.SCSI_MAPPING}
+        if not bdms:
+            LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',
+                      {'inst': instance.name,
+                       'xags': ','.join([x.name for x in xags])})
+            return list(xags)
+
+        # If we have any volumes, add the volumes required mapping XAGs.
+        adp_type = vol_attach.FC_STRATEGY_MAPPING[
+            CONF.powervm.fc_attach_strategy]
+        vol_cls = importutils.import_class(adp_type)
+        xags.update(set(vol_cls.min_xags()))
+        LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',
+                  {'inst': instance.name,
+                   'xags': ','.join([x.name for x in xags])})
+        return list(xags)
 
     def _get_inst_vol_adpt(self, context, instance, conn_info=None,
                            tx_mgr=None):

@@ -36,6 +36,7 @@ from pypowervm.tests.wrappers.util import pvmhttp
 import pypowervm.wrappers.base_partition as pvm_bp
 import pypowervm.wrappers.logical_partition as pvm_lpar
 import pypowervm.wrappers.managed_system as pvm_ms
+import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -517,6 +518,23 @@ class TestPowerVMDriver(test.TestCase):
         ret = self.drv._is_booted_from_volume(block_device_info)
         self.assertFalse(ret)
         self.assertEqual(1, mock_get_mapping.call_count)
+
+    def test_get_inst_xag(self):
+        # No volumes - should be just the SCSI mapping
+        xag = self.drv._get_inst_xag(mock.Mock(), None)
+        self.assertEqual([pvm_vios.VIOS.xags.SCSI_MAPPING], xag)
+
+        # The vSCSI Volume attach - only needs the SCSI mapping.
+        self.flags(fc_attach_strategy='vscsi', group='powervm')
+        xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
+        self.assertEqual([pvm_vios.VIOS.xags.SCSI_MAPPING], xag)
+
+        # The NPIV volume attach - requires SCSI, Storage and FC Mapping
+        self.flags(fc_attach_strategy='npiv', group='powervm')
+        xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
+        self.assertEqual(set([pvm_vios.VIOS.xags.STORAGE,
+                              pvm_vios.VIOS.xags.SCSI_MAPPING,
+                              pvm_vios.VIOS.xags.FC_MAPPING]), set(xag))
 
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
