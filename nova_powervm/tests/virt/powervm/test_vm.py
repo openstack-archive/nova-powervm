@@ -243,10 +243,11 @@ class TestVM(test.TestCase):
         self.assertEqual(1, mock_vterm.call_count)
         self.assertEqual(1, self.apt.delete.call_count)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder._add_IBMi_attrs')
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
     @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder.build')
     @mock.patch('pypowervm.utils.validation.LPARWrapperValidator.validate_all')
-    def test_crt_lpar(self, mock_vld_all, mock_bld, mock_stdz):
+    def test_crt_lpar(self, mock_vld_all, mock_bld, mock_stdz, mock_ibmi):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
@@ -263,6 +264,24 @@ class TestVM(test.TestCase):
         host_wrapper = mock.Mock()
         self.assertRaises(exception.InvalidAttribute, vm.crt_lpar,
                           self.apt, host_wrapper, instance, flavor)
+
+    def test_add_IBMi_attrs(self):
+        inst = mock.Mock()
+        # Non-ibmi distro
+        attrs = {}
+        inst.system_metadata = {'image_os_distro': 'rhel'}
+        bldr = vm.VMBuilder(mock.Mock(), mock.Mock())
+        bldr._add_IBMi_attrs(inst, attrs)
+        self.assertDictEqual(attrs, {})
+
+        inst.system_metadata = {}
+        bldr._add_IBMi_attrs(inst, attrs)
+        self.assertDictEqual(attrs, {})
+
+        # ibmi distro
+        inst.system_metadata = {'image_os_distro': 'ibmi'}
+        bldr._add_IBMi_attrs(inst, attrs)
+        self.assertDictEqual(attrs, {'env': 'OS400'})
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('pypowervm.tasks.cna.crt_cna')
