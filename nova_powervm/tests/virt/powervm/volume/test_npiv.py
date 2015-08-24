@@ -104,7 +104,7 @@ class TestNPIVAdapter(test.TestCase):
         mock_mgmt_lpar_id.return_value = mock.Mock(uuid='1')
 
         def validate_remove_maps(vios_w, lpar_uuid, client_adpt=None,
-                                 port_map=None):
+                                 port_map=None, **kwargs):
             self.assertEqual('1', lpar_uuid)
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertIsNone(client_adpt)
@@ -112,7 +112,7 @@ class TestNPIVAdapter(test.TestCase):
             return 'removed'
         mock_remove_maps.side_effect = validate_remove_maps
 
-        def add_map(vios_w, host_uuid, vm_uuid, port_map):
+        def add_map(vios_w, host_uuid, vm_uuid, port_map, **kwargs):
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('host_uuid', host_uuid)
             self.assertEqual('1234', vm_uuid)
@@ -159,7 +159,7 @@ class TestNPIVAdapter(test.TestCase):
         # Mock
         self._basic_system_metadata(npiv.FS_UNMAPPED)
 
-        def add_map(vios_w, host_uuid, vm_uuid, port_map):
+        def add_map(vios_w, host_uuid, vm_uuid, port_map, **kwargs):
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('host_uuid', host_uuid)
             self.assertEqual('1234', vm_uuid)
