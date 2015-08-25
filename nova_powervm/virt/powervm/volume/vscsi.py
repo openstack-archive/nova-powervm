@@ -76,6 +76,72 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # SCSI mapping is for the connections between VIOS and client VM
         return [pvm_vios.VIOS.xags.SCSI_MAPPING]
 
+    def pre_live_migration_on_destination(self):
+        """Perform pre live migration steps for the volume on the target host.
+
+        This method performs any pre live migration that is needed.
+
+        """
+        volume_id = self.volume_id
+        found = False
+        # Iterate through host vios list to find valid hdisks.
+        for vios_w in self.tx_mgr.feed:
+            status, device_name, udid = self._discover_volume_on_vios(
+                vios_w, volume_id, migr=True)
+            # If we found one, no need to check the others.
+            found = found or self._good_discovery(status, device_name, udid)
+
+        if not found:
+            ex_args = dict(volume_id=volume_id,
+                           instance_name=self.instance.name)
+            raise p_exc.VolumePreMigrationFailed(**ex_args)
+
+    def _good_discovery(self, status, device_name, udid):
+        """Checks the hdisk discovery results for a good discovery."""
+        return device_name is not None and status in [
+            hdisk.LUAStatus.DEVICE_AVAILABLE,
+            hdisk.LUAStatus.FOUND_ITL_ERR]
+
+    def _discover_volume_on_vios(self, vios_w, volume_id, migr=False):
+        """Discovers an hdisk on a single vios for the volume.
+
+        :param vios_w: VIOS wrapper to process
+        :param volume_id: Volume to discover
+        :param migr: Specifies whether this call is for a migration on the
+            destination host
+        :returns: Status of the volume or None
+        :returns: Device name or None
+        :returns: LUN or None
+        """
+        # Get the initiatior WWPNs, targets and Lun for the given VIOS.
+        vio_wwpns, t_wwpns, lun = self._get_hdisk_itls(vios_w)
+
+        # Build the ITL map and discover the hdisks on the Virtual I/O
+        # Server (if any).
+        itls = hdisk.build_itls(vio_wwpns, t_wwpns, lun)
+        if len(itls) == 0:
+            LOG.debug('No ITLs for VIOS %(vios)s for volume %(volume_id)s.'
+                      % {'vios': vios_w.name, 'volume_id': volume_id})
+            return None, None, None
+
+        status, device_name, udid = (
+            hdisk.discover_hdisk(self.adapter, vios_w.uuid, itls, self.vm_id)
+            if not migr else hdisk.lua_recovery(
+                self.adapter, vios_w.uuid, itls))
+
+        if self._good_discovery(status, device_name, udid):
+            LOG.info(_LI('Discovered %(hdisk)s on vios %(vios)s for '
+                     'volume %(volume_id)s. Status code: %(status)s.'),
+                     {'hdisk': device_name, 'vios': vios_w.name,
+                      'volume_id': volume_id, 'status': str(status)})
+        elif status == hdisk.LUAStatus.DEVICE_IN_USE:
+            LOG.warn(_LW('Discovered device %(dev)s for volume %(volume)s '
+                         'on %(vios)s is in use. Error code: %(status)s.'),
+                     {'dev': device_name, 'volume': volume_id,
+                      'vios': vios_w.name, 'status': str(status)})
+
+        return status, device_name, udid
+
     def _connect_volume(self):
         """Connects the volume."""
         # Get the initiators
@@ -120,27 +186,13 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                  (could be the Virtual I/O Server does not have connectivity
                  to the hdisk).
         """
+
+        status, device_name, udid = self._discover_volume_on_vios(
+            vios_w, volume_id)
         # Get the initiatior WWPNs, targets and Lun for the given VIOS.
         vio_wwpns, t_wwpns, lun = self._get_hdisk_itls(vios_w)
 
-        # Build the ITL map and discover the hdisks on the Virtual I/O
-        # Server (if any).
-        itls = hdisk.build_itls(vio_wwpns, t_wwpns, lun)
-        if len(itls) == 0:
-            LOG.debug('No ITLs for VIOS %(vios)s for volume %(volume_id)s.'
-                      % {'vios': vios_w.name, 'volume_id': volume_id})
-            return False
-
-        status, device_name, udid = hdisk.discover_hdisk(
-            self.adapter, vios_w.uuid, itls, self.vm_id)
-        if device_name is not None and status in [
-                hdisk.LUAStatus.DEVICE_AVAILABLE,
-                hdisk.LUAStatus.FOUND_ITL_ERR]:
-            LOG.info(_LI('Discovered %(hdisk)s on vios %(vios)s for '
-                     'volume %(volume_id)s. Status code: %(status)s.'),
-                     {'hdisk': device_name, 'vios': vios_w.name,
-                      'volume_id': volume_id, 'status': str(status)})
-
+        if self._good_discovery(status, device_name, udid):
             # Found a hdisk on this Virtual I/O Server.  Add the action to
             # map it to the VM when the tx_mgr is executed.
             self._add_append_mapping(vios_w.uuid, device_name)
@@ -152,11 +204,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
             # Valid attachment
             return True
-        elif status == hdisk.LUAStatus.DEVICE_IN_USE:
-            LOG.warn(_LW('Discovered device %(dev)s for volume %(volume)s '
-                         'on %(vios)s is in use. Error code: %(status)s.'),
-                     {'dev': device_name, 'volume': volume_id,
-                      'vios': vios_w.name, 'status': str(status)})
+
         return False
 
     def _disconnect_volume(self):
@@ -325,8 +373,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         A PowerVM system may have multiple Virtual I/O Servers to virtualize
         the I/O to the virtual machines. Each Virtual I/O server may have their
-        own set of  initiator WWPNs, target WWPNs and Lun on which hdisk is
-        mapped.It will determine and return the ITLs for the given VIOS.
+        own set of initiator WWPNs, target WWPNs and Lun on which hdisk is
+        mapped. It will determine and return the ITLs for the given VIOS.
 
         :param vios_w: A virtual I/O Server wrapper.
         :return: List of the i_wwpns that are part of the vios_w,

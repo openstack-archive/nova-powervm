@@ -109,3 +109,8 @@ class VolumeAttachFailed(nex.NovaException):
 class VolumeDetachFailed(nex.NovaException):
     msg_fmt = _("Unable to detach volume (id: %(volume_id)s) from virtual "
                 "machine %(instance_name)s.  %(reason)s")
+
+
+class VolumePreMigrationFailed(nex.NovaException):
+    msg_fmt = _("Unable to perform pre live migration steps on volume (id: "
+                "%(volume_id)s) from virtual machine %(instance_name)s.")

@@ -114,7 +114,7 @@ class TestLPM(test.TestCase):
     def test_pre_live_mig(self):
         self.lpmdst.pre_live_migration('context', 'block_device_info',
                                        'network_info', 'disk_info',
-                                       {})
+                                       {}, [])
 
     @mock.patch('pypowervm.tasks.migration.migrate_lpar')
     def test_live_migration(self, mock_migr):

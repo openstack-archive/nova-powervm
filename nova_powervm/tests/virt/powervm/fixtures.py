@@ -72,7 +72,8 @@ class VolumeAdapter(fixtures.Fixture):
     def setUp(self):
         super(VolumeAdapter, self).setUp()
         self._std_vol_adpt = mock.patch('nova_powervm.virt.powervm.volume.'
-                                        'vscsi.VscsiVolumeAdapter')
+                                        'vscsi.VscsiVolumeAdapter',
+                                        __name__='MockVSCSI')
         self.std_vol_adpt = self._std_vol_adpt.start()
         # We want to mock out the connection_info individually so it gives
         # back a new mock on every call.  That's because the vol id is

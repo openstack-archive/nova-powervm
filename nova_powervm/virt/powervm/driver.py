@@ -982,8 +982,17 @@ class PowerVMDriver(driver.ComputeDriver):
         LOG.info(_LI("Pre live migration processing."),
                  instance=instance)
         mig = self.live_migrations[instance.uuid]
+
+        # Get a volume driver for each volume
+        vol_drvs = []
+        bdms = self._extract_bdm(block_device_info)
+        for bdm in bdms or []:
+            vol_drvs.append(
+                self._get_inst_vol_adpt(
+                    context, instance, conn_info=bdm.get('connection_info')))
+
         mig.pre_live_migration(context, block_device_info, network_info,
-                               disk_info, migrate_data)
+                               disk_info, migrate_data, vol_drvs)
 
     def live_migration(self, context, instance, dest,
                        post_method, recover_method, block_migration=False,
@@ -1233,7 +1242,7 @@ class PowerVMDriver(driver.ComputeDriver):
             LOG.debug('Volume Adapter returned for connection_info=%s' %
                       conn_info)
         LOG.debug('Volume Adapter class %(cls)s for instance %(inst)s' %
-                  {'cls': vol_cls, 'inst': instance})
+                  {'cls': vol_cls.__name__, 'inst': instance.name})
         return vol_cls(self.adapter, self.host_uuid,
                        instance, conn_info, tx_mgr=tx_mgr)
 

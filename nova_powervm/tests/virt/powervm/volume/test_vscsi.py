@@ -84,6 +84,23 @@ class TestVSCSIAdapter(test.TestCase):
         self.udid = (
             '01M0lCTTIxNDUxMjQ2MDA1MDc2ODAyODI4NjFEODgwMDAwMDAwMDAwMDA1Rg==')
 
+    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
+    def test_pre_live_migration(self, mock_discover):
+        # The mock return values
+        mock_discover.return_value = (
+            hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
+
+        # Run the method
+        self.vol_drv.pre_live_migration_on_destination()
+
+        # Test exception path
+        mock_discover.return_value = (
+            hdisk.LUAStatus.DEVICE_IN_USE, 'devname', 'udid')
+
+        # Run the method
+        self.assertRaises(p_exc.VolumePreMigrationFailed,
+                          self.vol_drv.pre_live_migration_on_destination)
+
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.hdisk.lua_recovery')

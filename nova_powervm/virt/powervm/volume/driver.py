@@ -65,10 +65,23 @@ class PowerVMVolumeAdapter(object):
 
     @property
     def vm_id(self):
-        """Return the short ID (not UUID) of the LPAR for our instance."""
+        """Return the short ID (not UUID) of the LPAR for our instance.
+
+        This method is unavailable during a pre live migration call since
+        there is no instance of the VM on the destination host at the time.
+        """
         if self._vm_id is None:
             self._vm_id = vm.get_vm_id(self.adapter, self.vm_uuid)
         return self._vm_id
+
+    @property
+    def volume_id(self):
+        """Method to return the volume id.
+
+        Every driver must implement this method if the default impl will
+        not work for their data.
+        """
+        return self.connection_info['data']['volume_id']
 
     def reset_tx_mgr(self, tx_mgr=None):
         """Resets the pypowervm transaction FeedTask to a new value.
@@ -92,6 +105,14 @@ class PowerVMVolumeAdapter(object):
     @classmethod
     def min_xags(cls):
         """List of pypowervm XAGs needed to support this adapter."""
+        raise NotImplementedError()
+
+    def pre_live_migration_on_destination(self):
+        """Perform pre live migration steps for the volume on the target host.
+
+        This method performs any pre live migration that is needed.
+
+        """
         raise NotImplementedError()
 
     def connect_volume(self):

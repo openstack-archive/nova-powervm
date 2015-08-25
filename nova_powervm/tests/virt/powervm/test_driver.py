@@ -132,7 +132,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_get_volume_connector(self, mock_getuuid):
         mock_getuuid.return_value = '1234'
-        vol_connector = self.drv.get_volume_connector(None)
+        vol_connector = self.drv.get_volume_connector(mock.Mock())
         self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
 
@@ -1073,8 +1073,9 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual('src_data', src_data)
 
     def test_pre_live_migr(self):
+        block_device_info = self._fake_bdms()
         self.drv.pre_live_migration(
-            'context', self.lpm_inst, 'block_device_info', 'network_info',
+            'context', self.lpm_inst, block_device_info, 'network_info',
             'disk_info', migrate_data='migrate_data')
 
     def test_live_migration(self):

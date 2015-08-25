@@ -17,7 +17,7 @@
 
 import abc
 from nova import exception
-from nova.i18n import _, _LE
+from nova.i18n import _, _LE, _LI
 from pypowervm.tasks import management_console as mgmt_task
 from pypowervm.tasks import migration as mig
 
@@ -65,6 +65,11 @@ class LiveMigrationCapacity(exception.NovaException):
     msg_fmt = _("Cannot migrate %(name)s because the host %(host)s only "
                 "allows %(allowed)s concurrent migrations and %(running)s "
                 "migrations are currently running.")
+
+
+class LiveMigrationVolume(exception.NovaException):
+    msg_fmt = _("Cannot migrate %(name)s because the volume %(volume)s "
+                "cannot be attached on the destination host %(host)s.")
 
 
 def _verify_migration_capacity(host_w, instance):
@@ -140,7 +145,7 @@ class LiveMigrationDest(LiveMigration):
         return self.dest_data
 
     def pre_live_migration(self, context, block_device_info, network_info,
-                           disk_info, migrate_data):
+                           disk_info, migrate_data, vol_drvs):
 
         """Prepare an instance for live migration
 
@@ -149,7 +154,8 @@ class LiveMigrationDest(LiveMigration):
         :param block_device_info: instance block device information
         :param network_info: instance network information
         :param disk_info: instance disk information
-        :param migrate_data: implementation specific data dict.
+        :param migrate_data: implementation specific data dict
+        :param vol_drvs: volume drivers for the attached volumes
         """
         LOG.debug('Running pre live migration on destination.',
                   instance=self.instance)
@@ -160,6 +166,18 @@ class LiveMigrationDest(LiveMigration):
         pub_key = src_mig_data.get('public_key')
         if pub_key is not None:
             mgmt_task.add_authorized_key(self.drvr.adapter, pub_key)
+
+        # For each volume, make sure it's ready to migrate
+        for vol_drv in vol_drvs:
+            LOG.info(_LI('Performing pre migration for volume %(volume)s'),
+                     dict(volume=vol_drv.volume_id))
+            try:
+                vol_drv.pre_live_migration_on_destination()
+            except Exception:
+                # It failed.
+                raise LiveMigrationVolume(
+                    host=self.drvr.host_wrapper.system_name,
+                    name=self.instance.name, volume=vol_drv.volume_id)
 
     def post_live_migration_at_destination(self, network_info):
         """Do post migration cleanup on destination host.
