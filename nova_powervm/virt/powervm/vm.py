@@ -216,7 +216,14 @@ class VMBuilder(object):
         :param flavor: The Nova instance flavor.
         """
         attrs = self._format_flavor(instance, flavor)
+        self._add_IBMi_attrs(instance, attrs)
         return lpar_bldr.LPARBuilder(self.adapter, attrs, self.stdz)
+
+    def _add_IBMi_attrs(self, instance, attrs):
+        distro = instance.system_metadata.get('image_os_distro', '')
+        if distro.lower() == 'ibmi':
+            attrs[lpar_bldr.ENV] = pvm_bp.LPARType.OS400
+            # Add other attributes in the future
 
     def _format_flavor(self, instance, flavor):
         """Returns the pypowervm format of the flavor.
