@@ -1165,8 +1165,7 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         self._log_operation('get_vnc_console', instance)
         lpar_uuid = vm.get_pvm_uuid(instance)
-        port = pvm_vterm.open_vnc_vterm(self.adapter, lpar_uuid,
-                                        bind_ip=CONF.vnc.vncserver_listen)
+        port = pvm_vterm.open_localhost_vnc_vterm(self.adapter, lpar_uuid)
         host = CONF.vnc.vncserver_proxyclient_address
         return console_type.ConsoleVNC(host=host, port=port)
 

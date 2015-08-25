@@ -976,7 +976,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertRaises(pvm_exc.VMPowerOnFailure, self.drv.reboot, 'context',
                           inst, None, 'SOFT')
 
-    @mock.patch('pypowervm.tasks.vterm.open_vnc_vterm')
+    @mock.patch('pypowervm.tasks.vterm.open_localhost_vnc_vterm')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_get_vnc_console(self, mock_uuid, mock_vterm):
         # Mock response
