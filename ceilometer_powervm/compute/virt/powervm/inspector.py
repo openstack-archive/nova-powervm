@@ -354,3 +354,115 @@ class PowerVMInspector(virt_inspector.Inspector):
 
             # Yield the results back to the invoker.
             yield (interface, stats)
+
+    def inspect_disks(self, instance):
+        """Inspect the disk statistics for an instance.
+
+        The response is a generator of the values.
+
+        :param instance: the target instance
+        :return disk: The Disk indicating the device for the storage device.
+        :return stats: The DiskStats indicating the read/write data to the
+                       device.
+        """
+        # Get the current and previous sample.  Delta is performed between
+        # these two.
+        uuid = self._puuid(instance)
+        cur_date, cur_metric = self.vm_metrics.get_latest_metric(uuid)
+
+        # If the cur_metric is none, then the instance can not be found in the
+        # sample and an error should be raised.
+        if cur_metric is None:
+            raise virt_inspector.InstanceNotFoundException(
+                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+
+        # If there isn't storage information, this is because the Virtual
+        # I/O Metrics were turned off.  Have to pass through this method.
+        if cur_metric.storage is None:
+            LOG.debug("Current storage metric was unavailable from the API "
+                      "instance %s." % instance.name)
+            return
+
+        # Bundle together the SCSI and virtual FC adapters
+        adpts = cur_metric.storage.virt_adpts + cur_metric.storage.vfc_adpts
+
+        # Loop through all the storage adapters
+        for adpt in adpts:
+            # PowerVM only shows the connection (SCSI or FC).  Name after
+            # the connection name
+            disk = virt_inspector.Disk(device=adpt.name)
+            stats = virt_inspector.DiskStats(
+                read_requests=adpt.num_reads, read_bytes=adpt.read_bytes,
+                write_requests=adpt.num_writes, write_bytes=adpt.write_bytes,
+                errors=0)
+            yield (disk, stats)
+
+    def inspect_disk_iops(self, instance):
+        """Inspect the Disk Input/Output operations per second for an instance.
+
+        The response is a generator of the values.
+
+        :param instance: the target instance
+        :return disk: The Disk indicating the device for the storage device.
+        :return stats: The DiskIOPSStats indicating the I/O operations per
+                       second for the device.
+        """
+        # Get the current and previous sample.  Delta is performed between
+        # these two.
+        uuid = self._puuid(instance)
+        cur_date, cur_metric = self.vm_metrics.get_latest_metric(uuid)
+        prev_date, prev_metric = self.vm_metrics.get_previous_metric(uuid)
+
+        # If the cur_metric is none, then the instance can not be found in the
+        # sample and an error should be raised.
+        if cur_metric is None:
+            raise virt_inspector.InstanceNotFoundException(
+                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+
+        # If there isn't storage information, this may be because the Virtual
+        # I/O Metrics were turned off.  If the previous metric is unavailable,
+        # also have to pass through this method.
+        if (cur_metric.storage is None or prev_metric is None or
+                prev_metric.storage is None):
+            LOG.debug("Current storage metric was unavailable from the API "
+                      "instance %s." % instance.name)
+            return
+
+        # Need to determine the time delta between the samples.  This is
+        # usually 30 seconds from the API, but the metrics will be specific.
+        # However, if there is no previous sample, then we have to estimate.
+        # Therefore, we estimate 15 seconds - half of the standard 30 seconds.
+        date_delta = ((cur_date - prev_date) if prev_date is not None else
+                      datetime.timedelta(seconds=15))
+
+        # Bundle together the SCSI and virtual FC adapters
+        cur_adpts = (cur_metric.storage.virt_adpts +
+                     cur_metric.storage.vfc_adpts)
+        prev_adpts = (prev_metric.storage.virt_adpts +
+                      prev_metric.storage.vfc_adpts)
+
+        def find_prev(cur_adpt):
+            for prev_adpt in prev_adpts:
+                if prev_adpt.name == cur_adpt.name:
+                    return prev_adpt
+            return None
+
+        # Loop through all the storage adapters
+        for cur_adpt in cur_adpts:
+            prev_adpt = find_prev(cur_adpt)
+            if prev_adpt is None:
+                # Perhaps this is a new adapter, was recently LPM'd, etc...
+                # Don't assume 0, just skip until the next pull.
+                continue
+
+            # IOPs is the read/write counts of the current - prev divided by
+            # second difference between the two, rounded to the integer.  :-)
+            cur_ops = cur_adpt.num_reads + cur_adpt.num_writes
+            prev_ops = prev_adpt.num_reads + prev_adpt.num_writes
+            iops = (cur_ops - prev_ops) / date_delta.seconds
+
+            # PowerVM only shows the connection (SCSI or FC).  Name after
+            # the connection name
+            disk = virt_inspector.Disk(device=cur_adpt.name)
+            stats = virt_inspector.DiskIOPSStats(iops_count=iops)
+            yield (disk, stats)
