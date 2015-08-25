@@ -28,6 +28,7 @@ from pypowervm.wrappers import network as pvm_net
 
 from ceilometer.compute.virt import inspector as virt_inspector
 from ceilometer.i18n import _
+from ceilometer.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 
@@ -141,20 +142,27 @@ class PowerVMInspector(virt_inspector.Inspector):
 
         # Get the previous sample data
         if prev_metric is None:
-            # If there is no previous sample, we blanket these to zero.  All
-            # the cycles that were used in the current sample are 'fully'
-            # utilized.
-            prev_util_cap = 0
-            prev_util_uncap = 0
-            prev_idle = 0
-            prev_donated = 0
-            prev_entitled = 0
-        else:
-            prev_util_cap = prev_metric.processor.util_cap_proc_cycles
-            prev_util_uncap = prev_metric.processor.util_uncap_proc_cycles
-            prev_idle = prev_metric.processor.idle_proc_cycles
-            prev_donated = prev_metric.processor.donated_proc_cycles
-            prev_entitled = prev_metric.processor.entitled_proc_cycles
+            # If there is no previous sample, that is either a new VM or is
+            # a live migrated system.  A live migrated system will pull all
+            # of its metrics with it.  The issue with this is it could have
+            # CPU cycles for months of run time.  So we can't really determine
+            # the CPU utilization within the last X seconds...because to THIS
+            # host its new (only in the cur_metric).  So we error out, the
+            # inspector will use a debug message in the log.
+            LOG.warn(_LW("Unable to derive CPU Utilization for VM %s.  It is "
+                         "either a new VM or was recently migrated.  It will "
+                         "be collected in the next inspection cycle."),
+                     instance.name)
+            message = (_("Unable to derive CPU Utilization for VM %s.") %
+                       instance.name)
+            raise virt_inspector.InstanceNotFoundException(message)
+
+        # Gather the previous metrics
+        prev_util_cap = prev_metric.processor.util_cap_proc_cycles
+        prev_util_uncap = prev_metric.processor.util_uncap_proc_cycles
+        prev_idle = prev_metric.processor.idle_proc_cycles
+        prev_donated = prev_metric.processor.donated_proc_cycles
+        prev_entitled = prev_metric.processor.entitled_proc_cycles
 
         # Utilization can be driven by multiple factors on PowerVM.
         # PowerVM has 'entitled' cycles.  These are cycles that, if the VM
@@ -299,7 +307,8 @@ class PowerVMInspector(virt_inspector.Inspector):
 
         # If there isn't network information, this is because the Virtual
         # I/O Metrics were turned off.  Have to pass through this method.
-        if cur_metric.network is None:
+        if (cur_metric.network is None or prev_metric is None or
+                prev_metric.network is None):
             return
 
         # Get the network interfaces.  A 'cna' is a Client VM's Network Adapter
@@ -321,11 +330,7 @@ class PowerVMInspector(virt_inspector.Inspector):
 
         # Need to determine the time delta between the samples.  This is
         # usually 30 seconds from the API, but the metrics will be specific.
-        # However, if there is no previous sample, then we have to estimate.
-        # Therefore, we estimate 15 seconds - half of the standard 30 seconds.
-        date_delta = ((cur_date - prev_date) if prev_date is not None else
-                      datetime.timedelta(seconds=15))
-        date_delta_num = float(date_delta.seconds)
+        date_delta_num = float((cur_date - prev_date).seconds)
 
         for metric_cna in cur_metric.network.cnas:
             # Get the mac, but if it isn't found, then move to the next.  Might
@@ -340,6 +345,10 @@ class PowerVMInspector(virt_inspector.Inspector):
                 name=metric_cna.physical_location,
                 mac=mac, fref=None, parameters=None)
 
+            # Note that here, the previous may be none.  That simply indicates
+            # that the adapter was dynamically added to the VM before the
+            # previous collection.  Not the migration scenario above.
+            # In this case, we can default the base to 0.
             prev = find_prev_net(metric_cna)
             rx_bytes_diff = (metric_cna.received_bytes -
                              (0 if prev is None else prev.received_bytes))
@@ -449,16 +458,17 @@ class PowerVMInspector(virt_inspector.Inspector):
 
         # Loop through all the storage adapters
         for cur_adpt in cur_adpts:
-            prev_adpt = find_prev(cur_adpt)
-            if prev_adpt is None:
-                # Perhaps this is a new adapter, was recently LPM'd, etc...
-                # Don't assume 0, just skip until the next pull.
-                continue
-
             # IOPs is the read/write counts of the current - prev divided by
             # second difference between the two, rounded to the integer.  :-)
             cur_ops = cur_adpt.num_reads + cur_adpt.num_writes
-            prev_ops = prev_adpt.num_reads + prev_adpt.num_writes
+
+            # The previous adapter may be None.  This simply indicates that the
+            # adapter was added between the previous sample and this one.  It
+            # does not indicate a live migrate scenario like noted above, as
+            # the VM itself hasn't moved.
+            prev_adpt = find_prev(cur_adpt)
+            prev_ops = ((prev_adpt.num_reads + prev_adpt.num_writes)
+                        if prev_adpt else 0)
             iops = (cur_ops - prev_ops) / date_delta.seconds
 
             # PowerVM only shows the connection (SCSI or FC).  Name after

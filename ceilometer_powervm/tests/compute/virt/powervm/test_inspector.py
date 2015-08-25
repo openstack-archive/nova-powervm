@@ -89,13 +89,13 @@ class TestPowerVMInspector(base.BaseTestCase):
             metric.processor.entitled_proc_cycles = entitled
             return metric
 
-        # Validate that we get CPU utilization if current metrics are found,
-        # but the previous are None
+        # Validate that the CPU metrics raise an issue if the previous metric
+        # can't be found (perhaps due to a live migration).
         self.mock_metrics.get_latest_metric.return_value = (
             mock.Mock(), mock_metric(7000, 50, 1000, 5000, 10000))
         self.mock_metrics.get_previous_metric.return_value = None, None
-        resp = self.inspector.inspect_cpu_util(mock.Mock())
-        self.assertEqual(10.5, resp.util)
+        self.assertRaises(virt_inspector.InstanceNotFoundException,
+                          self.inspector.inspect_cpu_util, mock.Mock())
 
         # Mock up a mixed use environment.
         cur = mock_metric(7000, 50, 1000, 5000, 10000)
@@ -338,17 +338,21 @@ class TestPowerVMInspector(base.BaseTestCase):
 
         # Execute
         resp = list(self.inspector.inspect_disk_iops(mock.Mock()))
-        self.assertEqual(2, len(resp))
+        self.assertEqual(3, len(resp))
 
-        # Only one vSCSI.  Should be the first metric.
+        # Two vSCSI's
         disk1, stats1 = resp[0]
         self.assertEqual('vscsi1', disk1.device)
         self.assertEqual(33, stats1.iops_count)
 
-        # Next is the vFC metric
         disk2, stats2 = resp[1]
-        self.assertEqual('vfc1', disk2.device)
-        self.assertEqual(66, stats2.iops_count)
+        self.assertEqual('vscsi2', disk2.device)
+        self.assertEqual(133, stats2.iops_count)
+
+        # Next is the vFC metric
+        disk3, stats3 = resp[2]
+        self.assertEqual('vfc1', disk3.device)
+        self.assertEqual(66, stats3.iops_count)
 
     def test_inspect_disks(self):
         """Tests the inspect_disks inspector method for PowerVM."""
