@@ -25,6 +25,7 @@ from nova import objects
 from nova import test
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import network as pvm_net
 
@@ -282,6 +283,22 @@ class TestVM(test.TestCase):
         inst.system_metadata = {'image_os_distro': 'ibmi'}
         bldr._add_IBMi_attrs(inst, attrs)
         self.assertDictEqual(attrs, {'env': 'OS400'})
+
+    @mock.patch('pypowervm.tasks.power.power_off')
+    def test_power_off(self, mock_power_off):
+        self.assertFalse(vm.power_off(
+            None, None, 'host_uuid',
+            mock.Mock(state=pvm_bp.LPARState.NOT_ACTIVATED)))
+        self.assertFalse(mock_power_off.called)
+
+        stop_states = [pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
+                       pvm_bp.LPARState.OPEN_FIRMWARE, pvm_bp.LPARState.ERROR,
+                       pvm_bp.LPARState.RESUMING]
+        for stop_state in stop_states:
+            mock_power_off.reset_mock()
+            self.assertTrue(vm.power_off(
+                None, None, 'host_uuid', mock.Mock(state=stop_state)))
+            self.assertTrue(mock_power_off.called)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('pypowervm.tasks.cna.crt_cna')

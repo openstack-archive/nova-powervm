@@ -61,8 +61,10 @@ POWERVM_TO_NOVA_STATE = {
     "error": power_state.CRASHED
 }
 
-POWERVM_STARTABLE_STATE = ("not activated")
-POWERVM_STOPABLE_STATE = ("running", "starting", "open firmware")
+POWERVM_STARTABLE_STATE = (pvm_bp.LPARState.NOT_ACTIVATED)
+POWERVM_STOPABLE_STATE = (pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
+                          pvm_bp.LPARState.OPEN_FIRMWARE,
+                          pvm_bp.LPARState.ERROR, pvm_bp.LPARState.RESUMING)
 
 # Attributes for secure RMC
 # TODO(thorst) The name of the secure RMC vswitch will change.
