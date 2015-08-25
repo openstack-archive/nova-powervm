@@ -14,31 +14,9 @@
       License for the specific language governing permissions and limitations
       under the License.
 
-Welcome to nova-powervm's documentation!
-========================================
+Usage
+=====
 
-This project provides a Nova-compatible compute driver for PowerVM systems.
+.. todo::
 
-Documentation on Nova can be found at the `Nova Devref`_.
-
-.. _`Nova Devref`: http://docs.openstack.org/developer/nova/devref
-
-Nova-PowerVM Policies
-=====================
-
-Contents:
-
-.. toctree::
-   :maxdepth: 1
-
-   policies/index
-
-Nova-PowerVM Devref
-===================
-
-Contents:
-
-.. toctree::
-   :maxdepth: 1
-
-   devref/index
+    Add in steps for basic usage of nova-powervm
