@@ -109,7 +109,7 @@ class ConfigDrivePowerVM(object):
 
     def create_cfg_drv_vopt(self, instance, injected_files, network_info,
                             lpar_uuid, admin_pass=None, mgmt_cna=None,
-                            tx_mgr=None):
+                            stg_ftsk=None):
         """Creates the config drive virtual optical and attach to VM.
 
         :param instance: The VM instance from OpenStack.
@@ -119,11 +119,11 @@ class ConfigDrivePowerVM(object):
         :param lpar_uuid: The UUID of the client LPAR
         :param admin_pass: (Optional) password to inject for the VM.
         :param mgmt_cna: (Optional) The management (RMC) CNA wrapper.
-        :param tx_mgr: (Optional) If provided, the storage mappings to connect
-                       the Media to the VM will be deferred on to the
-                       FeedTask passed in.  The execute can be done all in one
-                       method (batched together).  If None (the default) will
-                       be attached immediately.
+        :param stg_ftsk: (Optional) If provided, the tasks to create and attach
+                         the Media to the VM will be deferred on to the
+                         FeedTask passed in.  The execute can be done all in
+                         one method (batched together).  If None (the default),
+                         the media will be created and attached immediately.
         """
         # If there is a management client network adapter, then we should
         # convert that to a VIF and add it to the network info
@@ -142,31 +142,32 @@ class ConfigDrivePowerVM(object):
         os.remove(iso_path)
 
         # Run the attach of the virtual optical
-        self._attach_vopt(instance, lpar_uuid, vopt, tx_mgr)
+        self._attach_vopt(instance, lpar_uuid, vopt, stg_ftsk)
 
-    def _attach_vopt(self, instance, lpar_uuid, vopt, tx_mgr=None):
+    def _attach_vopt(self, instance, lpar_uuid, vopt, stg_ftsk=None):
         """Will attach the vopt to the VIOS.
 
-        If the tx_mgr is provided, adds the mapping to the tx_mgr, but won't
-        attach until the tx_mgr is independently executed.
+        If the stg_ftsk is provided, adds the mapping to the stg_ftsk, but
+        won't attach until the stg_ftsk is independently executed.
 
         :param instance: The VM instance from OpenStack.
         :param lpar_uuid: The UUID of the client LPAR
         :param vopt: The virtual optical device to add.
-        :param tx_mgr: (Optional) If provided, the storage mappings to connect
-                       the Media to the VM will be deferred on to the
-                       FeedTask passed in.  The execute can be done all in one
-                       method (batched together).  If None (the default) will
-                       be attached immediately.
+        :param stg_ftsk: (Optional) If provided, the tasks to create the
+                         storage mappings to connect the Media to the VM will
+                         be deferred on to the FeedTask passed in.  The execute
+                         can be done all in one method (batched together).  If
+                         None (the default), the media will be attached
+                         immediately.
         """
         # If no transaction manager, build locally so that we can run
         # immediately
-        if tx_mgr is None:
+        if stg_ftsk is None:
             wtsk = pvm_tx.WrapperTask('media_attach', pvm_vios.VIOS.getter(
                 self.adapter, entry_uuid=self.vios_uuid,
                 xag=[pvm_vios.VIOS.xags.SCSI_MAPPING]))
         else:
-            wtsk = tx_mgr.wrapper_tasks[self.vios_uuid]
+            wtsk = stg_ftsk.wrapper_tasks[self.vios_uuid]
 
         # Define the function to build and add the mapping
         def add_func(vios_w):
@@ -180,7 +181,7 @@ class ConfigDrivePowerVM(object):
         wtsk.add_functor_subtask(add_func)
 
         # If built locally, then execute
-        if tx_mgr is None:
+        if stg_ftsk is None:
             wtsk.execute()
 
     def _mgmt_cna_to_vif(self, cna):
@@ -320,43 +321,44 @@ class ConfigDrivePowerVM(object):
         ConfigDrivePowerVM._cur_vios_uuid = found_vios.uuid
         ConfigDrivePowerVM._cur_vios_name = found_vios.name
 
-    def dlt_vopt(self, lpar_uuid, tx_mgr=None):
+    def dlt_vopt(self, lpar_uuid, stg_ftsk=None):
         """Deletes the virtual optical and scsi mappings for a VM.
 
         :param lpar_uuid: The pypowervm UUID of the LPAR to remove.
-        :param tx_mgr: (Optional) A FeedTask. If provided, the actions to
-                       modify the storage will be added as batched functions
-                       onto the FeedTask.  If not provided (the default) the
-                       operation to delete the vOpt will execute immediately.
+        :param stg_ftsk: (Optional) A FeedTask. If provided, the actions to
+                         modify the storage will be added as batched functions
+                         onto the FeedTask.  If not provided (the default) the
+                         operation to delete the vOpt will execute immediately.
         """
         # If no transaction manager, build locally so that we can run
         # immediately
-        if tx_mgr is None:
-            built_tx_mgr = True
+        if stg_ftsk is None:
+            built_stg_ftsk = True
             vio_resp = self.adapter.read(
                 pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
                 xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
             vio_w = pvm_vios.VIOS.wrap(vio_resp)
-            tx_mgr = pvm_tx.FeedTask('media_detach', [vio_w])
+            stg_ftsk = pvm_tx.FeedTask('media_detach', [vio_w])
         else:
-            built_tx_mgr = False
+            built_stg_ftsk = False
 
         # Run the remove maps method.
-        self.add_dlt_vopt_tasks(lpar_uuid, tx_mgr)
+        self.add_dlt_vopt_tasks(lpar_uuid, stg_ftsk)
 
         # If built locally, then execute
-        if built_tx_mgr:
-            tx_mgr.execute()
+        if built_stg_ftsk:
+            stg_ftsk.execute()
 
-    def add_dlt_vopt_tasks(self, lpar_uuid, tx_mgr):
+    def add_dlt_vopt_tasks(self, lpar_uuid, stg_ftsk):
         """Deletes the virtual optical and scsi mappings for a VM.
 
         :param lpar_uuid: The pypowervm UUID of the LPAR to remove.
-        :param tx_mgr: A FeedTask.  The storage mappings to remove the Media to
-                       the VM will be deferred on to the FeedTask passed in.
-                       The execute can be done all in one method (batched
-                       together).  No updates are actually made, they are
-                       simply added to the FeedTask.
+        :param stg_ftsk: A FeedTask handling storage I/O.  The task to remove
+                         the mappings and media from the VM will be deferred on
+                         to the FeedTask passed in. The execute can be done all
+                         in one method (batched together).  No updates are
+                         actually made here; they are simply added to the
+                         FeedTask.
         """
         # The function to find the VOpt
         match_func = tsk_map.gen_match_func(pvm_stg.VOptMedia)
@@ -366,14 +368,14 @@ class ConfigDrivePowerVM(object):
                                        match_func=match_func)
 
         # Add a function to remove the map
-        tx_mgr.wrapper_tasks[self.vios_uuid].add_functor_subtask(
+        stg_ftsk.wrapper_tasks[self.vios_uuid].add_functor_subtask(
             rm_vopt_mapping)
 
         # Find the vOpt device (before the remove is done) so that it can be
         # removed.
         partition_id = vm.get_vm_id(self.adapter, lpar_uuid)
         media_mappings = tsk_map.find_maps(
-            tx_mgr.get_wrapper(self.vios_uuid).scsi_mappings,
+            stg_ftsk.get_wrapper(self.vios_uuid).scsi_mappings,
             partition_id, match_func=match_func)
         media_elems = [x.backing_storage for x in media_mappings]
 
@@ -386,4 +388,4 @@ class ConfigDrivePowerVM(object):
                                        child_id=self.vg_uuid)
             tsk_stg.rm_vg_storage(pvm_stg.VG.wrap(vg_rsp), vopts=media_elems)
 
-        tx_mgr.add_post_execute(task.FunctorTask(rm_vopt))
+        stg_ftsk.add_post_execute(task.FunctorTask(rm_vopt))

@@ -20,7 +20,6 @@ import logging
 import mock
 from oslo_config import cfg
 from oslo_serialization import jsonutils
-from taskflow.patterns import unordered_flow as tf_uf
 
 from nova import block_device as nova_block_device
 from nova import exception as exc
@@ -32,7 +31,9 @@ from nova.virt import block_device as nova_virt_bdm
 from nova.virt import fake
 import pypowervm.adapter as pvm_adp
 import pypowervm.exceptions as pvm_exc
+import pypowervm.tests.test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
+import pypowervm.utils.transaction as pvm_tx
 import pypowervm.wrappers.base_partition as pvm_bp
 import pypowervm.wrappers.logical_partition as pvm_lpar
 import pypowervm.wrappers.managed_system as pvm_ms
@@ -45,6 +46,8 @@ from nova_powervm.virt.powervm import live_migration as lpm
 
 MS_HTTPRESP_FILE = "managedsystem.txt"
 MS_NAME = 'HV4'
+LPAR_HTTPRESP_FILE = "lpar.txt"
+VIOS_HTTPRESP_FILE = "fake_vios_ssp_npiv.txt"
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
@@ -56,12 +59,6 @@ CONF.import_opt('my_ip', 'nova.netconf')
 class FakeClass(object):
     """Used for the test_inst_dict."""
     pass
-
-
-class FakeFeedTask(tf_uf.Flow):
-
-    def execute(self):
-        pass
 
 
 class TestPowerVMDriver(test.TestCase):
@@ -100,16 +97,24 @@ class TestPowerVMDriver(test.TestCase):
         self.get_inst_wrap = self.get_inst_wrap_p.start()
         self.addCleanup(self.get_inst_wrap_p.stop)
 
-        resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
-        resp.entry = pvm_lpar.LPAR._bld(None).entry
-        self.crt_lpar.return_value = pvm_lpar.LPAR.wrap(resp)
-        self.get_inst_wrap.return_value = pvm_lpar.LPAR.wrap(resp)
+        wrap = pvm_lpar.LPAR.wrap(pvmhttp.load_pvm_resp(
+            LPAR_HTTPRESP_FILE).response)[0]
+        self.crt_lpar.return_value = wrap
+        self.get_inst_wrap.return_value = wrap
 
         self.build_tx_feed_p = mock.patch('nova_powervm.virt.powervm.vios.'
                                           'build_tx_feed_task')
         self.build_tx_feed = self.build_tx_feed_p.start()
         self.addCleanup(self.build_tx_feed_p.stop)
-        self.build_tx_feed.return_value = FakeFeedTask('fake')
+        self.useFixture(pvm_fx.FeedTaskFx([pvm_vios.VIOS.wrap(
+            pvmhttp.load_pvm_resp(VIOS_HTTPRESP_FILE).response)]))
+        self.stg_ftsk = pvm_tx.FeedTask('fake', pvm_vios.VIOS.getter(self.apt))
+        self.build_tx_feed.return_value = self.stg_ftsk
+
+        scrub_stg_p = mock.patch('pypowervm.tasks.storage.'
+                                 'add_lpar_storage_scrub_tasks')
+        self.scrub_stg = scrub_stg_p.start()
+        self.addCleanup(scrub_stg_p.stop)
 
     def _setup_lpm(self):
         """Setup the lpm environment.
@@ -202,6 +207,7 @@ class TestPowerVMDriver(test.TestCase):
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
+        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -236,6 +242,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Power on was called
         self.assertTrue(mock_pwron.called)
+        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -288,6 +295,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Make sure the save was invoked
         self.assertEqual(2, mock_save.call_count)
+
+        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -346,6 +355,8 @@ class TestPowerVMDriver(test.TestCase):
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
+        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
+
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
@@ -394,6 +405,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Make sure the BDM save was invoked twice.
         self.assertEqual(2, mock_save.call_count)
+
+        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')

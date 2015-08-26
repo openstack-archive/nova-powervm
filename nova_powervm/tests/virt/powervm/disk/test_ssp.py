@@ -363,7 +363,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         # As initialized above, remove_maps returns True to trigger update.
         ssp.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
-                         tx_mgr=None)
+                         stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
@@ -394,7 +394,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         # As initialized above, remove_maps returns True to trigger update.
         ssp.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
-                         tx_mgr=None)
+                         stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)
@@ -478,7 +478,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         # As initialized above, remove_maps returns True to trigger update.
         lu_list = ssp.disconnect_image_disk(mock.Mock(), self.instance,
-                                            tx_mgr=None)
+                                            stg_ftsk=None)
         self.assertEqual({lu1, lu2}, set(lu_list))
         self.assertEqual(1, mock_remove_maps.call_count)
         self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)

@@ -217,19 +217,20 @@ class PowerVMDriver(driver.ComputeDriver):
         # Define the flow
         flow_spawn = tf_lf.Flow("spawn")
 
+        # Create the transaction manager (FeedTask) for Storage I/O.
+        xag = self._get_inst_xag(instance, bdms)
+        stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
+                                           xag=xag)
+
         # Create the LPAR
         flow_spawn.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
-                                    flavor))
+                                    flavor, stg_ftsk))
 
         # Create a flow for the IO
         flow_spawn.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
                                        network_info, self.host_uuid))
         flow_spawn.add(tf_net.PlugMgmtVif(self.adapter, instance,
                                           self.host_uuid))
-
-        # Create the transaction manager (FeedTask) for Storage I/O.
-        xag = self._get_inst_xag(instance, bdms)
-        tx_mgr = vios.build_tx_feed_task(self.adapter, self.host_uuid, xag=xag)
 
         # Only add the image disk if this is from Glance.
         if not self._is_booted_from_volume(block_device_info):
@@ -240,7 +241,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Connects up the disk to the LPAR
             flow_spawn.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance,
-                                              tx_mgr))
+                                              stg_ftsk=stg_ftsk))
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
@@ -248,7 +249,7 @@ class PowerVMDriver(driver.ComputeDriver):
             for bdm in bdms:
                 conn_info = bdm.get('connection_info')
                 vol_drv = self._get_inst_vol_adpt(
-                    context, instance, conn_info=conn_info, tx_mgr=tx_mgr)
+                    context, instance, conn_info=conn_info, stg_ftsk=stg_ftsk)
 
                 # First connect the volume.  This will update the
                 # connection_info.
@@ -263,11 +264,11 @@ class PowerVMDriver(driver.ComputeDriver):
         if configdrive.required_by(instance):
             flow_spawn.add(tf_stg.CreateAndConnectCfgDrive(
                 self.adapter, self.host_uuid, instance, injected_files,
-                network_info, admin_password, tx_mgr=tx_mgr))
+                network_info, admin_password, stg_ftsk=stg_ftsk))
 
         # Add the transaction manager flow to the end of the 'I/O
         # connection' tasks.  This will run all the connections in parallel.
-        flow_spawn.add(tx_mgr)
+        flow_spawn.add(stg_ftsk)
 
         # Last step is to power on the system.
         flow_spawn.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
@@ -324,13 +325,13 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Create the transaction manager (FeedTask) for Storage I/O.
             xag = self._get_inst_xag(instance, bdms)
-            tx_mgr = vios.build_tx_feed_task(self.adapter, self.host_uuid,
-                                             xag=xag)
+            stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
+                                               xag=xag)
 
             # Add the disconnect/deletion of the vOpt to the transaction
             # manager.
             flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
-                                       pvm_inst_uuid, tx_mgr=tx_mgr))
+                                       pvm_inst_uuid, stg_ftsk=stg_ftsk))
 
             # Determine if there are volumes to disconnect.  If so, remove each
             # volume (within the transaction manager)
@@ -338,15 +339,16 @@ class PowerVMDriver(driver.ComputeDriver):
                 for bdm in bdms:
                     conn_info = bdm.get('connection_info')
                     vol_drv = self._get_inst_vol_adpt(
-                        context, instance, conn_info=conn_info, tx_mgr=tx_mgr)
+                        context, instance, conn_info=conn_info,
+                        stg_ftsk=stg_ftsk)
                     flow.add(tf_stg.DisconnectVolume(vol_drv))
 
             # Only attach the disk adapters if this is not a boot from volume.
             destroy_disk_task = None
             if not self._is_booted_from_volume(block_device_info):
-                # Detach the disk storage adapters (when the tx_mgr runs)
+                # Detach the disk storage adapters (when the stg_ftsk runs)
                 flow.add(tf_stg.DetachDisk(
-                    self.disk_dvr, context, instance, tx_mgr))
+                    self.disk_dvr, context, instance, stg_ftsk))
 
                 # Delete the storage disks
                 if destroy_disks:
@@ -355,7 +357,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Add the transaction manager flow to the end of the 'storage
             # connection' tasks.  This will run all the connections in parallel
-            flow.add(tx_mgr)
+            flow.add(stg_ftsk)
 
             # The disks shouldn't be destroyed until the unmappings are done.
             if destroy_disk_task:
@@ -1215,7 +1217,7 @@ class PowerVMDriver(driver.ComputeDriver):
         return list(xags)
 
     def _get_inst_vol_adpt(self, context, instance, conn_info=None,
-                           tx_mgr=None):
+                           stg_ftsk=None):
         """Returns the appropriate volume driver based on connection type.
 
         Checks the connection info for connection-type and return the
@@ -1225,10 +1227,10 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: Nova instance for which the volume adapter is needed.
         :param conn_info: BDM connection information of the instance to
                           get the volume adapter type (vSCSI/NPIV) requested.
-        :param tx_mgr: (Optional) The FeedTask that can be used to defer the
-                       mapping actions against the Virtual I/O Server for.  If
-                       not provided, then the connect/disconnect actions will
-                       be immediate.
+        :param stg_ftsk: (Optional) The FeedTask that can be used to defer the
+                         mapping actions against the Virtual I/O Server for. If
+                         not provided, then the connect/disconnect actions will
+                         be immediate.
         :return: Returns the volume adapter, if conn_info is not passed then
                  returns the volume adapter based on the CONF
                  fc_attach_strategy property (npiv/vscsi). Otherwise returns
@@ -1244,7 +1246,7 @@ class PowerVMDriver(driver.ComputeDriver):
         LOG.debug('Volume Adapter class %(cls)s for instance %(inst)s' %
                   {'cls': vol_cls.__name__, 'inst': instance.name})
         return vol_cls(self.adapter, self.host_uuid,
-                       instance, conn_info, tx_mgr=tx_mgr)
+                       instance, conn_info, stg_ftsk=stg_ftsk)
 
 
 def _inst_dict(input_dict):

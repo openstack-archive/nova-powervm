@@ -16,6 +16,7 @@
 
 from nova.i18n import _LI
 from pypowervm.tasks import power
+from pypowervm.tasks import storage as pvm_stg
 
 from oslo_log import log as logging
 from taskflow import task
@@ -51,7 +52,7 @@ class Get(task.Task):
 class Create(task.Task):
     """The task for creating a VM."""
 
-    def __init__(self, adapter, host_wrapper, instance, flavor):
+    def __init__(self, adapter, host_wrapper, instance, flavor, stg_ftsk):
         """Creates the Task for creating a VM.
 
         The revert method is not implemented because the compute manager
@@ -59,12 +60,17 @@ class Create(task.Task):
         the lpar, it's a cleaner flow through the destroy operation and
         accomplishes the same result.
 
+        Any stale storage associated with the new VM's (possibly recycled) ID
+        will be cleaned up.  The cleanup work will be delegated to the FeedTask
+        represented by the stg_ftsk parameter.
+
         Provides the 'lpar_wrap' for other tasks.
 
         :param adapter: The adapter for the pypowervm API
         :param host_wrapper: The managed system wrapper
         :param instance: The nova instance.
         :param flavor: The nova flavor.
+        :param stg_ftsk: A FeedTask managing storage I/O operations.
         """
         super(Create, self).__init__(name='crt_lpar',
                                      provides='lpar_wrap')
@@ -72,11 +78,13 @@ class Create(task.Task):
         self.host_wrapper = host_wrapper
         self.instance = instance
         self.flavor = flavor
+        self.stg_ftsk = stg_ftsk
 
     def execute(self):
         LOG.info(_LI('Creating instance: %s'), self.instance.name)
         wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
                            self.flavor)
+        pvm_stg.add_lpar_storage_scrub_tasks(wrap.id, self.stg_ftsk)
         return wrap
 
 

@@ -86,25 +86,25 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         ssp = self._ssp
         return float(ssp.capacity) - float(ssp.free_space)
 
-    def disconnect_image_disk(self, context, instance, tx_mgr=None,
+    def disconnect_image_disk(self, context, instance, stg_ftsk=None,
                               disk_type=None):
         """Disconnects the storage adapters from the image disk.
 
         :param context: nova context for operation
         :param instance: instance to disconnect the image for.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for
+                         the I/O Operations.  If provided, the Virtual I/O
+                         Server mapping updates will be added to the FeedTask.
+                         This defers the updates to some later point in time.
+                         If the FeedTask is not provided, the updates will be
+                         run immediately when this method is executed.
         :param disk_type: The list of disk types to remove or None which means
-            to remove all disks from the VM.
+                          to remove all disks from the VM.
         :return: A list of all the backing storage elements that were
                  disconnected from the I/O Server and VM.
         """
-        if tx_mgr is None:
-            tx_mgr = vios.build_tx_feed_task(
+        if stg_ftsk is None:
+            stg_ftsk = vios.build_tx_feed_task(
                 self.adapter, self.host_uuid, name='ssp',
                 xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
 
@@ -132,18 +132,18 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         lu_set = set()
         for vios_uuid in self.vios_uuids:
             # Add the remove for the VIO
-            tx_mgr.wrapper_tasks[vios_uuid].add_functor_subtask(rm_func)
+            stg_ftsk.wrapper_tasks[vios_uuid].add_functor_subtask(rm_func)
 
             # Find the active LUs so that a delete op knows what to remove.
-            vios_w = tx_mgr.wrapper_tasks[vios_uuid].wrapper
+            vios_w = stg_ftsk.wrapper_tasks[vios_uuid].wrapper
             mappings = tsk_map.find_maps(vios_w.scsi_mappings, lpar_uuid,
                                          match_func=match_func)
             if mappings:
                 lu_set.update([x.backing_storage for x in mappings])
 
         # Run the FeedTask if it was built locally
-        if tx_mgr.name == 'ssp':
-            tx_mgr.execute()
+        if stg_ftsk.name == 'ssp':
+            stg_ftsk.execute()
 
         return list(lu_set)
 
@@ -243,7 +243,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                                            luname, img_meta['size'])
         return lu
 
-    def connect_disk(self, context, instance, disk_info, tx_mgr=None):
+    def connect_disk(self, context, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.
 
         :param context: nova context for the transaction.
@@ -251,15 +251,15 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :param disk_info: The pypowervm storage element returned from
                           create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
                           or PV.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when this method is executed.
         """
-        if tx_mgr is None:
-            tx_mgr = vios.build_tx_feed_task(
+        if stg_ftsk is None:
+            stg_ftsk = vios.build_tx_feed_task(
                 self.adapter, self.host_uuid, name='ssp',
                 xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
 
@@ -283,11 +283,11 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         # Note - this may not be all the VIOSes on the system...just the ones
         # in the SSP cluster.
         for vios_uuid in self.vios_uuids:
-            tx_mgr.wrapper_tasks[vios_uuid].add_functor_subtask(add_func)
+            stg_ftsk.wrapper_tasks[vios_uuid].add_functor_subtask(add_func)
 
         # If the FeedTask was built locally, then run it immediately
-        if tx_mgr.name == 'ssp':
-            tx_mgr.execute()
+        if stg_ftsk.name == 'ssp':
+            stg_ftsk.execute()
 
     def extend_disk(self, context, instance, disk_info, size):
         """Extends the disk.

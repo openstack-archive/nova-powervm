@@ -58,7 +58,7 @@ class ConnectVolume(task.Task):
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
-        self.vol_drv.reset_tx_mgr()
+        self.vol_drv.reset_stg_ftsk()
         self.vol_drv.disconnect_volume()
 
 
@@ -90,7 +90,7 @@ class DisconnectVolume(task.Task):
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
-        self.vol_drv.reset_tx_mgr()
+        self.vol_drv.reset_stg_ftsk()
         self.vol_drv.connect_volume()
 
 
@@ -146,7 +146,7 @@ class CreateDiskForImg(task.Task):
 class ConnectDisk(task.Task):
     """The task to connect the disk to the instance."""
 
-    def __init__(self, disk_dvr, context, instance, tx_mgr=None):
+    def __init__(self, disk_dvr, context, instance, stg_ftsk=None):
         """Create the Task for the connect disk to instance method.
 
         Requires LPAR info through requirement of lpar_wrap.
@@ -157,24 +157,24 @@ class ConnectDisk(task.Task):
         :param disk_dvr: The disk driver.
         :param context: The context passed into the spawn method.
         :param instance: The nova instance.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when the respective method is executed.
         """
         super(ConnectDisk, self).__init__(name='connect_disk',
                                           requires=['disk_dev_info'])
         self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
-        self.tx_mgr = tx_mgr
+        self.stg_ftsk = stg_ftsk
 
     def execute(self, disk_dev_info,):
         LOG.info(_LI('Connecting disk to instance: %s'), self.instance.name)
         self.disk_dvr.connect_disk(self.context, self.instance, disk_dev_info,
-                                   tx_mgr=self.tx_mgr)
+                                   stg_ftsk=self.stg_ftsk)
 
     def revert(self, disk_dev_info, result, flow_failures):
         LOG.warn(_LW('Disk image being disconnected from instance %s'),
@@ -317,7 +317,7 @@ class CreateAndConnectCfgDrive(task.Task):
     """The task to create the configuration drive."""
 
     def __init__(self, adapter, host_uuid, instance, injected_files,
-                 network_info, admin_pass, tx_mgr=None):
+                 network_info, admin_pass, stg_ftsk=None):
         """Create the Task that create and connect the config drive.
 
         Requires the 'lpar_wrap' and 'mgmt_cna'
@@ -331,12 +331,12 @@ class CreateAndConnectCfgDrive(task.Task):
                                the ISO.
         :param network_info: The network_info from the nova spawn method.
         :param admin_pass: Optional password to inject for the VM.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when the respective method is executed.
         """
         super(CreateAndConnectCfgDrive, self).__init__(
             name='cfg_drive', requires=['lpar_wrap', 'mgmt_cna'])
@@ -347,7 +347,7 @@ class CreateAndConnectCfgDrive(task.Task):
         self.network_info = network_info
         self.ad_pass = admin_pass
         self.mb = None
-        self.tx_mgr = tx_mgr
+        self.stg_ftsk = stg_ftsk
 
     def execute(self, lpar_wrap, mgmt_cna):
         LOG.info(_LI('Creating Config Drive for instance: %s'),
@@ -356,7 +356,7 @@ class CreateAndConnectCfgDrive(task.Task):
         self.mb.create_cfg_drv_vopt(self.instance, self.injected_files,
                                     self.network_info, lpar_wrap.uuid,
                                     admin_pass=self.ad_pass,
-                                    mgmt_cna=mgmt_cna, tx_mgr=self.tx_mgr)
+                                    mgmt_cna=mgmt_cna, stg_ftsk=self.stg_ftsk)
 
     def revert(self, lpar_wrap, mgmt_cna, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
@@ -374,36 +374,36 @@ class DeleteVOpt(task.Task):
     """The task to delete the virtual optical."""
 
     def __init__(self, adapter, host_uuid, instance, lpar_uuid,
-                 tx_mgr=None):
+                 stg_ftsk=None):
         """Creates the Task to delete the instances virtual optical media.
 
         :param adapter: The adapter for the pypowervm API
         :param host_uuid: The host UUID of the system.
         :param instance: The nova instance.
         :param lpar_uuid: The UUID of the lpar that has media.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when the respective method is executed.
         """
         super(DeleteVOpt, self).__init__(name='vopt_delete')
         self.adapter = adapter
         self.host_uuid = host_uuid
         self.instance = instance
         self.lpar_uuid = lpar_uuid
-        self.tx_mgr = tx_mgr
+        self.stg_ftsk = stg_ftsk
 
     def execute(self):
         media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
-        media_builder.dlt_vopt(self.lpar_uuid, tx_mgr=self.tx_mgr)
+        media_builder.dlt_vopt(self.lpar_uuid, stg_ftsk=self.stg_ftsk)
 
 
 class DetachDisk(task.Task):
     """The task to detach the disk storage from the instance."""
 
-    def __init__(self, disk_dvr, context, instance, tx_mgr=None,
+    def __init__(self, disk_dvr, context, instance, stg_ftsk=None,
                  disk_type=None):
         """Creates the Task to detach the storage adapters.
 
@@ -413,12 +413,12 @@ class DetachDisk(task.Task):
         :param disk_dvr: The DiskAdapter for the VM.
         :param context: The nova context.
         :param instance: The nova instance.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when the respective method is executed.
         :param disk_type: List of disk types to detach. None means detach all.
         """
         super(DetachDisk, self).__init__(name='detach_storage',
@@ -426,14 +426,14 @@ class DetachDisk(task.Task):
         self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
-        self.tx_mgr = tx_mgr
+        self.stg_ftsk = stg_ftsk
         self.disk_type = disk_type
 
     def execute(self):
         LOG.info(_LI('Detaching disk storage adapters for instance %s'),
                  self.instance.name)
         return self.disk_dvr.disconnect_image_disk(
-            self.context, self.instance, tx_mgr=self.tx_mgr,
+            self.context, self.instance, stg_ftsk=self.stg_ftsk,
             disk_type=self.disk_type)
 
 

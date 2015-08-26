@@ -134,7 +134,7 @@ class TestLocalDisk(test.TestCase):
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
         # As initialized above, remove_maps returns True to trigger update.
-        local.disconnect_image_disk(mock.MagicMock(), inst, tx_mgr=None,
+        local.disconnect_image_disk(mock.MagicMock(), inst, stg_ftsk=None,
                                     disk_type=[disk_dvr.DiskType.BOOT])
         self.assertEqual(1, mock_rm_maps.call_count)
         self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
@@ -164,7 +164,7 @@ class TestLocalDisk(test.TestCase):
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
         # As initialized above, remove_maps returns True to trigger update.
-        local.disconnect_image_disk(mock.MagicMock(), inst, tx_mgr=None,
+        local.disconnect_image_disk(mock.MagicMock(), inst, stg_ftsk=None,
                                     disk_type=[disk_dvr.DiskType.BOOT])
         self.assertEqual(1, mock_rm_maps.call_count)
         self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)
@@ -183,7 +183,7 @@ class TestLocalDisk(test.TestCase):
         # Invoke
         local = self.get_ls(self.apt)
         local.disconnect_image_disk(mock.MagicMock(), inst,
-                                    tx_mgr=mock.MagicMock(),
+                                    stg_ftsk=mock.MagicMock(),
                                     disk_type=[disk_dvr.DiskType.BOOT])
 
         # Make sure the find maps is invoked once.
@@ -218,7 +218,7 @@ class TestLocalDisk(test.TestCase):
 
         # As initialized above, remove_maps returns True to trigger update.
         local.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
-                           tx_mgr=None)
+                           stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
@@ -247,7 +247,7 @@ class TestLocalDisk(test.TestCase):
 
         # As initialized above, remove_maps returns True to trigger update.
         local.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
-                           tx_mgr=None)
+                           stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)

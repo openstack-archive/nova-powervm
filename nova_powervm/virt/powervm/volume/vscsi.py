@@ -51,22 +51,22 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     """
 
     def __init__(self, adapter, host_uuid, instance, connection_info,
-                 tx_mgr=None):
+                 stg_ftsk=None):
         """Initializes the vSCSI Volume Adapter.
 
         :param adapter: The pypowervm adapter.
         :param host_uuid: The pypowervm UUID of the host.
         :param instance: The nova instance that the volume should connect to.
         :param connection_info: Comes from the BDM.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when the respective method is executed.
         """
         super(VscsiVolumeAdapter, self).__init__(
-            adapter, host_uuid, instance, connection_info, tx_mgr=tx_mgr)
+            adapter, host_uuid, instance, connection_info, stg_ftsk=stg_ftsk)
         self._pfc_wwpns = None
         self._vioses_modified = []
 
@@ -156,10 +156,10 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # design).  They do not have storage (super expensive).
         #
         # We need the storage xag when we are determining which mappings to
-        # add to the system.  But we don't want to tie it to the tx_mgr.  If
+        # add to the system.  But we don't want to tie it to the stg_ftsk.  If
         # we do, every retry, every etag gather, etc... takes MUCH longer.
         #
-        # So we get the VIOS xag here once, up front.  To save the tx_mgr
+        # So we get the VIOS xag here once, up front.  To save the stg_ftsk
         # from potentially having to run it many many times.
         vios_feed = self.adapter.read(pvm_vios.VIOS.schema_type,
                                       xag=[pvm_vios.VIOS.xags.STORAGE])
@@ -197,7 +197,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         if self._good_discovery(status, device_name, udid):
             # Found a hdisk on this Virtual I/O Server.  Add the action to
-            # map it to the VM when the tx_mgr is executed.
+            # map it to the VM when the stg_ftsk is executed.
             self._add_append_mapping(vios_w.uuid, device_name)
 
             # Save the UDID for the disk in the connection info.  It is
@@ -278,7 +278,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                  {'volume_uid': volume_udid, 'volume_id': volume_id,
                   'vios_name': vios_w.name, 'hdisk': device_name})
 
-        # Add the action to remove the mapping when the tx_mgr is run.
+        # Add the action to remove the mapping when the stg_ftsk is run.
         partition_id = vm.get_vm_id(self.adapter, self.vm_uuid)
         self._add_remove_mapping(partition_id, vios_w.uuid,
                                  device_name)
@@ -311,7 +311,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                          {'disk': device_name})
                 LOG.warn(e)
         name = 'rm_hdisk_%s_%s' % (vio_wrap.name, device_name)
-        self.tx_mgr.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
+        self.stg_ftsk.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
 
     @lockutils.synchronized('vscsi_wwpns')
     def wwpns(self):
@@ -346,10 +346,10 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             return tsk_map.remove_maps(
                 vios_w, vm_uuid,
                 tsk_map.gen_match_func(pvm_stor.PV, names=[device_name]))
-        self.tx_mgr.wrapper_tasks[vios_uuid].add_functor_subtask(rm_func)
+        self.stg_ftsk.wrapper_tasks[vios_uuid].add_functor_subtask(rm_func)
 
     def _add_append_mapping(self, vios_uuid, device_name):
-        """This method will update the tx_mgr to append the mapping to the VIOS
+        """This method will update the stg_ftsk to append the mapping to the VIOS
 
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param device_name: The The hdisk device name.
@@ -362,7 +362,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             v_map = tsk_map.build_vscsi_mapping(self.host_uuid, vios_w,
                                                 self.vm_uuid, pv)
             return tsk_map.add_map(vios_w, v_map)
-        self.tx_mgr.wrapper_tasks[vios_uuid].add_functor_subtask(add_func)
+        self.stg_ftsk.wrapper_tasks[vios_uuid].add_functor_subtask(add_func)
 
     def _set_udid(self, udid):
         """This method will set the hdisk udid in the connection_info.

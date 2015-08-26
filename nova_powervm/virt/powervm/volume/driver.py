@@ -37,7 +37,7 @@ class PowerVMVolumeAdapter(object):
     This is built similarly to the LibvirtBaseVolumeDriver.
     """
     def __init__(self, adapter, host_uuid, instance, connection_info,
-                 tx_mgr=None):
+                 stg_ftsk=None):
         """Initialize the PowerVMVolumeAdapter
 
         :param adapter: The pypowervm adapter.
@@ -46,12 +46,12 @@ class PowerVMVolumeAdapter(object):
         :param connection_info: The volume connection info generated from the
                                 BDM. Used to determine how to connect the
                                 volume to the VM.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when the respective method is executed.
         """
         self.adapter = adapter
         self.host_uuid = host_uuid
@@ -61,7 +61,7 @@ class PowerVMVolumeAdapter(object):
         # Lazy-set this
         self._vm_id = None
 
-        self.reset_tx_mgr(tx_mgr=tx_mgr)
+        self.reset_stg_ftsk(stg_ftsk=stg_ftsk)
 
     @property
     def vm_id(self):
@@ -83,24 +83,24 @@ class PowerVMVolumeAdapter(object):
         """
         return self.connection_info['data']['volume_id']
 
-    def reset_tx_mgr(self, tx_mgr=None):
+    def reset_stg_ftsk(self, stg_ftsk=None):
         """Resets the pypowervm transaction FeedTask to a new value.
 
         The previous updates from the original FeedTask WILL NOT be migrated
         to this new FeedTask.
 
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when this method is executed.
         """
-        if tx_mgr is None:
+        if stg_ftsk is None:
             getter = pvm_vios.VIOS.getter(self.adapter, xag=self.min_xags())
-            self.tx_mgr = pvm_tx.FeedTask(LOCAL_FEED_TASK, getter)
+            self.stg_ftsk = pvm_tx.FeedTask(LOCAL_FEED_TASK, getter)
         else:
-            self.tx_mgr = tx_mgr
+            self.stg_ftsk = stg_ftsk
 
     @classmethod
     def min_xags(cls):
@@ -119,15 +119,15 @@ class PowerVMVolumeAdapter(object):
         """Connects the volume."""
         self._connect_volume()
 
-        if self.tx_mgr.name == LOCAL_FEED_TASK:
-            self.tx_mgr.execute()
+        if self.stg_ftsk.name == LOCAL_FEED_TASK:
+            self.stg_ftsk.execute()
 
     def disconnect_volume(self):
         """Disconnect the volume."""
         self._disconnect_volume()
 
-        if self.tx_mgr.name == LOCAL_FEED_TASK:
-            self.tx_mgr.execute()
+        if self.stg_ftsk.name == LOCAL_FEED_TASK:
+            self.stg_ftsk.execute()
 
     def _connect_volume(self):
         """Connects the volume.

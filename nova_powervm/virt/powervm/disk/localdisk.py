@@ -116,28 +116,28 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # that (to get new etag) and then update against it.
         tsk_stg.rm_vg_storage(self._get_vg_wrap(), vdisks=storage_elems)
 
-    def disconnect_image_disk(self, context, instance, tx_mgr=None,
+    def disconnect_image_disk(self, context, instance, stg_ftsk=None,
                               disk_type=None):
         """Disconnects the storage adapters from the image disk.
 
         :param context: nova context for operation
         :param instance: instance to disconnect the image for.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when this method is executed.
         :param disk_type: The list of disk types to remove or None which means
-            to remove all disks from the VM.
+                          to remove all disks from the VM.
         :return: A list of all the backing storage elements that were
                  disconnected from the I/O Server and VM.
         """
         lpar_uuid = vm.get_pvm_uuid(instance)
 
         # Ensure we have a transaction manager.
-        if tx_mgr is None:
-            tx_mgr = vios.build_tx_feed_task(
+        if stg_ftsk is None:
+            stg_ftsk = vios.build_tx_feed_task(
                 self.adapter, self.host_uuid, name='localdisk',
                 xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
 
@@ -151,17 +151,17 @@ class LocalStorage(disk_dvr.DiskAdapter):
             return tsk_map.remove_maps(vios_w, lpar_uuid,
                                        match_func=match_func)
 
-        tx_mgr.wrapper_tasks[self._vios_uuid].add_functor_subtask(rm_func)
+        stg_ftsk.wrapper_tasks[self._vios_uuid].add_functor_subtask(rm_func)
 
         # Find the disk directly.
-        vios_w = tx_mgr.wrapper_tasks[self._vios_uuid].wrapper
+        vios_w = stg_ftsk.wrapper_tasks[self._vios_uuid].wrapper
         mappings = tsk_map.find_maps(vios_w.scsi_mappings, lpar_uuid,
                                      match_func=match_func)
 
         # Run the transaction manager if built locally.  Must be done after
         # the find to make sure the mappings were found previously.
-        if tx_mgr.name == 'localdisk':
-            tx_mgr.execute()
+        if stg_ftsk.name == 'localdisk':
+            stg_ftsk.execute()
 
         return [x.backing_storage for x in mappings]
 
@@ -214,7 +214,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         return vdisk
 
-    def connect_disk(self, context, instance, disk_info, tx_mgr=None):
+    def connect_disk(self, context, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.
 
         :param context: nova context for the transaction.
@@ -222,18 +222,18 @@ class LocalStorage(disk_dvr.DiskAdapter):
         :param disk_info: The pypowervm storage element returned from
                           create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
                           or PV.
-        :param tx_mgr: (Optional) The pypowervm transaction FeedTask for
-                       the I/O Operations.  If provided, the Virtual I/O Server
-                       mapping updates will be added to the FeedTask.  This
-                       defers the updates to some later point in time.  If the
-                       FeedTask is not provided, the updates will be run
-                       immediately when this method is executed.
+        :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
+                         I/O Operations.  If provided, the Virtual I/O Server
+                         mapping updates will be added to the FeedTask.  This
+                         defers the updates to some later point in time.  If
+                         the FeedTask is not provided, the updates will be run
+                         immediately when this method is executed.
         """
         lpar_uuid = vm.get_pvm_uuid(instance)
 
         # Ensure we have a transaction manager.
-        if tx_mgr is None:
-            tx_mgr = vios.build_tx_feed_task(
+        if stg_ftsk is None:
+            stg_ftsk = vios.build_tx_feed_task(
                 self.adapter, self.host_uuid, name='localdisk',
                 xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
 
@@ -245,11 +245,11 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 self.host_uuid, vios_w, lpar_uuid, disk_info)
             return tsk_map.add_map(vios_w, mapping)
 
-        tx_mgr.wrapper_tasks[self._vios_uuid].add_functor_subtask(add_func)
+        stg_ftsk.wrapper_tasks[self._vios_uuid].add_functor_subtask(add_func)
 
         # Run the transaction manager if built locally.
-        if tx_mgr.name == 'localdisk':
-            tx_mgr.execute()
+        if stg_ftsk.name == 'localdisk':
+            stg_ftsk.execute()
 
     def extend_disk(self, context, instance, disk_info, size):
         """Extends the disk.

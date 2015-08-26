@@ -110,7 +110,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
                     # The VIOS wrappers are also not set at this point.  Seed
                     # them as well.  Will get reused on subsequent loops.
-                    vios_wraps = self.tx_mgr.feed
+                    vios_wraps = self.stg_ftsk.feed
 
                 # Derive the virtual to physical port mapping
                 port_maps = pvm_vfcm.derive_base_npiv_map(
@@ -166,7 +166,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :param fabric: The fabric to add the mappings to.
         """
         npiv_port_maps = self._get_fabric_meta(fabric)
-        vios_wraps = self.tx_mgr.feed
+        vios_wraps = self.stg_ftsk.feed
 
         # If currently mapped to the mgmt partition, remove the mappings so
         # that they can be added to the client.
@@ -182,7 +182,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                       {'inst': self.instance.name, 'vios': vios_w.name}]
 
                 # Add the subtask to remove the map from the mgmt partition
-                self.tx_mgr.wrapper_tasks[vios_w.uuid].add_functor_subtask(
+                self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
                     pvm_vfcm.remove_maps, mgmt_uuid, port_map=npiv_port_map,
                     logspec=ls)
 
@@ -194,7 +194,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                   {'inst': self.instance.name, 'vios': vios_w.name}]
 
             # Add the subtask to add the specific map.
-            self.tx_mgr.wrapper_tasks[vios_w.uuid].add_functor_subtask(
+            self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
                 pvm_vfcm.add_map, self.host_uuid, self.vm_uuid, npiv_port_map,
                 logspec=ls)
 
@@ -202,7 +202,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         def set_state():
             self._set_fabric_state(fabric, FS_INST_MAPPED)
         volume_id = self.connection_info['data']['volume_id']
-        self.tx_mgr.add_post_execute(task.FunctorTask(
+        self.stg_ftsk.add_post_execute(task.FunctorTask(
             set_state, name='fab_%s_%s' % (fabric, volume_id)))
 
     def _remove_maps_for_fabric(self, fabric):
@@ -211,7 +211,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :param fabric: The fabric to remove the mappings from.
         """
         npiv_port_maps = self._get_fabric_meta(fabric)
-        vios_wraps = self.tx_mgr.feed
+        vios_wraps = self.stg_ftsk.feed
 
         for npiv_port_map in npiv_port_maps:
             ls = [LOG.info, _LI("Removing a NPIV mapping for instance "
@@ -220,7 +220,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
 
             # Add the subtask to remove the specific map.
-            self.tx_mgr.wrapper_tasks[vios_w.uuid].add_functor_subtask(
+            self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
                 pvm_vfcm.remove_maps, self.vm_uuid, port_map=npiv_port_map,
                 logspec=ls)
 
