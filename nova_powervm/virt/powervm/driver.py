@@ -268,9 +268,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # Last step is to power on the system.
         flow_spawn.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
 
-        # Build the engine & run!
-        engine = tf_eng.load(flow_spawn, engine='parallel', max_workers=3)
-        engine.run()
+        # Run the flow.
+        tf_eng.run(flow_spawn)
 
     def _is_booted_from_volume(self, block_device_info):
         """Determine whether the root device is listed in block_device_info.
