@@ -24,6 +24,7 @@ from nova import exception
 from nova import objects
 from nova import test
 from pypowervm import exceptions as pvm_exc
+from pypowervm.helpers import log_helper as pvm_log
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
@@ -156,6 +157,7 @@ class TestVM(test.TestCase):
         super(TestVM, self).setUp()
         self.pypvm = self.useFixture(fx.PyPowerVM())
         self.apt = self.pypvm.apt
+        self.apt.helpers = [pvm_log.log_helper]
 
         lpar_http = pvmhttp.load_pvm_resp(LPAR_HTTPRESP_FILE, adapter=self.apt)
         self.assertNotEqual(lpar_http, None,
@@ -339,7 +341,7 @@ class TestVM(test.TestCase):
 
     def test_get_vm_qp(self):
         def adapter_read(root_type, root_id=None, suffix_type=None,
-                         suffix_parm=None):
+                         suffix_parm=None, helpers=None):
             json_str = (u'{"IsVirtualServiceAttentionLEDOn":"false","Migration'
                         u'State":"Not_Migrating","CurrentProcessingUnits":0.1,'
                         u'"ProgressState":null,"PartitionType":"AIX/Linux","Pa'
@@ -371,15 +373,27 @@ class TestVM(test.TestCase):
                 self.fail('Unhandled quick property key %s' % suffix_parm)
             return resp
 
+        def adpt_read_no_log(*args, **kwds):
+            helpers = kwds['helpers']
+            try:
+                helpers.index(pvm_log.log_helper)
+            except ValueError:
+                # Successful path since the logger shouldn't be there
+                return adapter_read(*args, **kwds)
+
+            self.fail('Log helper was found when it should not be')
+
         ms_href = ('https://9.1.2.3:12443/rest/api/uom/ManagedSystem/98498bed-'
                    'c78a-3a4f-b90a-4b715418fcb6')
         self.apt.read.side_effect = adapter_read
         self.assertEqual(1, vm.get_vm_id(self.apt, 'lpar_uuid'))
         self.assertEqual(ms_href, vm.get_vm_qp(self.apt, 'lpar_uuid',
                                                'AssociatedManagedSystem'))
+        self.apt.read.side_effect = adpt_read_no_log
         self.assertEqual(0.1, vm.get_vm_qp(self.apt, 'lpar_uuid',
-                                           'CurrentProcessingUnits'))
-        qp_dict = vm.get_vm_qp(self.apt, 'lpar_uuid')
+                                           'CurrentProcessingUnits',
+                                           log_errors=False))
+        qp_dict = vm.get_vm_qp(self.apt, 'lpar_uuid', log_errors=False)
         self.assertEqual(ms_href, qp_dict['AssociatedManagedSystem'])
         self.assertEqual(1, qp_dict['PartitionID'])
         self.assertEqual(0.1, qp_dict['CurrentProcessingUnits'])
@@ -388,13 +402,13 @@ class TestVM(test.TestCase):
         resp.status = 404
         self.apt.read.side_effect = pvm_exc.Error('message', response=resp)
         self.assertRaises(exception.InstanceNotFound, vm.get_vm_qp, self.apt,
-                          'lpar_uuid')
+                          'lpar_uuid', log_errors=False)
 
         resp.status = 500
 
         self.apt.read.side_effect = pvm_exc.Error('message', response=resp)
         self.assertRaises(pvm_exc.Error, vm.get_vm_qp, self.apt,
-                          'lpar_uuid')
+                          'lpar_uuid', log_errors=False)
 
     def test_norm_mac(self):
         EXPECTED = "12:34:56:78:90:ab"
