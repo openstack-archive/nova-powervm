@@ -78,7 +78,7 @@ class DisconnectVolume(task.Task):
 
     def execute(self):
         LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s'),
-                 {'vol': self.vol_id, 'inst': self.vol_drv.instance})
+                 {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
         self.vol_drv.disconnect_volume()
 
     def revert(self, result, flow_failures):
@@ -86,7 +86,7 @@ class DisconnectVolume(task.Task):
         # failures even if only a subset are used.
         LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
                      're-connected'),
-                 {'vol': self.vol_id, 'inst': self.vol_drv.instance})
+                 {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
