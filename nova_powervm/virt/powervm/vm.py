@@ -24,6 +24,7 @@ from nova import exception
 from nova.i18n import _LI, _LE, _
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
+from pypowervm.helpers import log_helper as pvm_log
 from pypowervm.tasks import cna
 from pypowervm.tasks import power
 from pypowervm.tasks import vterm
@@ -396,33 +397,36 @@ def get_instance_wrapper(adapter, instance, host_uuid):
     return pvm_lpar.LPAR.wrap(resp)
 
 
-def instance_exists(adapter, instance, host_uuid):
+def instance_exists(adapter, instance, host_uuid, log_errors=False):
     """Determine if an instance exists on the host.
 
     :param adapter: The adapter for the pypowervm API
     :param instance: The nova instance.
     :param host_uuid: The host UUID
+    :param log_errors: Indicator whether to log REST data after an exception
     :return: boolean, whether the instance exists.
     """
     try:
         # If we're able to get the property, then it exists.
-        get_vm_id(adapter, get_pvm_uuid(instance))
+        get_vm_id(adapter, get_pvm_uuid(instance), log_errors=log_errors)
         return True
     except exception.InstanceNotFound:
         return False
 
 
-def get_vm_id(adapter, lpar_uuid):
+def get_vm_id(adapter, lpar_uuid, log_errors=True):
     """Returns the client LPAR ID for a given UUID.
 
     :param adapter: The pypowervm adapter.
     :param lpar_uuid: The UUID for the LPAR.
+    :param log_errors: Indicator whether to log REST data after an exception
     :return: The system id (an integer value).
     """
-    return get_vm_qp(adapter, lpar_uuid, qprop='PartitionID')
+    return get_vm_qp(adapter, lpar_uuid, qprop='PartitionID',
+                     log_errors=log_errors)
 
 
-def get_vm_qp(adapter, lpar_uuid, qprop=None):
+def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
     """Returns one or all quick properties of an LPAR.
 
     :param adapter: The pypowervm adapter.
@@ -430,12 +434,22 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None):
     :param qprop: The quick property key to return.  If specified, that single
                   property value is returned.  If None/unspecified, all quick
                   properties are returned in a dictionary.
+    :param log_errors: Indicator whether to log REST data after an exception
     :return: Either a single quick property value or a dictionary of all quick
              properties.
     """
     try:
-        resp = adapter.read(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid,
-                            suffix_type='quick', suffix_parm=qprop)
+        kwds = dict(root_id=lpar_uuid, suffix_type='quick', suffix_parm=qprop)
+        if not log_errors:
+            # Remove the log helper from the list of helpers
+            helpers = adapter.helpers
+            try:
+                helpers.remove(pvm_log.log_helper)
+            except ValueError:
+                # It's not an error if we didn't find it.
+                pass
+            kwds['helpers'] = helpers
+        resp = adapter.read(pvm_lpar.LPAR.schema_type, **kwds)
     except pvm_exc.Error as e:
         if e.response.status == 404:
             raise exception.InstanceNotFound(instance_id=lpar_uuid)
