@@ -59,6 +59,8 @@ class TestVSCSIAdapter(test.TestCase):
         self.ft_fx = pvm_fx.FeedTaskFx(feed)
         self.useFixture(self.ft_fx)
 
+        self.adpt.read.return_value = self.vios_feed_resp
+
         @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.getter')
         @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
         def init_vol_adpt(mock_pvm_uuid, mock_getter):
@@ -217,9 +219,8 @@ class TestVSCSIAdapter(test.TestCase):
         self.assertListEqual(['aa', 'bb'], wwpns)
 
     def test_min_xags(self):
-        xags = self.vol_drv.min_xags
-        self.assertEqual(2, len(xags))
-        self.assertIn(pvm_vios.VIOS.xags.STORAGE, xags)
+        xags = self.vol_drv.min_xags()
+        self.assertEqual(1, len(xags))
         self.assertIn(pvm_vios.VIOS.xags.SCSI_MAPPING, xags)
 
     def test_set_udid(self):

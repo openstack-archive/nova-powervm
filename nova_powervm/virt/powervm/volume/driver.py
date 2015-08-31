@@ -15,7 +15,6 @@
 #    under the License.
 
 import abc
-from abc import abstractproperty
 import six
 
 from pypowervm.utils import transaction as pvm_tx
@@ -76,13 +75,13 @@ class PowerVMVolumeAdapter(object):
                        immediately when this method is executed.
         """
         if tx_mgr is None:
-            getter = pvm_vios.VIOS.getter(self.adapter, xag=self.min_xags)
+            getter = pvm_vios.VIOS.getter(self.adapter, xag=self.min_xags())
             self.tx_mgr = pvm_tx.FeedTask(LOCAL_FEED_TASK, getter)
         else:
             self.tx_mgr = tx_mgr
 
-    @abstractproperty
-    def min_xags(self):
+    @classmethod
+    def min_xags(cls):
         """List of pypowervm XAGs needed to support this adapter."""
         raise NotImplementedError()
 

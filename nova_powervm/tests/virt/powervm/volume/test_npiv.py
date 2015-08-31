@@ -233,7 +233,7 @@ class TestNPIVAdapter(test.TestCase):
         self.vol_drv.connect_volume()
 
     def test_min_xags(self):
-        xags = self.vol_drv.min_xags
+        xags = self.vol_drv.min_xags()
         self.assertEqual(2, len(xags))
         self.assertIn(pvm_vios.VIOS.xags.STORAGE, xags)
         self.assertIn(pvm_vios.VIOS.xags.FC_MAPPING, xags)

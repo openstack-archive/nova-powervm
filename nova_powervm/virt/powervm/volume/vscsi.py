@@ -16,6 +16,7 @@
 
 from nova.i18n import _, _LI, _LW, _LE
 
+from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
 from taskflow import task
@@ -34,6 +35,9 @@ import six
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
+
+# A global variable that will cache the physical WWPNs on the system.
+_vscsi_pfc_wwpns = None
 
 
 def _build_udid_key(vios_uuid, volume_id):
@@ -74,12 +78,11 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         self._pfc_wwpns = None
         self._vioses_modified = []
 
-    @property
-    def min_xags(self):
+    @classmethod
+    def min_xags(cls):
         """List of pypowervm XAGs needed to support this adapter."""
-        # Storage are so hdisks get listed on the VIOS
         # SCSI mapping is for the connections between VIOS and client VM
-        return [pvm_vios.VIOS.xags.STORAGE, pvm_vios.VIOS.xags.SCSI_MAPPING]
+        return [pvm_vios.VIOS.xags.SCSI_MAPPING]
 
     def _connect_volume(self):
         """Connects the volume."""
@@ -87,8 +90,22 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         volume_id = self.connection_info['data']['volume_id']
         self._vioses_modified = []
 
+        # Its about to get weird.  The transaction manager has a list of
+        # VIOSes.  We could use those, but they only have SCSI mappings (by
+        # design).  They do not have storage (super expensive).
+        #
+        # We need the storage xag when we are determining which mappings to
+        # add to the system.  But we don't want to tie it to the tx_mgr.  If
+        # we do, every retry, every etag gather, etc... takes MUCH longer.
+        #
+        # So we get the VIOS xag here once, up front.  To save the tx_mgr
+        # from potentially having to run it many many times.
+        vios_feed = self.adapter.read(pvm_vios.VIOS.schema_type,
+                                      xag=[pvm_vios.VIOS.xags.STORAGE])
+        vios_wraps = pvm_vios.VIOS.wrap(vios_feed)
+
         # Iterate through host vios list to find valid hdisks and map to VM.
-        for vios_w in self.tx_mgr.feed:
+        for vios_w in vios_wraps:
             if self._connect_volume_to_vio(vios_w, volume_id):
                 self._vioses_modified.append(vios_w.uuid)
 
@@ -155,9 +172,14 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         volume_id = self.connection_info['data']['volume_id']
         self._vioses_modified = []
         try:
+            # See logic in _connect_volume for why this invocation is here.
+            vios_feed = self.adapter.read(pvm_vios.VIOS.schema_type,
+                                          xag=[pvm_vios.VIOS.xags.STORAGE])
+            vios_wraps = pvm_vios.VIOS.wrap(vios_feed)
+
             # Iterate through VIOS feed (from the transaction TaskFeed) to
             # find hdisks to disconnect.
-            for vios_w in self.tx_mgr.feed:
+            for vios_w in vios_wraps:
                 if self._disconnect_volume_for_vio(vios_w, volume_id):
                     self._vioses_modified.append(vios_w.uuid)
 
@@ -247,15 +269,18 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         name = 'rm_hdisk_%s_%s' % (vio_wrap.name, device_name)
         self.tx_mgr.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
 
+    @lockutils.synchronized('vscsi_wwpns')
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports.
 
         :return: The list of WWPNs that need to be included in the zone set.
         """
-        if self._pfc_wwpns is None:
-            self._pfc_wwpns = vios.get_physical_wwpns(self.adapter,
-                                                      self.host_uuid)
-        return self._pfc_wwpns
+        # Use a global variable so this is pulled once when the process starts.
+        global _vscsi_pfc_wwpns
+        if _vscsi_pfc_wwpns is None:
+            _vscsi_pfc_wwpns = vios.get_physical_wwpns(self.adapter,
+                                                       self.host_uuid)
+        return _vscsi_pfc_wwpns
 
     def host_name(self):
         """Derives the host name that should be used for the storage device.

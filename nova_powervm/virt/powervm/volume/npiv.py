@@ -50,8 +50,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     Server only passes through communication directly to the VM itself.
     """
 
-    @property
-    def min_xags(self):
+    @classmethod
+    def min_xags(cls):
         """List of pypowervm XAGs needed to support this adapter."""
         # Storage are so physical FC ports are available
         # FC mapping is for the connections between VIOS and client VM
