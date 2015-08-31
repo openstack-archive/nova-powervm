@@ -263,7 +263,7 @@ class PowerVMDriver(driver.ComputeDriver):
         if configdrive.required_by(instance):
             flow_spawn.add(tf_stg.CreateAndConnectCfgDrive(
                 self.adapter, self.host_uuid, instance, injected_files,
-                network_info, admin_password))
+                network_info, admin_password, tx_mgr=tx_mgr))
 
         # Add the transaction manager flow to the end of the 'I/O
         # connection' tasks.  This will run all the connections in parallel.
