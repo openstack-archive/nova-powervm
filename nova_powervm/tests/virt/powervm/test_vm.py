@@ -25,13 +25,13 @@ from nova import objects
 from nova import test
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
+from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import network as pvm_net
 
 from nova_powervm.tests.virt import powervm
-from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import vm
 
 LPAR_HTTPRESP_FILE = "lpar.txt"
@@ -155,8 +155,8 @@ class TestVMBuilder(test.TestCase):
 class TestVM(test.TestCase):
     def setUp(self):
         super(TestVM, self).setUp()
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
+        self.apt = self.useFixture(pvm_fx.AdapterFx(
+            traits=pvm_fx.LocalPVMTraits)).adpt
         self.apt.helpers = [pvm_log.log_helper]
 
         lpar_http = pvmhttp.load_pvm_resp(LPAR_HTTPRESP_FILE, adapter=self.apt)
@@ -319,8 +319,7 @@ class TestVM(test.TestCase):
         mock_crt_cna.side_effect = validate_of_crt
 
         # Invoke
-        resp = vm.crt_vif(mock.MagicMock(), mock.MagicMock(), 'fake_host',
-                          fake_vif)
+        resp = vm.crt_vif(self.apt, mock.MagicMock(), 'fake_host', fake_vif)
 
         # Validate (along with validate method above)
         self.assertEqual(1, mock_crt_cna.call_count)

@@ -18,10 +18,10 @@ import mock
 
 from nova import exception
 from nova import test
+from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
-from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import mgmt
 
@@ -31,8 +31,7 @@ LPAR_HTTPRESP_FILE = "lpar.txt"
 class TestMgmt(test.TestCase):
     def setUp(self):
         super(TestMgmt, self).setUp()
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
+        self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         lpar_http = pvmhttp.load_pvm_resp(LPAR_HTTPRESP_FILE, adapter=self.apt)
         self.assertNotEqual(lpar_http, None,

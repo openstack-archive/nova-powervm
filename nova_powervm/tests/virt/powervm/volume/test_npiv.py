@@ -23,7 +23,6 @@ from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.volume import npiv
 
 VIOS_FEED = 'fake_vios_feed.txt'
@@ -35,13 +34,16 @@ class TestNPIVAdapter(test.TestCase):
     def setUp(self):
         super(TestNPIVAdapter, self).setUp()
 
+        self.adpt = self.useFixture(pvm_fx.AdapterFx()).adpt
+
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, '../data')
 
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)
-            return pvmhttp.load_pvm_resp(file_path).get_response()
+            return pvmhttp.load_pvm_resp(
+                file_path, adapter=self.adpt).get_response()
         self.vios_feed_resp = resp(VIOS_FEED)
         self.wwpn1 = '21000024FF649104'
         self.wwpn2 = '21000024FF649107'
@@ -65,10 +67,6 @@ class TestNPIVAdapter(test.TestCase):
         self.mock_fabric_ports_p = mock.patch(name + '_fabric_ports')
         self.mock_fabric_ports = self.mock_fabric_ports_p.start()
         self.mock_fabric_ports.return_value = [self.wwpn1, self.wwpn2]
-
-        # Fixtures
-        self.adpt_fix = self.useFixture(fx.PyPowerVM())
-        self.adpt = self.adpt_fix.apt
 
         @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.getter')
         @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')

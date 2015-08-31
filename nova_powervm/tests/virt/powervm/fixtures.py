@@ -24,25 +24,13 @@ import os
 from nova_powervm.virt.powervm import driver
 
 from nova.virt import fake
+from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
+
 MS_HTTPRESP_FILE = "fake_managedsystem.txt"
 
 FAKE_INST_UUID = 'b6513403-fd7f-4ad0-ab27-f73bacbd3929'
 FAKE_INST_UUID_PVM = '36513403-FD7F-4AD0-AB27-F73BACBD3929'
-
-
-class PyPowerVM(fixtures.Fixture):
-    """Patch out PyPowerVM Session and Adapter."""
-
-    def setUp(self):
-        super(PyPowerVM, self).setUp()
-        self._sess_patcher = mock.patch('pypowervm.adapter.Session')
-        self._apt_patcher = mock.patch('pypowervm.adapter.Adapter')
-        self.sess = self._sess_patcher.start()
-        self.apt = self._apt_patcher.start()
-
-        self.addCleanup(self._sess_patcher.stop)
-        self.addCleanup(self._apt_patcher.stop)
 
 
 class ImageAPI(fixtures.Fixture):
@@ -116,15 +104,11 @@ class PowerVMComputeDriver(fixtures.Fixture):
     def setUp(self):
         super(PowerVMComputeDriver, self).setUp()
 
-        self.pypvm = PyPowerVM()
-        self.pypvm.setUp()
-        self.addCleanup(self.pypvm.cleanUp)
-
         # Set up the mock CPU stats (init_host uses it)
         self.useFixture(HostCPUStats())
 
         self.drv = driver.PowerVMDriver(fake.FakeVirtAPI())
-        self.drv.adapter = self.pypvm.apt
+        self.drv.adapter = self.useFixture(pvm_fx.AdapterFx()).adpt
         self._init_host()
         self.drv.image_api = mock.Mock()
 

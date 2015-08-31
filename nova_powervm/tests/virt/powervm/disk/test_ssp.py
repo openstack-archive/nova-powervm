@@ -79,8 +79,7 @@ class TestSSPDiskAdapter(test.TestCase):
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, "..", 'data')
 
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
+        self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)

@@ -17,12 +17,13 @@
 
 from nova import test
 import os
+
+from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import vios
 
 VIOS_FEED = 'fake_vios_feed.txt'
@@ -32,8 +33,7 @@ class TestVios(test.TestCase):
 
     def setUp(self):
         super(TestVios, self).setUp()
-        self.pypvm_fix = self.useFixture(fx.PyPowerVM())
-        self.adpt = self.pypvm_fix.apt
+        self.adpt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))

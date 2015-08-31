@@ -20,9 +20,9 @@ import mock
 from nova import exception
 from nova import objects
 from nova import test
+from pypowervm.tests import test_fixtures as pvm_fx
 
 from nova_powervm.tests.virt import powervm
-from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.tasks import network as tf_net
 
 
@@ -37,8 +37,7 @@ def cna(mac):
 class TestNetwork(test.TestCase):
     def setUp(self):
         super(TestNetwork, self).setUp()
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
+        self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         self.mock_lpar_wrap = mock.MagicMock()
         self.mock_lpar_wrap.can_modify_io.return_value = True, None

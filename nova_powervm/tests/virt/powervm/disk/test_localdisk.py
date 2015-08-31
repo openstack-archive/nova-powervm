@@ -41,18 +41,19 @@ class TestLocalDisk(test.TestCase):
     def setUp(self):
         super(TestLocalDisk, self).setUp()
 
+        self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
+
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, "..", 'data')
 
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)
-            return pvmhttp.load_pvm_resp(file_path).get_response()
+            return pvmhttp.load_pvm_resp(
+                file_path, adapter=self.apt).get_response()
 
         self.vg_to_vio = resp(VOL_GRP_WITH_VIOS)
         self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
 
         # Set up for the mocks for get_ls
 
@@ -391,22 +392,22 @@ class TestLocalDiskFindVG(test.TestCase):
     def setUp(self):
         super(TestLocalDiskFindVG, self).setUp()
 
+        self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
+
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, "..", 'data')
 
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)
-            return pvmhttp.load_pvm_resp(file_path).get_response()
+            return pvmhttp.load_pvm_resp(
+                file_path, adapter=self.apt).get_response()
 
         self.vg_to_vio = resp(VOL_GRP_WITH_VIOS)
         self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
 
         self.mock_vios_feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
         self.mock_vg_feed = [pvm_stor.VG.wrap(self.vg_to_vio)]
-
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
 
     @mock.patch('pypowervm.wrappers.storage.VG.wrap')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')

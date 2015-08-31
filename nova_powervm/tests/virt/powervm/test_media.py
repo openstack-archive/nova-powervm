@@ -23,7 +23,6 @@ from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import media as m
 
@@ -47,8 +46,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         data_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(data_dir, 'data')
 
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.apt = self.pypvm.apt
+        self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)

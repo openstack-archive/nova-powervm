@@ -20,11 +20,11 @@ import mock
 import logging
 from nova import test
 import os
+import pypowervm.tests.test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 import pypowervm.wrappers.managed_system as pvm_ms
 from pypowervm.wrappers.pcm import phyp as pvm_phyp
 
-from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import host as pvm_host
 
 MS_HTTPRESP_FILE = "managedsystem.txt"
@@ -87,8 +87,7 @@ class TestHostCPUStats(test.TestCase):
         super(TestHostCPUStats, self).setUp()
 
         # Fixture for the adapter
-        self.pypvm = self.useFixture(fx.PyPowerVM())
-        self.adpt = self.pypvm.apt
+        self.adpt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         # Test data
         dirname = os.path.dirname(__file__)

@@ -21,7 +21,6 @@ import os
 
 from oslo_config import cfg
 
-from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.volume import vscsi
 
@@ -43,8 +42,7 @@ class TestVSCSIAdapter(test.TestCase):
     """Tests the vSCSI Volume Connector Adapter."""
     def setUp(self):
         super(TestVSCSIAdapter, self).setUp()
-        self.pypvm_fix = self.useFixture(fx.PyPowerVM())
-        self.adpt = self.pypvm_fix.apt
+        self.adpt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         # Find directory for response file(s)
         data_dir = os.path.dirname(os.path.abspath(__file__))
@@ -52,7 +50,8 @@ class TestVSCSIAdapter(test.TestCase):
 
         def resp(file_name):
             file_path = os.path.join(data_dir, file_name)
-            return pvmhttp.load_pvm_resp(file_path).get_response()
+            return pvmhttp.load_pvm_resp(
+                file_path, adapter=self.adpt).get_response()
         self.vios_feed_resp = resp(VIOS_FEED)
 
         feed = pvm_vios.VIOS.wrap(self.vios_feed_resp)
