@@ -95,9 +95,15 @@ class TestPowerVMDriver(test.TestCase):
         self.crt_lpar = self.crt_lpar_p.start()
         self.addCleanup(self.crt_lpar_p.stop)
 
+        self.get_inst_wrap_p = mock.patch('nova_powervm.virt.powervm.vm.'
+                                          'get_instance_wrapper')
+        self.get_inst_wrap = self.get_inst_wrap_p.start()
+        self.addCleanup(self.get_inst_wrap_p.stop)
+
         resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
         resp.entry = pvm_lpar.LPAR._bld(None).entry
         self.crt_lpar.return_value = pvm_lpar.LPAR.wrap(resp)
+        self.get_inst_wrap.return_value = pvm_lpar.LPAR.wrap(resp)
 
         self.build_tx_feed_p = mock.patch('nova_powervm.virt.powervm.vios.'
                                           'build_tx_feed_task')
@@ -544,13 +550,11 @@ class TestPowerVMDriver(test.TestCase):
                 'dlt_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy(
-        self, mock_get_flv, mock_pvmuuid, mock_inst_wrap, mock_val_vopt,
-        mock_dlt_vopt, mock_pwroff, mock_dlt, mock_boot_from_vol):
-
+        self, mock_get_flv, mock_pvmuuid, mock_val_vopt, mock_dlt_vopt,
+        mock_pwroff, mock_dlt, mock_boot_from_vol):
         """Validates the basic PowerVM destroy."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
@@ -843,13 +847,13 @@ class TestPowerVMDriver(test.TestCase):
             value = stats.get(fld, None)
             self.assertIsNotNone(value)
 
-    @mock.patch('nova_powervm.virt.powervm.tasks.network.state_ok_for_plug')
+    @mock.patch('pypowervm.wrappers.logical_partition.LPAR.can_modify_io')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_secure_rmc_vswitch')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
     def test_plug_vifs(self, mock_vm_get, mock_vm_crt, mock_get_rmc_vswitch,
-                       mock_crt_rmc_vif, mock_vm_state):
+                       mock_crt_rmc_vif, mock_can_modify_io):
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         # Mock up the CNA response
@@ -860,7 +864,7 @@ class TestPowerVMDriver(test.TestCase):
         cnas[1].vswitch_uri = 'fake_mgmt_uri'
         mock_vm_get.return_value = cnas
 
-        mock_vm_state.return_value = True
+        mock_can_modify_io.return_value = True, None
 
         # Mock up the network info.  They get sanitized to upper case.
         net_info = [

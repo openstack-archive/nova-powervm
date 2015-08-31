@@ -24,24 +24,12 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from taskflow import task
 
-from pypowervm.wrappers import base_partition as pvm_bp
-
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 CONF.import_opt('vif_plugging_is_fatal', 'nova.virt.driver')
 CONF.import_opt('vif_plugging_timeout', 'nova.virt.driver')
-
-
-def state_ok_for_plug(lpar_wrap):
-    """Determines if a LPAR is in an OK state for network plug or unplug."""
-    if lpar_wrap.state == pvm_bp.LPARState.NOT_ACTIVATED:
-        return True
-    elif (lpar_wrap.state == pvm_bp.LPARState.RUNNING and
-          lpar_wrap.rmc_state == pvm_bp.RMCState.ACTIVE):
-        return True
-    return False
 
 
 class VirtualInterfaceUnplugException(exception.NovaException):
@@ -77,12 +65,13 @@ class UnplugVifs(task.Task):
 
         # If the state is not in an OK state for deleting, then throw an
         # error up front.
-        if not state_ok_for_plug(lpar_wrap):
+        modifiable, reason = lpar_wrap.can_modify_io()
+        if not modifiable:
             LOG.error(_LE('Unable to remove VIFs from instance %(inst)s '
                           'because the system is not in a correct state.  '
-                          'This can occur if the system is not powered '
-                          'off or there is an inactive RMC connection.'),
-                      {'inst': self.instance.name}, instance=self.instance)
+                          'The reason reported by the system is: %(reason)s'),
+                      {'inst': self.instance.name, 'reason': reason},
+                      instance=self.instance)
             raise VirtualInterfaceUnplugException()
 
         # Get all the current Client Network Adapters (CNA) on the VM itself.
@@ -165,12 +154,14 @@ class PlugVifs(task.Task):
             return []
 
         # Check to see if the LPAR is OK to add VIFs to.
-        if not state_ok_for_plug(lpar_wrap):
+        modifiable, reason = lpar_wrap.can_modify_io()
+        if not modifiable:
             LOG.error(_LE('Unable to create VIF(s) for instance %(sys)s.  The '
                           'VM was in a state where VIF plugging is not '
-                          'acceptable.  The system may be running without an '
-                          'active RMC connection.'),
-                      {'sys': self.instance.name}, instance=self.instance)
+                          'acceptable.  The reason from the system is: '
+                          '%(reason)s'),
+                      {'sys': self.instance.name, 'reason': reason},
+                      instance=self.instance)
             raise exception.VirtualInterfaceCreateException()
 
         # For the VIFs, run the creates (and wait for the events back)
