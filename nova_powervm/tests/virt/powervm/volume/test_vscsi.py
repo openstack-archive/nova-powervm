@@ -226,32 +226,26 @@ class TestVSCSIAdapter(test.TestCase):
     def test_set_udid(self):
 
         # Mock connection info
-        udid_key = vscsi._build_udid_key(self.vios_uuid, self.volume_id)
-        self.vol_drv.connection_info['data'][udid_key] = self.udid
+        self.vol_drv.connection_info['data'][vscsi.UDID_KEY] = None
 
         # Set the UDID
-        self.vol_drv._set_udid(self.vios_uuid, self.volume_id,
-                               self.udid)
+        self.vol_drv._set_udid(self.udid)
 
         # Verify
         self.assertEqual(self.udid,
-                         self.vol_drv.connection_info['data'][udid_key])
+                         self.vol_drv.connection_info['data'][vscsi.UDID_KEY])
 
     def test_get_udid(self):
 
-        udid_key = vscsi._build_udid_key(self.vios_uuid, self.volume_id)
-        self.vol_drv.connection_info['data'][udid_key] = self.udid
-
-        # Set the key to retrieve
-        retrieved_udid = self.vol_drv._get_udid(self.vios_uuid, self.volume_id)
-
+        # Set the value to retrieve
+        self.vol_drv.connection_info['data'][vscsi.UDID_KEY] = self.udid
+        retrieved_udid = self.vol_drv._get_udid()
         # Check key found
         self.assertEqual(self.udid, retrieved_udid)
 
         # Check key not found
-        retrieved_udid = (self.vol_drv._get_udid(self.vios_uuid,
-                                                 'non_existent_key'))
-
+        self.vol_drv.connection_info['data'].pop(vscsi.UDID_KEY)
+        retrieved_udid = self.vol_drv._get_udid()
         # Check key not found
         self.assertIsNone(retrieved_udid)
 

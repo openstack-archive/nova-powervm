@@ -36,18 +36,10 @@ import six
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
+UDID_KEY = 'target_UDID'
+
 # A global variable that will cache the physical WWPNs on the system.
 _vscsi_pfc_wwpns = None
-
-
-def _build_udid_key(vios_uuid, volume_id):
-    """This method will build the udid dictionary key.
-
-    :param vios_uuid: The UUID of the vios for the pypowervm adapter.
-    :param volume_id: The lun volume id
-    :return: The udid dictionary key
-    """
-    return vios_uuid + volume_id
 
 
 class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
@@ -155,7 +147,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
             # Save the UDID for the disk in the connection info.  It is
             # used for the detach.
-            self._set_udid(vios_w.uuid, volume_id, udid)
+            self._set_udid(udid)
             LOG.debug('Device attached: %s', device_name)
 
             # Valid attachment
@@ -205,10 +197,11 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :return: True if a remove action was done against this VIOS.  False
                  otherwise.
         """
-        LOG.debug("vios uuid %s", vios_w.uuid)
+        LOG.debug("Disconnect volume %(vol)s from vios uuid %(uuid)s",
+                  dict(vol=volume_id, uuid=vios_w.uuid))
         volume_udid = None
         try:
-            volume_udid = self._get_udid(vios_w.uuid, volume_id)
+            volume_udid = self._get_udid()
             device_name = vios_w.hdisk_from_uuid(volume_udid)
 
             if not device_name:
@@ -320,15 +313,12 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             return tsk_map.add_map(vios_w, v_map)
         self.tx_mgr.wrapper_tasks[vios_uuid].add_functor_subtask(add_func)
 
-    def _set_udid(self, vios_uuid, volume_id, udid):
+    def _set_udid(self, udid):
         """This method will set the hdisk udid in the connection_info.
 
-        :param vios_uuid: The UUID of the vios for the pypowervm adapter.
-        :param volume_id: The lun volume id
         :param udid: The hdisk target_udid to be stored in system_metadata
         """
-        udid_key = _build_udid_key(vios_uuid, volume_id)
-        self.connection_info['data'][udid_key] = udid
+        self.connection_info['data'][UDID_KEY] = udid
 
     def _get_hdisk_itls(self, vios_w):
         """Returns the mapped ITLs for the hdisk for the given VIOS.
@@ -356,17 +346,15 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         return vio_wwpns, t_wwpns, lun
 
-    def _get_udid(self, vios_uuid, volume_id):
+    def _get_udid(self):
         """This method will return the hdisk udid stored in connection_info.
 
-        :param vios_uuid: The UUID of the vios for the pypowervm adapter.
-        :param volume_id: The lun volume id
         :return: The target_udid associated with the hdisk
         """
         try:
-            udid_key = _build_udid_key(vios_uuid, volume_id)
-            return self.connection_info['data'][udid_key]
+            return self.connection_info['data'][UDID_KEY]
         except (KeyError, ValueError):
             LOG.warn(_LW(u'Failed to retrieve device_id key from BDM for '
-                         'volume id %s'), volume_id)
+                         'volume id %s'),
+                     self.connection_info['data']['volume_id'])
             return None
