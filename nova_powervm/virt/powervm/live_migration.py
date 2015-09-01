@@ -173,7 +173,8 @@ class LiveMigrationDest(LiveMigration):
                      dict(volume=vol_drv.volume_id))
             try:
                 vol_drv.pre_live_migration_on_destination()
-            except Exception:
+            except Exception as e:
+                LOG.exception(e)
                 # It failed.
                 raise LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,

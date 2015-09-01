@@ -84,8 +84,15 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         volume_id = self.volume_id
         found = False
+
+        # See the connect_volume for why this is a direct call instead of
+        # using the tx_mgr.feed
+        vios_feed = self.adapter.read(pvm_vios.VIOS.schema_type,
+                                      xag=[pvm_vios.VIOS.xags.STORAGE])
+        vios_wraps = pvm_vios.VIOS.wrap(vios_feed)
+
         # Iterate through host vios list to find valid hdisks.
-        for vios_w in self.tx_mgr.feed:
+        for vios_w in vios_wraps:
             status, device_name, udid = self._discover_volume_on_vios(
                 vios_w, volume_id, migr=True)
             # If we found one, no need to check the others.
@@ -145,7 +152,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     def _connect_volume(self):
         """Connects the volume."""
         # Get the initiators
-        volume_id = self.connection_info['data']['volume_id']
+        volume_id = self.volume_id
         self._vioses_modified = []
 
         # Its about to get weird.  The transaction manager has a list of
@@ -209,7 +216,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
     def _disconnect_volume(self):
         """Disconnect the volume."""
-        volume_id = self.connection_info['data']['volume_id']
+        volume_id = self.volume_id
         self._vioses_modified = []
         try:
             # See logic in _connect_volume for why this invocation is here.
@@ -403,6 +410,5 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             return self.connection_info['data'][UDID_KEY]
         except (KeyError, ValueError):
             LOG.warn(_LW(u'Failed to retrieve device_id key from BDM for '
-                         'volume id %s'),
-                     self.connection_info['data']['volume_id'])
+                         'volume id %s'), self.volume_id)
             return None
