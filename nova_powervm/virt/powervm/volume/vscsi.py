@@ -132,7 +132,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             return False
 
         status, device_name, udid = hdisk.discover_hdisk(
-            self.adapter, vios_w.uuid, itls)
+            self.adapter, vios_w.uuid, itls, self.vm_id)
         if device_name is not None and status in [
                 hdisk.LUAStatus.DEVICE_AVAILABLE,
                 hdisk.LUAStatus.FOUND_ITL_ERR]:

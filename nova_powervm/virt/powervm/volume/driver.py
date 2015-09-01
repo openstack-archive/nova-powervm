@@ -58,8 +58,17 @@ class PowerVMVolumeAdapter(object):
         self.instance = instance
         self.connection_info = connection_info
         self.vm_uuid = vm.get_pvm_uuid(instance)
+        # Lazy-set this
+        self._vm_id = None
 
         self.reset_tx_mgr(tx_mgr=tx_mgr)
+
+    @property
+    def vm_id(self):
+        """Return the short ID (not UUID) of the LPAR for our instance."""
+        if self._vm_id is None:
+            self._vm_id = vm.get_vm_id(self.adapter, self.vm_uuid)
+        return self._vm_id
 
     def reset_tx_mgr(self, tx_mgr=None):
         """Resets the pypowervm transaction FeedTask to a new value.
