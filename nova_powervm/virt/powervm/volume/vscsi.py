@@ -94,7 +94,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # Iterate through host vios list to find valid hdisks.
         for vios_w in vios_wraps:
             status, device_name, udid = self._discover_volume_on_vios(
-                vios_w, volume_id, migr=True)
+                vios_w, volume_id)
             # If we found one, no need to check the others.
             found = found or self._good_discovery(status, device_name, udid)
 
@@ -109,13 +109,11 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             hdisk.LUAStatus.DEVICE_AVAILABLE,
             hdisk.LUAStatus.FOUND_ITL_ERR]
 
-    def _discover_volume_on_vios(self, vios_w, volume_id, migr=False):
+    def _discover_volume_on_vios(self, vios_w, volume_id):
         """Discovers an hdisk on a single vios for the volume.
 
         :param vios_w: VIOS wrapper to process
         :param volume_id: Volume to discover
-        :param migr: Specifies whether this call is for a migration on the
-            destination host
         :returns: Status of the volume or None
         :returns: Device name or None
         :returns: LUN or None
@@ -131,10 +129,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                       % {'vios': vios_w.name, 'volume_id': volume_id})
             return None, None, None
 
-        status, device_name, udid = (
-            hdisk.discover_hdisk(self.adapter, vios_w.uuid, itls, self.vm_id)
-            if not migr else hdisk.lua_recovery(
-                self.adapter, vios_w.uuid, itls))
+        status, device_name, udid = hdisk.discover_hdisk(self.adapter,
+                                                         vios_w.uuid, itls)
 
         if self._good_discovery(status, device_name, udid):
             LOG.info(_LI('Discovered %(hdisk)s on vios %(vios)s for '

@@ -54,8 +54,8 @@ class TestVSCSIAdapter(test.TestCase):
                 file_path, adapter=self.adpt).get_response()
         self.vios_feed_resp = resp(VIOS_FEED)
 
-        feed = pvm_vios.VIOS.wrap(self.vios_feed_resp)
-        self.ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.feed = pvm_vios.VIOS.wrap(self.vios_feed_resp)
+        self.ft_fx = pvm_fx.FeedTaskFx(self.feed)
         self.useFixture(self.ft_fx)
 
         self.adpt.read.return_value = self.vios_feed_resp
@@ -72,7 +72,7 @@ class TestVSCSIAdapter(test.TestCase):
 
             # The getter can just return the VIOS values (to remove a read
             # that would otherwise need to be mocked).
-            mock_getter.return_value = feed
+            mock_getter.return_value = self.feed
 
             return vscsi.VscsiVolumeAdapter(self.adpt, 'host_uuid', mock_inst,
                                             con_info)
@@ -85,8 +85,10 @@ class TestVSCSIAdapter(test.TestCase):
             '01M0lCTTIxNDUxMjQ2MDA1MDc2ODAyODI4NjFEODgwMDAwMDAwMDAwMDA1Rg==')
 
     @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
-    def test_pre_live_migration(self, mock_discover):
+    @mock.patch('pypowervm.tasks.storage.find_stale_lpars')
+    def test_pre_live_migration(self, mock_fsl, mock_discover):
         # The mock return values
+        mock_fsl.return_value = []
         mock_discover.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
 
@@ -131,22 +133,15 @@ class TestVSCSIAdapter(test.TestCase):
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
-    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
-    @mock.patch('pypowervm.utils.transaction.FeedTask')
-    @mock.patch('pypowervm.tasks.storage.add_lpar_storage_scrub_tasks')
-    def test_connect_volume_no_update(self, mock_alsst, mock_ftsk, mock_vm_id,
-                                      mock_lua_recovery, mock_build_map,
+    @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
+    def test_connect_volume_no_update(self, mock_disc_hdisk, mock_build_map,
                                       mock_add_map):
         """Make sure we don't do an actual update of the VIOS if not needed."""
         # The mock return values
         mock_build_map.return_value = 'fake_map'
         mock_add_map.return_value = None
-        mock_vm_id.return_value = 123
-        # Test scrub-and-retry.  Make lua_recovery "fail" the first time
-        mock_lua_recovery.side_effect = [
-            (hdisk.LUAStatus.DEVICE_IN_USE, 'devname', 'udid'),
-            (hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')]
+        mock_disc_hdisk.return_value = (hdisk.LUAStatus.DEVICE_AVAILABLE,
+                                        'devname', 'udid')
 
         # Run the method
         self.vol_drv.connect_volume()
@@ -154,11 +149,7 @@ class TestVSCSIAdapter(test.TestCase):
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_add_map.call_count)
         self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
-        # lua_recovery was retried
-        self.assertEqual(2, mock_lua_recovery.call_count)
-        self.assertEqual(1, mock_ftsk.call_count)
-        self.assertEqual(1, mock_alsst.call_count)
-        mock_alsst.assert_called_with(123, mock.ANY)
+        self.assertEqual(1, mock_disc_hdisk.call_count)
 
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
     @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
