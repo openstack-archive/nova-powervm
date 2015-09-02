@@ -677,6 +677,8 @@ class TestPowerVMDriver(test.TestCase):
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         inst.task_state = None
+        inst.save = mock.Mock()
+
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
 
@@ -686,6 +688,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Verify the connect volume was invoked
         self.assertEqual(1, self.vol_drv.connect_volume.call_count)
+        self.assertTrue(inst.save.called)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_detach_volume(self, mock_pvmuuid):
