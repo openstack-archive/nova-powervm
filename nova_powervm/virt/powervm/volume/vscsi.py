@@ -250,16 +250,22 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         LOG.debug("Disconnect volume %(vol)s from vios uuid %(uuid)s",
                   dict(vol=volume_id, uuid=vios_w.uuid))
-        volume_udid = None
+        udid, device_name = None, None
         try:
-            volume_udid = self._get_udid()
-            device_name = vios_w.hdisk_from_uuid(volume_udid)
+            udid = self._get_udid()
+            if not udid:
+                # We lost our bdm data. We'll need to discover it.
+                status, device_name, udid = self._discover_volume_on_vios(
+                    vios_w, volume_id)
+
+            if udid and not device_name:
+                device_name = vios_w.hdisk_from_uuid(udid)
 
             if not device_name:
                 LOG.warn(_LW("Disconnect Volume: No mapped device found on "
                              "Virtual I/O Server %(vios)s for volume "
                              "%(volume_id)s.  Volume UDID: %(volume_uid)s"),
-                         {'volume_uid': volume_udid, 'volume_id': volume_id,
+                         {'volume_uid': udid, 'volume_id': volume_id,
                           'vios': vios_w.name})
                 return False
 
@@ -267,7 +273,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             LOG.warn(_LW("Disconnect Volume: Failed to find disk on Virtual "
                          "I/O Server %(vios_name)s for volume %(volume_id)s. "
                          "Volume UDID: %(volume_uid)s.  Error: %(error)s"),
-                     {'error': e, 'volume_uid': volume_udid,
+                     {'error': e, 'volume_uid': udid,
                       'volume_id': volume_id, 'vios_name': vios_w.name})
             return False
 
@@ -275,7 +281,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         LOG.info(_LI("Disconnect Volume: Discovered the device %(hdisk)s on "
                      "Virtual I/O Server %(vios_name)s for volume "
                      "%(volume_id)s.  Volume UDID: %(volume_uid)s."),
-                 {'volume_uid': volume_udid, 'volume_id': volume_id,
+                 {'volume_uid': udid, 'volume_id': volume_id,
                   'vios_name': vios_w.name, 'hdisk': device_name})
 
         # Add the action to remove the mapping when the stg_ftsk is run.
@@ -405,6 +411,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         try:
             return self.connection_info['data'][UDID_KEY]
         except (KeyError, ValueError):
-            LOG.warn(_LW(u'Failed to retrieve device_id key from BDM for '
+            # It's common to lose our specific data in the BDM.  The connection
+            # information can be 'refreshed' by operations like LPM and resize
+            LOG.info(_LI(u'Failed to retrieve device_id key from BDM for '
                          'volume id %s'), self.volume_id)
             return None
