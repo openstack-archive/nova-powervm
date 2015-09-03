@@ -376,7 +376,7 @@ class ConfigDrivePowerVM(object):
         partition_id = vm.get_vm_id(self.adapter, lpar_uuid)
         media_mappings = tsk_map.find_maps(
             stg_ftsk.get_wrapper(self.vios_uuid).scsi_mappings,
-            partition_id, match_func=match_func)
+            client_lpar_id=partition_id, match_func=match_func)
         media_elems = [x.backing_storage for x in media_mappings]
 
         def rm_vopt():

@@ -155,7 +155,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Find the disk directly.
         vios_w = stg_ftsk.wrapper_tasks[self._vios_uuid].wrapper
-        mappings = tsk_map.find_maps(vios_w.scsi_mappings, lpar_uuid,
+        mappings = tsk_map.find_maps(vios_w.scsi_mappings,
+                                     client_lpar_id=lpar_uuid,
                                      match_func=match_func)
 
         # Run the transaction manager if built locally.  Must be done after

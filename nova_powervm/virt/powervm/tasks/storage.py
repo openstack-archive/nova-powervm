@@ -222,7 +222,7 @@ class InstanceDiskToMgmt(task.Task):
         self.stg_elem, self.vios_wrap = (
             self.disk_dvr.connect_instance_disk_to_mgmt(self.instance))
         new_maps = pvm_smap.find_maps(
-            self.vios_wrap.scsi_mappings, self.disk_dvr.mp_uuid,
+            self.vios_wrap.scsi_mappings, client_lpar_id=self.disk_dvr.mp_uuid,
             stg_elem=self.stg_elem)
         if not new_maps:
             raise npvmex.NewMgmtMappingNotFoundException(
