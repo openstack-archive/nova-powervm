@@ -136,7 +136,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
             # Find the active LUs so that a delete op knows what to remove.
             vios_w = stg_ftsk.wrapper_tasks[vios_uuid].wrapper
-            mappings = tsk_map.find_maps(vios_w.scsi_mappings, lpar_uuid,
+            mappings = tsk_map.find_maps(vios_w.scsi_mappings,
+                                         client_lpar_id=lpar_uuid,
                                          match_func=match_func)
             if mappings:
                 lu_set.update([x.backing_storage for x in mappings])

@@ -56,7 +56,7 @@ class TestStorage(test.TestCase):
         self.assertEqual((mock_stg, mock_vwrap, '/dev/disk'), tf.execute())
         disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
             mock_instance)
-        mock_find.assert_called_with(['mapping1'], 'mp_uuid',
+        mock_find.assert_called_with(['mapping1'], client_lpar_id='mp_uuid',
                                      stg_elem=mock_stg)
         mock_discover.assert_called_with('one_mapping')
         tf.revert('result', 'failures')
@@ -71,7 +71,7 @@ class TestStorage(test.TestCase):
         self.assertEqual((mock_stg, mock_vwrap, '/dev/disk'), tf.execute())
         disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
             mock_instance)
-        mock_find.assert_called_with(['mapping1'], 'mp_uuid',
+        mock_find.assert_called_with(['mapping1'], client_lpar_id='mp_uuid',
                                      stg_elem=mock_stg)
         mock_discover.assert_called_with('first_mapping')
         tf.revert('result', 'failures')
@@ -87,7 +87,7 @@ class TestStorage(test.TestCase):
         disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
             mock_instance)
         # find_maps was still called
-        mock_find.assert_called_with(['mapping1'], 'mp_uuid',
+        mock_find.assert_called_with(['mapping1'], client_lpar_id='mp_uuid',
                                      stg_elem=mock_stg)
         # discover_vscsi_disk didn't get called
         self.assertEqual(0, mock_discover.call_count)

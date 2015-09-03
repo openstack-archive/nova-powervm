@@ -187,8 +187,8 @@ class TestLocalDisk(test.TestCase):
                                     disk_type=[disk_dvr.DiskType.BOOT])
 
         # Make sure the find maps is invoked once.
-        mock_find_maps.assert_called_once_with(mock.ANY, fx.FAKE_INST_UUID_PVM,
-                                               match_func='test')
+        mock_find_maps.assert_called_once_with(
+            mock.ANY, client_lpar_id=fx.FAKE_INST_UUID_PVM, match_func='test')
 
         # Make sure the matching function is generated with the right disk type
         mock_match_func.assert_called_once_with(

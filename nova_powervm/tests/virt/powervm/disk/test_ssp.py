@@ -468,7 +468,7 @@ class TestSSPDiskAdapter(test.TestCase):
         lu1 = mklu('abc')
         lu2 = mklu('def')
 
-        def remove_resp(vios_w, lpar_uuid, match_func=None,
+        def remove_resp(vios_w, client_lpar_id, match_func=None,
                         include_orphans=False):
             return [mock.Mock(backing_storage=lu1),
                     mock.Mock(backing_storage=lu2)]

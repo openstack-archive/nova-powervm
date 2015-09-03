@@ -127,7 +127,8 @@ class DiskAdapter(object):
                 pvm_vios.VIOS.schema_type, root_id=vios_uuid,
                 xag=[pvm_vios.VIOS.xags.SCSI_MAPPING]))
             for scsi_map in tsk_map.find_maps(
-                    vios_wrap.scsi_mappings, lpar_wrap.id, match_func):
+                    vios_wrap.scsi_mappings, client_lpar_id=lpar_wrap.id,
+                    match_func=match_func):
                 yield scsi_map.backing_storage, vios_wrap
 
     def connect_instance_disk_to_mgmt(self, instance):
