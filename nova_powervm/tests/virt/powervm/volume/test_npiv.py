@@ -279,3 +279,17 @@ class TestNPIVAdapter(test.TestCase):
 
         # Invoke and Verify
         self.assertListEqual(['a', 'b', 'c', 'd'], self.vol_drv.wwpns())
+
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_state')
+    def test_wwpns_bad_task_state(self, mock_fabric_state):
+        """Tests behavior with a bad task state."""
+        # Mock
+        mock_fabric_state.return_value = npiv.FS_UNMAPPED
+        self.vol_drv.instance.system_metadata = {
+            self.vol_drv._sys_meta_fabric_key('A'): 'phys1,a,b,phys2,c,d'}
+
+        # Invoke and Verify
+        for state in [task_states.DELETING, task_states.MIGRATING]:
+            self.vol_drv.instance.task_state = state
+            self.assertListEqual(['a', 'b', 'c', 'd'], self.vol_drv.wwpns())
