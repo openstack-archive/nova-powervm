@@ -40,9 +40,11 @@ class TestLPM(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('pypowervm.tasks.vterm.close_vterm')
     @mock.patch('pypowervm.wrappers.managed_system.System.migration_data',
                 new_callable=mock.PropertyMock, name='MigDataProp')
-    def test_lpm_source(self, mock_migrdata, mock_get_wrap, mock_cd):
+    def test_lpm_source(self, mock_migrdata, mock_vterm_close, mock_get_wrap,
+                        mock_cd):
         migr_data = {'active_migrations_supported': 4,
                      'active_migrations_in_progress': 2}
         mock_migrdata.return_value = migr_data
@@ -81,6 +83,10 @@ class TestLPM(test.TestCase):
             self.assertRaises(lpm.LiveMigrationCapacity,
                               self.lpmsrc.check_source, 'context',
                               'block_device_info')
+
+            # Ensure the vterm was closed
+            mock_vterm_close.assert_called_once_with(
+                self.apt, mock_wrap.uuid)
 
     @mock.patch('pypowervm.wrappers.managed_system.System.migration_data',
                 new_callable=mock.PropertyMock, name='MigDataProp')

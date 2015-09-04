@@ -20,6 +20,7 @@ from nova import exception
 from nova.i18n import _, _LE, _LI
 from pypowervm.tasks import management_console as mgmt_task
 from pypowervm.tasks import migration as mig
+from pypowervm.tasks import vterm
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -243,6 +244,9 @@ class LiveMigrationSrc(LiveMigration):
         media.ConfigDrivePowerVM(self.drvr.adapter, self.drvr.host_uuid
                                  ).dlt_vopt(lpar_w.uuid)
         LOG.debug('Removing VOpt finished.', instance=self.instance)
+
+        # Ensure the vterm is non-active
+        vterm.close_vterm(self.drvr.adapter, lpar_w.uuid)
 
         return self.src_data
 
