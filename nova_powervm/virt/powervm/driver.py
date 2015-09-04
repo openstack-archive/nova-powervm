@@ -420,6 +420,13 @@ class PowerVMDriver(driver.ComputeDriver):
         engine = tf_eng.load(flow)
         engine.run()
 
+        # The volume connector may have updated the system metadata.  Save
+        # the instance to persist the data.  Spawn/destroy auto saves instance,
+        # but the attach does not.  Detach does not need this save - as the
+        # detach flows do not (currently) modify system metadata.  May need
+        # to revise in the future as volume connectors evolve.
+        instance.save()
+
     def detach_volume(self, connection_info, instance, mountpoint,
                       encryption=None):
         """Detach the volume attached to the instance."""
