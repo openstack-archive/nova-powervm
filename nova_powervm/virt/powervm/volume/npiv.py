@@ -78,6 +78,110 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         for fabric in self._fabric_names():
             self._remove_maps_for_fabric(fabric)
 
+    def pre_live_migration_on_destination(self):
+        """Perform pre live migration steps for the volume on the target host.
+
+        This method performs any pre live migration that is needed.
+        """
+        vios_wraps = self.stg_ftsk.feed
+        mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
+
+        # Each mapping should attempt to remove itself from the management
+        # partition.
+        for fabric in self._fabric_names():
+            npiv_port_maps = self._get_fabric_meta(fabric)
+
+            for npiv_port_map in npiv_port_maps:
+                ls = [LOG.info, _LI("Removing mgmt NPIV mapping for instance "
+                                    "%(inst)s for fabric %(fabric)s."),
+                      {'inst': self.instance.name, 'fabric': fabric}]
+                vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps,
+                                                         npiv_port_map)
+
+                # Add the subtask to remove the mapping from the management
+                # partition.
+                self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
+                    pvm_vfcm.remove_maps, mgmt_uuid, port_map=npiv_port_map,
+                    logspec=ls)
+
+        # TODO(thorst) Find a better place for this execute.  Works for now
+        # as the stg_ftsk is all local.  Also won't do anything if there
+        # happen to be no fabric changes.
+        self.stg_ftsk.execute()
+
+    def _is_initial_wwpn(self, fc_state, fabric):
+        """Determines if the invocation to wwpns is for a general method.
+
+        A 'general' method would be a spawn (with a volume) or a volume attach
+        or detach.
+
+        :param fc_state: The state of the fabric.
+        :param fabric: The name of the fabric.
+        :return: True if the invocation appears to be for a spawn/volume
+                 action. False otherwise.
+        """
+        if (fc_state == FS_UNMAPPED and
+            self.instance.task_state not in [task_states.DELETING,
+                                             task_states.MIGRATING]):
+            LOG.info(_LI("Mapping instance %(inst)s to the mgmt partition for "
+                         "fabric %(fabric)s because the VM does not yet have "
+                         "a valid vFC device."),
+                     {'inst': self.instance.name, 'fabric': fabric})
+            return True
+
+        return False
+
+    def _is_migration_wwpn(self, fc_state):
+        """Determines if the WWPN call is occurring during a migration.
+
+        :param fc_state: The fabrics state.
+        :return: True if the instance appears to be migrating to this host.
+                 False otherwise.
+        """
+        return (fc_state == FS_INST_MAPPED and
+                self.instance.task_state == task_states.MIGRATING and
+                self.instance.host != CONF.host)
+
+    def _configure_wwpns_for_migration(self, fabric):
+        """Configures the WWPNs for a migration.
+
+        During a NPIV migration, the WWPNs need to be flipped and attached to
+        the management VM.  This is so that the peer WWPN is brought online.
+
+        The WWPNs will be removed from the management partition via the
+        pre_live_migration_on_destination method.  The WWPNs invocation is
+        done prior to the migration, when the volume connector is gathered.
+
+        :param fabric: The fabric to configure.
+        :return: An updated port mapping.
+        """
+        LOG.info(_LI("Mapping instance %(inst)s to the mgmt partition for "
+                     "fabric %(fabric)s because the VM is migrating to "
+                     "this host."),
+                 {'inst': self.instance.name, 'fabric': fabric})
+
+        # When we migrate...flip the WWPNs around.  This is so the other
+        # WWPN logs in on the target.
+        # TODO(thorst) pending API change should be able to indicate which
+        # wwpn is active.
+        port_maps = self._get_fabric_meta(fabric)
+        reversed_port_list = []
+        for port_map in port_maps:
+            paired_client_wwpns = port_map[1].split()
+            paired_client_wwpns.reverse()
+            reversed_port_list.extend(paired_client_wwpns)
+
+        # Now derive the mapping to THESE VIOSes physical ports
+        new_port_maps = pvm_vfcm.derive_npiv_map(
+            self.stg_ftsk.feed, self._fabric_ports(fabric),
+            reversed_port_list)
+
+        # Add the port maps to the mgmt partition
+        mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
+        pvm_vfcm.add_npiv_port_mappings(
+            self.adapter, self.host_uuid, mgmt_uuid, new_port_maps)
+        return new_port_maps
+
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports."""
         vios_wraps, mgmt_uuid = None, None
@@ -97,10 +201,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                          "instance %(inst)s") %
                      {'st': fc_state, 'inst': self.instance.name})
 
-            if (fc_state == FS_UNMAPPED and
-                    self.instance.task_state not in [task_states.DELETING,
-                                                     task_states.MIGRATING]):
-
+            if self._is_initial_wwpn(fc_state, fabric):
                 # At this point we've determined that we need to do a mapping.
                 # So we go and obtain the mgmt uuid and the VIOS wrappers.
                 # We only do this for the first loop through so as to ensure
@@ -137,6 +238,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 # state.
                 self._set_fabric_meta(fabric, port_maps)
                 self._set_fabric_state(fabric, FS_MGMT_MAPPED)
+            elif self._is_migration_wwpn(fc_state):
+                port_maps = self._configure_wwpns_for_migration(fabric)
+                self._set_fabric_meta(fabric, port_maps)
             else:
                 # This specific fabric had been previously set.  Just pull
                 # from the meta (as it is likely already mapped to the

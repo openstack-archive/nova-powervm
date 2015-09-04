@@ -15,6 +15,7 @@
 #    under the License.
 
 import mock
+from oslo_config import cfg
 
 from nova.compute import task_states
 from nova import test
@@ -26,6 +27,8 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 from nova_powervm.virt.powervm.volume import npiv
 
 VIOS_FEED = 'fake_vios_feed.txt'
+
+CONF = cfg.CONF
 
 
 class TestNPIVAdapter(test.TestCase):
@@ -235,6 +238,72 @@ class TestNPIVAdapter(test.TestCase):
         self.assertEqual(2, len(xags))
         self.assertIn(pvm_vios.VIOS.xags.STORAGE, xags)
         self.assertIn(pvm_vios.VIOS.xags.FC_MAPPING, xags)
+
+    def test_is_initial_wwpn(self):
+        bad_states = [task_states.DELETING, task_states.MIGRATING]
+        for state in bad_states:
+            self.vol_drv.instance.task_state = state
+            self.assertFalse(self.vol_drv._is_initial_wwpn(
+                npiv.FS_UNMAPPED, 'a'))
+
+        # Task state should still be bad.
+        self.assertFalse(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
+
+        # Set a good task state
+        self.vol_drv.instance.task_state = task_states.NETWORKING
+        self.assertTrue(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
+
+        # And now no task state.
+        self.vol_drv.instance.task_state = None
+        self.assertTrue(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
+
+    def test_is_migration_wwpn(self):
+        inst = self.vol_drv.instance
+        inst.task_state = task_states.MIGRATING
+        inst.host = 'Not Correct Host'
+        self.assertTrue(self.vol_drv._is_migration_wwpn(npiv.FS_INST_MAPPED))
+
+        # Try if the instance isn't mapped
+        self.assertFalse(self.vol_drv._is_migration_wwpn(npiv.FS_UNMAPPED))
+
+        # Mapped but bad task state
+        inst.task_state = task_states.DELETING
+        self.assertFalse(self.vol_drv._is_migration_wwpn(npiv.FS_INST_MAPPED))
+
+        # Mapped but on same host
+        inst.task_state = task_states.MIGRATING
+        inst.host = CONF.host
+        self.assertFalse(self.vol_drv._is_migration_wwpn(npiv.FS_INST_MAPPED))
+
+    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
+    @mock.patch('pypowervm.tasks.vfc_mapper.derive_npiv_map')
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
+    def test_configure_wwpns_for_migration(
+            self, mock_add_npiv_port, mock_derive, mock_mgmt_lpar):
+        # Mock out the fabric
+        meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
+        meta_fb_map = '21000024FF649104,AA,BB,21000024FF649105,CC,DD'
+        self.vol_drv.instance.system_metadata = {meta_fb_key: meta_fb_map}
+
+        # Mock the mgmt partition
+        mock_mgmt_lpar.return_value = mock.Mock(uuid=0)
+
+        # Mock out what the derive returns
+        expected_map = [('21000024FF649104', 'BB AA'),
+                        ('21000024FF649105', 'DD CC')]
+        mock_derive.return_value = expected_map
+
+        # Invoke
+        resp_maps = self.vol_drv._configure_wwpns_for_migration('A')
+
+        # Make sure the add port was done properly
+        mock_add_npiv_port.assert_called_once_with(
+            self.vol_drv.adapter, self.vol_drv.host_uuid, 0, expected_map)
+
+        # Make sure the system metadata is updated
+        expected = [('21000024FF649104', 'BB AA'),
+                    ('21000024FF649105', 'DD CC')]
+        self.assertEqual(expected, resp_maps)
 
     @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
