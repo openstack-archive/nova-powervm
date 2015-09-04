@@ -98,7 +98,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                      {'st': fc_state, 'inst': self.instance.name})
 
             if (fc_state == FS_UNMAPPED and
-                    self.instance.task_state not in [task_states.DELETING]):
+                    self.instance.task_state not in [task_states.DELETING,
+                                                     task_states.MIGRATING]):
 
                 # At this point we've determined that we need to do a mapping.
                 # So we go and obtain the mgmt uuid and the VIOS wrappers.
