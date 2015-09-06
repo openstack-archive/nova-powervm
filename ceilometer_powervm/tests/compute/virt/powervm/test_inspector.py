@@ -144,6 +144,16 @@ class TestPowerVMInspector(base.BaseTestCase):
         resp = self.inspector.inspect_cpu_util(mock.Mock())
         self.assertEqual(300.0, resp.util)
 
+        # Mock an instance that hasn't been started yet.
+        cur = mock_metric(0, 0, 0, 0, 0)
+        prev = mock_metric(0, 0, 0, 0, 0)
+        self.mock_metrics.get_latest_metric.return_value = mock.Mock(), cur
+        self.mock_metrics.get_previous_metric.return_value = mock.Mock(), prev
+
+        # This should have 0% utilization
+        resp = self.inspector.inspect_cpu_util(mock.Mock())
+        self.assertEqual(0.0, resp.util)
+
     @staticmethod
     def _mock_vnic_metric(rec_bytes, tx_bytes, rec_pkts, tx_pkts, phys_loc):
         """Helper method to create a specific mock network metric."""

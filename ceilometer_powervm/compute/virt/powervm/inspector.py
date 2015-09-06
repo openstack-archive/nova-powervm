@@ -196,6 +196,12 @@ class PowerVMInspector(virt_inspector.Inspector):
         donated = cur_donated - prev_donated
         entitled = cur_entitled - prev_entitled
 
+        # If the entitled is zero, that generally means that the VM has not
+        # been started yet (everything else would be zero as well).  So to
+        # avoid a divide by zero error, just return 0% in that case.
+        if entitled == 0:
+            return virt_inspector.CPUUtilStats(util=0.0)
+
         util = float(util_cap + util_uncap - idle - donated) / float(entitled)
 
         # Utilization is reported as percents.  Therefore, multiply by 100.0
