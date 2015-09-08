@@ -96,18 +96,12 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             status, device_name, udid = self._discover_volume_on_vios(
                 vios_w, volume_id)
             # If we found one, no need to check the others.
-            found = found or self._good_discovery(status, device_name, udid)
+            found = found or hdisk.good_discovery(status, device_name)
 
         if not found:
             ex_args = dict(volume_id=volume_id,
                            instance_name=self.instance.name)
             raise p_exc.VolumePreMigrationFailed(**ex_args)
-
-    def _good_discovery(self, status, device_name, udid):
-        """Checks the hdisk discovery results for a good discovery."""
-        return device_name is not None and status in [
-            hdisk.LUAStatus.DEVICE_AVAILABLE,
-            hdisk.LUAStatus.FOUND_ITL_ERR]
 
     def _discover_volume_on_vios(self, vios_w, volume_id):
         """Discovers an hdisk on a single vios for the volume.
@@ -132,7 +126,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         status, device_name, udid = hdisk.discover_hdisk(self.adapter,
                                                          vios_w.uuid, itls)
 
-        if self._good_discovery(status, device_name, udid):
+        if hdisk.good_discovery(status, device_name):
             LOG.info(_LI('Discovered %(hdisk)s on vios %(vios)s for '
                      'volume %(volume_id)s. Status code: %(status)s.'),
                      {'hdisk': device_name, 'vios': vios_w.name,
@@ -195,7 +189,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # Get the initiatior WWPNs, targets and Lun for the given VIOS.
         vio_wwpns, t_wwpns, lun = self._get_hdisk_itls(vios_w)
 
-        if self._good_discovery(status, device_name, udid):
+        if hdisk.good_discovery(status, device_name):
             # Found a hdisk on this Virtual I/O Server.  Add the action to
             # map it to the VM when the stg_ftsk is executed.
             self._add_append_mapping(vios_w.uuid, device_name)

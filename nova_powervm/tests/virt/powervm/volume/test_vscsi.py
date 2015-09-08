@@ -116,7 +116,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
         # Test exception path
         mock_discover.return_value = (
-            hdisk.LUAStatus.DEVICE_IN_USE, 'devname', 'udid')
+            hdisk.LUAStatus.ITL_NOT_RELIABLE, 'devname', 'udid')
 
         # Run the method
         self.assertRaises(p_exc.VolumePreMigrationFailed,
