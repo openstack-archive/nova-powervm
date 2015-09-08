@@ -77,7 +77,7 @@ class PowerVMInspector(virt_inspector.Inspector):
         """
         hosts = pvm_ms.System.wrap(adpt.read(pvm_ms.System.schema_type))
         if len(hosts) != 1:
-            raise Exception(_("Expected exactly one host; found %d"),
+            raise Exception(_("Expected exactly one host; found %d."),
                             len(hosts))
         LOG.debug("Host UUID: %s" % hosts[0].uuid)
         return hosts[0].uuid
@@ -95,7 +95,8 @@ class PowerVMInspector(virt_inspector.Inspector):
         # the sample set.  An error should be raised.
         if cur_metric is None:
             raise virt_inspector.InstanceNotFoundException(
-                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+                _('VM %s not found in PowerVM Metrics Sample.') %
+                instance.name)
 
         cpu_time = (cur_metric.processor.util_cap_proc_cycles +
                     cur_metric.processor.util_uncap_proc_cycles)
@@ -131,7 +132,8 @@ class PowerVMInspector(virt_inspector.Inspector):
         # sample and an error should be raised.
         if cur_metric is None:
             raise virt_inspector.InstanceNotFoundException(
-                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+                _('VM %s not found in PowerVM Metrics Sample.') %
+                instance.name)
 
         # Get the current data.
         cur_util_cap = cur_metric.processor.util_cap_proc_cycles
@@ -255,7 +257,8 @@ class PowerVMInspector(virt_inspector.Inspector):
         # sample and an error should be raised.
         if cur_metric is None:
             raise virt_inspector.InstanceNotFoundException(
-                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+                _('VM %s not found in PowerVM Metrics Sample.') %
+                instance.name)
 
         # If there isn't network information, this is because the Virtual
         # I/O Metrics were turned off.  Have to pass through this method.
@@ -309,7 +312,8 @@ class PowerVMInspector(virt_inspector.Inspector):
         # sample and an error should be raised.
         if cur_metric is None:
             raise virt_inspector.InstanceNotFoundException(
-                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+                _('VM %s not found in PowerVM Metrics Sample.') %
+                instance.name)
 
         # If there isn't network information, this is because the Virtual
         # I/O Metrics were turned off.  Have to pass through this method.
@@ -389,7 +393,8 @@ class PowerVMInspector(virt_inspector.Inspector):
         # sample and an error should be raised.
         if cur_metric is None:
             raise virt_inspector.InstanceNotFoundException(
-                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+                _('VM %s not found in PowerVM Metrics Sample.') %
+                instance.name)
 
         # If there isn't storage information, this is because the Virtual
         # I/O Metrics were turned off.  Have to pass through this method.
@@ -432,7 +437,8 @@ class PowerVMInspector(virt_inspector.Inspector):
         # sample and an error should be raised.
         if cur_metric is None:
             raise virt_inspector.InstanceNotFoundException(
-                _('VM %s not found in PowerVM Metrics Sample') % instance.name)
+                _('VM %s not found in PowerVM Metrics Sample.') %
+                instance.name)
 
         # If there isn't storage information, this may be because the Virtual
         # I/O Metrics were turned off.  If the previous metric is unavailable,
