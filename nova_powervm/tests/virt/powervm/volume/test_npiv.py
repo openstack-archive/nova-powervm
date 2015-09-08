@@ -300,9 +300,30 @@ class TestNPIVAdapter(test.TestCase):
         mock_add_npiv_port.assert_called_once_with(
             self.vol_drv.adapter, self.vol_drv.host_uuid, 0, expected_map)
 
-        # Make sure the system metadata is updated
+        # Make sure the updated maps are returned
         expected = [('21000024FF649104', 'BB AA'),
                     ('21000024FF649105', 'DD CC')]
+        self.assertEqual(expected, resp_maps)
+
+    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
+    def test_configure_wwpns_for_migration_existing(
+            self, mock_add_npiv_port, mock_mgmt_lpar):
+        """Validates nothing is done if WWPNs are already mapped."""
+        # Mock out the fabric
+        meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
+        meta_fb_map = '21000024FF649104,c05076079cff0fa0,c05076079cff0fa1'
+        self.vol_drv.instance.system_metadata = {meta_fb_key: meta_fb_map}
+
+        # Mock the mgmt partition
+        mock_mgmt_lpar.return_value = mock.Mock(uuid=0)
+
+        # Invoke
+        resp_maps = self.vol_drv._configure_wwpns_for_migration('A')
+
+        # Make sure invocations were not made to do any adds
+        self.assertFalse(mock_add_npiv_port.called)
+        expected = [('21000024FF649104', 'C05076079CFF0FA0 C05076079CFF0FA1')]
         self.assertEqual(expected, resp_maps)
 
     @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
