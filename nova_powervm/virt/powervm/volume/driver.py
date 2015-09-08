@@ -20,6 +20,7 @@ import six
 from pypowervm.utils import transaction as pvm_tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm.virt.powervm import exception as exc
 from nova_powervm.virt.powervm import vm
 
 LOCAL_FEED_TASK = 'local_feed_task'
@@ -129,6 +130,16 @@ class PowerVMVolumeAdapter(object):
 
     def connect_volume(self):
         """Connects the volume."""
+        # Check if the VM is in a state where the attach is acceptable.
+        lpar_w = vm.get_instance_wrapper(self.adapter, self.instance,
+                                         self.host_uuid)
+        capable, reason = lpar_w.can_modify_io()
+        if not capable:
+            raise exc.VolumeAttachFailed(
+                volume_id=self.volume_id, instance_name=self.instance.name,
+                reason=reason)
+
+        # Run the connect
         self._connect_volume()
 
         if self.stg_ftsk.name == LOCAL_FEED_TASK:
@@ -136,6 +147,16 @@ class PowerVMVolumeAdapter(object):
 
     def disconnect_volume(self):
         """Disconnect the volume."""
+        # Check if the VM is in a state where the detach is acceptable.
+        lpar_w = vm.get_instance_wrapper(self.adapter, self.instance,
+                                         self.host_uuid)
+        capable, reason = lpar_w.can_modify_io()
+        if not capable:
+            raise exc.VolumeDetachFailed(
+                volume_id=self.volume_id, instance_name=self.instance.name,
+                reason=reason)
+
+        # Run the disconnect
         self._disconnect_volume()
 
         if self.stg_ftsk.name == LOCAL_FEED_TASK:

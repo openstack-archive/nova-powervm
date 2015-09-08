@@ -16,11 +16,11 @@
 
 import mock
 
-from nova import test
 import os
 
 from oslo_config import cfg
 
+from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.volume import vscsi
 
@@ -42,7 +42,7 @@ I2_WWPN_1 = '10000090FA5371F2'
 I2_WWPN_2 = '10000090FA53720A'
 
 
-class BaseVSCSITest(test.TestCase):
+class BaseVSCSITest(test_vol.TestVolumeAdapter):
     """Basic test case for the VSCSI Volume Connector."""
 
     def setUp(self, vios_feed_file, p_wwpn1, p_wwpn2):

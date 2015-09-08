@@ -18,12 +18,13 @@ import mock
 from oslo_config import cfg
 
 from nova.compute import task_states
-from nova import test
 import os
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.wrappers.util import pvmhttp
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
+from nova_powervm.virt.powervm import exception as exc
 from nova_powervm.virt.powervm.volume import npiv
 
 VIOS_FEED = 'fake_vios_feed.txt'
@@ -31,7 +32,7 @@ VIOS_FEED = 'fake_vios_feed.txt'
 CONF = cfg.CONF
 
 
-class TestNPIVAdapter(test.TestCase):
+class TestNPIVAdapter(test_vol.TestVolumeAdapter):
     """Tests the NPIV Volume Connector Adapter."""
 
     def setUp(self):
@@ -131,6 +132,11 @@ class TestNPIVAdapter(test.TestCase):
         self.assertEqual(npiv.FS_INST_MAPPED,
                          self.vol_drv._get_fabric_state('A'))
 
+    def test_connect_volume_not_valid(self):
+        """Validates that a connect will fail if in a bad state."""
+        self.mock_inst_wrap.can_modify_io.return_value = False, 'Bleh'
+        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume)
+
     @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
     def test_connect_volume_inst_mapped(self, mock_remove_p_maps,
@@ -214,6 +220,12 @@ class TestNPIVAdapter(test.TestCase):
 
         # No mappings should have been removed
         self.assertFalse(mock_remove_maps.called)
+
+    def test_disconnect_volume_not_valid(self):
+        """Validates that a disconnect will fail if in a bad state."""
+        self.mock_inst_wrap.can_modify_io.return_value = False, 'Bleh'
+        self.assertRaises(exc.VolumeDetachFailed,
+                          self.vol_drv.disconnect_volume)
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_remove_maps_for_fabric')
