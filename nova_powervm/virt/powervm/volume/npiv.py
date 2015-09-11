@@ -109,6 +109,45 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # happen to be no fabric changes.
         self.stg_ftsk.execute()
 
+    def post_live_migration_at_destination(self, mig_vol_stor):
+        """Perform post live migration steps for the volume on the target host.
+
+        This method performs any post live migration that is needed.  Is not
+        required to be implemented.
+
+        :param mig_vol_stor: An unbounded dictionary that will be passed to
+                             each volume adapter during the post live migration
+                             call.  Adapters can store data in here that may
+                             be used by subsequent volume adapters.
+        """
+        # This method will run on the target host after the migration is
+        # completed.  Right after this the instance.save is invoked from the
+        # manager.  Given that, we need to update the order of the WWPNs.
+        # The first WWPN is the one that is logged into the fabric and this
+        # will now indicate that our WWPN is logged in.
+        #
+        # TODO(thorst) Rather than just flipping...we should query the LPAR
+        # VFC's and find the logged in WWPN.  That guarantees accuracy.
+        for fabric in self._fabric_names():
+            # We check the mig_vol_stor to see if this fabric has already been
+            # flipped.  If so, we can continue.
+            fabric_key = '%s_flipped' % fabric
+            if mig_vol_stor.get(fabric_key, False):
+                continue
+
+            # Must not be flipped, so execute the flip
+            npiv_port_maps = self._get_fabric_meta(fabric)
+            new_port_maps = []
+            for port_map in npiv_port_maps:
+                c_wwpns = port_map[1].split()
+                c_wwpns.reverse()
+                new_map = (port_map[0], " ".join(c_wwpns))
+                new_port_maps.append(new_map)
+            self._set_fabric_meta(fabric, new_port_maps)
+
+            # Store that this fabric is now flipped.
+            mig_vol_stor[fabric_key] = True
+
     def _is_initial_wwpn(self, fc_state, fabric):
         """Determines if the invocation to wwpns is for a general method.
 
@@ -133,6 +172,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
     def _is_migration_wwpn(self, fc_state):
         """Determines if the WWPN call is occurring during a migration.
+
+        This determines if it is on the target host.
 
         :param fc_state: The fabrics state.
         :return: True if the instance appears to be migrating to this host.
@@ -272,7 +313,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             # If not None, then add the WWPNs to the response.
             if port_maps is not None:
                 for mapping in port_maps:
-                    resp_wwpns.extend(mapping[1].split())
+                    # Only add the first WWPN.  That is the one that will be
+                    # logged into the fabric.
+                    resp_wwpns.append(mapping[1].split()[0])
 
         # The return object needs to be a list for the volume connector.
         return resp_wwpns
@@ -345,7 +388,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                   {'inst': self.instance.name, 'fabric': fabric}]
             vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
 
-            # Add the subtask to remove the specific map.
+            # Add the subtask to remove the specific map
             self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
                 pvm_vfcm.remove_maps, self.vm_uuid, port_map=npiv_port_map,
                 logspec=ls)
@@ -355,7 +398,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         :return: The host name.
         """
-        return self.instance.name
+        host = CONF.host if len(CONF.host) < 20 else CONF.host[:20]
+        return host + '_' + self.instance.name
 
     def _set_fabric_state(self, fabric, state):
         """Sets the fabric state into the instance's system metadata.

@@ -1136,4 +1136,4 @@ class TestPowerVMDriver(test.TestCase):
         self.drv.post_live_migration_at_destination(
             'context', self.lpm_inst, 'network_info')
         self.lpm.post_live_migration_at_destination.assert_called_once_with(
-            'network_info')
+            'network_info', [])

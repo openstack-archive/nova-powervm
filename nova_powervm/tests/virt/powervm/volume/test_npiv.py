@@ -345,7 +345,7 @@ class TestNPIVAdapter(test.TestCase):
         wwpns = self.vol_drv.wwpns()
 
         # Check
-        self.assertListEqual(['AA', 'BB', 'CC', 'DD'], wwpns)
+        self.assertListEqual(['AA', 'CC'], wwpns)
         self.assertEqual('21000024FF649104,AA,BB,21000024FF649105,CC,DD',
                          self.vol_drv.instance.system_metadata[meta_key])
         self.assertEqual(1, mock_add_port.call_count)
@@ -368,7 +368,7 @@ class TestNPIVAdapter(test.TestCase):
             self.vol_drv._sys_meta_fabric_key('A'): 'phys1,a,b,phys2,c,d'}
 
         # Invoke and Verify
-        self.assertListEqual(['a', 'b', 'c', 'd'], self.vol_drv.wwpns())
+        self.assertListEqual(['a', 'c'], self.vol_drv.wwpns())
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_get_fabric_state')
@@ -382,4 +382,32 @@ class TestNPIVAdapter(test.TestCase):
         # Invoke and Verify
         for state in [task_states.DELETING, task_states.MIGRATING]:
             self.vol_drv.instance.task_state = state
-            self.assertListEqual(['a', 'b', 'c', 'd'], self.vol_drv.wwpns())
+            self.assertListEqual(['a', 'c'], self.vol_drv.wwpns())
+
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_set_fabric_meta')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_meta')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_fabric_names')
+    def test_post_live_migration_at_destination(
+            self, mock_fabric_names, mock_get_fabric_meta,
+            mock_set_fabric_meta):
+        mock_fabric_names.return_value = ['A', 'B']
+        mock_get_fabric_meta.side_effect = [
+            [('11', 'AA BB'), ('22', 'CC DD')],
+            [('33', 'EE FF')]]
+
+        # Execute the test
+        mig_vol_stor = {}
+        self.vol_drv.post_live_migration_at_destination(mig_vol_stor)
+
+        mock_set_fabric_meta.assert_any_call(
+            'A', [('11', 'BB AA'), ('22', 'DD CC')])
+        mock_set_fabric_meta.assert_any_call(
+            'B', [('33', 'FF EE')])
+
+        # Invoke a second time.  Should not 're-flip' or even call set.
+        mock_set_fabric_meta.reset_mock()
+        self.vol_drv.post_live_migration_at_destination(mig_vol_stor)
+        self.assertFalse(mock_set_fabric_meta.called)

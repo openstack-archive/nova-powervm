@@ -111,9 +111,21 @@ class PowerVMVolumeAdapter(object):
         """Perform pre live migration steps for the volume on the target host.
 
         This method performs any pre live migration that is needed.
-
         """
         raise NotImplementedError()
+
+    def post_live_migration_at_destination(self, mig_vol_stor):
+        """Perform post live migration steps for the volume on the target host.
+
+        This method performs any post live migration that is needed.  Is not
+        required to be implemented.
+
+        :param mig_vol_stor: An unbounded dictionary that will be passed to
+                             each volume adapter during the post live migration
+                             call.  Adapters can store data in here that may
+                             be used by subsequent volume adapters.
+        """
+        pass
 
     def connect_volume(self):
         """Connects the volume."""

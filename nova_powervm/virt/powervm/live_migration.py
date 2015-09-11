@@ -181,14 +181,32 @@ class LiveMigrationDest(LiveMigration):
                     host=self.drvr.host_wrapper.system_name,
                     name=self.instance.name, volume=vol_drv.volume_id)
 
-    def post_live_migration_at_destination(self, network_info):
+    def post_live_migration_at_destination(self, network_info, vol_drvs):
         """Do post migration cleanup on destination host.
 
         :param network_info: instance network information
+        :param vol_drvs: volume drivers for the attached volumes
         """
         # The LPAR should be on this host now.
         LOG.debug("Post live migration at destination.",
                   instance=self.instance)
+
+        # An unbounded dictionary that each volume adapter can use to persist
+        # data from one call to the next.
+        mig_vol_stor = {}
+
+        # For each volume, make sure it's ready to migrate
+        for vol_drv in vol_drvs:
+            LOG.info(_LI('Performing post migration for volume %(volume)s'),
+                     dict(volume=vol_drv.volume_id))
+            try:
+                vol_drv.post_live_migration_at_destination(mig_vol_stor)
+            except Exception as e:
+                LOG.exception(e)
+                # It failed.
+                raise LiveMigrationVolume(
+                    host=self.drvr.host_wrapper.system_name,
+                    name=self.instance.name, volume=vol_drv.volume_id)
 
 
 class LiveMigrationSrc(LiveMigration):

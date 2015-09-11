@@ -141,7 +141,7 @@ class TestLPM(test.TestCase):
         self.lpmsrc.post_live_migration_at_source('network_info')
 
     def test_post_live_mig_dest(self):
-        self.lpmdst.post_live_migration_at_destination('network_info')
+        self.lpmdst.post_live_migration_at_destination('network_info', [])
 
     @mock.patch('pypowervm.tasks.migration.migrate_recover')
     def test_rollback(self, mock_migr):

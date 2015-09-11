@@ -993,13 +993,10 @@ class PowerVMDriver(driver.ComputeDriver):
         mig = self.live_migrations[instance.uuid]
 
         # Get a volume driver for each volume
-        vol_drvs = []
-        bdms = self._extract_bdm(block_device_info)
-        for bdm in bdms or []:
-            vol_drvs.append(
-                self._get_inst_vol_adpt(
-                    context, instance, conn_info=bdm.get('connection_info')))
+        vol_drvs = self._build_vol_drivers(context, instance,
+                                           block_device_info)
 
+        # Run pre-live migration
         mig.pre_live_migration(context, block_device_info, network_info,
                                disk_info, migrate_data, vol_drvs)
 
@@ -1133,8 +1130,25 @@ class PowerVMDriver(driver.ComputeDriver):
                  instance=instance)
         mig = self.live_migrations[instance.uuid]
         mig.instance = instance
-        mig.post_live_migration_at_destination(network_info)
+
+        # Build the volume drivers
+        vol_drvs = self._build_vol_drivers(context, instance,
+                                           block_device_info)
+
+        # Run post live migration
+        mig.post_live_migration_at_destination(network_info, vol_drvs)
         del self.live_migrations[instance.uuid]
+
+    def _build_vol_drivers(self, context, instance, block_device_info):
+        """Builds the volume connector drivers for a block device info."""
+        # Get a volume driver for each volume
+        vol_drvs = []
+        bdms = self._extract_bdm(block_device_info)
+        for bdm in bdms or []:
+            vol_drvs.append(
+                self._get_inst_vol_adpt(
+                    context, instance, conn_info=bdm.get('connection_info')))
+        return vol_drvs
 
     def unfilter_instance(self, instance, network_info):
         """Stop filtering instance."""

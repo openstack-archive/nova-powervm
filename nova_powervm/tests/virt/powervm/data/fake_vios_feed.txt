@@ -293,7 +293,7 @@ BODY{
     <PortName kxe="false" kb="CUR">fcs0</PortName>
     <UniqueDeviceID kb="ROR" kxe="false">1aU78CB.001.WZS007Y-P1-C3-T1</UniqueDeviceID>
     <WWPN kb="CUR" kxe="false">21000024FF649104</WWPN>
-    <AvailablePorts kb="ROR" kxe="true">64</AvailablePorts>
+    <AvailablePorts kb="ROR" kxe="true">63</AvailablePorts>
     <TotalPorts kb="ROR" kxe="true">64</TotalPorts>
 </PhysicalFibreChannelPort>
 <PhysicalFibreChannelPort schemaVersion="V1_2_0">
