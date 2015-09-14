@@ -19,6 +19,17 @@
 from nova import utils
 
 
+class OSDistro(object):
+    """Mirror of image os distro.Enum."""
+    AIX = 'aix'
+    RHEL = 'rhel'
+    OS400 = 'ibmi'
+    SLES = 'sles'
+    UBUNTU = 'ubuntu'
+    UNKNOWN = 'Unknown'
+    ALL_VALUES = (AIX, RHEL, OS400, SLES, UBUNTU, UNKNOWN)
+
+
 def stream_blockdev_to_glance(context, image_api, image_id, metadata, devpath):
     """Stream the entire contents of a block device to a glance image.
 

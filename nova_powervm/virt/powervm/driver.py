@@ -49,6 +49,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import host as pvm_host
+from nova_powervm.virt.powervm import image as img
 from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm.tasks import image as tf_img
@@ -269,6 +270,14 @@ class PowerVMDriver(driver.ComputeDriver):
         # Add the transaction manager flow to the end of the 'I/O
         # connection' tasks.  This will run all the connections in parallel.
         flow_spawn.add(stg_ftsk)
+
+        # Update load source of IBMi VM
+        distro = instance.system_metadata.get('image_os_distro', '')
+        if distro.lower() == img.OSDistro.OS400:
+            boot_type = self._get_boot_connectivity_type(
+                context, bdms, block_device_info)
+            flow_spawn.add(tf_vm.UpdateIBMiSettings(
+                self.adapter, instance, self.host_uuid, boot_type))
 
         # Last step is to power on the system.
         flow_spawn.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
@@ -1320,6 +1329,30 @@ class PowerVMDriver(driver.ComputeDriver):
                   {'cls': vol_cls.__name__, 'inst': instance.name})
         return vol_cls(self.adapter, self.host_uuid,
                        instance, conn_info, stg_ftsk=stg_ftsk)
+
+    def _get_boot_connectivity_type(self, context, bdms, block_device_info):
+        """Get connectivity information for the instance.
+
+        :param context: security context
+        :param bdms: The BDMs for the operation. If boot volume of
+                     the instance is ssp lu or local disk, the bdms is None.
+        :param block_device_info: Instance volume block device info.
+        :return: Returns the boot connectivity type,
+                 If boot volume is a npiv volume, returns 'npiv'
+                 Otherwise, return 'vscsi'.
+        """
+        # Set default boot_conn_type as 'vscsi'
+        boot_conn_type = 'vscsi'
+        if self._is_booted_from_volume(block_device_info) and bdms is not None:
+            for bdm in bdms:
+                if bdm.get('boot_index') == 0:
+                    conn_info = bdm.get('connection_info')
+                    connectivity_type = conn_info['data']['connection-type']
+                    boot_conn_type = ('vscsi' if connectivity_type ==
+                                      'pv_vscsi' else connectivity_type)
+                    return boot_conn_type
+        else:
+            return boot_conn_type
 
 
 def _inst_dict(input_dict):

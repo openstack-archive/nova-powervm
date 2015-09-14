@@ -26,6 +26,7 @@ from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
 from pypowervm.tasks import cna
+from pypowervm.tasks import ibmi
 from pypowervm.tasks import power
 from pypowervm.tasks import vterm
 from pypowervm.utils import lpar_builder as lpar_bldr
@@ -637,3 +638,16 @@ def norm_mac(mac):
     """
     mac = mac.lower().replace(':', '')
     return ':'.join(mac[i:i + 2] for i in range(0, len(mac), 2))
+
+
+def update_ibmi_settings(adapter, instance, host_uuid, boot_type):
+    """Update settings of IBMi VMs on the instance.
+
+    :param adapter: The pypowervm adapter.
+    :param instance: The nova instance.
+    :param host_uuid: The host system UUID.
+    :param boot_type: The boot connectivity type of the instance.
+    """
+    lpar_wrap = get_instance_wrapper(adapter, instance, host_uuid)
+    entry = ibmi.update_ibmi_settings(adapter, lpar_wrap, boot_type)
+    entry.update()

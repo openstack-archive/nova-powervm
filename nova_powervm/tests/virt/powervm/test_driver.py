@@ -187,6 +187,7 @@ class TestPowerVMDriver(test.TestCase):
         """
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'rhel'}
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
@@ -222,6 +223,7 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'rhel'}
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = True
@@ -263,6 +265,7 @@ class TestPowerVMDriver(test.TestCase):
         """
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'rhel'}
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
@@ -325,6 +328,7 @@ class TestPowerVMDriver(test.TestCase):
         """
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'rhel'}
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
@@ -374,6 +378,7 @@ class TestPowerVMDriver(test.TestCase):
         """
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'rhel'}
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
@@ -420,6 +425,7 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the PowerVM driver operations.  Will do a rollback."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'rhel'}
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
@@ -444,6 +450,114 @@ class TestPowerVMDriver(test.TestCase):
         # Validate the rollbacks were called
         self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
 
+    @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
+                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
+    @mock.patch('nova.virt.configdrive.required_by')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.UpdateIBMiSettings'
+                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_get_boot_connectivity_type')
+    @mock.patch('pypowervm.tasks.power.power_on')
+    def test_spawn_ibmi(
+        self, mock_pwron, mock_boot_conn_type,
+        mock_update_lod_src, mock_get_flv, mock_cfg_drv,
+        mock_plug_vifs, mock_plug_mgmt_vif, mock_boot_from_vol,
+        mock_crt_img, mock_save):
+        """Validates the PowerVM spawn to create an IBMi server.
+        """
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'ibmi'}
+        my_flavor = inst.get_flavor()
+        mock_get_flv.return_value = my_flavor
+        mock_cfg_drv.return_value = False
+        mock_boot_from_vol.return_value = True
+        mock_boot_conn_type.return_value = 'vscsi'
+        # Create some fake BDMs
+        block_device_info = self._fake_bdms()
+        image_meta = {}
+        # Invoke the method.
+        self.drv.spawn('context', inst, image_meta,
+                       'injected_files', 'admin_password',
+                       block_device_info=block_device_info)
+
+        self.assertTrue(mock_boot_from_vol.called)
+        # Since the root device is in the BDMs we do not expect the image disk
+        # to be created.
+        self.assertFalse(mock_crt_img.called)
+
+        # Create LPAR was called
+        self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
+                                         inst, my_flavor)
+
+        self.assertTrue(mock_boot_conn_type.called)
+        self.assertTrue(mock_update_lod_src.called)
+
+        # Power on was called
+        self.assertTrue(mock_pwron.called)
+
+        # Check that the connect volume was called
+        self.assertEqual(2, self.vol_drv.connect_volume.call_count)
+
+        # Make sure the BDM save was invoked twice.
+        self.assertEqual(2, mock_save.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
+                'CreateAndConnectCfgDrive.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume'
+                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
+                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
+    @mock.patch('nova.virt.configdrive.required_by')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.UpdateIBMiSettings'
+                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_get_boot_connectivity_type')
+    @mock.patch('pypowervm.tasks.power.power_on')
+    def test_spawn_ibmi_without_bdms(
+        self, mock_pwron, mock_boot_conn_type, mock_update_lod_src,
+        mock_get_flv, mock_cfg_drv, mock_plug_vifs,
+        mock_plug_mgmt_vif, mock_boot_from_vol, mock_crt_disk_img,
+        mock_conn_vol, mock_crt_cfg_drv):
+        """Validates the 'typical' spawn flow for IBMi
+        Perform an UT using an image with local disk, attaching networks
+        and powering on.
+        """
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'ibmi'}
+        my_flavor = inst.get_flavor()
+        mock_get_flv.return_value = my_flavor
+        mock_cfg_drv.return_value = False
+        mock_boot_from_vol.return_value = False
+        mock_boot_conn_type.return_value = 'vscsi'
+        # Invoke the method.
+        self.drv.spawn('context', inst, mock.Mock(),
+                       'injected_files', 'admin_password')
+
+        # Assert the correct tasks were called
+        self.assertTrue(mock_plug_vifs.called)
+        self.assertTrue(mock_plug_mgmt_vif.called)
+        self.assertTrue(mock_crt_disk_img.called)
+        self.crt_lpar.assert_called_with(
+            self.apt, self.drv.host_wrapper, inst, my_flavor)
+        self.assertTrue(mock_update_lod_src.called)
+        self.assertTrue(mock_pwron.called)
+        # Assert that tasks that are not supposed to be called are not called
+        self.assertFalse(mock_conn_vol.called)
+        self.assertFalse(mock_crt_cfg_drv.called)
+
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 'delete_disks')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg.'
@@ -459,6 +573,7 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the rollback if failure occurs on disk create."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'rhel'}
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
@@ -493,6 +608,7 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the rollbacks on a volume connect failure."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.system_metadata = {'image_os_distro': 'rhel'}
         my_flavor = inst.get_flavor()
         mock_get_flv.return_value = my_flavor
         mock_cfg_drv.return_value = False
