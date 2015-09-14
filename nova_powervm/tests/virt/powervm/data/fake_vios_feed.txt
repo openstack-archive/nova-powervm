@@ -641,6 +641,66 @@ BODY{
         <Metadata>
             <Atom/>
         </Metadata>
+        <VirtualFibreChannelMapping schemaVersion="V1_1_0">
+            <Metadata>
+                <Atom/>
+            </Metadata>
+            <AssociatedLogicalPartition kb="CUR" kxe="false" href="https://9.1.2.3:12443/rest/api/uom/ManagedSystem/e7344c5b-79b5-3e73-8f64-94821424bc25/LogicalPartition/2E893FB3-B9BD-4CA6-AB7B-AB9454A3D627" rel="related"/>
+            <ClientAdapter kb="CUR" kxe="false" schemaVersion="V1_1_0">
+                <Metadata>
+                    <Atom/>
+                </Metadata>
+                <AdapterType kb="ROR" kxe="false">Client</AdapterType>
+                <DynamicReconfigurationConnectorName kb="CUD" kxe="false">U7895.43X.21EF9FB-V15-C4</DynamicReconfigurationConnectorName>
+                <LocationCode kb="ROR" kxe="false">U7895.43X.21EF9FB-V15-C4</LocationCode>
+                <LocalPartitionID kb="CUR" kxe="false">15</LocalPartitionID>
+                <RequiredAdapter kxe="false" kb="CUD">false</RequiredAdapter>
+                <VariedOn kb="CUD" kxe="true">false</VariedOn>
+                <VirtualSlotNumber kb="COD" kxe="false">4</VirtualSlotNumber>
+                <ConnectingPartitionID kb="CUR" kxe="false">2</ConnectingPartitionID>
+                <ConnectingVirtualSlotNumber kb="CUR" kxe="false">20</ConnectingVirtualSlotNumber>
+                <WWPNs kb="CUR" kxe="false">c05076079cff0fa0 c05076079cff0fa1</WWPNs>
+            </ClientAdapter>
+            <Port kxe="false" kb="CUR" schemaVersion="V1_1_0">
+                <Metadata>
+                    <Atom/>
+                </Metadata>
+                <LocationCode kb="ROR" kxe="false">U78AF.001.WZS04LA-P1-C37-L1-T2</LocationCode>
+                <PortName kb="CUR" kxe="false">fcs1</PortName>
+                <UniqueDeviceID kb="ROR" kxe="false">1aU78AF.001.WZS04LA-P1-C37-L1-T2</UniqueDeviceID>
+                <WWPN kb="CUR" kxe="false">21000024FF649104</WWPN>
+                <AvailablePorts kb="ROR" kxe="true">63</AvailablePorts>
+                <TotalPorts kb="ROR" kxe="true">64</TotalPorts>
+            </Port>
+            <ServerAdapter kb="CUR" kxe="false" schemaVersion="V1_1_0">
+                <Metadata>
+                    <Atom/>
+                </Metadata>
+                <AdapterType kb="ROR" kxe="false">Server</AdapterType>
+                <DynamicReconfigurationConnectorName kb="CUD" kxe="false">U7895.43X.21EF9FB-V2-C20</DynamicReconfigurationConnectorName>
+                <LocationCode kb="ROR" kxe="false">U7895.43X.21EF9FB-V2-C20</LocationCode>
+                <LocalPartitionID kb="CUR" kxe="false">2</LocalPartitionID>
+                <RequiredAdapter kxe="false" kb="CUD">false</RequiredAdapter>
+                <VariedOn kb="CUD" kxe="true">true</VariedOn>
+                <VirtualSlotNumber kb="COD" kxe="false">20</VirtualSlotNumber>
+                <AdapterName kb="CUR" kxe="false">vfchost10</AdapterName>
+                <ConnectingPartitionID kb="CUR" kxe="false">15</ConnectingPartitionID>
+                <ConnectingVirtualSlotNumber kb="CUR" kxe="false">4</ConnectingVirtualSlotNumber>
+                <UniqueDeviceID kb="CUR" kxe="false">1dU7895.43X.21EF9FB-V2-C20</UniqueDeviceID>
+                <MapPort kb="CUR" kxe="false">fcs0</MapPort>
+                <PhysicalPort kb="CUD" kxe="false" schemaVersion="V1_1_0">
+                    <Metadata>
+                        <Atom/>
+                    </Metadata>
+                    <LocationCode kb="ROR" kxe="false">U78AF.001.WZS04LA-P1-C37-L1-T2</LocationCode>
+                    <PortName kb="CUR" kxe="false">fcs1</PortName>
+                    <UniqueDeviceID kb="ROR" kxe="false">1aU78AF.001.WZS04LA-P1-C37-L1-T2</UniqueDeviceID>
+                    <WWPN kb="CUR" kxe="false">21000024FF649104</WWPN>
+                    <AvailablePorts kb="ROR" kxe="true">26</AvailablePorts>
+                    <TotalPorts kb="ROR" kxe="true">64</TotalPorts>
+                </PhysicalPort>
+            </ServerAdapter>
+        </VirtualFibreChannelMapping>
     </VirtualFibreChannelMappings>
     <VirtualSCSIMappings group="ViosSCSIMapping" kb="CUD" kxe="false" schemaVersion="V1_2_0">
         <Metadata>

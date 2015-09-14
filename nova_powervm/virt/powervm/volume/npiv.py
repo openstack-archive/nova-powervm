@@ -160,27 +160,43 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                      "this host."),
                  {'inst': self.instance.name, 'fabric': fabric})
 
+        mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
+
         # When we migrate...flip the WWPNs around.  This is so the other
-        # WWPN logs in on the target.
+        # WWPN logs in on the target fabric.  But we should only flip new
+        # WWPNs.  There may already be some on the overall fabric...and if
+        # there are, we keep those 'as-is'
+        #
         # TODO(thorst) pending API change should be able to indicate which
         # wwpn is active.
         port_maps = self._get_fabric_meta(fabric)
-        reversed_port_list = []
+        existing_wwpns = []
+        new_wwpns = []
+
         for port_map in port_maps:
-            paired_client_wwpns = port_map[1].split()
-            paired_client_wwpns.reverse()
-            reversed_port_list.extend(paired_client_wwpns)
+            c_wwpns = port_map[1].split()
+
+            # Only add it as a 'new' mapping if it isn't on a VIOS already.  If
+            # it is, then we know that it has already been serviced, perhaps
+            # by a previous volume.
+            vios_w, vfc_map = pvm_vfcm.has_client_wwpns(self.stg_ftsk.feed,
+                                                        c_wwpns)
+            if vfc_map is None:
+                c_wwpns.reverse()
+                new_wwpns.extend(c_wwpns)
+            else:
+                existing_wwpns.extend(c_wwpns)
 
         # Now derive the mapping to THESE VIOSes physical ports
-        new_port_maps = pvm_vfcm.derive_npiv_map(
+        port_mappings = pvm_vfcm.derive_npiv_map(
             self.stg_ftsk.feed, self._fabric_ports(fabric),
-            reversed_port_list)
+            new_wwpns + existing_wwpns)
 
         # Add the port maps to the mgmt partition
-        mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
-        pvm_vfcm.add_npiv_port_mappings(
-            self.adapter, self.host_uuid, mgmt_uuid, new_port_maps)
-        return new_port_maps
+        if len(new_wwpns) > 0:
+            pvm_vfcm.add_npiv_port_mappings(
+                self.adapter, self.host_uuid, mgmt_uuid, port_mappings)
+        return port_mappings
 
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports."""
@@ -240,6 +256,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 self._set_fabric_state(fabric, FS_MGMT_MAPPED)
             elif self._is_migration_wwpn(fc_state):
                 port_maps = self._configure_wwpns_for_migration(fabric)
+
+                # This won't actually get saved by the process.  The save will
+                # only occur after the 'post migration'.  But if there are
+                # multiple volumes, their WWPNs calls will subsequently see
+                # the data saved temporarily here.
                 self._set_fabric_meta(fabric, port_maps)
             else:
                 # This specific fabric had been previously set.  Just pull
