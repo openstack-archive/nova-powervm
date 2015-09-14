@@ -199,6 +199,22 @@ class TestNPIVAdapter(test.TestCase):
         self.assertEqual(2, mock_remove_maps.call_count)
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
 
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_maps')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_meta')
+    def test_disconnect_volume_no_fabric_meta(self, mock_get_fabric_meta,
+                                              mock_remove_maps):
+        # Mock Data.  The fabric_names is set to A by setUp.
+        # Force a None return
+        self.vol_drv.instance.task_state = 'deleting'
+        mock_get_fabric_meta.return_value = []
+
+        # Invoke
+        self.vol_drv.disconnect_volume()
+
+        # No mappings should have been removed
+        self.assertFalse(mock_remove_maps.called)
+
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_remove_maps_for_fabric')
     def test_disconnect_volume_no_op(self, mock_remove_maps):

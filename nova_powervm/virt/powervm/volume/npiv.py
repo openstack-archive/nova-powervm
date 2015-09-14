@@ -19,7 +19,7 @@ from oslo_log import log as logging
 from taskflow import task
 
 from nova.compute import task_states
-from nova.i18n import _LI
+from nova.i18n import _LI, _LW
 from pypowervm.tasks import vfc_mapper as pvm_vfcm
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -380,6 +380,10 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :param fabric: The fabric to remove the mappings from.
         """
         npiv_port_maps = self._get_fabric_meta(fabric)
+        if not npiv_port_maps:
+            # If no mappings exist, exit out of the method.
+            return
+
         vios_wraps = self.stg_ftsk.feed
 
         for npiv_port_map in npiv_port_maps:
@@ -474,7 +478,13 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         meta_key = self._sys_meta_fabric_key(fabric)
         if self.instance.system_metadata.get(meta_key) is None:
-            return None
+            # If no mappings exist, log a warning.
+            LOG.warn(_LW("No NPIV mappings exist for instance %(inst)s on "
+                         "fabric %(fabric)s.  May not have connected to "
+                         "the fabric yet or fabric configuration was recently "
+                         "modified."),
+                     {'inst': self.instance.name, 'fabric': fabric})
+            return []
 
         meta_value = self.instance.system_metadata[meta_key]
         wwpns = meta_value.split(",")
