@@ -59,7 +59,18 @@ class ConnectVolume(task.Task):
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
         self.vol_drv.reset_stg_ftsk()
-        self.vol_drv.disconnect_volume()
+        try:
+            # We attempt to disconnect in case we 'partially connected'.  In
+            # the connect scenario, perhaps one of the Virtual I/O Servers
+            # was connected.  This attempts to clear anything out to make sure
+            # the terminate connection runs smoothly.
+            self.vol_drv.disconnect_volume()
+        except npvmex.VolumeDetachFailed as e:
+            # Only log that the volume detach failed.  Should not be blocking
+            # due to being in the revert flow.
+            LOG.warn(_LW("Unable to disconnect volume for %(inst)s during "
+                         "rollback.  Error was: %(error)s"),
+                     {'inst': self.vol_drv.instance.name, 'error': e.message})
 
 
 class DisconnectVolume(task.Task):
@@ -91,7 +102,19 @@ class DisconnectVolume(task.Task):
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
         self.vol_drv.reset_stg_ftsk()
-        self.vol_drv.connect_volume()
+        try:
+            # We try to reconnect the volume here so that it maintains its
+            # linkage (in the hypervisor) to the VM.  This makes it easier for
+            # operators to understand the linkage between the VMs and volumes
+            # in error scenarios.  This is simply useful for debug purposes
+            # if there is an operational error.
+            self.vol_drv.connect_volume()
+        except npvmex.VolumeAttachFailed as e:
+            # Only log that the volume attach failed.  Should not be blocking
+            # due to being in the revert flow.  See comment above.
+            LOG.warn(_LW("Unable to re-connect volume for %(inst)s during "
+                         "rollback.  Error was: %(error)s"),
+                     {'inst': self.vol_drv.instance.name, 'error': e.message})
 
 
 class CreateDiskForImg(task.Task):

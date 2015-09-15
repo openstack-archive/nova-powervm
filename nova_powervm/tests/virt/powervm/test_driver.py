@@ -42,6 +42,7 @@ import pypowervm.wrappers.virtual_io_server as pvm_vios
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import driver
+from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import live_migration as lpm
 
 MS_HTTPRESP_FILE = "managedsystem.txt"
@@ -502,8 +503,11 @@ class TestPowerVMDriver(test.TestCase):
         mock_cfg_drv.return_value = False
         block_device_info = self._fake_bdms()
 
-        # Have the connect fail.
+        # Have the connect fail.  Also fail the disconnect on revert.  Should
+        # not block the rollback.
         self.vol_drv.connect_volume.side_effect = exc.Forbidden()
+        self.vol_drv.disconnect_volume.side_effect = p_exc.VolumeDetachFailed(
+            volume_id='1', instance_name=inst.name, reason='Test Case')
 
         # Invoke the method.
         self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', inst,
@@ -731,6 +735,11 @@ class TestPowerVMDriver(test.TestCase):
 
         # Fire a failure in the power off.
         mock_dlt.side_effect = exc.Forbidden()
+
+        # Have the connect volume fail on the rollback.  Should not block the
+        # full rollback.
+        self.vol_drv.connect_volume.side_effect = p_exc.VolumeAttachFailed(
+            volume_id='1', instance_name=inst.name, reason='Test Case')
 
         # Invoke the method.
         self.assertRaises(exc.Forbidden, self.drv.destroy, 'context', inst,
