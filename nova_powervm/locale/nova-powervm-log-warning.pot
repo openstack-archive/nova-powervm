@@ -1,0 +1,134 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2015.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev368\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-09-16 03:19-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:386
+#: nova_powervm/virt/powervm/driver.py:396
+msgid "VM was not found during destroy operation."
+msgstr ""
+
+#: nova_powervm/virt/powervm/driver.py:733
+#, python-format
+msgid ""
+"my_ip address (%(my_ip)s) was not found on any of the interfaces: "
+"%(ifaces)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/host.py:166
+msgid ""
+"Host CPU Metrics determined that the total cycles reported was less than "
+"the used cycles.  This indicates an issue with the PCM data.  Please "
+"investigate the results."
+msgstr ""
+
+#: nova_powervm/virt/powervm/media.py:299
+#, python-format
+msgid "Unable to read volume groups for Virtual I/O Server %s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/disk/driver.py:168
+#, python-format
+msgid ""
+"Failed to map boot disk %(disk_name)s of instance %(instance_name)s to "
+"the management partition from Virtual I/O Server %(vios_name)s: %(exc)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/tasks/network.py:104
+#, python-format
+msgid ""
+"Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  The VIF was"
+" not found on the instance."
+msgstr ""
+
+#: nova_powervm/virt/powervm/tasks/storage.py:55
+#, python-format
+msgid "Volume %(vol)s for instance %(inst)s to be disconnected"
+msgstr ""
+
+#: nova_powervm/virt/powervm/tasks/storage.py:87
+#, python-format
+msgid "Volume %(vol)s for instance %(inst)s to be re-connected"
+msgstr ""
+
+#: nova_powervm/virt/powervm/tasks/storage.py:133
+#, python-format
+msgid "Image for instance %s to be deleted"
+msgstr ""
+
+#: nova_powervm/virt/powervm/tasks/storage.py:180
+#, python-format
+msgid "Disk image being disconnected from instance %s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/tasks/storage.py:251
+#, python-format
+msgid ""
+"Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
+"management partition via Virtual I/O Server %(vios_name)s."
+msgstr ""
+
+#: nova_powervm/virt/powervm/tasks/storage.py:263
+#, python-format
+msgid "Removing disk %(disk_path)s from the management partition."
+msgstr ""
+
+#: nova_powervm/virt/powervm/volume/npiv.py:482
+#, python-format
+msgid ""
+"No NPIV mappings exist for instance %(inst)s on fabric %(fabric)s.  May "
+"not have connected to the fabric yet or fabric configuration was recently"
+" modified."
+msgstr ""
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:135
+#, python-format
+msgid ""
+"Discovered device %(dev)s for volume %(volume)s on %(vios)s is in use. "
+"Error code: %(status)s."
+msgstr ""
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:224
+#, python-format
+msgid ""
+"Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY "
+"of the Virtual I/O Servers for instance %(inst)s."
+msgstr ""
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:259
+#, python-format
+msgid ""
+"Disconnect Volume: No mapped device found on Virtual I/O Server %(vios)s "
+"for volume %(volume_id)s.  Volume UDID: %(volume_uid)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:267
+#, python-format
+msgid ""
+"Disconnect Volume: Failed to find disk on Virtual I/O Server "
+"%(vios_name)s for volume %(volume_id)s. Volume UDID: %(volume_uid)s.  "
+"Error: %(error)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:309
+#, python-format
+msgid ""
+"There was an error removing the hdisk %(disk)s from the Virtual I/O "
+"Server."
+msgstr ""
+
