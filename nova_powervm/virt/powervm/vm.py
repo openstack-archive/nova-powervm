@@ -69,7 +69,7 @@ POWERVM_STOPABLE_STATE = (pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
 
 # Attributes for secure RMC
 # TODO(thorst) The name of the secure RMC vswitch will change.
-SECURE_RMC_VSWITCH = 'MGMT'
+SECURE_RMC_VSWITCH = 'MGMTSWITCH'
 SECURE_RMC_VLAN = 4094
 
 
