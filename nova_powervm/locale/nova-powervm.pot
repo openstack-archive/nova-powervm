@@ -1,0 +1,212 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2015.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev368\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-09-16 03:19-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:131
+#, python-format
+msgid "Expected exactly one host; found %d"
+msgstr ""
+
+#: nova_powervm/virt/powervm/driver.py:686
+#, python-format
+msgid "Plug vif failed because instance %s was not found."
+msgstr ""
+
+#: nova_powervm/virt/powervm/driver.py:691
+msgid "Plug vif failed because of an unexpected error."
+msgstr ""
+
+#: nova_powervm/virt/powervm/driver.py:788
+msgid "Cannot reduce disk size."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:37
+#, python-format
+msgid ""
+"Unable to locate the volume group %(vol_grp)s to store the virtual "
+"optical media within.  Unable to create the media repository."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:44
+#, python-format
+msgid "Expected to find exactly one management partition; found %(count)d."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:50
+#, python-format
+msgid ""
+"Having scanned SCSI bus %(bus)x on the management partition, disk with "
+"UDID %(udid)s failed to appear after %(polls)d polls over %(timeout)d "
+"seconds."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:57
+#, python-format
+msgid ""
+"Expected to find exactly one disk on the management partition at "
+"%(path_pattern)s; found %(count)d."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:63
+#, python-format
+msgid ""
+"Device %(devpath)s is still present on the management partition after "
+"attempting to delete it.  Polled %(polls)d times over %(timeout)d "
+"seconds."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:69
+#, python-format
+msgid ""
+"Failed to map boot disk of instance %(instance_name)s to the management "
+"partition from any Virtual I/O Server."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:75
+#, python-format
+msgid ""
+"Failed to find newly-created mapping of storage element %(stg_name)s from"
+" Virtual I/O Server %(vios_name)s to the management partition."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:81
+#, python-format
+msgid "Unable to locate the volume group '%(vg_name)s' for this operation."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:86
+#, python-format
+msgid "Unable to locate the Cluster '%(clust_name)s' for this operation."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:91
+msgid "Unable to locate any Cluster for this operation."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:95
+#, python-format
+msgid ""
+"Unexpectedly found %(clust_count)d Clusters matching name "
+"'%(clust_name)s'."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:100
+#, python-format
+msgid ""
+"No cluster_name specified.  Refusing to select one of the %(clust_count)d"
+" Clusters found."
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:105
+#, python-format
+msgid ""
+"Unable to attach storage (id: %(volume_id)s) to virtual machine "
+"%(instance_name)s.  %(reason)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:110
+#, python-format
+msgid ""
+"Unable to detach volume (id: %(volume_id)s) from virtual machine "
+"%(instance_name)s.  %(reason)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/exception.py:115
+#, python-format
+msgid ""
+"Unable to perform pre live migration steps on volume (id: %(volume_id)s) "
+"from virtual machine %(instance_name)s."
+msgstr ""
+
+#: nova_powervm/virt/powervm/live_migration.py:37
+#, python-format
+msgid "Live migration of instance '%(name)s' failed for reason: %(reason)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/live_migration.py:42
+#, python-format
+msgid ""
+"Live migration of instance '%(name)s' failed because the migration state "
+"is: %(state)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/live_migration.py:47
+#, python-format
+msgid ""
+"Live migration of instance '%(name)s' failed because it is not ready. "
+"Reason: %(reason)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/live_migration.py:52
+#, python-format
+msgid ""
+"Cannot migrate instance '%(name)s' because the memory region size of the "
+"source (%(source_mrs)d MB) does not match the memory region size of the "
+"target (%(target_mrs)d MB)."
+msgstr ""
+
+#: nova_powervm/virt/powervm/live_migration.py:59
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because its processor compatibility mode %(mode)s"
+" is not in the list of modes \"%(modes)s\" supported by the target host."
+msgstr ""
+
+#: nova_powervm/virt/powervm/live_migration.py:66
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because the host %(host)s only allows %(allowed)s"
+" concurrent migrations and %(running)s migrations are currently running."
+msgstr ""
+
+#: nova_powervm/virt/powervm/live_migration.py:72
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because the volume %(volume)s cannot be attached "
+"on the destination host %(host)s."
+msgstr ""
+
+#: nova_powervm/virt/powervm/vm.py:343
+#, python-format
+msgid "Multiple Shared Processing Pools with name %(pool)s."
+msgstr ""
+
+#: nova_powervm/virt/powervm/vm.py:347
+#, python-format
+msgid "Unable to find Shared Processing Pool %(pool)s"
+msgstr ""
+
+#: nova_powervm/virt/powervm/vm.py:369
+#, python-format
+msgid ""
+"Flavor attribute %(attr)s must be either True or False.  Current value "
+"%(val)s is not allowed."
+msgstr ""
+
+#: nova_powervm/virt/powervm/tasks/network.py:39
+msgid "Virtual interface unplug failed"
+msgstr ""
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:169
+#, python-format
+msgid ""
+"Failed to discover valid hdisk on any Virtual I/O Server for volume "
+"%(volume_id)s."
+msgstr ""
+
