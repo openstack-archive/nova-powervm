@@ -481,7 +481,7 @@ class PowerVMInspector(virt_inspector.Inspector):
             prev_adpt = find_prev(cur_adpt)
             prev_ops = ((prev_adpt.num_reads + prev_adpt.num_writes)
                         if prev_adpt else 0)
-            iops = (cur_ops - prev_ops) / date_delta.seconds
+            iops = (cur_ops - prev_ops) // date_delta.seconds
 
             # PowerVM only shows the connection (SCSI or FC).  Name after
             # the connection name
