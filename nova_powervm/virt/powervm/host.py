@@ -30,7 +30,15 @@ from pypowervm.tasks.monitor import util as pcm_util
 LOG = logging.getLogger(__name__)
 
 # Power VM hypervisor info
-IBM_POWERVM_HYPERVISOR_VERSION = '710'
+# Normally, the hypervisor version is a string in the form of '8.0.0' and
+# converted to an int with nova.virt.utils.convert_version_to_int() however
+# there isn't currently a mechanism to retrieve the exact version.
+# Complicating this is the fact that nova conductor only allows live migration
+# from the source host to the destination if the source is equal to or less
+# than the destination version.  PowerVM live migration limitations are
+# checked by the PowerVM capabilities flags and not specific version levels.
+# For that reason, we'll just publish the major level.
+IBM_POWERVM_HYPERVISOR_VERSION = 8
 
 # The types of LPARS that are supported.
 POWERVM_SUPPORTED_INSTANCES = jsonutils.dumps([(arch.PPC64,
