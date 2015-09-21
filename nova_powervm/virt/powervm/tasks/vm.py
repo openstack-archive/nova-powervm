@@ -84,7 +84,8 @@ class Create(task.Task):
         LOG.info(_LI('Creating instance: %s'), self.instance.name)
         wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
                            self.flavor)
-        pvm_stg.add_lpar_storage_scrub_tasks(wrap.id, self.stg_ftsk)
+        pvm_stg.add_lpar_storage_scrub_tasks([wrap.id], self.stg_ftsk,
+                                             lpars_exist=True)
         return wrap
 
 

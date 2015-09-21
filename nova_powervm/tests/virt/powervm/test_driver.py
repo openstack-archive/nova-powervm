@@ -205,7 +205,7 @@ class TestPowerVMDriver(test.TestCase):
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
-        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
+        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -239,7 +239,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Power on was called
         self.assertTrue(mock_pwron.called)
-        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
+        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -293,7 +293,7 @@ class TestPowerVMDriver(test.TestCase):
         # Make sure the save was invoked
         self.assertEqual(2, mock_save.call_count)
 
-        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
+        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -352,7 +352,7 @@ class TestPowerVMDriver(test.TestCase):
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
-        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
+        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -404,7 +404,7 @@ class TestPowerVMDriver(test.TestCase):
         # Make sure the BDM save was invoked twice.
         self.assertEqual(2, mock_save.call_count)
 
-        self.scrub_stg.assert_called_with(9, self.stg_ftsk)
+        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
