@@ -123,7 +123,8 @@ class TestLPM(test.TestCase):
                               self.lpmdst.check_destination, 'context',
                               src_compute_info, dst_compute_info)
 
-    def test_pre_live_mig(self):
+    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
+    def test_pre_live_mig(self, mock_scrub):
         mock_vol_drv = mock.MagicMock()
         resp = self.lpmdst.pre_live_migration(
             'context', 'block_device_info', 'network_info', 'disk_info',
@@ -134,6 +135,7 @@ class TestLPM(test.TestCase):
         self.assertIsNotNone(resp)
         mock_vol_drv.pre_live_migration_on_destination.assert_called_once_with(
             {}, {})
+        self.assertEqual(1, mock_scrub.call_count)
 
     @mock.patch('pypowervm.tasks.migration.migrate_lpar')
     def test_live_migration(self, mock_migr):
