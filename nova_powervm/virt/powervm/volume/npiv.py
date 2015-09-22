@@ -78,10 +78,61 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         for fabric in self._fabric_names():
             self._remove_maps_for_fabric(fabric)
 
-    def pre_live_migration_on_destination(self):
+    def pre_live_migration_on_source(self, mig_data):
+        """Performs pre live migration steps for the volume on the source host.
+
+        Certain volume connectors may need to pass data from the source host
+        to the target.  This may be required to determine how volumes connect
+        through the Virtual I/O Servers.
+
+        This method gives the volume connector an opportunity to update the
+        mig_data (a dictionary) with any data that is needed for the target
+        host during the pre-live migration step.
+
+        Since the source host has no native pre_live_migration step, this is
+        invoked from check_can_live_migrate_source in the overall live
+        migration flow.
+
+        :param mig_data: A dictionary that the method can update to include
+                         data needed by the pre_live_migration_at_destination
+                         method.
+        """
+        fabrics = self._fabric_names()
+        vios_wraps = self.stg_ftsk.feed
+
+        for fabric in fabrics:
+            npiv_port_maps = self._get_fabric_meta(fabric)
+            if not npiv_port_maps:
+                continue
+
+            client_slots = []
+            for port_map in npiv_port_maps:
+                vios_w, vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
+                    vios_wraps, port_map[1].split())
+                client_slots.append(vfc_map.client_adapter.slot_number)
+
+            # Set the client slots into the fabric data to pass to the
+            # destination.
+            mig_data['npiv_fabric_slots_%s' % fabric] = client_slots
+
+    def pre_live_migration_on_destination(self, src_mig_data, dest_mig_data):
         """Perform pre live migration steps for the volume on the target host.
 
         This method performs any pre live migration that is needed.
+
+        Certain volume connectors may need to pass data from the source host
+        to the target.  This may be required to determine how volumes connect
+        through the Virtual I/O Servers.
+
+        This method will be called after the pre_live_migration_on_source
+        method.  The data from the pre_live call will be passed in via the
+        mig_data.  This method should put its output into the dest_mig_data.
+
+        :param src_mig_data: The migration data from the source server.
+        :param dest_mig_data: The migration data for the destination server.
+                              If the volume connector needs to provide
+                              information to the live_migration command, it
+                              should be added to this dictionary.
         """
         vios_wraps = self.stg_ftsk.feed
         mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
@@ -91,23 +142,40 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         for fabric in self._fabric_names():
             npiv_port_maps = self._get_fabric_meta(fabric)
 
+            # Need to first derive the port mappings that can be passed back
+            # to the source system for the live migration call.  This tells
+            # the source system what 'vfc mappings' to pass in on the live
+            # migration command.
+            slots = src_mig_data['npiv_fabric_slots_%s' % fabric]
+            fabric_mapping = pvm_vfcm.build_migration_mappings_for_fabric(
+                vios_wraps, self._fabric_ports(fabric), slots)
+            dest_mig_data['npiv_fabric_mapping_%s' % fabric] = fabric_mapping
+
+            # Next we need to remove the mappings off the mgmt partition.
             for npiv_port_map in npiv_port_maps:
                 ls = [LOG.info, _LI("Removing mgmt NPIV mapping for instance "
                                     "%(inst)s for fabric %(fabric)s."),
                       {'inst': self.instance.name, 'fabric': fabric}]
-                vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps,
-                                                         npiv_port_map)
+                vios_w, vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
+                    vios_wraps, npiv_port_map[1].split())
 
                 # Add the subtask to remove the mapping from the management
                 # partition.
                 self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
-                    pvm_vfcm.remove_maps, mgmt_uuid, port_map=npiv_port_map,
-                    logspec=ls)
+                    pvm_vfcm.remove_maps, mgmt_uuid,
+                    client_adpt=vfc_map.client_adapter, logspec=ls)
 
         # TODO(thorst) Find a better place for this execute.  Works for now
         # as the stg_ftsk is all local.  Also won't do anything if there
         # happen to be no fabric changes.
         self.stg_ftsk.execute()
+
+        # Collate all of the individual fabric mappings into a single element.
+        full_map = []
+        for key, value in dest_mig_data.items():
+            if key.startswith('npiv_fabric_mapping_'):
+                full_map.extend(value)
+        dest_mig_data['vfc_lpm_mappings'] = full_map
 
     def post_live_migration_at_destination(self, mig_vol_stor):
         """Perform post live migration steps for the volume on the target host.

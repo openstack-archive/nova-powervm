@@ -169,17 +169,20 @@ class LiveMigrationDest(LiveMigration):
             mgmt_task.add_authorized_key(self.drvr.adapter, pub_key)
 
         # For each volume, make sure it's ready to migrate
+        dest_mig_data = {}
         for vol_drv in vol_drvs:
             LOG.info(_LI('Performing pre migration for volume %(volume)s'),
                      dict(volume=vol_drv.volume_id))
             try:
-                vol_drv.pre_live_migration_on_destination()
+                vol_drv.pre_live_migration_on_destination(src_mig_data,
+                                                          dest_mig_data)
             except Exception as e:
                 LOG.exception(e)
                 # It failed.
                 raise LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
                     name=self.instance.name, volume=vol_drv.volume_id)
+        return dest_mig_data
 
     def post_live_migration_at_destination(self, network_info, vol_drvs):
         """Do post migration cleanup on destination host.
@@ -214,7 +217,7 @@ class LiveMigrationSrc(LiveMigration):
     def __init__(self, drvr, instance, dest_data):
         super(LiveMigrationSrc, self).__init__(drvr, instance, {}, dest_data)
 
-    def check_source(self, context, block_device_info):
+    def check_source(self, context, block_device_info, vol_drvs):
         """Check the source host
 
         Here we check the source host to see if it's capable of migrating
@@ -226,6 +229,7 @@ class LiveMigrationSrc(LiveMigration):
 
         :param context: security context
         :param block_device_info: result of _get_instance_block_device_info
+        :param vol_drvs: volume drivers for the attached volumes
         :returns: a dict containing migration info
         """
 
@@ -257,6 +261,11 @@ class LiveMigrationSrc(LiveMigration):
         # Check the number of migrations for capacity
         _verify_migration_capacity(self.drvr.host_wrapper, self.instance)
 
+        # Get the 'source' pre-migration data for the volume drivers.  Should
+        # automatically update the mig_data dictionary as needed.
+        for vol_drv in vol_drvs:
+            vol_drv.pre_live_migration_on_source(mig_data)
+
         # Remove the VOpt devices
         LOG.debug('Removing VOpt.', instance=self.instance)
         media.ConfigDrivePowerVM(self.drvr.adapter, self.drvr.host_uuid
@@ -276,12 +285,20 @@ class LiveMigrationSrc(LiveMigration):
         """
         LOG.debug("Starting migration.", instance=self.instance)
         LOG.debug("Migrate data: %s" % migrate_data)
+
+        # Get the vFC and vSCSI live migration mappings
+        dest_pre_lm_data = migrate_data.get('pre_live_migration_result', {})
+        vfc_mappings = dest_pre_lm_data.get('vfc_lpm_mappings')
+        vscsi_mappings = dest_pre_lm_data.get('vscsi_lpm_mappings')
+
         try:
             # Migrate the LPAR!
             mig.migrate_lpar(self.lpar_w, self.dest_data['dest_sys_name'],
                              validate_only=False,
                              tgt_mgmt_svr=self.dest_data['dest_ip'],
-                             tgt_mgmt_usr=self.dest_data.get('dest_user_id'))
+                             tgt_mgmt_usr=self.dest_data.get('dest_user_id'),
+                             virtual_fc_mappings=vfc_mappings,
+                             virtual_scsi_mappings=vscsi_mappings)
 
         except Exception:
             LOG.error(_LE("Live migration failed."), instance=self.instance)

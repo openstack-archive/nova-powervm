@@ -1076,9 +1076,10 @@ class TestPowerVMDriver(test.TestCase):
 
     def test_pre_live_migr(self):
         block_device_info = self._fake_bdms()
-        self.drv.pre_live_migration(
+        resp = self.drv.pre_live_migration(
             'context', self.lpm_inst, block_device_info, 'network_info',
             'disk_info', migrate_data='migrate_data')
+        self.assertIsNotNone(resp)
 
     def test_live_migration(self):
         mock_post_meth = mock.Mock()

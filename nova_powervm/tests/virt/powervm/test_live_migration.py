@@ -59,7 +59,7 @@ class TestLPM(test.TestCase):
 
             self.assertRaises(lpm.LiveMigrationProcCompat,
                               self.lpmsrc.check_source, 'context',
-                              'block_device_info')
+                              'block_device_info', [])
 
             # Patch the proc compat fields, to get further
             pm = mock.PropertyMock(return_value='b')
@@ -67,22 +67,28 @@ class TestLPM(test.TestCase):
 
             self.assertRaises(lpm.LiveMigrationInvalidState,
                               self.lpmsrc.check_source, 'context',
-                              'block_device_info')
+                              'block_device_info', [])
 
             pm = mock.PropertyMock(return_value='Not_Migrating')
             type(mock_wrap).migration_state = pm
 
+            # Get a volume driver.
+            mock_vol_drv = mock.MagicMock()
+
             # Finally, good path.
-            self.lpmsrc.check_source('context', 'block_device_info')
+            self.lpmsrc.check_source('context', 'block_device_info',
+                                     [mock_vol_drv])
             # Ensure we tried to remove the vopts.
             mock_cd.return_value.dlt_vopt.assert_called_once_with(
                 mock.ANY)
+            mock_vol_drv.pre_live_migration_on_source.assert_called_once_with(
+                {'public_key': None})
 
             # Ensure migration counts are validated
             migr_data['active_migrations_in_progress'] = 4
             self.assertRaises(lpm.LiveMigrationCapacity,
                               self.lpmsrc.check_source, 'context',
-                              'block_device_info')
+                              'block_device_info', [])
 
             # Ensure the vterm was closed
             mock_vterm_close.assert_called_once_with(
@@ -118,9 +124,16 @@ class TestLPM(test.TestCase):
                               src_compute_info, dst_compute_info)
 
     def test_pre_live_mig(self):
-        self.lpmdst.pre_live_migration('context', 'block_device_info',
-                                       'network_info', 'disk_info',
-                                       {}, [])
+        mock_vol_drv = mock.MagicMock()
+        resp = self.lpmdst.pre_live_migration(
+            'context', 'block_device_info', 'network_info', 'disk_info',
+            {}, [mock_vol_drv])
+
+        # Make sure we get something back, and that the volume driver was
+        # invoked.
+        self.assertIsNotNone(resp)
+        mock_vol_drv.pre_live_migration_on_destination.assert_called_once_with(
+            {}, {})
 
     @mock.patch('pypowervm.tasks.migration.migrate_lpar')
     def test_live_migration(self, mock_migr):
@@ -128,13 +141,13 @@ class TestLPM(test.TestCase):
         self.lpmsrc.lpar_w = mock.Mock()
         self.lpmsrc.dest_data = dict(
             dest_sys_name='a', dest_ip='1', dest_user_id='neo')
-        self.lpmsrc.live_migration('context', 'migrate_data')
+        self.lpmsrc.live_migration('context', {})
         mock_migr.called_once_with('context')
 
         # Test that we raise errors received during migration
         mock_migr.side_effect = ValueError()
         self.assertRaises(ValueError, self.lpmsrc.live_migration, 'context',
-                          'migrate_data')
+                          {})
         mock_migr.called_once_with('context')
 
     def test_post_live_mig_src(self):

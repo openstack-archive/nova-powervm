@@ -112,7 +112,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
 
         # Run the method
-        self.vol_drv.pre_live_migration_on_destination()
+        self.vol_drv.pre_live_migration_on_destination({}, {})
 
         # Test exception path
         mock_discover.return_value = (
@@ -120,7 +120,8 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
         # Run the method
         self.assertRaises(p_exc.VolumePreMigrationFailed,
-                          self.vol_drv.pre_live_migration_on_destination)
+                          self.vol_drv.pre_live_migration_on_destination, {},
+                          {})
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')

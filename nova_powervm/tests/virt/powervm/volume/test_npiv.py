@@ -439,3 +439,61 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         mock_set_fabric_meta.reset_mock()
         self.vol_drv.post_live_migration_at_destination(mig_vol_stor)
         self.assertFalse(mock_set_fabric_meta.called)
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.find_vios_for_vfc_wwpns')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_meta')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_fabric_names')
+    def test_pre_live_migration_on_source(
+            self, mock_fabric_names, mock_get_fabric_meta,
+            mock_find_vios_for_vfc_wwpns):
+        mock_fabric_names.return_value = ['A', 'B']
+        mock_get_fabric_meta.side_effect = [
+            [('11', 'AA BB'), ('22', 'CC DD')],
+            [('33', 'EE FF')]]
+
+        def mock_client_adpt(slot):
+            return mock.Mock(client_adapter=mock.Mock(slot_number=slot))
+
+        mock_find_vios_for_vfc_wwpns.side_effect = [
+            (None, mock_client_adpt(1)), (None, mock_client_adpt(2)),
+            (None, mock_client_adpt(3))]
+
+        # Execute the test
+        mig_data = {}
+        self.vol_drv.pre_live_migration_on_source(mig_data)
+
+        self.assertEqual([1, 2], mig_data.get('npiv_fabric_slots_A'))
+        self.assertEqual([3], mig_data.get('npiv_fabric_slots_B'))
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.'
+                'build_migration_mappings_for_fabric')
+    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_meta')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_fabric_names')
+    def test_pre_live_migration_on_destination(
+            self, mock_fabric_names, mock_get_fabric_meta, mock_mgmt_lpar_id,
+            mock_build_mig_map):
+        mock_fabric_names.return_value = ['A', 'B']
+        mock_get_fabric_meta.side_effect = [[], []]
+        mock_mgmt_lpar_id.return_value = mock.Mock(uuid='1')
+
+        src_mig_data = {'npiv_fabric_slots_A': [1, 2],
+                        'npiv_fabric_slots_B': [3]}
+        dest_mig_data = {}
+
+        mock_build_mig_map.side_effect = [['a'], ['b']]
+
+        # Execute the test
+        self.vol_drv.pre_live_migration_on_destination(
+            src_mig_data, dest_mig_data)
+
+        self.assertEqual(['a'], dest_mig_data.get('npiv_fabric_mapping_A'))
+        self.assertEqual(['b'], dest_mig_data.get('npiv_fabric_mapping_B'))
+
+        # Order of the mappings is not important.
+        self.assertEqual(set(['b', 'a']),
+                         set(dest_mig_data.get('vfc_lpm_mappings')))

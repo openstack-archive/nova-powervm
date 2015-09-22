@@ -76,11 +76,24 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # SCSI mapping is for the connections between VIOS and client VM
         return [pvm_vios.VIOS.xags.SCSI_MAPPING]
 
-    def pre_live_migration_on_destination(self):
+    def pre_live_migration_on_destination(self, src_mig_data, dest_mig_data):
         """Perform pre live migration steps for the volume on the target host.
 
         This method performs any pre live migration that is needed.
 
+        Certain volume connectors may need to pass data from the source host
+        to the target.  This may be required to determine how volumes connect
+        through the Virtual I/O Servers.
+
+        This method will be called after the pre_live_migration_on_source
+        method.  The data from the pre_live call will be passed in via the
+        mig_data.  This method should put its output into the dest_mig_data.
+
+        :param src_mig_data: The migration data from the source server.
+        :param dest_mig_data: The migration data for the destination server.
+                              If the volume connector needs to provide
+                              information to the live_migration command, it
+                              should be added to this dictionary.
         """
         volume_id = self.volume_id
         found = False

@@ -975,7 +975,12 @@ class PowerVMDriver(driver.ComputeDriver):
                  instance=instance)
         mig = lpm.LiveMigrationSrc(self, instance, dest_check_data)
         self.live_migrations[instance.uuid] = mig
-        return mig.check_source(context, block_device_info)
+
+        # Get a volume driver for each volume
+        vol_drvs = self._build_vol_drivers(context, instance,
+                                           block_device_info)
+
+        return mig.check_source(context, block_device_info, vol_drvs)
 
     def pre_live_migration(self, context, instance, block_device_info,
                            network_info, disk_info, migrate_data=None):
@@ -997,8 +1002,8 @@ class PowerVMDriver(driver.ComputeDriver):
                                            block_device_info)
 
         # Run pre-live migration
-        mig.pre_live_migration(context, block_device_info, network_info,
-                               disk_info, migrate_data, vol_drvs)
+        return mig.pre_live_migration(context, block_device_info, network_info,
+                                      disk_info, migrate_data, vol_drvs)
 
     def live_migration(self, context, instance, dest,
                        post_method, recover_method, block_migration=False,
