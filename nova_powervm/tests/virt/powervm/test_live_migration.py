@@ -176,3 +176,15 @@ class TestLPM(test.TestCase):
         lpar_w.can_lpm.return_value = (False, 'Not ready for migration reason')
         self.assertRaises(lpm.LiveMigrationNotReady,
                           self.lpmsrc._check_migration_ready, lpar_w, host_w)
+
+    @mock.patch('pypowervm.tasks.migration.migrate_abort')
+    def test_migration_abort(self, mock_mig_abort):
+        self.lpmsrc.lpar_w = mock.Mock()
+        self.lpmsrc.migration_abort()
+        mock_mig_abort.called_once_with(self.lpmsrc.lpar_w)
+
+    @mock.patch('pypowervm.tasks.migration.migrate_recover')
+    def test_migration_recover(self, mock_mig_recover):
+        self.lpmsrc.lpar_w = mock.Mock()
+        self.lpmsrc.migration_recover()
+        mock_mig_recover.called_once_with(self.lpmsrc.lpar_w, force=True)

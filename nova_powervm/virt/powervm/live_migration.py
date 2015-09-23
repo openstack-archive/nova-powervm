@@ -308,7 +308,7 @@ class LiveMigrationSrc(LiveMigration):
         try:
             self.lpar_w.refresh()
             if self.lpar_w.migration_state != 'Not_Migrating':
-                mig.migrate_recover(self.lpar_w, force=True)
+                self.migration_recover()
 
         except Exception as ex:
             LOG.error(_LE("Migration recover failed with error: %s"), ex,
@@ -325,3 +325,20 @@ class LiveMigrationSrc(LiveMigration):
         ready, msg = lpar_w.can_lpm(host_w)
         if not ready:
             raise LiveMigrationNotReady(name=self.instance.name, reason=msg)
+
+    def migration_abort(self):
+        """Abort the migration if the operation exceeds the configured timeout.
+        """
+        LOG.debug("Abort migration.", instance=self.instance)
+        try:
+            mig.migrate_abort(self.lpar_w)
+        except Exception as ex:
+            LOG.error(_LE("Abort of live migration has failed. "
+                          "This is non-blocking. "
+                          "Exception is logged below."))
+            LOG.exception(ex)
+
+    def migration_recover(self):
+        """Recover migration if the migration failed for any reason. """
+        LOG.debug("Recover migration.", instance=self.instance)
+        mig.migrate_recover(self.lpar_w, force=True)

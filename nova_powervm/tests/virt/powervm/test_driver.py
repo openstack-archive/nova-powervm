@@ -1093,9 +1093,26 @@ class TestPowerVMDriver(test.TestCase):
             'context', self.lpm_inst, 'dest', mock.ANY, mock.ANY)
         self.assertEqual(0, mock_rec_meth.call_count)
 
+        # Abort invocation path
+        self._setup_lpm()
+        mock_post_meth.reset_mock()
+        mock_kwargs = {'operation_name': 'op', 'seconds': 10}
+        self.lpm.live_migration.side_effect = (
+            pvm_exc.JobRequestTimedOut(**mock_kwargs))
+        self.assertRaises(
+            lpm.LiveMigrationFailed, self.drv.live_migration,
+            'context', self.lpm_inst, 'dest', mock_post_meth, mock_rec_meth,
+            'block_mig', 'migrate_data')
+        self.lpm.migration_abort.assert_called_once_with()
+        mock_rec_meth.assert_called_once_with(
+            'context', self.lpm_inst, 'dest', mock.ANY, mock.ANY)
+        self.lpm.rollback_live_migration.assert_called_once_with('context')
+        self.assertEqual(0, mock_post_meth.call_count)
+
         # Exception path
         self._setup_lpm()
         mock_post_meth.reset_mock()
+        mock_rec_meth.reset_mock()
         self.lpm.live_migration.side_effect = ValueError()
         self.assertRaises(
             lpm.LiveMigrationFailed, self.drv.live_migration,

@@ -21,7 +21,7 @@ from nova.console import type as console_type
 from nova import context as ctx
 from nova import exception
 from nova import image
-from nova.i18n import _LI, _LW, _
+from nova.i18n import _LI, _LW, _LE, _
 from nova.objects import flavor as flavor_obj
 from nova import utils as n_utils
 from nova.virt import configdrive
@@ -1025,14 +1025,21 @@ class PowerVMDriver(driver.ComputeDriver):
             mig = self.live_migrations[instance.uuid]
             try:
                 mig.live_migration(context, migrate_data)
+            except pvm_exc.JobRequestTimedOut as timeout_ex:
+                # If the migration operation exceeds configured timeout
+                LOG.error(_LE("Live migration timed out. Aborting migration"),
+                          instance=instance)
+                mig.migration_abort()
+                self._migration_exception_util(context, instance, dest,
+                                               recover_method,
+                                               block_migration, migrate_data,
+                                               mig, ex=timeout_ex)
             except Exception as e:
                 LOG.exception(e)
-                LOG.debug("Rolling back live migration.", instance=instance)
-                mig.rollback_live_migration(context)
-                recover_method(context, instance, dest,
-                               block_migration, migrate_data)
-                raise lpm.LiveMigrationFailed(name=instance.name,
-                                              reason=six.text_type(e))
+                self._migration_exception_util(context, instance, dest,
+                                               recover_method,
+                                               block_migration, migrate_data,
+                                               mig, ex=e)
 
             LOG.debug("Calling post live migration method.", instance=instance)
             # Post method to update host in OpenStack and finish live-migration
@@ -1040,6 +1047,32 @@ class PowerVMDriver(driver.ComputeDriver):
         finally:
             # Remove the migration record on the source side.
             del self.live_migrations[instance.uuid]
+
+    def _migration_exception_util(self, context, instance, dest,
+                                  recover_method, block_migration,
+                                  migrate_data, mig, ex):
+        """Migration exception utility.
+
+        :param context: security context
+        :param instance:
+            nova.db.sqlalchemy.models.Instance object
+            instance object that is migrated.
+        :param dest: destination host
+        :param recover_method:
+            recovery method when any exception occurs.
+            expected nova.compute.manager._rollback_live_migration.
+        :param block_migration: if true, migrate VM disk.
+        :param migrate_data: implementation specific params.
+        :param mig: live_migration object
+        :param ex: exception reason
+
+        """
+        LOG.warn(_LW("Rolling back live migration."),
+                 instance=instance)
+        mig.rollback_live_migration(context)
+        recover_method(context, instance, dest, block_migration, migrate_data)
+        raise lpm.LiveMigrationFailed(name=instance.name,
+                                      reason=six.text_type(ex))
 
     def rollback_live_migration_at_destination(self, context, instance,
                                                network_info,
