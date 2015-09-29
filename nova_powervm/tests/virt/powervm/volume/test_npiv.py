@@ -190,13 +190,15 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
                                                  meta_fb_key: meta_fb_map}
 
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_maps')
-    def test_disconnect_volume(self, mock_remove_maps):
+    @mock.patch('pypowervm.tasks.vfc_mapper.find_vios_for_vfc_wwpns')
+    def test_disconnect_volume(self, mock_find_vios, mock_remove_maps):
         # Mock Data
         self.vol_drv.instance.task_state = 'deleting'
 
         meta_key = self.vol_drv._sys_meta_fabric_key('A')
         meta_map = '21000024FF649104,AA,BB,21000024FF649105,CC,DD'
         self.vol_drv.instance.system_metadata = {meta_key: meta_map}
+        mock_find_vios.return_value = (mock.Mock(uuid=self.vios_uuid),)
 
         # Invoke
         self.vol_drv.disconnect_volume()
