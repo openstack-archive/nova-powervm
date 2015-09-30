@@ -100,6 +100,12 @@ class TestVMBuilder(test.TestCase):
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
 
+        # Test processor compatibility
+        flavor.extra_specs = {'powervm:processor_compatibility': 'POWER8'}
+        test_attrs = dict(lpar_attrs, **{'processor_compatibility': 'POWER8'})
+        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
+                         test_attrs)
+
         # Test min, max proc units
         flavor.extra_specs = {'powervm:min_proc_units': '0.5',
                               'powervm:max_proc_units': '2.0'}
