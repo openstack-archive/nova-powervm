@@ -27,6 +27,7 @@ Internals and Programming
 .. toctree::
     :maxdepth: 3
 
+    project_structure
     development_environment
     usage
 

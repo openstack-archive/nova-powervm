@@ -40,6 +40,16 @@ Grab the code::
 Setting up your environment
 ---------------------------
 
-.. todo::
+The purpose of this project is to provide the 'glue' between OpenStack
+Compute (Nova) and PowerVM.  The `pypowervm`_ project is used to control
+PowerVM systems.
 
-    Add in steps for environment setup
+It is recommended that you clone down the OpenStack Nova project along with
+pypowervm into your respective development environment.
+
+Running the tox python targets for tests will automatically clone these down
+via the requirements.
+
+Additional project requirements may be found in the requirements.txt file.
+
+.. _pypowervm: https://github.com/pypowervm/pypowervm

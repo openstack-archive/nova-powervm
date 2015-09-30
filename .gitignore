@@ -6,4 +6,7 @@ nova_powervm.egg-info/
 /.idea/
 .coverage
 /cover/
+.settings/
 doc/build
+AUTHORS
+ChangeLog

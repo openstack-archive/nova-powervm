@@ -2,26 +2,21 @@
 PowerVM Nova Driver
 ===================
 
-Include the URL of your launchpad blueprint:
-
-https://blueprints.launchpad.net/neutron/+spec/example
-
 The IBM PowerVM hypervisor provides virtualization on POWER hardware.  PowerVM
 admins can see benefits in their environments by making use of OpenStack.
 This driver (along with a Neutron ML2 compatible agent and Ceilometer agent)
-will provide capability for admins of PowerVM to use OpenStack natively.
+provides the capability for operators of PowerVM to use OpenStack natively.
 
 
 Problem Description
 ===================
 
 As ecosystems continue to evolve around the POWER platform, a single OpenStack
-driver does not meet all of the needs for the varying hypervisors.  The work
-done here is to build a PowerVM driver within the broader community.  This
-will sit alongside the existing libvirt based driver utilized by PowerKVM
-environments.
+driver does not meet all of the needs for the various hypervisors.  The
+standard libvirt driver provides support for KVM on POWER systems.  This nova
+driver provides PowerVM support to OpenStack environment.
 
-This new driver must meet the following:
+This driver meets the following:
 
 * Built within the community
 
@@ -34,51 +29,48 @@ This new driver must meet the following:
 * Allows attachment of volumes from Cinder over supported protocols
 
 
-The use cases should be the following:
+This driver makes the following use cases available for PowerVM:
 
 * As a deployer, all of the standard lifecycle operations (start, stop,
-  reboot, migrate, destroy, etc...) should be supported on a PowerVM based
+  reboot, migrate, destroy, etc.) should be supported on a PowerVM based
   instance.
 
 * As a deployer, I should be able to capture an instance to an image.
 
+* VNC console to instances deployed.
 
-Proposed Change
-===============
 
-The changes proposed are the following:
+Overview of Architecture
+========================
 
-* Create a PowerVM based driver in a StackForge project.  This will implement
-  the nova/virt/driver Compute Driver.
+The driver enables the following:
 
 * Provide deployments that work with the OpenStack model.
 
-* Driver will be implemented using a new version of the PowerVM REST API.
+* Driver is implemented using a new version of the PowerVM REST API.
 
-* Ephemeral disks will be supported either with Virtual I/O Server (VIOS)
+* Ephemeral disks are supported either with Virtual I/O Server (VIOS)
   hosted local disks or via Shared Storage Pools (a PowerVM cluster file
   system).
 
-* Volume support will be via Cinder through supported protocols for the
-  Hypervisor.
+* Volume support is provided via Cinder through supported protocols for the
+  Hypervisor (virtual SCSI and N-Port ID Virtualization).
 
-* Network integration will be supported via a ML2 compatible Neutron Agent.
+* Live migration support is available when using Shared Storage Pools or boot
+  from volume.
 
-* Automated Functional Testing will be provided to validate changes from the
-  broader OpenStack community against the PowerVM driver.
+* Network integration is supported via the ML2 compatible Neutron Agent.  This
+  is the openstack/networking-powervm project.
 
-* Thorough unit testing will be provided for the driver.
+* Automated Functional Testing is provided to validate changes from the broader
+  OpenStack community against the PowerVM driver.
 
-The changes proposed will bring support for the PowerVM hypervisor into the
-OpenStack ecosystem, following the OpenStack development model.
+* Thorough unit, syntax, and style testing is provided and enforced for the
+  driver.
 
-This development will be done in StackForge in a project named ‘nova-powervm’.
-The intent is that the completion of this work will provide the foundation to
-bring the PowerVM Nova driver (with supporting components) into Nova Core via
-a separate BluePrint in a future release of OpenStack.
-
-Until a subsequent BluePrint is proposed and accepted, this driver is to be
-considered experimental.
+The intention is that this driver follows the OpenStack Nova model and will
+be a candidate for promotion (via a subsequent blueprint) into the nova core
+project.
 
 
 Data Model Impact
@@ -99,10 +91,7 @@ As such, no REST API impacts are anticipated.
 Security Impact
 ---------------
 
-New root wrap policies may need to be updated to support various commands for
-the PowerVM REST API.
-
-No other security impacts are foreseen.
+No new security impacts are anticipated.
 
 
 Notifications Impact
@@ -123,12 +112,19 @@ Performance Impact
 It is a goal of the driver to deploy systems with similar speed and agility
 as the libvirt driver within OpenStack.
 
-Since this process should match the OpenStack model, it is not planned to add
-any new periodic tasks, database queries or other items.
+Most operations are comparable in speed.  Deployment, attach/detach volumes,
+lifecycle, etc... are quick.
 
-Performance impacts should be limited to the Compute Driver, as the changes
-should be consolidated within the driver on the endpoint.  The API processes
-for instance should not be impacted.
+The one exception is if the operator configures the system to use N-Port ID
+Virtualization for storage (NPIV).  This technology provides significant speed
+increases for instance disk performance, but may increase the deployment time
+by several seconds.
+
+The driver is written to support concurrent operations.  It has been tested
+performing 10 concurrent deploys to a given compute node.
+
+Due to the nature of the project, performance impacts are limited to the
+Compute Driver.  The API processes for instance are not impacted.
 
 
 Other Deployer Impact
@@ -137,63 +133,55 @@ Other Deployer Impact
 The cloud administrator will need to refer to documentation on how to
 configure OpenStack for use with a PowerVM hypervisor.
 
-A 'powervm' configuration group will be used to contain all the PowerVM
-specific configuration settings. Existing configuration file attributes will be
-reused as much as possible. This reduces the number of PowerVM specific items
-that will be needed. However, the driver will require some PowerVM specific
-options.
+A 'powervm' configuration group is used to contain all the PowerVM specific
+configuration settings. Existing configuration file attributes will be
+reused as much as possible (e.g. vif_plugging_timeout). This reduces the number
+of PowerVM specific items that will be needed.
 
-In this case, we plan to keep the PowerVM specifics contained within the
-configuration file (and driver code).  These will be documented on the
-driver's wiki page.
+It is the goal of the project to only require minimal additional attributes.
+The deployer may specify additional attributes to fit their configuration.
 
-There should be no impact to customers upgrading their cloud stack as this is
-a genesis driver and should not have database impacts.
+There is no impact to customers upgrading their cloud stack as this is a
+genesis driver and does not have database impacts.
 
 
 Developer Impact
 ----------------
 
-The code for this driver will be contained within a powervm StackForge
-project.  The driver will be contained within /nova/virt/powervm/.  The driver
-will extend nova.virt.driver.ComputeDriver.
+The code for this driver is currently contained within a powervm project.
+The driver is within the /nova_powervm/virt/powervm/ package and extends the
+nova.virt.driver.ComputeDriver class.
 
-The code will interact with PowerVM through the pypowervm library.  This python
+The code interacts with PowerVM through the pypowervm library.  This python
 binding is a wrapper to the PowerVM REST API.  All hypervisor operations will
 interact with the PowerVM REST API via this binding.  The driver will be
 maintained to support future revisions of the PowerVM REST API as needed.
 
 For ephemeral disk support, either a Virtual I/O Server hosted local disk or a
-Shared Storage Pool (a PowerVM clustered file system) will be supported.  For
-volume attachments, the driver will support Cinder based attachments via
-protocols supported by the hypervisor.
+Shared Storage Pool (a PowerVM clustered file system) is supported.  For
+volume attachments, the driver supports Cinder based attachments via
+protocols supported by the hypervisor (e.g. Fibre Channel).
 
-For networking, a blueprint is being proposed for the Neutron project that
-will provide a Neutron ML2 Agent.  This project will be developed in
-StackForge alongside nova-powervm.  The Agent will provide the necessary
-configuration on the Virtual I/O Server.  The Nova driver code will have a
-/nova/virt/powervm/vif.py file that will configure the network adapter on the
-client VM.
+For networking, the networking-powervm project provides a Neutron ML2 Agent.
+The agent provides the necessary configuration on the Virtual I/O Server for
+networking.  The PowerVM Nova driver code creates the VIF for the client VM,
+but the Neutron agent creates the VIF for VLANs.
 
-Automated functional testing will be provided through a third party continuous
-integration system.  It will monitor for incoming Nova change sets, run a set
+Automated functional testing is provided through a third party continuous
+integration system.  It monitors for incoming Nova change sets, runs a set
 of functional tests (lifecycle operations) against the incoming change, and
-provide a non-gating vote (+1 or -1).
+provides a non-gating vote (+1 or -1).
 
 Developers should not be impacted by these changes unless they wish to try the
 driver.
-
-Until a subsequent blueprint is proposed and accepted, unless otherwise noted,
-the driver will be considered experimental.
 
 
 Community Impact
 ----------------
 
-The intent of this blueprint is to bring another driver to OpenStack that
-aligns with the ideals and vision of the community.
-
-It will be discussed in the Nova IRC and mailing lists.
+The intent of this project is to bring another driver to OpenStack that
+aligns with the ideals and vision of the community.  The eventual impact is
+ideally to promote this to core Nova.
 
 
 Alternatives
@@ -214,56 +202,21 @@ Primary assignee:
 
 Other contributors:
    thorst
-   dwarcher
+   ijuwang
    efried
-
-Work Items
-----------
-
-* Create a base PowerVM driver that is non-functional, but defines the methods
-  that need to be implemented.
-
-* Implement the host statistics methods (get_host_stats, get_host_ip_addr,
-  get_host_cpu_stats, get_host_uptime, etc.).
-
-* Implement the spawn method.
-
-* Implement the destroy method.
-
-* Implement the instance information methods (list_instances, instance_exists,
-  poll_rebooting_instances, etc.).
-
-* Implement the live migration methods.  Note that, for ephemeral disks, this
-  will be specific to Shared Storage Pool environments where the Virtual I/O
-  Servers on the source and target systems share the same (clustered) file
-  system.
-
-* Implement support for Cinder volume operations.
-
-* Implement an option to configure an internal management NIC - used for
-  Resource Monitoring and Control (RMC) – as part of deploy.  This is a
-  prerequisite for migration and resize.  This will be controlled as part of
-  the CONF file.
-
-* Implement the network interface methods (attach_interface and
-  detach_interface).  Delegate the Virtual I/O Server work to the
-  corresponding Neutron ML2 agent.
-
-* Implement an automated functional test server that listens for incoming
-  commits from the community and provides a non-gating vote (+1 or -1) on the
-  change.
 
 
 Dependencies
 ============
 
-* Will utilize the PowerVM REST API specification for management.  Will
+* Utilizes the PowerVM REST API specification for management.  Will
   utilize future versions of this specification as it becomes available:
   http://ibm.co/1lThV9R
 
-* Will build on top of the pypowervm library.  This will be a prerequisite to
-  utilizing the driver and identified in the requirements.txt file.
+* Builds on top of the `pypowervm library`_.  This is a prerequisite to
+  utilizing the driver.
 
+.. _pypowervm library: https://github.com/pypowervm
 
 Testing
 =======
@@ -273,16 +226,15 @@ Tempest Tests
 
 Since the tempest tests should be implementation agnostic, the existing
 tempest tests should be able to run against the PowerVM driver without issue.
-This blueprint does not foresee any changes based off this driver.
 
-Thorough unit tests will be created within the Nova project to validate
-specific functions within this driver implementation.
+Thorough unit tests exist within the project to validate specific functions
+within this implementation.
 
 
 Functional Tests
 ----------------
 
-A third party functional test environment will be created.  It will monitor
+A third party functional test environment will be created.  It monitors
 for incoming nova change sets.  Once it detects a new change set, it will
 execute the existing lifecycle API tests.  A non-gating vote (+1 or -1) will
 be provided with information provided (logs) based on the result.
@@ -291,9 +243,8 @@ be provided with information provided (logs) based on the result.
 API Tests
 ---------
 
-The REST APIs are not planned to change as part of this.  Existing APIs should
-be valid.  All testing is planned within the functional testing system and via
-unit tests.
+Existing APIs should be valid.  All testing is planned within the functional
+testing system and via unit tests.
 
 
 Documentation Impact
@@ -302,21 +253,15 @@ Documentation Impact
 User Documentation
 ------------------
 
-Documentation will be contributed which identifies how to configure the
-driver.  This will include configuring the dependencies specified above.
-
-Documentation will be done on wiki, specifically at a minimum to the following
-page: http://docs.openstack.org/trunk/config-reference/content/section_compute-hypervisors.html
-
-Interlock is planned to be done with the OpenStack documentation team.
+See the dev-ref for documentation on how to configure, contribute, use, etc.
+this driver implementation.
 
 
 Developer Documentation
 -----------------------
 
-No developer documentation additions are anticipated.  If the existing
-developer documentation is updated to reflect more hypervisor specific items,
-this driver will follow suit.
+The existing Nova developer documentation should typically suffice.  However,
+until merge into Nova, we will maintain a subset of dev-ref documentation.
 
 
 References

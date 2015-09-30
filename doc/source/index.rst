@@ -17,11 +17,27 @@
 Welcome to nova-powervm's documentation!
 ========================================
 
-This project provides a Nova-compatible compute driver for PowerVM systems.
+This project provides a Nova-compatible compute driver for `PowerVM`_ systems.
+
+The project aims to integrate into OpenStack's Nova project.  Initial
+development is occurring in a separate project until it has matured and met the
+Nova core team's requirements.  As such, all development practices should
+mirror those of the Nova project.
 
 Documentation on Nova can be found at the `Nova Devref`_.
 
+.. _`PowerVM`: http://www-03.ibm.com/systems/power/software/virtualization/
 .. _`Nova Devref`: http://docs.openstack.org/developer/nova/devref
+
+Nova-PowerVM Overview
+=====================
+
+Contents:
+
+.. toctree::
+    :maxdepth: 1
+
+    readme
 
 Nova-PowerVM Policies
 =====================

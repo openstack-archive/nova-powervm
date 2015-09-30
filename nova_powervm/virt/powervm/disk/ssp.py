@@ -38,7 +38,8 @@ ssp_opts = [
                default='',
                help='Cluster hosting the Shared Storage Pool to use for '
                     'storage operations.  If none specified, the host is '
-                    'queried; if a single Cluster is found, it is used.')
+                    'queried; if a single Cluster is found, it is used. '
+                    'Not used unless disk_driver option is set to ssp.')
 ]
 
 
