@@ -19,15 +19,16 @@ import mock
 
 import logging
 from nova import test
-import os
 import pypowervm.tests.test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 import pypowervm.wrappers.managed_system as pvm_ms
 from pypowervm.wrappers.pcm import phyp as pvm_phyp
 
 from nova_powervm.virt.powervm import host as pvm_host
 
 MS_HTTPRESP_FILE = "managedsystem.txt"
+PCM_FILE = "phyp_pcm_data2.txt"
+PCM2_FILE = "phyp_pcm_data3.txt"
 MS_NAME = 'HV4'
 
 LOG = logging.getLogger(__name__)
@@ -90,11 +91,8 @@ class TestHostCPUStats(test.TestCase):
         self.adpt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         # Test data
-        dirname = os.path.dirname(__file__)
-        file_name = os.path.join(dirname, 'data', 'phyp_pcm_data.txt')
-        self.cur_json_resp = pvmhttp.PVMFile(file_name)
-        file_name = os.path.join(dirname, 'data', 'phyp_2_pcm_data.txt')
-        self.prev_json_resp = pvmhttp.PVMFile(file_name)
+        self.cur_json_resp = pvmhttp.PVMFile(PCM_FILE)
+        self.prev_json_resp = pvmhttp.PVMFile(PCM2_FILE)
 
         # Put in the samples.
         self.phyp = pvm_phyp.PhypInfo(self.cur_json_resp.body)

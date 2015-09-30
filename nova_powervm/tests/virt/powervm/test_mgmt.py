@@ -19,7 +19,7 @@ import mock
 from nova import exception
 from nova import test
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from nova_powervm.virt.powervm import exception as npvmex

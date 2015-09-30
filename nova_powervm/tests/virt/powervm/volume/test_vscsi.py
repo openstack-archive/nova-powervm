@@ -16,8 +16,6 @@
 
 import mock
 
-import os
-
 from oslo_config import cfg
 
 from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
@@ -26,13 +24,13 @@ from nova_powervm.virt.powervm.volume import vscsi
 
 from pypowervm.tasks import hdisk
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 CONF = cfg.CONF
 
-VIOS_FEED = 'fake_vios_feed.txt'
+VIOS_FEED = 'fake_vios_feed2.txt'
 VIOS_FEED_MULTI = 'fake_vios_feed_multi.txt'
 
 I_WWPN_1 = '21000024FF649104'
@@ -49,14 +47,9 @@ class BaseVSCSITest(test_vol.TestVolumeAdapter):
         super(BaseVSCSITest, self).setUp()
         self.adpt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
-        # Find directory for response file(s)
-        data_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(data_dir, '../data')
-
         def resp(file_name):
-            file_path = os.path.join(data_dir, file_name)
             return pvmhttp.load_pvm_resp(
-                file_path, adapter=self.adpt).get_response()
+                file_name, adapter=self.adpt).get_response()
         self.vios_feed_resp = resp(vios_feed_file)
 
         self.feed = pvm_vios.VIOS.wrap(self.vios_feed_resp)

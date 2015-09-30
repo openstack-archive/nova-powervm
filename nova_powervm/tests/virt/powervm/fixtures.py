@@ -19,13 +19,12 @@ from __future__ import absolute_import
 
 import fixtures
 import mock
-import os
 
 from nova_powervm.virt.powervm import driver
 
 from nova.virt import fake
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 
 MS_HTTPRESP_FILE = "fake_managedsystem.txt"
 
@@ -93,10 +92,8 @@ class PowerVMComputeDriver(fixtures.Fixture):
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._get_adapter')
     @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     def _init_host(self, *args):
-        file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 'data', MS_HTTPRESP_FILE)
         ms_http = pvmhttp.load_pvm_resp(
-            file_path, adapter=mock.Mock()).get_response()
+            MS_HTTPRESP_FILE, adapter=mock.Mock()).get_response()
         # Pretend it just returned one host
         ms_http.feed.entries = [ms_http.feed.entries[0]]
         self.drv.adapter.read.return_value = ms_http

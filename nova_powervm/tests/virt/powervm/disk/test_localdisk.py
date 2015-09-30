@@ -19,9 +19,8 @@ import mock
 import copy
 from nova import exception as nova_exc
 from nova import test
-import os
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -43,14 +42,9 @@ class TestLocalDisk(test.TestCase):
 
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
-        # Find directory for response file(s)
-        data_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(data_dir, "..", 'data')
-
         def resp(file_name):
-            file_path = os.path.join(data_dir, file_name)
             return pvmhttp.load_pvm_resp(
-                file_path, adapter=self.apt).get_response()
+                file_name, adapter=self.apt).get_response()
 
         self.vg_to_vio = resp(VOL_GRP_WITH_VIOS)
         self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
@@ -394,14 +388,9 @@ class TestLocalDiskFindVG(test.TestCase):
 
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
-        # Find directory for response file(s)
-        data_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(data_dir, "..", 'data')
-
         def resp(file_name):
-            file_path = os.path.join(data_dir, file_name)
             return pvmhttp.load_pvm_resp(
-                file_path, adapter=self.apt).get_response()
+                file_name, adapter=self.apt).get_response()
 
         self.vg_to_vio = resp(VOL_GRP_WITH_VIOS)
         self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)

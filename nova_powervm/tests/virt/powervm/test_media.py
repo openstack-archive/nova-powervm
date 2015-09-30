@@ -17,23 +17,22 @@
 import mock
 
 from nova import test
-import os
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import media as m
 
-VOL_GRP_DATA = 'fake_volume_group.txt'
+VOL_GRP_DATA = 'fake_volume_group2.txt'
 VOL_GRP_NOVG_DATA = 'fake_volume_group_no_vg.txt'
 
 VOL_GRP_WITH_VIOS = 'fake_volume_group_with_vio_data.txt'
 VIOS_WITH_VOL_GRP = 'fake_vios_with_volume_group_data.txt'
 
 VIOS_NO_VG = 'fake_vios_feed_no_vg.txt'
-VIOS_FEED = 'fake_vios_feed.txt'
+VIOS_FEED = 'fake_vios_feed2.txt'
 
 
 class TestConfigDrivePowerVM(test.TestCase):
@@ -42,16 +41,11 @@ class TestConfigDrivePowerVM(test.TestCase):
     def setUp(self):
         super(TestConfigDrivePowerVM, self).setUp()
 
-        # Find directory for response file(s)
-        data_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(data_dir, 'data')
-
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         def resp(file_name):
-            file_path = os.path.join(data_dir, file_name)
             return pvmhttp.load_pvm_resp(
-                file_path, adapter=self.apt).get_response()
+                file_name, adapter=self.apt).get_response()
 
         self.vol_grp_resp = resp(VOL_GRP_DATA)
         self.vol_grp_novg_resp = resp(VOL_GRP_NOVG_DATA)
