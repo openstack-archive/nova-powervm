@@ -1,0 +1,259 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev353\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-09-03 10:53-0400\n"
+"PO-Revision-Date: 2015-09-03 10:53-0400\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:131
+#, python-format
+msgid "Expected exactly one host; found %d"
+msgstr "Se esperaba exactamente un host; se han encontrado %d"
+
+#: nova_powervm/virt/powervm/driver.py:679
+#, python-format
+msgid "Plug vif failed because instance %s was not found."
+msgstr "La conexión de vif ha fallado porque no se ha encontrado la instancia %s."
+
+#: nova_powervm/virt/powervm/driver.py:684
+msgid "Plug vif failed because of an unexpected error."
+msgstr "La conexión de vif ha fallado debido a un error inesperado."
+
+#: nova_powervm/virt/powervm/driver.py:781
+msgid "Cannot reduce disk size."
+msgstr "No se puede reducir el tamaño de disco."
+
+#: nova_powervm/virt/powervm/exception.py:37
+#, python-format
+msgid ""
+"Unable to locate the volume group %(vol_grp)s to store the virtual "
+"optical media within.  Unable to create the media repository."
+msgstr ""
+"NV-5F976E2 No se puede localizar el grupo de volúmenes %(vol_grp)s en el que almacenar "
+"el soporte óptico virtual. No se puede crear el repositorio de soportes."
+
+#: nova_powervm/virt/powervm/exception.py:44
+#, python-format
+msgid "Expected to find exactly one management partition; found %(count)d."
+msgstr ""
+"NV-5E41059 Se esperaba exactamente una partición de gestión; se han encontrado "
+"%(count)d."
+
+#: nova_powervm/virt/powervm/exception.py:50
+#, python-format
+msgid ""
+"Having scanned SCSI bus %(bus)x on the management partition, disk with "
+"UDID %(udid)s failed to appear after %(polls)d polls over %(timeout)d "
+"seconds."
+msgstr ""
+"NV-0611C68 Tras haber explorado el bus SCSI %(bus)x en la partición de gestión, "
+"el disco con el UDID %(udid)s no ha aparecido tras %(polls)d sondeos "
+"durante %(timeout)d segundos."
+
+#: nova_powervm/virt/powervm/exception.py:57
+#, python-format
+msgid ""
+"Expected to find exactly one disk on the management partition at "
+"%(path_pattern)s; found %(count)d."
+msgstr ""
+"NV-042142B Se esperaba encontrar exactamente un disco en la partición de gestión "
+"en %(path_pattern)s; se han encontrado %(count)d."
+
+#: nova_powervm/virt/powervm/exception.py:63
+#, python-format
+msgid ""
+"Device %(devpath)s is still present on the management partition after "
+"attempting to delete it.  Polled %(polls)d times over %(timeout)d "
+"seconds."
+msgstr ""
+"NV-AB822D0 El dispositivo %(devpath)s aún está presente en la partición de "
+"gestión tras intentar suprimirla.  Se ha sondeado %(polls)d veces durante "
+"%(timeout)d segundos."
+
+#: nova_powervm/virt/powervm/exception.py:69
+#, python-format
+msgid ""
+"Failed to map boot disk of instance %(instance_name)s to the management "
+"partition from any Virtual I/O Server."
+msgstr ""
+"NV-9F22861 No se ha podido correlacionar el disco de arranque de la instancia %(instance_name)s con la "
+"partición de gestión de ningún servidor de E/S virtual."
+
+#: nova_powervm/virt/powervm/exception.py:75
+#, python-format
+msgid ""
+"Failed to find newly-created mapping of storage element %(stg_name)s from"
+" Virtual I/O Server %(vios_name)s to the management partition."
+msgstr ""
+"NV-75BCC89 No se ha podido encontrar la correlación que se acaba de crear del elemento de almacenamiento "
+"%(stg_name)s del servidor de E/S virtual %(vios_name)s en la partición "
+"de gestión."
+
+#: nova_powervm/virt/powervm/exception.py:81
+#, python-format
+msgid "Unable to locate the volume group '%(vg_name)s' for this operation."
+msgstr ""
+"NV-CB5875B No se puede localizar el grupo de volúmenes '%(vg_name)s' para esta "
+"operación."
+
+#: nova_powervm/virt/powervm/exception.py:86
+#, python-format
+msgid "Unable to locate the Cluster '%(clust_name)s' for this operation."
+msgstr ""
+"NV-DA1D957 No se puede localizar el clúster '%(clust_name)s' para esta "
+"operación."
+
+#: nova_powervm/virt/powervm/exception.py:91
+msgid "Unable to locate any Cluster for this operation."
+msgstr "NV-17B82F8 No se puede localizar ningún clúster para esta operación."
+
+#: nova_powervm/virt/powervm/exception.py:95
+#, python-format
+msgid ""
+"Unexpectedly found %(clust_count)d Clusters matching name "
+"'%(clust_name)s'."
+msgstr ""
+"NV-218A375 Se han encontrado %(clust_count)d clústeres coincidentes con el nombre, lo que no se esperaba "
+"'%(clust_name)s'."
+
+#: nova_powervm/virt/powervm/exception.py:100
+#, python-format
+msgid ""
+"No cluster_name specified.  Refusing to select one of the %(clust_count)d"
+" Clusters found."
+msgstr ""
+"NV-F07AD8B No se ha especificado ningún cluster_name. Se rechaza seleccionar uno de los "
+"%(clust_count)d clústeres encontrados."
+
+#: nova_powervm/virt/powervm/exception.py:105
+#, python-format
+msgid ""
+"Unable to attach storage (id: %(volume_id)s) to virtual machine "
+"%(instance_name)s.  %(reason)s"
+msgstr ""
+"NV-82FD24F No se puede asociar almacenamiento (id: %(volume_id)s) a la máquina "
+"virtual %(instance_name)s.  %(reason)s"
+
+#: nova_powervm/virt/powervm/exception.py:110
+#, python-format
+msgid ""
+"Unable to detach volume (id: %(volume_id)s) from virtual machine "
+"%(instance_name)s.  %(reason)s"
+msgstr ""
+"NV-30C93CB No se pueden disociar el volumen (id: %(volume_id)s) de la "
+"máquina virtual %(instance_name)s.  %(reason)s"
+
+#: nova_powervm/virt/powervm/exception.py:115
+#, python-format
+msgid ""
+"Unable to perform pre live migration steps on volume (id: %(volume_id)s) "
+"from virtual machine %(instance_name)s."
+msgstr ""
+"NV-D26FA38 No se pueden realizar los pasos previos a migración en vivo en el volumen (id: "
+"%(volume_id)s) desde la máquina virtual %(instance_name)s."
+
+#: nova_powervm/virt/powervm/live_migration.py:36
+#, python-format
+msgid "Live migration of instance '%(name)s' failed for reason: %(reason)s"
+msgstr "La migración en vivo de la instancia '%(name)s' ha fallado por la razón: %(reason)s"
+
+#: nova_powervm/virt/powervm/live_migration.py:41
+#, python-format
+msgid ""
+"Live migration of instance '%(name)s' failed because the migration state "
+"is: %(state)s"
+msgstr ""
+"La migración en vivo de la instancia '%(name)s' ha fallado porque el estado de migración "
+"es: %(state)s"
+
+#: nova_powervm/virt/powervm/live_migration.py:46
+#, python-format
+msgid ""
+"Live migration of instance '%(name)s' failed because it is not ready. "
+"Reason: %(reason)s"
+msgstr ""
+"La migración en vivo de la instancia '%(name)s' ha fallado porque no está lista. "
+"Razón: %(reason)s"
+
+#: nova_powervm/virt/powervm/live_migration.py:51
+#, python-format
+msgid ""
+"Cannot migrate instance '%(name)s' because the memory region size of the "
+"source (%(source_mrs)d MB) does not match the memory region size of the "
+"target (%(target_mrs)d MB)."
+msgstr ""
+"No se puede migrar la instancia '%(name)s' porque el tamaño de región de memoria del "
+"origen (%(source_mrs)d MB) no coincide con el tamaño de región de memoria del "
+"destino (%(target_mrs)d MB)."
+
+#: nova_powervm/virt/powervm/live_migration.py:58
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because its processor compatibility mode %(mode)s"
+" is not in the list of modes \"%(modes)s\" supported by the target host."
+msgstr ""
+"No se puede migrar %(name)s porque su modalidad de compatibilidad de procesador %(mode)s"
+" no está en la lista de modalidades \"%(modes)s\" soportadas por el host de destino."
+
+#: nova_powervm/virt/powervm/live_migration.py:65
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because the host %(host)s only allows %(allowed)s"
+" concurrent migrations and %(running)s migrations are currently running."
+msgstr ""
+"No se puede migrar %(name)s porque el host %(host)s solo permite %(allowed)s"
+" migraciones simultáneas y hay actualmente %(running)s migraciones en ejecución."
+
+#: nova_powervm/virt/powervm/live_migration.py:71
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because the volume %(volume)s cannot be attached "
+"on the destination host %(host)s."
+msgstr ""
+"No se puede migrar %(name)s porque no se puede conectar el volumen %(volume)s "
+"en el host de destino %(host)s."
+
+#: nova_powervm/virt/powervm/vm.py:343
+#, python-format
+msgid "Multiple Shared Processing Pools with name %(pool)s."
+msgstr "Varias agrupaciones de proceso compartidas con el nombre %(pool)s."
+
+#: nova_powervm/virt/powervm/vm.py:347
+#, python-format
+msgid "Unable to find Shared Processing Pool %(pool)s"
+msgstr "No se puede encontrar la agrupación de proceso compartida %(pool)s"
+
+#: nova_powervm/virt/powervm/vm.py:369
+#, python-format
+msgid ""
+"Flavor attribute %(attr)s must be either True or False.  Current value "
+"%(val)s is not allowed."
+msgstr ""
+"El atributo de tipo %(attr)s debe ser True o False.  Valor actual "
+"No se permite %(val)s."
+
+#: nova_powervm/virt/powervm/tasks/network.py:39
+msgid "Virtual interface unplug failed"
+msgstr "La desconexión de interfaz virtual ha fallado"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:175
+#, python-format
+msgid ""
+"Failed to discover valid hdisk on any Virtual I/O Server for volume "
+"%(volume_id)s."
+msgstr ""
+"No se ha podido descubrir hdisk válido en ningún servidor de E/S virtual para el volumen "
+"%(volume_id)s."
+
