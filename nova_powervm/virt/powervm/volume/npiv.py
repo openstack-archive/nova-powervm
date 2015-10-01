@@ -458,12 +458,18 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             ls = [LOG.info, _LI("Removing a NPIV mapping for instance "
                                 "%(inst)s for fabric %(fabric)s."),
                   {'inst': self.instance.name, 'fabric': fabric}]
-            vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
+            vios_w = pvm_vfcm.find_vios_for_vfc_wwpns(vios_wraps,
+                                                      npiv_port_map[1])[0]
 
-            # Add the subtask to remove the specific map
-            self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
-                pvm_vfcm.remove_maps, self.vm_uuid, port_map=npiv_port_map,
-                logspec=ls)
+            if vios_w is not None:
+                # Add the subtask to remove the specific map
+                self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
+                    pvm_vfcm.remove_maps, self.vm_uuid, port_map=npiv_port_map,
+                    logspec=ls)
+            else:
+                LOG.warn(_LW("No storage connections found between the "
+                             "Virtual I/O Servers and FC Fabric %(fabric)s."),
+                         {'fabric': fabric})
 
     def host_name(self):
         """Derives the host name that should be used for the storage device.
