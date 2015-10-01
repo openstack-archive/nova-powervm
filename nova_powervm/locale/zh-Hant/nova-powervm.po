@@ -1,0 +1,259 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev353\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-09-03 10:53-0400\n"
+"PO-Revision-Date: 2015-09-03 10:53-0400\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:131
+#, python-format
+msgid "Expected exactly one host; found %d"
+msgstr "預期只找到一個主機；但卻找到 %d 個"
+
+#: nova_powervm/virt/powervm/driver.py:679
+#, python-format
+msgid "Plug vif failed because instance %s was not found."
+msgstr "插拔 vif 失敗，因為找不到實例 %s。"
+
+#: nova_powervm/virt/powervm/driver.py:684
+msgid "Plug vif failed because of an unexpected error."
+msgstr "插拔 vif 失敗，因為發生非預期的錯誤。"
+
+#: nova_powervm/virt/powervm/driver.py:781
+msgid "Cannot reduce disk size."
+msgstr "無法減少磁碟大小。"
+
+#: nova_powervm/virt/powervm/exception.py:37
+#, python-format
+msgid ""
+"Unable to locate the volume group %(vol_grp)s to store the virtual "
+"optical media within.  Unable to create the media repository."
+msgstr ""
+"NV-5F976E2 找不到磁區群組 %(vol_grp)s 以在其中儲存"
+"虛擬光學媒體。無法建立媒體儲存庫。"
+
+#: nova_powervm/virt/powervm/exception.py:44
+#, python-format
+msgid "Expected to find exactly one management partition; found %(count)d."
+msgstr ""
+"NV-5E41059 預期只找到一個管理分割區；但卻找到"
+"%(count)d."
+
+#: nova_powervm/virt/powervm/exception.py:50
+#, python-format
+msgid ""
+"Having scanned SCSI bus %(bus)x on the management partition, disk with "
+"UDID %(udid)s failed to appear after %(polls)d polls over %(timeout)d "
+"seconds."
+msgstr ""
+"NV-0611C68 在管理分割區上掃描 SCSI 匯流排 %(bus)x 時，"
+"在 %(timeout)d 秒內輪詢 %(polls)d 次之後，"
+"未出現 UDID 為 %(udid)s 的磁碟。"
+
+#: nova_powervm/virt/powervm/exception.py:57
+#, python-format
+msgid ""
+"Expected to find exactly one disk on the management partition at "
+"%(path_pattern)s; found %(count)d."
+msgstr ""
+"NV-042142B 預期在下列位置的管理分割區上只找到一個磁碟："
+"%(path_pattern)s；但卻找到 %(count)d 個。"
+
+#: nova_powervm/virt/powervm/exception.py:63
+#, python-format
+msgid ""
+"Device %(devpath)s is still present on the management partition after "
+"attempting to delete it.  Polled %(polls)d times over %(timeout)d "
+"seconds."
+msgstr ""
+"NV-AB822D0 在嘗試刪除裝置 %(devpath)s 之後，該裝置仍出現在"
+"管理分割區上。在 %(timeout)d 秒內"
+"已輪詢 %(polls)d 次。"
+
+#: nova_powervm/virt/powervm/exception.py:69
+#, python-format
+msgid ""
+"Failed to map boot disk of instance %(instance_name)s to the management "
+"partition from any Virtual I/O Server."
+msgstr ""
+"NV-9F22861 無法將實例 %(instance_name)s 的開機磁碟"
+"從任何 Virtual I/O Server 對映至管理分割區。"
+
+#: nova_powervm/virt/powervm/exception.py:75
+#, python-format
+msgid ""
+"Failed to find newly-created mapping of storage element %(stg_name)s from"
+" Virtual I/O Server %(vios_name)s to the management partition."
+msgstr ""
+"NV-75BCC89 找不到新建立的儲存體元素"
+"%(stg_name)s 的對映（從 Virtual I/O Server %(vios_name)s 對映至"
+"管理分割區）。"
+
+#: nova_powervm/virt/powervm/exception.py:81
+#, python-format
+msgid "Unable to locate the volume group '%(vg_name)s' for this operation."
+msgstr ""
+"NV-CB5875B 找不到磁區群組 '%(vg_name)s' 以用於"
+"這項作業。"
+
+#: nova_powervm/virt/powervm/exception.py:86
+#, python-format
+msgid "Unable to locate the Cluster '%(clust_name)s' for this operation."
+msgstr ""
+"NV-DA1D957 找不到叢集 '%(clust_name)s' 以用於"
+"這項作業。"
+
+#: nova_powervm/virt/powervm/exception.py:91
+msgid "Unable to locate any Cluster for this operation."
+msgstr "NV-17B82F8 找不到任何叢集以用於這項作業。"
+
+#: nova_powervm/virt/powervm/exception.py:95
+#, python-format
+msgid ""
+"Unexpectedly found %(clust_count)d Clusters matching name "
+"'%(clust_name)s'."
+msgstr ""
+"NV-218A375 非預期地找到 %(clust_count)d 個叢集相符名稱"
+"'%(clust_name)s'."
+
+#: nova_powervm/virt/powervm/exception.py:100
+#, python-format
+msgid ""
+"No cluster_name specified.  Refusing to select one of the %(clust_count)d"
+" Clusters found."
+msgstr ""
+"NV-F07AD8B 未指定 cluster_name。正在拒絕選取已找到的"
+"%(clust_count)d 個叢集中的一個。"
+
+#: nova_powervm/virt/powervm/exception.py:105
+#, python-format
+msgid ""
+"Unable to attach storage (id: %(volume_id)s) to virtual machine "
+"%(instance_name)s.  %(reason)s"
+msgstr ""
+"NV-82FD24F 無法將儲存體（ID：%(volume_id)s）連接至虛擬"
+"機器 %(instance_name)s。%(reason)s"
+
+#: nova_powervm/virt/powervm/exception.py:110
+#, python-format
+msgid ""
+"Unable to detach volume (id: %(volume_id)s) from virtual machine "
+"%(instance_name)s.  %(reason)s"
+msgstr ""
+"NV-30C93CB 無法將磁區（ID：%(volume_id)s）從虛擬"
+"機器 %(instance_name)s 分離。%(reason)s"
+
+#: nova_powervm/virt/powervm/exception.py:115
+#, python-format
+msgid ""
+"Unable to perform pre live migration steps on volume (id: %(volume_id)s) "
+"from virtual machine %(instance_name)s."
+msgstr ""
+"NV-D26FA38 無法從虛擬機器 %(instance_name)s 對磁區（ID："
+"%(volume_id)s）執行前置即時移轉步驟。"
+
+#: nova_powervm/virt/powervm/live_migration.py:36
+#, python-format
+msgid "Live migration of instance '%(name)s' failed for reason: %(reason)s"
+msgstr "實例 '%(name)s' 的即時移轉失敗，原因：%(reason)s"
+
+#: nova_powervm/virt/powervm/live_migration.py:41
+#, python-format
+msgid ""
+"Live migration of instance '%(name)s' failed because the migration state "
+"is: %(state)s"
+msgstr ""
+"實例 '%(name)s' 的即時移轉失敗，因為移轉狀態為："
+"%(state)s"
+
+#: nova_powervm/virt/powervm/live_migration.py:46
+#, python-format
+msgid ""
+"Live migration of instance '%(name)s' failed because it is not ready. "
+"Reason: %(reason)s"
+msgstr ""
+"實例 '%(name)s' 的即時移轉失敗，因為該實例尚未備妥。"
+"原因：%(reason)s"
+
+#: nova_powervm/virt/powervm/live_migration.py:51
+#, python-format
+msgid ""
+"Cannot migrate instance '%(name)s' because the memory region size of the "
+"source (%(source_mrs)d MB) does not match the memory region size of the "
+"target (%(target_mrs)d MB)."
+msgstr ""
+"無法移轉實例 '%(name)s'，因為來源的記憶體範圍大小"
+"(%(source_mrs)d MB) 與目標的記憶體範圍大小"
+"(%(target_mrs)d MB) 不符。"
+
+#: nova_powervm/virt/powervm/live_migration.py:58
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because its processor compatibility mode %(mode)s"
+" is not in the list of modes \"%(modes)s\" supported by the target host."
+msgstr ""
+"無法移轉 %(name)s，因為它的處理器相容模式 %(mode)s"
+" 不在目標主機所支援的模式清單 \"%(modes)s\" 中。"
+
+#: nova_powervm/virt/powervm/live_migration.py:65
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because the host %(host)s only allows %(allowed)s"
+" concurrent migrations and %(running)s migrations are currently running."
+msgstr ""
+"無法移轉 %(name)s，因為主機 %(host)s 只容許 %(allowed)s"
+" 個並行移轉，但卻有 %(running)s 個移轉目前在執行中。"
+
+#: nova_powervm/virt/powervm/live_migration.py:71
+#, python-format
+msgid ""
+"Cannot migrate %(name)s because the volume %(volume)s cannot be attached "
+"on the destination host %(host)s."
+msgstr ""
+"無法移轉 %(name)s，因為磁區 %(volume)s 無法連接到"
+"目的地主機 %(host)s。"
+
+#: nova_powervm/virt/powervm/vm.py:343
+#, python-format
+msgid "Multiple Shared Processing Pools with name %(pool)s."
+msgstr "多個「共用處理程序儲存區」具有名稱 %(pool)s。"
+
+#: nova_powervm/virt/powervm/vm.py:347
+#, python-format
+msgid "Unable to find Shared Processing Pool %(pool)s"
+msgstr "找不到「共用處理程序儲存區」%(pool)s"
+
+#: nova_powervm/virt/powervm/vm.py:369
+#, python-format
+msgid ""
+"Flavor attribute %(attr)s must be either True or False.  Current value "
+"%(val)s is not allowed."
+msgstr ""
+"特性屬性 %(attr)s 必須是 True 或 False。不接受現行值"
+"%(val)s。"
+
+#: nova_powervm/virt/powervm/tasks/network.py:39
+msgid "Virtual interface unplug failed"
+msgstr "虛擬介面拔除失敗"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:175
+#, python-format
+msgid ""
+"Failed to discover valid hdisk on any Virtual I/O Server for volume "
+"%(volume_id)s."
+msgstr ""
+"針對下列磁區，無法在任何 Virtual I/O Server 上探索有效硬碟："
+"%(volume_id)s."
+
