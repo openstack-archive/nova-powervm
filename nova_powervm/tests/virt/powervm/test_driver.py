@@ -685,20 +685,32 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual(1, self.vol_drv.connect_volume.call_count)
         self.assertTrue(inst.save.called)
 
-    def test_detach_volume(self):
+    @mock.patch('nova_powervm.virt.powervm.vm.instance_exists')
+    def test_detach_volume(self, mock_inst_exists):
         """Validates the basic PowerVM detach volume."""
         # Set up the mocks to the tasks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         inst.task_state = None
 
+        # Mock that the instance exists for the first test, then not.
+        mock_inst_exists.side_effect = [True, False]
+
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
-        # Invoke the method.
+        # Invoke the method, good path test.
         self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
                                mock.Mock())
 
-        # Verify the connect volume was invoked
+        # Verify the disconnect volume was invoked
         self.assertEqual(1, self.vol_drv.disconnect_volume.call_count)
+
+        # Invoke the method, instance doesn't exist.
+        self.vol_drv.disconnect_volume.reset_mock()
+        self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
+                               mock.Mock())
+
+        # Verify the disconnect volume was not invoked
+        self.assertEqual(0, self.vol_drv.disconnect_volume.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
