@@ -183,7 +183,7 @@ class VMBuilder(object):
         'powervm:dedicated_proc': lpar_bldr.DED_PROCS,
         'powervm:uncapped': None,
         'powervm:dedicated_sharing_mode': None,
-        'powervm:processor_compatibility': '',
+        'powervm:processor_compatibility': lpar_bldr.PROC_COMPAT,
         'powervm:srr_capability': '',
         'powervm:shared_weight': lpar_bldr.UNCAPPED_WEIGHT,
         'powervm:availability_priority': lpar_bldr.AVAIL_PRIORITY,
