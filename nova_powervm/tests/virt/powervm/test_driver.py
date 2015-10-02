@@ -1136,6 +1136,22 @@ class TestPowerVMDriver(test.TestCase):
         self.lpm.rollback_live_migration.assert_called_once_with('context')
         self.assertEqual(0, mock_post_meth.call_count)
 
+        # Ensure we get LiveMigrationFailed even if recovery fails.
+        self._setup_lpm()
+        mock_post_meth.reset_mock()
+        mock_rec_meth.reset_mock()
+        self.lpm.live_migration.side_effect = ValueError()
+        # Cause the recovery method to fail with an exception.
+        mock_rec_meth.side_effect = ValueError()
+        self.assertRaises(
+            lpm.LiveMigrationFailed, self.drv.live_migration,
+            'context', self.lpm_inst, 'dest', mock_post_meth, mock_rec_meth,
+            'block_mig', 'migrate_data')
+        mock_rec_meth.assert_called_once_with(
+            'context', self.lpm_inst, 'dest', mock.ANY, mock.ANY)
+        self.lpm.rollback_live_migration.assert_called_once_with('context')
+        self.assertEqual(0, mock_post_meth.call_count)
+
     def test_rollbk_lpm_dest(self):
         self.drv.rollback_live_migration_at_destination(
             'context', self.lpm_inst, 'network_info', 'block_device_info')

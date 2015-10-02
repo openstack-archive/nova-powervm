@@ -1083,8 +1083,13 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         LOG.warn(_LW("Rolling back live migration."),
                  instance=instance)
-        mig.rollback_live_migration(context)
-        recover_method(context, instance, dest, block_migration, migrate_data)
+        try:
+            mig.rollback_live_migration(context)
+            recover_method(context, instance, dest, block_migration,
+                           migrate_data)
+        except Exception as e:
+            LOG.exception(e)
+
         raise lpm.LiveMigrationFailed(name=instance.name,
                                       reason=six.text_type(ex))
 
