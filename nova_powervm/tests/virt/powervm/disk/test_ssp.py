@@ -20,11 +20,10 @@ import mock
 
 import copy
 from nova import test
-import os
 import pypowervm.adapter as pvm_adp
 import pypowervm.entities as pvm_ent
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import cluster as pvm_clust
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -34,8 +33,8 @@ from nova_powervm.virt.powervm.disk import ssp
 from nova_powervm.virt.powervm import exception as npvmex
 
 
-SSP = 'fake_ssp.txt'
-CLUST = 'fake_cluster.txt'
+SSP = 'ssp.txt'
+CLUST = 'cluster.txt'
 VIO = 'fake_vios_with_volume_group_data.txt'
 
 
@@ -75,16 +74,11 @@ class TestSSPDiskAdapter(test.TestCase):
 
         self.instance = Instance()
 
-        # Find directory for response file(s)
-        data_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(data_dir, "..", 'data')
-
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         def resp(file_name):
-            file_path = os.path.join(data_dir, file_name)
             return pvmhttp.load_pvm_resp(
-                file_path, adapter=self.apt).get_response()
+                file_name, adapter=self.apt).get_response()
 
         self.ssp_resp = resp(SSP)
         self.clust_resp = resp(CLUST)

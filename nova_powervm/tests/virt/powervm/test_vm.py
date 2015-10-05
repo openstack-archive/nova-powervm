@@ -26,7 +26,7 @@ from nova import test
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import network as pvm_net

@@ -32,7 +32,7 @@ from nova.virt import fake
 import pypowervm.adapter as pvm_adp
 import pypowervm.exceptions as pvm_exc
 import pypowervm.tests.test_fixtures as pvm_fx
-from pypowervm.tests.wrappers.util import pvmhttp
+from pypowervm.tests.test_utils import pvmhttp
 import pypowervm.utils.transaction as pvm_tx
 import pypowervm.wrappers.base_partition as pvm_bp
 import pypowervm.wrappers.logical_partition as pvm_lpar
