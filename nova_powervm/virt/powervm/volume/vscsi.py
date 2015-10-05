@@ -28,6 +28,7 @@ from nova_powervm.virt.powervm.volume import driver as v_driver
 
 from pypowervm.tasks import hdisk
 from pypowervm.tasks import scsi_mapper as tsk_map
+from pypowervm.utils import transaction as tx
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -68,7 +69,6 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         super(VscsiVolumeAdapter, self).__init__(
             adapter, host_uuid, instance, connection_info, stg_ftsk=stg_ftsk)
         self._pfc_wwpns = None
-        self._vioses_modified = []
 
     @classmethod
     def min_xags(cls):
@@ -154,9 +154,33 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
     def _connect_volume(self):
         """Connects the volume."""
-        # Get the initiators
-        volume_id = self.volume_id
-        self._vioses_modified = []
+
+        def connect_volume_to_vio(vios_w):
+            """Attempts to connect a volume to a given VIO.
+
+            :param vios_w: The Virtual I/O Server wrapper to connect to.
+            :return: True if the volume was connected.  False if the volume was
+                     not (could be the Virtual I/O Server does not have
+                     connectivity to the hdisk).
+            """
+            status, device_name, udid = self._discover_volume_on_vios(
+                vios_w, self.volume_id)
+
+            if hdisk.good_discovery(status, device_name):
+                # Found a hdisk on this Virtual I/O Server.  Add the action to
+                # map it to the VM when the stg_ftsk is executed.
+                with lockutils.lock(hash(self)):
+                    self._add_append_mapping(vios_w.uuid, device_name)
+
+                # Save the UDID for the disk in the connection info.  It is
+                # used for the detach.
+                self._set_udid(udid)
+                LOG.debug('Device attached: %s', device_name)
+
+                # Valid attachment
+                return True
+
+            return False
 
         # Its about to get weird.  The transaction manager has a list of
         # VIOSes.  We could use those, but they only have SCSI mappings (by
@@ -166,142 +190,114 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # add to the system.  But we don't want to tie it to the stg_ftsk.  If
         # we do, every retry, every etag gather, etc... takes MUCH longer.
         #
-        # So we get the VIOS xag here once, up front.  To save the stg_ftsk
-        # from potentially having to run it many many times.
-        vios_feed = self.adapter.read(pvm_vios.VIOS.schema_type,
-                                      xag=[pvm_vios.VIOS.xags.STORAGE])
-        vios_wraps = pvm_vios.VIOS.wrap(vios_feed)
+        # So we get the VIOSes with the storage xag here, separately, to save
+        # the stg_ftsk from potentially having to run it multiple times.
+        connect_ftsk = tx.FeedTask(
+            'connect_volume_to_vio', pvm_vios.VIOS.getter(
+                self.adapter, xag=[pvm_vios.VIOS.xags.STORAGE]))
+        # Find valid hdisks and map to VM.
+        connect_ftsk.add_functor_subtask(
+            connect_volume_to_vio, provides='vio_modified', flag_update=False)
+        ret = connect_ftsk.execute()
 
-        # Iterate through host vios list to find valid hdisks and map to VM.
-        for vios_w in vios_wraps:
-            if self._connect_volume_to_vio(vios_w, volume_id):
-                self._vioses_modified.append(vios_w.uuid)
-
-        # A valid hdisk was not found so log and exit
-        if len(self._vioses_modified) == 0:
+        # If no valid hdisk was found, log and exit
+        if not any([result['vio_modified']
+                    for result in ret['wrapper_task_rets'].values()]):
             msg = (_('Failed to discover valid hdisk on any Virtual I/O '
                      'Server for volume %(volume_id)s.') %
-                   {'volume_id': volume_id})
+                   {'volume_id': self.volume_id})
             LOG.error(msg)
-            ex_args = {'volume_id': volume_id, 'reason': msg,
+            ex_args = {'volume_id': self.volume_id, 'reason': msg,
                        'instance_name': self.instance.name}
             raise p_exc.VolumeAttachFailed(**ex_args)
 
-    def _connect_volume_to_vio(self, vios_w, volume_id):
-        """Attempts to connect a volume to a given VIO.
-
-        :param vios_w: The Virtual I/O Server wrapper to connect to.
-        :param volume_id: The volume identifier.
-        :return: True if the volume was connected.  False if the volume was not
-                 (could be the Virtual I/O Server does not have connectivity
-                 to the hdisk).
-        """
-
-        status, device_name, udid = self._discover_volume_on_vios(
-            vios_w, volume_id)
-        # Get the initiatior WWPNs, targets and Lun for the given VIOS.
-        vio_wwpns, t_wwpns, lun = self._get_hdisk_itls(vios_w)
-
-        if hdisk.good_discovery(status, device_name):
-            # Found a hdisk on this Virtual I/O Server.  Add the action to
-            # map it to the VM when the stg_ftsk is executed.
-            self._add_append_mapping(vios_w.uuid, device_name)
-
-            # Save the UDID for the disk in the connection info.  It is
-            # used for the detach.
-            self._set_udid(udid)
-            LOG.debug('Device attached: %s', device_name)
-
-            # Valid attachment
-            return True
-
-        return False
-
     def _disconnect_volume(self):
         """Disconnect the volume."""
-        volume_id = self.volume_id
-        self._vioses_modified = []
+        def discon_vol_for_vio(vios_w):
+            """Removes the volume from a specific Virtual I/O Server.
+
+            :param vios_w: The VIOS wrapper.
+            :return: True if a remove action was done against this VIOS.  False
+                     otherwise.
+            """
+            LOG.debug("Disconnect volume %(vol)s from vios uuid %(uuid)s",
+                      dict(vol=self.volume_id, uuid=vios_w.uuid))
+            udid, device_name = None, None
+            try:
+                udid = self._get_udid()
+                if not udid:
+                    # We lost our bdm data. We'll need to discover it.
+                    status, device_name, udid = self._discover_volume_on_vios(
+                        vios_w, self.volume_id)
+
+                if udid and not device_name:
+                    device_name = vios_w.hdisk_from_uuid(udid)
+
+                if not device_name:
+                    LOG.warn(_LW(
+                        "Disconnect Volume: No mapped device found on Virtual "
+                        "I/O Server %(vios)s for volume %(volume_id)s.  "
+                        "Volume UDID: %(volume_uid)s"),
+                        {'volume_uid': udid, 'volume_id': self.volume_id,
+                         'vios': vios_w.name})
+                    return False
+
+            except Exception as e:
+                LOG.warn(_LW(
+                    "Disconnect Volume: Failed to find disk on Virtual I/O "
+                    "Server %(vios_name)s for volume %(volume_id)s. Volume "
+                    "UDID: %(volume_uid)s.  Error: %(error)s"),
+                    {'error': e, 'volume_uid': udid, 'vios_name': vios_w.name,
+                     'volume_id': self.volume_id})
+                return False
+
+            # We have found the device name
+            LOG.info(_LI("Disconnect Volume: Discovered the device %(hdisk)s "
+                         "on Virtual I/O Server %(vios_name)s for volume "
+                         "%(volume_id)s.  Volume UDID: %(volume_uid)s."),
+                     {'volume_uid': udid, 'volume_id': self.volume_id,
+                      'vios_name': vios_w.name, 'hdisk': device_name})
+
+            # Add the action to remove the mapping when the stg_ftsk is run.
+            partition_id = vm.get_vm_id(self.adapter, self.vm_uuid)
+
+            with lockutils.lock(hash(self)):
+                self._add_remove_mapping(partition_id, vios_w.uuid,
+                                         device_name)
+
+                # Add a step after the mapping removal to also remove the
+                # hdisk.
+                self._add_remove_hdisk(vios_w, device_name)
+
+            # Found a valid element to remove
+            return True
+
         try:
-            # See logic in _connect_volume for why this invocation is here.
-            vios_feed = self.adapter.read(pvm_vios.VIOS.schema_type,
-                                          xag=[pvm_vios.VIOS.xags.STORAGE])
-            vios_wraps = pvm_vios.VIOS.wrap(vios_feed)
+            # See logic in _connect_volume for why this new FeedTask is here.
+            discon_ftsk = tx.FeedTask(
+                'discon_volume_from_vio', pvm_vios.VIOS.getter(
+                    self.adapter, xag=[pvm_vios.VIOS.xags.STORAGE]))
+            # Find hdisks to disconnect
+            discon_ftsk.add_functor_subtask(
+                discon_vol_for_vio, provides='vio_modified', flag_update=False)
+            ret = discon_ftsk.execute()
 
-            # Iterate through VIOS feed (from the transaction TaskFeed) to
-            # find hdisks to disconnect.
-            for vios_w in vios_wraps:
-                if self._disconnect_volume_for_vio(vios_w, volume_id):
-                    self._vioses_modified.append(vios_w.uuid)
-
-            if len(self._vioses_modified) == 0:
+            # Warn if no hdisks disconnected.
+            if not any([result['vio_modified']
+                        for result in ret['wrapper_task_rets'].values()]):
                 LOG.warn(_LW("Disconnect Volume: Failed to disconnect the "
                              "volume %(volume_id)s on ANY of the Virtual I/O "
                              "Servers for instance %(inst)s."),
-                         {'inst': self.instance.name, 'volume_id': volume_id})
+                         {'inst': self.instance.name,
+                          'volume_id': self.volume_id})
 
         except Exception as e:
             LOG.error(_LE('Cannot detach volumes from virtual machine: %s'),
                       self.vm_uuid)
             LOG.exception(_LE('Error: %s'), e)
-            ex_args = {'volume_id': volume_id, 'reason': six.text_type(e),
+            ex_args = {'volume_id': self.volume_id, 'reason': six.text_type(e),
                        'instance_name': self.instance.name}
             raise p_exc.VolumeDetachFailed(**ex_args)
-
-    def _disconnect_volume_for_vio(self, vios_w, volume_id):
-        """Removes the volume from a specific Virtual I/O Server.
-
-        :param vios_w: The VIOS wrapper.
-        :param volume_id: The volume identifier to remove.
-        :return: True if a remove action was done against this VIOS.  False
-                 otherwise.
-        """
-        LOG.debug("Disconnect volume %(vol)s from vios uuid %(uuid)s",
-                  dict(vol=volume_id, uuid=vios_w.uuid))
-        udid, device_name = None, None
-        try:
-            udid = self._get_udid()
-            if not udid:
-                # We lost our bdm data. We'll need to discover it.
-                status, device_name, udid = self._discover_volume_on_vios(
-                    vios_w, volume_id)
-
-            if udid and not device_name:
-                device_name = vios_w.hdisk_from_uuid(udid)
-
-            if not device_name:
-                LOG.warn(_LW("Disconnect Volume: No mapped device found on "
-                             "Virtual I/O Server %(vios)s for volume "
-                             "%(volume_id)s.  Volume UDID: %(volume_uid)s"),
-                         {'volume_uid': udid, 'volume_id': volume_id,
-                          'vios': vios_w.name})
-                return False
-
-        except Exception as e:
-            LOG.warn(_LW("Disconnect Volume: Failed to find disk on Virtual "
-                         "I/O Server %(vios_name)s for volume %(volume_id)s. "
-                         "Volume UDID: %(volume_uid)s.  Error: %(error)s"),
-                     {'error': e, 'volume_uid': udid,
-                      'volume_id': volume_id, 'vios_name': vios_w.name})
-            return False
-
-        # We have found the device name
-        LOG.info(_LI("Disconnect Volume: Discovered the device %(hdisk)s on "
-                     "Virtual I/O Server %(vios_name)s for volume "
-                     "%(volume_id)s.  Volume UDID: %(volume_uid)s."),
-                 {'volume_uid': udid, 'volume_id': volume_id,
-                  'vios_name': vios_w.name, 'hdisk': device_name})
-
-        # Add the action to remove the mapping when the stg_ftsk is run.
-        partition_id = vm.get_vm_id(self.adapter, self.vm_uuid)
-        self._add_remove_mapping(partition_id, vios_w.uuid,
-                                 device_name)
-
-        # Add a step after the mapping removal to also remove the
-        # hdisk.
-        self._add_remove_hdisk(vios_w, device_name)
-
-        # Found a valid element to remove
-        return True
 
     def _add_remove_hdisk(self, vio_wrap, device_name):
         """Adds a post-mapping task to remove the hdisk from the VIOS.

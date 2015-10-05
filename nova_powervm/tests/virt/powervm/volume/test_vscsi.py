@@ -149,7 +149,6 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.assertEqual(1, mock_add_map.call_count)
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(1, mock_build_map.call_count)
-        self.assertListEqual([self.vios_uuid], self.vol_drv._vioses_modified)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
@@ -212,7 +211,6 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         mock_remove_hdisk.assert_called_once_with(
             self.adpt, mock.ANY, 'device_name', self.vios_uuid)
-        self.assertListEqual([self.vios_uuid], self.vol_drv._vioses_modified)
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
@@ -232,15 +230,14 @@ class TestVSCSIAdapter(BaseVSCSITest):
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_remove_maps.call_count)
         self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
-        self.assertEqual(1, len(self.vol_drv._vioses_modified))
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_disconnect_volume_no_udid(
-        self, mock_get_vm_id, mock_remove_maps, mock_hdisk_from_uuid,
-        mock_remove_hdisk):
+            self, mock_get_vm_id, mock_remove_maps, mock_hdisk_from_uuid,
+            mock_remove_hdisk):
 
         # The mock return values
         mock_hdisk_from_uuid.return_value = 'device_name'
@@ -264,7 +261,6 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         mock_remove_hdisk.assert_called_once_with(
             self.adpt, mock.ANY, 'dev_name', self.vios_uuid)
-        self.assertListEqual([self.vios_uuid], self.vol_drv._vioses_modified)
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
@@ -275,13 +271,13 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_remove_maps.return_value = None
         mock_hdisk_from_uuid.return_value = None
 
-        # Run the method
-        self.vol_drv.disconnect_volume()
+        # Run the method.  No disconnects should yield a LOG.warn.
+        with self.assertLogs(vscsi.__name__, 'WARNING'):
+            self.vol_drv.disconnect_volume()
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(0, mock_remove_maps.call_count)
         self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
-        self.assertEqual(0, len(self.vol_drv._vioses_modified))
 
     @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')
     def test_wwpns(self, mock_vio_wwpns):
@@ -376,4 +372,3 @@ class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):
         self.assertEqual(2, mock_add_map.call_count)
         self.assertEqual(2, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(2, mock_build_map.call_count)
-        self.assertEqual(2, len(self.vol_drv._vioses_modified))
