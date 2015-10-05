@@ -159,11 +159,18 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 vios_w, vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
                     vios_wraps, npiv_port_map[1].split())
 
-                # Add the subtask to remove the mapping from the management
-                # partition.
-                self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
-                    pvm_vfcm.remove_maps, mgmt_uuid,
-                    client_adpt=vfc_map.client_adapter, logspec=ls)
+                if vios_w is not None:
+                    # Add the subtask to remove the mapping from the management
+                    # partition.
+                    task_wrapper = self.stg_ftsk.wrapper_tasks[vios_w.uuid]
+                    task_wrapper.add_functor_subtask(
+                        pvm_vfcm.remove_maps, mgmt_uuid,
+                        client_adpt=vfc_map.client_adapter, logspec=ls)
+                else:
+                    LOG.warn(_LW("No storage connections found between the "
+                                 "Virtual I/O Servers and FC Fabric "
+                                 "%(fabric)s. The connection might be removed "
+                                 "already."), {'fabric': fabric})
 
         # TODO(thorst) Find a better place for this execute.  Works for now
         # as the stg_ftsk is all local.  Also won't do anything if there
@@ -463,9 +470,10 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
             if vios_w is not None:
                 # Add the subtask to remove the specific map
-                self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
-                    pvm_vfcm.remove_maps, self.vm_uuid, port_map=npiv_port_map,
-                    logspec=ls)
+                task_wrapper = self.stg_ftsk.wrapper_tasks[vios_w.uuid]
+                task_wrapper.add_functor_subtask(
+                    pvm_vfcm.remove_maps, self.vm_uuid,
+                    port_map=npiv_port_map, logspec=ls)
             else:
                 LOG.warn(_LW("No storage connections found between the "
                              "Virtual I/O Servers and FC Fabric %(fabric)s."),

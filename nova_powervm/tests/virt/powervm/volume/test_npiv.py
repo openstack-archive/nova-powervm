@@ -463,6 +463,8 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual([1, 2], mig_data.get('npiv_fabric_slots_A'))
         self.assertEqual([3], mig_data.get('npiv_fabric_slots_B'))
 
+    @mock.patch('pypowervm.tasks.vfc_mapper.remove_maps')
+    @mock.patch('pypowervm.tasks.vfc_mapper.find_vios_for_vfc_wwpns')
     @mock.patch('pypowervm.tasks.vfc_mapper.'
                 'build_migration_mappings_for_fabric')
     @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
@@ -472,7 +474,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
                 '_fabric_names')
     def test_pre_live_migration_on_destination(
             self, mock_fabric_names, mock_get_fabric_meta, mock_mgmt_lpar_id,
-            mock_build_mig_map):
+            mock_build_mig_map, mock_find_vios_for_vfc_wwpns, mock_remove_map):
         mock_fabric_names.return_value = ['A', 'B']
         mock_get_fabric_meta.side_effect = [[], []]
         mock_mgmt_lpar_id.return_value = mock.Mock(uuid='1')
@@ -493,3 +495,18 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Order of the mappings is not important.
         self.assertEqual(set(['b', 'a']),
                          set(dest_mig_data.get('vfc_lpm_mappings')))
+
+        mock_find_vios_for_vfc_wwpns.return_value = None, None
+        dest_mig_data = {}
+        mock_fabric_names.return_value = ['A', 'B']
+        mock_get_fabric_meta.side_effect = [
+            [('11', 'AA BB'), ('22', 'CC DD')],
+            [('33', 'EE FF')]]
+        mock_build_mig_map.side_effect = [['a'], ['b']]
+
+        # Execute the test
+        with self.assertLogs(npiv.__name__, level='WARNING'):
+            self.vol_drv.pre_live_migration_on_destination(
+                src_mig_data, dest_mig_data)
+            # remove_map should not be called since vios_w is None
+            self.assertEqual(0, mock_remove_map.call_count)
