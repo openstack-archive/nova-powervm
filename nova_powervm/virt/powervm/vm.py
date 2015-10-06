@@ -210,7 +210,8 @@ class VMBuilder(object):
         self.adapter = adapter
         self.host_w = host_w
         self.stdz = lpar_bldr.DefaultStandardize(
-            self.host_w, proc_units_factor=CONF.powervm.proc_units_factor)
+            self.host_w, uncapped_weight=CONF.powervm.uncapped_proc_weight,
+            proc_units_factor=CONF.powervm.proc_units_factor)
 
     def lpar_builder(self, instance, flavor):
         """Returns the pypowervm LPARBuilder for a given Nova flavor.
