@@ -137,6 +137,23 @@ class TestLPM(test.TestCase):
             {}, {})
         self.assertEqual(1, mock_scrub.call_count)
 
+    @mock.patch('pypowervm.tasks.management_console.add_authorized_key')
+    def test_pre_live_mig2(self, mock_add_key):
+        vol_drv = mock.Mock()
+        raising_vol_drv = mock.Mock()
+        raising_vol_drv.pre_live_migration_on_destination.side_effect = (
+            Exception('foo'))
+        self.assertRaises(
+            lpm.LiveMigrationVolume, self.lpmdst.pre_live_migration,
+            'context', 'block_device_info', 'network_info', 'disk_info',
+            {'migrate_data': {'public_key': 'abc123'}},
+            [vol_drv, raising_vol_drv])
+        mock_add_key.assert_called_once_with(self.apt, 'abc123')
+        vol_drv.pre_live_migration_on_destination.assert_called_once_with(
+            {'public_key': 'abc123'}, {})
+        (raising_vol_drv.pre_live_migration_on_destination.
+         assert_called_once_with({'public_key': 'abc123'}, {}))
+
     @mock.patch('pypowervm.tasks.migration.migrate_lpar')
     def test_live_migration(self, mock_migr):
 
