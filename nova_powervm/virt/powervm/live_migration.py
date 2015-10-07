@@ -20,6 +20,7 @@ from nova import exception
 from nova.i18n import _, _LE, _LI
 from pypowervm.tasks import management_console as mgmt_task
 from pypowervm.tasks import migration as mig
+from pypowervm.tasks import storage as stor_task
 from pypowervm.tasks import vterm
 
 from oslo_config import cfg
@@ -151,7 +152,6 @@ class LiveMigrationDest(LiveMigration):
         """Prepare an instance for live migration
 
         :param context: security context
-        :param instance: nova.objects.instance.Instance object
         :param block_device_info: instance block device information
         :param network_info: instance network information
         :param disk_info: instance disk information
@@ -182,6 +182,11 @@ class LiveMigrationDest(LiveMigration):
                 raise LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
                     name=self.instance.name, volume=vol_drv.volume_id)
+
+        # Scrub stale/orphan mappings and storage to minimize probability of
+        # collisions on the destination.
+        stor_task.ComprehensiveScrub(self.drvr.adapter).execute()
+
         return dest_mig_data
 
     def post_live_migration_at_destination(self, network_info, vol_drvs):
