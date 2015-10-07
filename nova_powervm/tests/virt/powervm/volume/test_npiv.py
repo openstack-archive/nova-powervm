@@ -244,6 +244,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
     def test_connect_volume_no_map(self):
         """Tests that if the VFC Mapping exists, another is not added."""
         # Mock Data
+        self.vol_drv._fabric_names.return_value = {}
         self.vol_drv.connection_info = {'data': {'initiator_target_map':
                                                  {'a': None, 'b': None},
                                                  'volume_id': 'vid'}}
@@ -510,3 +511,35 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
                 src_mig_data, dest_mig_data)
             # remove_map should not be called since vios_w is None
             self.assertEqual(0, mock_remove_map.call_count)
+
+    def test_set_fabric_meta(self):
+        port_map = [('1', 'aa AA'), ('2', 'bb BB'),
+                    ('3', 'cc CC'), ('4', 'dd DD'),
+                    ('5', 'ee EE'), ('6', 'ff FF'),
+                    ('7', 'gg GG'), ('8', 'hh HH'),
+                    ('9', 'ii II'), ('10', 'jj JJ')]
+        expected = {'npiv_adpt_wwpns_A':
+                    '1,aa,AA,2,bb,BB,3,cc,CC,4,dd,DD',
+                    'npiv_adpt_wwpns_A_2':
+                    '5,ee,EE,6,ff,FF,7,gg,GG,8,hh,HH',
+                    'npiv_adpt_wwpns_A_3':
+                    '9,ii,II,10,jj,JJ'}
+        self.vol_drv.instance.system_metadata = dict()
+        self.vol_drv._set_fabric_meta('A', port_map)
+        self.assertEqual(self.vol_drv.instance.system_metadata, expected)
+
+    def test_get_fabric_meta(self):
+        system_meta = {'npiv_adpt_wwpns_A':
+                       '1,aa,AA,2,bb,BB,3,cc,CC,4,dd,DD',
+                       'npiv_adpt_wwpns_A_2':
+                       '5,ee,EE,6,ff,FF,7,gg,GG,8,hh,HH',
+                       'npiv_adpt_wwpns_A_3':
+                       '9,ii,II,10,jj,JJ'}
+        expected = [('1', 'aa AA'), ('2', 'bb BB'),
+                    ('3', 'cc CC'), ('4', 'dd DD'),
+                    ('5', 'ee EE'), ('6', 'ff FF'),
+                    ('7', 'gg GG'), ('8', 'hh HH'),
+                    ('9', 'ii II'), ('10', 'jj JJ')]
+        self.vol_drv.instance.system_metadata = system_meta
+        fabric_meta = self.vol_drv._get_fabric_meta('A')
+        self.assertEqual(fabric_meta, expected)

@@ -526,7 +526,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     def _set_fabric_meta(self, fabric, port_map):
         """Sets the port map into the instance's system metadata.
 
-        The system metadata will store a per-fabric port map that links the
+        The system metadata will store per-fabric port maps that link the
         physical ports to the virtual ports.  This is needed for the async
         nature between the wwpns call (get_volume_connector) and the
         connect_volume (spawn).
@@ -535,19 +535,38 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :param port_map: The port map (as defined via the derive_npiv_map
                          pypowervm method).
         """
-        # We will store the metadata in a comma-separated string with a
-        # multiple of three tokens. Each set of three comprises the Physical
-        # Port WWPN followed by the two Virtual Port WWPNs:
-        # "p_wwpn1,v_wwpn1,v_wwpn2,p_wwpn2,v_wwpn3,v_wwpn4,..."
+
+        # We will store the metadata in comma-separated strings with up to 4
+        # three-token pairs. Each set of three comprises the Physical Port
+        # WWPN followed by the two Virtual Port WWPNs:
+        # Ex:
+        # npiv_wwpn_adpt_A:
+        #     "p_wwpn1,v_wwpn1,v_wwpn2,p_wwpn2,v_wwpn3,v_wwpn4,..."
+        # npiv_wwpn_adpt_A_2:
+        #     "p_wwpn5,v_wwpn9,vwwpn_10,p_wwpn6,..."
+
         meta_elems = []
-        for p_wwpn, v_wwpns in port_map:
+        for p_wwpn, v_wwpn in port_map:
             meta_elems.append(p_wwpn)
-            meta_elems.extend(v_wwpns.split())
+            meta_elems.extend(v_wwpn.split())
 
-        meta_value = ",".join(meta_elems)
+        fabric_id_iter = 1
         meta_key = self._sys_meta_fabric_key(fabric)
+        key_len = len(meta_key)
+        num_keys = self._get_num_keys(port_map)
 
-        self.instance.system_metadata[meta_key] = meta_value
+        for key in range(num_keys):
+            start_elem = 12 * (fabric_id_iter - 1)
+            meta_value = ",".join(meta_elems[start_elem:start_elem + 12])
+            self.instance.system_metadata[meta_key] = meta_value
+            # If this is not the first time through, replace the end else cat
+            if fabric_id_iter > 1:
+                fabric_id_iter += 1
+                meta_key = meta_key.replace(meta_key[key_len:],
+                                            "_%s" % fabric_id_iter)
+            else:
+                fabric_id_iter += 1
+                meta_key = meta_key + "_%s" % fabric_id_iter
 
     def _get_fabric_meta(self, fabric):
         """Gets the port map from the instance's system metadata.
@@ -559,6 +578,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                  method.
         """
         meta_key = self._sys_meta_fabric_key(fabric)
+
         if self.instance.system_metadata.get(meta_key) is None:
             # If no mappings exist, log a warning.
             LOG.warn(_LW("No NPIV mappings exist for instance %(inst)s on "
@@ -568,8 +588,18 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                      {'inst': self.instance.name, 'fabric': fabric})
             return []
 
-        meta_value = self.instance.system_metadata[meta_key]
-        wwpns = meta_value.split(",")
+        wwpns = self.instance.system_metadata[meta_key]
+        key_len = len(meta_key)
+        iterator = 2
+        meta_key = meta_key + "_" + str(iterator)
+        while self.instance.system_metadata.get(meta_key) is not None:
+            meta_value = self.instance.system_metadata[meta_key]
+            wwpns += "," + meta_value
+            iterator += 1
+            meta_key = meta_key.replace(meta_key[key_len:],
+                                        "_" + str(iterator))
+
+        wwpns = wwpns.split(",")
 
         # Rebuild the WWPNs into the natural structure.
         return [(p, ' '.join([v1, v2])) for p, v1, v2
@@ -591,3 +621,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """Returns the number of virtual ports that should be used per fabric.
         """
         return CONF.powervm.ports_per_fabric
+
+    def _get_num_keys(self, port_map):
+        """Returns the number of keys we need to generate"""
+        # Keys will have up to 4 mapping pairs so we determine based on that
+        if len(port_map) % 4 > 0:
+            return int(len(port_map) / 4 + 1)
+        else:
+            return int(len(port_map) / 4)
