@@ -534,11 +534,9 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance))
 
         # Last step is to power on the system.
-        # TODO(IBM): Currently, sending the bootmode=sms options causes
-        # the poweron job to fail.  Bypass it for now.  The VM can be
-        # powered on manually to sms.
-        # flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid,
-        #                       instance, pwr_opts=dict(bootmode='sms')))
+        flow.add(tf_vm.PowerOn(
+            self.adapter, self.host_uuid, instance,
+            pwr_opts={pvm_pwr.BootMode.KEY: pvm_pwr.BootMode.SMS}))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
