@@ -59,6 +59,14 @@ class TestVMBuilder(test.TestCase):
         self.host_w = mock.MagicMock()
         self.lpar_b = vm.VMBuilder(self.host_w, self.adpt)
 
+    def test_conf_values(self):
+        # Test driver CONF values are passed to the standardizer
+        self.flags(uncapped_proc_weight=75, proc_units_factor=.25,
+                   group='powervm')
+        lpar_bldr = vm.VMBuilder(self.host_w, self.adpt)
+        self.assertEqual(75, lpar_bldr.stdz.uncapped_weight)
+        self.assertEqual(.25, lpar_bldr.stdz.proc_units_factor)
+
     def test_format_flavor(self):
         """Perform tests against _format_flavor."""
         instance = objects.Instance(**powervm.TEST_INSTANCE)
