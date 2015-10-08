@@ -15,6 +15,7 @@
 #    under the License.
 
 import json
+import re
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -168,6 +169,11 @@ class InstanceInfo(hardware.InstanceInfo):
 class VMBuilder(object):
     """Converts a Nova Instance/Flavor into a pypowervm LPARBuilder."""
 
+    _PVM_PROC_COMPAT = 'powervm:processor_compatibility'
+    _PVM_UNCAPPED = 'powervm:uncapped'
+    _PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
+    _PVM_SHAR_PROC_POOL = 'powervm:shared_proc_pool_name'
+
     # Map of PowerVM extra specs to the lpar builder attributes.
     # '' is used for attributes that are not implemented yet.
     # None means there is no direct attribute mapping and must
@@ -181,18 +187,15 @@ class VMBuilder(object):
         'powervm:min_proc_units': lpar_bldr.MIN_PROC_U,
         'powervm:max_proc_units': lpar_bldr.MAX_PROC_U,
         'powervm:dedicated_proc': lpar_bldr.DED_PROCS,
-        'powervm:uncapped': None,
-        'powervm:dedicated_sharing_mode': None,
-        'powervm:processor_compatibility': lpar_bldr.PROC_COMPAT,
-        'powervm:srr_capability': '',
         'powervm:shared_weight': lpar_bldr.UNCAPPED_WEIGHT,
         'powervm:availability_priority': lpar_bldr.AVAIL_PRIORITY,
-        'powervm:shared_proc_pool_name': None
+        _PVM_UNCAPPED: None,
+        _PVM_DED_SHAR_MODE: None,
+        _PVM_PROC_COMPAT: None,
+        _PVM_SHAR_PROC_POOL: None,
+        'powervm:srr_capability': '',
     }
 
-    _PVM_UNCAPPED = 'powervm:uncapped'
-    _PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
-    _PVM_SHAR_PROC_POOL = 'powervm:shared_proc_pool_name'
     _DED_SHARING_MODES_MAP = {
         'share_idle_procs': pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS,
         'keep_idle_procs': pvm_bp.DedicatedSharingMode.KEEP_IDLE_PROCS,
@@ -315,6 +318,10 @@ class VMBuilder(object):
         elif key == self._PVM_SHAR_PROC_POOL:
             pool_name = flavor.extra_specs[key]
             attrs[lpar_bldr.SPP] = self._spp_pool_id(pool_name)
+        elif key == self._PVM_PROC_COMPAT:
+            # Handle variants of the supported values
+            attrs[lpar_bldr.PROC_COMPAT] = re.sub(
+                r'\+', '_Plus', flavor.extra_specs[key])
         # TODO(IBM): Handle other attributes
         else:
             # There was no mapping or we didn't handle it.
