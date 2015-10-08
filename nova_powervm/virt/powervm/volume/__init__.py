@@ -34,7 +34,11 @@ vol_adapter_opts = [
                default='nova_powervm.virt.powervm.volume.vscsi.'
                'VscsiVolumeAdapter',
                help='Volume Adapter API to connect FC volumes through Virtual '
-                    'I/O Server using PowerVM vSCSI connection mechanism')
+                    'I/O Server using PowerVM vSCSI connection mechanism'),
+    cfg.IntOpt('vscsi_vios_connections_required', default=1,
+               help='Indicates a minimum number of Virtual I/O Servers that '
+                    'are required to support a Cinder volume attach with the '
+                    'vSCSI volume connector.')
 ]
 CONF.register_opts(vol_adapter_opts, group='powervm')
 
