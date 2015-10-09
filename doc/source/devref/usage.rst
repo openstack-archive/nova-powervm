@@ -118,6 +118,10 @@ Volume Options
 |                                      | Cinder volumes should be attached to the Virtual Machine.  |
 |                                      | The options are: npiv or vscsi.                            |
 +--------------------------------------+------------------------------------------------------------+
+| vscsi_vios_connections_required = 1  | (IntOpt) Indicates a minimum number of Virtual I/O Servers |
+|                                      | that are required to support a Cinder volume attach with   |
+|                                      | the vSCSI volume connector.                                |
++--------------------------------------+------------------------------------------------------------+
 | ports_per_fabric = 1                 | (IntOpt) (NPIV only) The number of physical ports that     |
 |                                      | should be connected directly to the Virtual Machine, per   |
 |                                      | fabric.                                                    |

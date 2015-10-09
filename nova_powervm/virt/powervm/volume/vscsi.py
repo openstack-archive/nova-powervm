@@ -200,16 +200,44 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             connect_volume_to_vio, provides='vio_modified', flag_update=False)
         ret = connect_ftsk.execute()
 
-        # If no valid hdisk was found, log and exit
-        if not any([result['vio_modified']
-                    for result in ret['wrapper_task_rets'].values()]):
+        # Check the number of VIOSes
+        vioses_modified = 0
+        for result in ret['wrapper_task_rets'].values():
+            if result['vio_modified']:
+                vioses_modified += 1
+        self._validate_vios_on_connection(vioses_modified)
+
+    def _validate_vios_on_connection(self, num_vioses_found):
+        """Validates that the correct number of VIOSes were discovered.
+
+        Certain environments may have redundancy requirements.  For PowerVM
+        this is achieved by having multiple Virtual I/O Servers.  This method
+        will check to ensure that the operator's requirements for redundancy
+        have been met.  If not, a specific error message will be raised.
+
+        :param num_vioses_found: The number of VIOSes the hdisk was found on.
+        """
+        # Is valid as long as the vios count exceeds the conf value.
+        if num_vioses_found >= CONF.powervm.vscsi_vios_connections_required:
+            return
+
+        # Should have a custom message based on zero or 'some but not enough'
+        # I/O Servers.
+        if num_vioses_found == 0:
             msg = (_('Failed to discover valid hdisk on any Virtual I/O '
                      'Server for volume %(volume_id)s.') %
                    {'volume_id': self.volume_id})
-            LOG.error(msg)
-            ex_args = {'volume_id': self.volume_id, 'reason': msg,
-                       'instance_name': self.instance.name}
-            raise p_exc.VolumeAttachFailed(**ex_args)
+        else:
+            msg = (_('Failed to discover the hdisk on the required number of '
+                     'Virtual I/O Servers.  Volume %(volume_id)s required '
+                     '%(vios_req)d Virtual I/O Servers, but the disk was only '
+                     'found on %(vios_act)d Virtual I/O Servers.') %
+                   {'volume_id': self.volume_id, 'vios_act': num_vioses_found,
+                    'vios_req': CONF.powervm.vscsi_vios_connections_required})
+        LOG.error(msg)
+        ex_args = {'volume_id': self.volume_id, 'reason': msg,
+                   'instance_name': self.instance.name}
+        raise p_exc.VolumeAttachFailed(**ex_args)
 
     def _disconnect_volume(self):
         """Disconnect the volume."""

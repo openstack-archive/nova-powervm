@@ -146,8 +146,11 @@ class TestVSCSIAdapter(BaseVSCSITest):
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
-    def test_connect_volume_no_update(self, mock_disc_hdisk, mock_build_map,
-                                      mock_add_map):
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
+                '_validate_vios_on_connection')
+    def test_connect_volume_no_update(
+        self, mock_validate_vioses, mock_disc_hdisk, mock_build_map,
+        mock_add_map):
         """Make sure we don't do an actual update of the VIOS if not needed."""
         # The mock return values
         mock_build_map.return_value = 'fake_map'
@@ -159,6 +162,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.vol_drv.connect_volume()
 
         # As initialized above, remove_maps returns True to trigger update.
+        mock_validate_vioses.assert_called_with(1)
         self.assertEqual(1, mock_add_map.call_count)
         self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(1, mock_disc_hdisk.call_count)
@@ -166,8 +170,11 @@ class TestVSCSIAdapter(BaseVSCSITest):
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
     @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    def test_connect_volume_to_initiatiors(self, mock_add_vscsi_mapping,
-                                           mock_lua_recovery, mock_build_itls):
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
+                '_validate_vios_on_connection')
+    def test_connect_volume_to_initiatiors(
+        self, mock_validate_vioses, mock_add_vscsi_mapping, mock_lua_recovery,
+        mock_build_itls):
         """Tests that the connect w/out initiators throws errors."""
         mock_lua_recovery.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
@@ -175,9 +182,31 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_instance = mock.Mock()
         mock_instance.system_metadata = {}
 
+        mock_validate_vioses.side_effect = p_exc.VolumeAttachFailed(
+            volume_id='1', reason='message', instance_name='inst')
+
         mock_build_itls.return_value = []
         self.assertRaises(p_exc.VolumeAttachFailed,
                           self.vol_drv.connect_volume)
+
+        # Validate that the validate was called with no vioses.
+        mock_validate_vioses.assert_called_with(0)
+
+    def test_validate_vios_on_connection(self):
+        # Happy path!
+        self.vol_drv._validate_vios_on_connection(1)
+
+        # Raise if no VIOSes are found
+        self.assertRaises(p_exc.VolumeAttachFailed,
+                          self.vol_drv._validate_vios_on_connection, 0)
+
+        # Multi VIOS required happy path.
+        self.flags(vscsi_vios_connections_required=2, group='powervm')
+        self.vol_drv._validate_vios_on_connection(2)
+
+        # Raise if multiple VIOSes required
+        self.assertRaises(p_exc.VolumeAttachFailed,
+                          self.vol_drv._validate_vios_on_connection, 1)
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
