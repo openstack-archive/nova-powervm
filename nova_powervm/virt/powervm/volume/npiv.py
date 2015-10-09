@@ -107,8 +107,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
             client_slots = []
             for port_map in npiv_port_maps:
-                vios_w, vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
-                    vios_wraps, port_map[1].split())
+                vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
+                    vios_wraps, port_map[1].split())[1]
                 client_slots.append(vfc_map.client_adapter.slot_number)
 
             # Set the client slots into the fabric data to pass to the
@@ -295,8 +295,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             # Only add it as a 'new' mapping if it isn't on a VIOS already.  If
             # it is, then we know that it has already been serviced, perhaps
             # by a previous volume.
-            vios_w, vfc_map = pvm_vfcm.has_client_wwpns(self.stg_ftsk.feed,
-                                                        c_wwpns)
+            vfc_map = pvm_vfcm.has_client_wwpns(self.stg_ftsk.feed, c_wwpns)[1]
             if vfc_map is None:
                 c_wwpns.reverse()
                 new_wwpns.extend(c_wwpns)
@@ -419,8 +418,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
             # Each port mapping should be removed from the VIOS.
             for npiv_port_map in npiv_port_maps:
-                vios_w = pvm_vfcm.find_vios_for_port_map(
-                    vios_wraps, npiv_port_map)
+                vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps,
+                                                         npiv_port_map)
                 ls = [LOG.info, _LI("Removing NPIV mapping for mgmt partition "
                                     "for instance %(inst)s on VIOS %(vios)s."),
                       {'inst': self.instance.name, 'vios': vios_w.name}]
@@ -465,8 +464,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             ls = [LOG.info, _LI("Removing a NPIV mapping for instance "
                                 "%(inst)s for fabric %(fabric)s."),
                   {'inst': self.instance.name, 'fabric': fabric}]
-            vios_w = pvm_vfcm.find_vios_for_vfc_wwpns(vios_wraps,
-                                                      npiv_port_map[1])[0]
+            vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
 
             if vios_w is not None:
                 # Add the subtask to remove the specific map
