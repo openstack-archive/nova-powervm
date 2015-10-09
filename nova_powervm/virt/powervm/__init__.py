@@ -19,8 +19,8 @@ from oslo_config import cfg
 pvm_opts = [
     cfg.FloatOpt('proc_units_factor',
                  default=0.1,
-                 help='Factor used to calculate the processor units per vcpu.'
-                 ' Valid values are: 0.05 - 1.0'),
+                 help='Factor used to calculate the processor units per vcpu. '
+                 'Valid values are: 0.05 - 1.0'),
     cfg.IntOpt('uncapped_proc_weight',
                default=64,
                help='The processor weight to assign to newly created VMs.  '
@@ -30,12 +30,13 @@ pvm_opts = [
     cfg.StrOpt('vopt_media_volume_group',
                default='rootvg',
                help='The volume group on the system that should be used '
-                    'for the config drive metadata that will be attached '
+                    'to store the config drive metadata that will be attached '
                     'to VMs.'),
     cfg.IntOpt('vopt_media_rep_size',
                default=1,
-               help='The size of the media repository in GB for the metadata '
-                    'for config drive.'),
+               help='The size of the media repository (in GB) for the '
+                    'metadata for config drive.  Only used if the media '
+                    'repository needs to be created.'),
     cfg.StrOpt('image_meta_local_path',
                default='/tmp/cfgdrv/',
                help='The location where the config drive ISO files should be '
@@ -67,7 +68,7 @@ npiv_opts = [
                     'result in 4 NPIV ports being created, two per fabric. '
                     'If multiple Virtual I/O Servers are available, will '
                     'attempt to span ports across I/O Servers.'),
-    cfg.StrOpt('fabrics', default='',
+    cfg.StrOpt('fabrics', default='A',
                help='Unique identifier for each physical FC fabric that is '
                     'available.  This is a comma separated list.  If there '
                     'are two fabrics for multi-pathing, then this could be '

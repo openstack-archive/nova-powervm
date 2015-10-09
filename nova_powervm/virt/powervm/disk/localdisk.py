@@ -36,15 +36,19 @@ localdisk_opts = [
     cfg.StrOpt('volume_group_name',
                default='',
                help='Volume Group to use for block device operations.  Must '
-                    'not be rootvg.'),
+                    'not be rootvg.  If disk_driver is localdisk, and more '
+                    'than one non-rootvg volume group exists across the '
+                    'Virtual I/O Servers, then this attribute must be '
+                    'specified.'),
     cfg.StrOpt('volume_group_vios_name',
                default='',
                help='(Optional) The name of the Virtual I/O Server hosting '
-                    'the volume group.  If not specified, the system will '
-                    'query through the Virtual I/O Servers looking for '
-                    'one that matches the name.  This is only needed if the '
-                    'system has multiple Virtual I/O Servers with a volume '
-                    'group whose name is duplicated.')
+                    'the volume group.  If this is not specified, the system '
+                    'will query through the Virtual I/O Servers looking for '
+                    'one that matches the volume_group_vios_name.  This is '
+                    'only needed if the system has multiple Virtual I/O '
+                    'Servers with a non-rootvg volume group whose name is '
+                    'duplicated.')
 ]
 
 

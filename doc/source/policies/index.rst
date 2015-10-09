@@ -29,7 +29,6 @@ Policies
     bugs
     contributing
     code-reviews
-    readme
 
 Indices and tables
 ------------------
