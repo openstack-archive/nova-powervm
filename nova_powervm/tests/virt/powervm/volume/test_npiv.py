@@ -409,6 +409,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
             self.vol_drv.instance.task_state = state
             self.assertListEqual(['a', 'c'], self.vol_drv.wwpns())
 
+    @mock.patch('pypowervm.tasks.vfc_mapper.find_vios_for_vfc_wwpns')
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_set_fabric_meta')
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
@@ -417,20 +418,28 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
                 '_fabric_names')
     def test_post_live_migration_at_destination(
             self, mock_fabric_names, mock_get_fabric_meta,
-            mock_set_fabric_meta):
+            mock_set_fabric_meta, mock_find_wwpns):
         mock_fabric_names.return_value = ['A', 'B']
         mock_get_fabric_meta.side_effect = [
-            [('11', 'AA BB'), ('22', 'CC DD')],
-            [('33', 'EE FF')]]
+            [('S1', 'AA BB'), ('S2', 'CC DD')],
+            [('S3', 'EE FF')]]
+
+        # This represents the new physical WWPNs on the target server side.
+        mock_find_wwpns.side_effect = [
+            (None, mock.Mock(backing_port=mock.Mock(wwpn='T1'))),
+            (None, mock.Mock(backing_port=mock.Mock(wwpn='T2'))),
+            (None, mock.Mock(backing_port=mock.Mock(wwpn='T3')))]
 
         # Execute the test
         mig_vol_stor = {}
         self.vol_drv.post_live_migration_at_destination(mig_vol_stor)
 
+        # Client WWPNs should be flipped and the new physical WWPNs should be
+        # associated with them.
         mock_set_fabric_meta.assert_any_call(
-            'A', [('11', 'BB AA'), ('22', 'DD CC')])
+            'A', [('T1', 'BB AA'), ('T2', 'DD CC')])
         mock_set_fabric_meta.assert_any_call(
-            'B', [('33', 'FF EE')])
+            'B', [('T3', 'FF EE')])
 
         # Invoke a second time.  Should not 're-flip' or even call set.
         mock_set_fabric_meta.reset_mock()
