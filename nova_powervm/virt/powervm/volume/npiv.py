@@ -195,14 +195,13 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                              call.  Adapters can store data in here that may
                              be used by subsequent volume adapters.
         """
+        vios_wraps = self.stg_ftsk.feed
+
         # This method will run on the target host after the migration is
         # completed.  Right after this the instance.save is invoked from the
         # manager.  Given that, we need to update the order of the WWPNs.
         # The first WWPN is the one that is logged into the fabric and this
         # will now indicate that our WWPN is logged in.
-        #
-        # TODO(thorst) Rather than just flipping...we should query the LPAR
-        # VFC's and find the logged in WWPN.  That guarantees accuracy.
         for fabric in self._fabric_names():
             # We check the mig_vol_stor to see if this fabric has already been
             # flipped.  If so, we can continue.
@@ -214,9 +213,17 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             npiv_port_maps = self._get_fabric_meta(fabric)
             new_port_maps = []
             for port_map in npiv_port_maps:
+                # Flip the WPWNs
                 c_wwpns = port_map[1].split()
                 c_wwpns.reverse()
-                new_map = (port_map[0], " ".join(c_wwpns))
+
+                # Get the new physical WWPN.
+                vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(vios_wraps,
+                                                           c_wwpns)[1]
+                p_wwpn = vfc_map.backing_port.wwpn
+
+                # Build the new map.
+                new_map = (p_wwpn, " ".join(c_wwpns))
                 new_port_maps.append(new_map)
             self._set_fabric_meta(fabric, new_port_maps)
 
