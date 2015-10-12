@@ -555,6 +555,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             meta_elems.append(p_wwpn)
             meta_elems.extend(v_wwpn.split())
 
+        LOG.info(_LI("Fabric %(fabric)s wwpn metadata will be set to "
+                     "%(meta)s for instance %(inst)s"),
+                 {'fabric': fabric, 'meta': ",".join(meta_elems),
+                  'inst': self.instance.name})
+
         fabric_id_iter = 1
         meta_key = self._sys_meta_fabric_key(fabric)
         key_len = len(meta_key)
