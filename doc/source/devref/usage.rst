@@ -16,6 +16,10 @@
 
 Usage
 =====
-- Install the ceilometer-powervm plugin on the compute server
+- Configure the PowerVM system for `NovaLink`_
+- Install the ceilometer-powervm plugin on the `NovaLink`_ VM on the PowerVM
+  Server.
 - Set the hypervisor_inspector in the ceilometer.conf to "powervm"
 - Start the ceilometer-agent-compute on the compute server
+
+.. _NovaLink: http://www-01.ibm.com/common/ssi/cgi-bin/ssialias?infotype=AN&subtype=CA&htmlfid=897/ENUS215-262&appname=USN

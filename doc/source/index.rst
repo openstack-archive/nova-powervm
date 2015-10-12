@@ -24,6 +24,16 @@ Documentation on Ceilometer can be found at the `Ceilometer documentation`_.
 
 .. _`Ceilometer documentation`: http://docs.openstack.org/developer/ceilometer
 
+Ceilometer-PowerVM Information and Configuration
+================================================
+
+Contents:
+
+.. toctree::
+    :maxdepth: 1
+
+    readme
+
 Ceilometer-PowerVM Policies
 ===========================
 

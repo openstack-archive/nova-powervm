@@ -40,6 +40,17 @@ Grab the code::
 Setting up your environment
 ---------------------------
 
-.. todo::
+The purpose of this project is to provide the 'glue' between OpenStack
+Telemetry (Ceilometer) and PowerVM.  The `pypowervm`_ project is used to
+control and monitor PowerVM systems.
 
-    Add in steps for environment setup
+It is recommended that you clone down the OpenStack Ceilometer project along
+with pypowervm into your respective development environment.
+
+Running the tox python targets for tests will automatically clone these down
+via the requirements.  When run with tox, it pulls the necessary requirements
+into a virtualenv.
+
+Additional project requirements may be found in the requirements.txt file.
+
+.. _pypowervm: https://github.com/pypowervm/pypowervm
