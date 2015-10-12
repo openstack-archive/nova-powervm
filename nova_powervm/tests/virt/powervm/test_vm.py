@@ -444,3 +444,21 @@ class TestVM(test.TestCase):
         self.assertEqual(EXPECTED, vm.norm_mac("1234567890ab"))
         self.assertEqual(EXPECTED, vm.norm_mac("12:34:56:78:90:AB"))
         self.assertEqual(EXPECTED, vm.norm_mac("1234567890AB"))
+
+    @mock.patch('pypowervm.tasks.ibmi.update_ibmi_settings')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    def test_update_ibmi_settings(self, mock_lparw, mock_ibmi):
+        instance = mock.MagicMock()
+        # Test update load source with vscsi boot
+        boot_type = 'vscsi'
+        vm.update_ibmi_settings(
+            self.apt, instance, 'host-uuid', boot_type)
+        mock_ibmi.assert_called_once_with(
+            self.apt, mock.ANY, 'vscsi')
+        mock_ibmi.reset_mock()
+        # Test update load source with npiv boot
+        boot_type = 'npiv'
+        vm.update_ibmi_settings(
+            self.apt, instance, 'host-uuid', boot_type)
+        mock_ibmi.assert_called_once_with(
+            self.apt, mock.ANY, 'npiv')

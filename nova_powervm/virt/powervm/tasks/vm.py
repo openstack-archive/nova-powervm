@@ -165,3 +165,28 @@ class Delete(task.Task):
     def execute(self):
         LOG.info(_LI('Deleting instance %s from system.'), self.instance.name)
         vm.dlt_lpar(self.adapter, self.lpar_uuid)
+
+
+class UpdateIBMiSettings(task.Task):
+    """The task to update settings of an ibmi instance."""
+
+    def __init__(self, adapter, instance, host_uuid, boot_type):
+        """Create the Task to update settings of the IBMi VM.
+
+        :param adapter: The adapter for the pypowervm API.
+        :param instance: The nova instance.
+        :param host_uuid: The host's PowerVM UUID.
+        :param boot_type: The boot type of the instance.
+        """
+        super(UpdateIBMiSettings, self).__init__(
+            name='update_ibmi_settings')
+        self.adapter = adapter
+        self.instance = instance
+        self.host_uuid = host_uuid
+        self.boot_type = boot_type
+
+    def execute(self):
+        LOG.info(_LI('Update settings of instance %s.'),
+                 self.instance.name)
+        vm.update_ibmi_settings(
+            self.adapter, self.instance, self.host_uuid, self.boot_type)
