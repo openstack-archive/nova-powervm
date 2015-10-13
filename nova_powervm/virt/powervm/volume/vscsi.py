@@ -258,6 +258,19 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     status, device_name, udid = self._discover_volume_on_vios(
                         vios_w, self.volume_id)
 
+                    # If we have a device name, but not a udid, at this point
+                    # we should not continue.  The hdisk is in a bad state
+                    # in the I/O Server.  Subsequent scrub code on future
+                    # deploys will clean this up.
+                    if not hdisk.good_discovery(status, device_name):
+                        LOG.warn(_LW(
+                            "Disconnect Volume: The backing hdisk for volume "
+                            "%(volume_id)s on Virtual I/O Server %(vios)s is "
+                            "not in a valid state.  No disconnect "
+                            "actions to be taken as volume is not healthy."),
+                            {'volume_id': self.volume_id, 'vios': vios_w.name})
+                        return False
+
                 if udid and not device_name:
                     device_name = vios_w.hdisk_from_uuid(udid)
 
