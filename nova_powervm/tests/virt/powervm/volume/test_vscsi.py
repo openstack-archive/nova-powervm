@@ -253,17 +253,19 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.assertEqual(1, mock_remove_maps.call_count)
         self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
 
+    @mock.patch('pypowervm.tasks.hdisk.good_discovery')
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_disconnect_volume_no_udid(
             self, mock_get_vm_id, mock_remove_maps, mock_hdisk_from_uuid,
-            mock_remove_hdisk):
+            mock_remove_hdisk, mock_good_discover):
 
         # The mock return values
         mock_hdisk_from_uuid.return_value = 'device_name'
         mock_get_vm_id.return_value = 'partition_id'
+        mock_good_discover.return_value = True
 
         def validate_remove_maps(vios_w, vm_uuid, match_func):
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
@@ -283,6 +285,25 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         mock_remove_hdisk.assert_called_once_with(
             self.adpt, mock.ANY, 'dev_name', self.vios_uuid)
+
+    @mock.patch('pypowervm.tasks.hdisk.good_discovery')
+    @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
+    def test_disconnect_volume_no_udid_on_discover(
+            self, mock_remove_maps, mock_remove_hdisk, mock_good_discover):
+        """Ensures that if the UDID can not be found, no disconnect."""
+        mock_good_discover.return_value = False
+        with mock.patch.object(
+            self.vol_drv, '_discover_volume_on_vios',
+            return_value=('status', 'dev_name', None)):
+
+            # Run the method
+            self.vol_drv.disconnect_volume()
+
+        # As initialized above, remove_maps returns True to trigger update.
+        self.assertEqual(0, mock_remove_maps.call_count)
+        self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
+        self.assertEqual(0, mock_remove_hdisk.call_count)
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
