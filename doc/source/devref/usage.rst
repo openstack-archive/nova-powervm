@@ -117,6 +117,13 @@ Volume Options
 | fc_attach_strategy = vscsi           | (StrOpt) The Fibre Channel Volume Strategy defines how FC  |
 |                                      | Cinder volumes should be attached to the Virtual Machine.  |
 |                                      | The options are: npiv or vscsi.                            |
+|                                      |                                                            |
+|                                      | It should be noted that if NPIV is chosen, the WWPNs will  |
+|                                      | not be active on the backing fabric during the deploy.     |
+|                                      | Some Cinder drivers will operate without issue.  Others    |
+|                                      | may query the fabric and thus will fail attachment. It is  |
+|                                      | advised that if an issue occurs using NPIV, the operator   |
+|                                      | fall back to vscsi based deploys.                          |
 +--------------------------------------+------------------------------------------------------------+
 | vscsi_vios_connections_required = 1  | (IntOpt) Indicates a minimum number of Virtual I/O Servers |
 |                                      | that are required to support a Cinder volume attach with   |

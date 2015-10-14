@@ -115,11 +115,6 @@ as the libvirt driver within OpenStack.
 Most operations are comparable in speed.  Deployment, attach/detach volumes,
 lifecycle, etc... are quick.
 
-The one exception is if the operator configures the system to use N-Port ID
-Virtualization for storage (NPIV).  This technology provides significant speed
-increases for instance disk performance, but may increase the deployment time
-by several seconds.
-
 The driver is written to support concurrent operations.  It has been tested
 performing 10 concurrent deploys to a given compute node.
 

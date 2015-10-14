@@ -24,7 +24,6 @@ from pypowervm.tasks import vfc_mapper as pvm_vfcm
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt import powervm
-from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ CONF = cfg.CONF
 WWPN_SYSTEM_METADATA_KEY = 'npiv_adpt_wwpns'
 FABRIC_STATE_METADATA_KEY = 'fabric_state'
 FS_UNMAPPED = 'unmapped'
-FS_MGMT_MAPPED = 'mgmt_mapped'
+FS_MIGRATING = 'migrating'
 FS_INST_MAPPED = 'inst_mapped'
 TASK_STATES_FOR_DISCONNECT = [task_states.DELETING, task_states.SPAWNING]
 
@@ -135,47 +134,16 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                               should be added to this dictionary.
         """
         vios_wraps = self.stg_ftsk.feed
-        mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
 
-        # Each mapping should attempt to remove itself from the management
-        # partition.
+        # Need to first derive the port mappings that can be passed back
+        # to the source system for the live migration call.  This tells
+        # the source system what 'vfc mappings' to pass in on the live
+        # migration command.
         for fabric in self._fabric_names():
-            npiv_port_maps = self._get_fabric_meta(fabric)
-
-            # Need to first derive the port mappings that can be passed back
-            # to the source system for the live migration call.  This tells
-            # the source system what 'vfc mappings' to pass in on the live
-            # migration command.
             slots = src_mig_data['npiv_fabric_slots_%s' % fabric]
             fabric_mapping = pvm_vfcm.build_migration_mappings_for_fabric(
                 vios_wraps, self._fabric_ports(fabric), slots)
             dest_mig_data['npiv_fabric_mapping_%s' % fabric] = fabric_mapping
-
-            # Next we need to remove the mappings off the mgmt partition.
-            for npiv_port_map in npiv_port_maps:
-                ls = [LOG.info, _LI("Removing mgmt NPIV mapping for instance "
-                                    "%(inst)s for fabric %(fabric)s."),
-                      {'inst': self.instance.name, 'fabric': fabric}]
-                vios_w, vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
-                    vios_wraps, npiv_port_map[1].split())
-
-                if vios_w is not None:
-                    # Add the subtask to remove the mapping from the management
-                    # partition.
-                    task_wrapper = self.stg_ftsk.wrapper_tasks[vios_w.uuid]
-                    task_wrapper.add_functor_subtask(
-                        pvm_vfcm.remove_maps, mgmt_uuid,
-                        client_adpt=vfc_map.client_adapter, logspec=ls)
-                else:
-                    LOG.warn(_LW("No storage connections found between the "
-                                 "Virtual I/O Servers and FC Fabric "
-                                 "%(fabric)s. The connection might be removed "
-                                 "already."), {'fabric': fabric})
-
-        # TODO(thorst) Find a better place for this execute.  Works for now
-        # as the stg_ftsk is all local.  Also won't do anything if there
-        # happen to be no fabric changes.
-        self.stg_ftsk.execute()
 
         # Collate all of the individual fabric mappings into a single element.
         full_map = []
@@ -226,6 +194,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 new_map = (p_wwpn, " ".join(c_wwpns))
                 new_port_maps.append(new_map)
             self._set_fabric_meta(fabric, new_port_maps)
+            self._set_fabric_state(fabric, FS_INST_MAPPED)
 
             # Store that this fabric is now flipped.
             mig_vol_stor[fabric_key] = True
@@ -244,9 +213,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         if (fc_state == FS_UNMAPPED and
             self.instance.task_state not in [task_states.DELETING,
                                              task_states.MIGRATING]):
-            LOG.info(_LI("Mapping instance %(inst)s to the mgmt partition for "
-                         "fabric %(fabric)s because the VM does not yet have "
-                         "a valid vFC device."),
+            LOG.info(_LI("Instance %(inst)s has not yet defined a WWPN on "
+                         "fabric %(fabric)s.  Appropriate WWPNs will be "
+                         "generated."),
                      {'inst': self.instance.name, 'fabric': fabric})
             return True
 
@@ -268,71 +237,61 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     def _configure_wwpns_for_migration(self, fabric):
         """Configures the WWPNs for a migration.
 
-        During a NPIV migration, the WWPNs need to be flipped and attached to
-        the management VM.  This is so that the peer WWPN is brought online.
+        During a NPIV migration, the WWPNs need to be flipped.  This is because
+        the second WWPN is what will be logged in on the source system.  So by
+        flipping them, we indicate that the 'second' wwpn is the new one to
+        log in.
 
-        The WWPNs will be removed from the management partition via the
-        pre_live_migration_on_destination method.  The WWPNs invocation is
-        done prior to the migration, when the volume connector is gathered.
+        Another way to think of it is, this code should always return the
+        correct WWPNs for the system that the workload will be running on.
+
+        This WWPNs invocation is done on the target server prior to the
+        actual migration call.  It is used to build the volume connector.
+        Therefore this code simply flips the ports around.
 
         :param fabric: The fabric to configure.
         :return: An updated port mapping.
         """
-        LOG.info(_LI("Mapping instance %(inst)s to the mgmt partition for "
-                     "fabric %(fabric)s because the VM is migrating to "
-                     "this host."),
-                 {'inst': self.instance.name, 'fabric': fabric})
-
-        mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
+        if self._get_fabric_state(fabric) == FS_MIGRATING:
+            # If the fabric is migrating, just return the existing port maps.
+            # They've already been flipped.
+            return self._get_fabric_meta(fabric)
 
         # When we migrate...flip the WWPNs around.  This is so the other
-        # WWPN logs in on the target fabric.  But we should only flip new
-        # WWPNs.  There may already be some on the overall fabric...and if
-        # there are, we keep those 'as-is'
-        #
-        # TODO(thorst) pending API change should be able to indicate which
-        # wwpn is active.
+        # WWPN logs in on the target fabric.  If this code is hit, the flip
+        # hasn't yet occurred (read as first volume on the instance).
         port_maps = self._get_fabric_meta(fabric)
-        existing_wwpns = []
-        new_wwpns = []
-
+        client_wwpns = []
         for port_map in port_maps:
             c_wwpns = port_map[1].split()
+            c_wwpns.reverse()
+            client_wwpns.extend(c_wwpns)
 
-            # Only add it as a 'new' mapping if it isn't on a VIOS already.  If
-            # it is, then we know that it has already been serviced, perhaps
-            # by a previous volume.
-            vfc_map = pvm_vfcm.has_client_wwpns(self.stg_ftsk.feed, c_wwpns)[1]
-            if vfc_map is None:
-                c_wwpns.reverse()
-                new_wwpns.extend(c_wwpns)
-            else:
-                existing_wwpns.extend(c_wwpns)
-
-        # Now derive the mapping to THESE VIOSes physical ports
+        # Now derive the mapping to the VIOS physical ports on this system
+        # (the destination)
         port_mappings = pvm_vfcm.derive_npiv_map(
-            self.stg_ftsk.feed, self._fabric_ports(fabric),
-            new_wwpns + existing_wwpns)
+            self.stg_ftsk.feed, self._fabric_ports(fabric), client_wwpns)
 
-        # Add the port maps to the mgmt partition
-        if len(new_wwpns) > 0:
-            pvm_vfcm.add_npiv_port_mappings(
-                self.adapter, self.host_uuid, mgmt_uuid, port_mappings)
+        # This won't actually get saved by the process.  The instance save will
+        # only occur after the 'post migration'.  But if there are multiple
+        # volumes, their WWPNs calls will subsequently see the data saved
+        # temporarily here, and therefore won't "double flip" the wwpns back
+        # to the original.
+        self._set_fabric_meta(fabric, port_mappings)
+        self._set_fabric_state(fabric, FS_MIGRATING)
+
+        # Return the mappings
         return port_mappings
 
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports."""
-        vios_wraps, mgmt_uuid = None, None
+        vios_wraps = None
         resp_wwpns = []
 
-        # If this is a new mapping altogether, the WWPNs need to be logged
-        # into the fabric so that Cinder can make use of them.  This is a bit
-        # of a catch-22 because the LPAR doesn't exist yet.  So a mapping will
-        # be created against the mgmt partition and then upon VM creation, the
-        # mapping will be moved over to the VM.
-        #
-        # If a mapping already exists, we can instead just pull the data off
-        # of the system metadata from the nova instance.
+        # If this is the first time to query the WWPNs for the instance, we
+        # need to generate a set of valid WWPNs.  Loop through the configured
+        # FC fabrics and determine if these are new, part of a migration, or
+        # were already configured.
         for fabric in self._fabric_names():
             fc_state = self._get_fabric_state(fabric)
             LOG.info(_LI("NPIV wwpns fabric state=%(st)s for "
@@ -340,50 +299,40 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                      {'st': fc_state, 'inst': self.instance.name})
 
             if self._is_initial_wwpn(fc_state, fabric):
-                # At this point we've determined that we need to do a mapping.
-                # So we go and obtain the mgmt uuid and the VIOS wrappers.
-                # We only do this for the first loop through so as to ensure
-                # that we do not keep invoking these expensive calls
+                # It is a new WWPN.  Need to investigate the Virtual I/O
+                # Servers.  We only do this for the first loop through so as
+                # to ensure that we do not keep invoking the expensive call
                 # unnecessarily.
-                if mgmt_uuid is None:
-                    mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
-
-                    # The VIOS wrappers are also not set at this point.  Seed
-                    # them as well.  Will get reused on subsequent loops.
+                if vios_wraps is None:
+                    # The VIOS wrappers are not set at this point.  Seed
+                    # them.  Will get reused on subsequent loops.
                     vios_wraps = self.stg_ftsk.feed
 
+                # Get a set of WWPNs that are globally unique from the system.
+                v_wwpns = pvm_vfcm.build_wwpn_pair(
+                    self.adapter, self.host_uuid,
+                    pair_count=self._ports_per_fabric())
+
                 # Derive the virtual to physical port mapping
-                port_maps = pvm_vfcm.derive_base_npiv_map(
-                    vios_wraps, self._fabric_ports(fabric),
-                    self._ports_per_fabric())
+                port_maps = pvm_vfcm.derive_npiv_map(
+                    vios_wraps, self._fabric_ports(fabric), v_wwpns)
 
                 # Every loop through, we reverse the vios wrappers.  This is
                 # done so that if Fabric A only has 1 port, it goes on the
                 # first VIOS.  Then Fabric B would put its port on a different
-                # VIOS.  As a form of multi pathing (so that your paths were
-                # not restricted to a single VIOS).
+                # VIOS.  This servers as a form of multi pathing (so that your
+                # paths are not restricted to a single VIOS).
                 vios_wraps.reverse()
-
-                # Check if the fabrics are unmapped then we need to map it
-                # temporarily with the management partition.
-                LOG.info(_LI("Adding NPIV Mapping with mgmt partition for "
-                             "instance %s") % self.instance.name)
-                port_maps = pvm_vfcm.add_npiv_port_mappings(
-                    self.adapter, self.host_uuid, mgmt_uuid, port_maps)
 
                 # Set the fabric meta (which indicates on the instance how
                 # the fabric is mapped to the physical port) and the fabric
                 # state.
                 self._set_fabric_meta(fabric, port_maps)
-                self._set_fabric_state(fabric, FS_MGMT_MAPPED)
+                self._set_fabric_state(fabric, FS_UNMAPPED)
             elif self._is_migration_wwpn(fc_state):
+                # The migration process requires the 'second' wwpn from the
+                # fabric to be used.
                 port_maps = self._configure_wwpns_for_migration(fabric)
-
-                # This won't actually get saved by the process.  The save will
-                # only occur after the 'post migration'.  But if there are
-                # multiple volumes, their WWPNs calls will subsequently see
-                # the data saved temporarily here.
-                self._set_fabric_meta(fabric, port_maps)
             else:
                 # This specific fabric had been previously set.  Just pull
                 # from the meta (as it is likely already mapped to the
@@ -404,37 +353,10 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     def _add_maps_for_fabric(self, fabric):
         """Adds the vFC storage mappings to the VM for a given fabric.
 
-        Will check if the Fabric is mapped to the management partition.  If it
-        is, then it will remove the mappings and update the fabric state. This
-        is because, in order for the WWPNs to be on the fabric (for Cinder)
-        before the VM is online, the WWPNs get mapped to the management
-        partition.
-
-        This method will remove from the management partition (if needed), and
-        then assign it to the instance itself.
-
         :param fabric: The fabric to add the mappings to.
         """
         npiv_port_maps = self._get_fabric_meta(fabric)
         vios_wraps = self.stg_ftsk.feed
-
-        # If currently mapped to the mgmt partition, remove the mappings so
-        # that they can be added to the client.
-        if self._get_fabric_state(fabric) == FS_MGMT_MAPPED:
-            mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
-
-            # Each port mapping should be removed from the VIOS.
-            for npiv_port_map in npiv_port_maps:
-                vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps,
-                                                         npiv_port_map)
-                ls = [LOG.info, _LI("Removing NPIV mapping for mgmt partition "
-                                    "for instance %(inst)s on VIOS %(vios)s."),
-                      {'inst': self.instance.name, 'vios': vios_w.name}]
-
-                # Add the subtask to remove the map from the mgmt partition
-                self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
-                    pvm_vfcm.remove_maps, mgmt_uuid, port_map=npiv_port_map,
-                    logspec=ls)
 
         # This loop adds the maps from the appropriate VIOS to the client VM
         for npiv_port_map in npiv_port_maps:
@@ -499,7 +421,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
          Possible Valid States:
          FS_UNMAPPED: Initial state unmapped.
-         FS_MGMT_MAPPED: Fabric is mapped with the management partition
          FS_INST_MAPPED: Fabric is mapped with the nova instance.
         """
         meta_key = self._sys_fabric_state_key(fabric)
@@ -515,7 +436,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
          Possible Valid States:
          FS_UNMAPPED: Initial state unmapped.
-         FS_MGMT_MAPPED: Fabric is mapped with the management partition
          FS_INST_MAPPED: Fabric is mapped with the nova instance.
         """
         meta_key = self._sys_fabric_state_key(fabric)

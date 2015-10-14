@@ -90,73 +90,8 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.mock_fabric_names_p.stop()
         self.mock_fabric_ports_p.stop()
 
-    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
-    @mock.patch('pypowervm.tasks.vfc_mapper.remove_maps')
-    def test_connect_volume(self, mock_remove_maps, mock_add_map,
-                            mock_mgmt_lpar_id):
-        # Mock
-        self._basic_system_metadata(npiv.FS_MGMT_MAPPED)
-        mock_mgmt_lpar_id.return_value = mock.Mock(uuid='1')
-
-        def validate_remove_maps(vios_w, lpar_uuid, client_adpt=None,
-                                 port_map=None, **kwargs):
-            self.assertEqual('1', lpar_uuid)
-            self.assertIsInstance(vios_w, pvm_vios.VIOS)
-            self.assertIsNone(client_adpt)
-            self.assertEqual(('21000024FF649104', 'AA BB'), port_map)
-            return 'removed'
-        mock_remove_maps.side_effect = validate_remove_maps
-
-        def add_map(vios_w, host_uuid, vm_uuid, port_map, **kwargs):
-            self.assertIsInstance(vios_w, pvm_vios.VIOS)
-            self.assertEqual('host_uuid', host_uuid)
-            self.assertEqual('1234', vm_uuid)
-            self.assertEqual(('21000024FF649104', 'AA BB'), port_map)
-            return 'good'
-        mock_add_map.side_effect = add_map
-
-        # Test connect volume when the fabric is mapped with mgmt partition
-        self.vol_drv.connect_volume()
-
-        # Verify.  Mgmt mapping should be removed
-        self.assertEqual(1, mock_remove_maps.call_count)
-        self.assertEqual(1, mock_add_map.call_count)
-        self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
-        self.assertEqual(npiv.FS_INST_MAPPED,
-                         self.vol_drv._get_fabric_state('A'))
-
-    def test_connect_volume_not_valid(self):
-        """Validates that a connect will fail if in a bad state."""
-        self.mock_inst_wrap.can_modify_io.return_value = False, 'Bleh'
-        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume)
-
-    @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
-    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
-    def test_connect_volume_inst_mapped(self, mock_remove_p_maps,
-                                        mock_add_map):
-        """Test if already connected to an instance, don't do anything"""
-        self._basic_system_metadata(npiv.FS_INST_MAPPED)
-        mock_add_map.return_value = None
-
-        # Test subsequent connect volume calls when the fabric is mapped with
-        # inst partition
-        self.vol_drv.connect_volume()
-
-        # Verify
-        # Remove mapping should not be called
-        self.assertEqual(0, mock_remove_p_maps.call_count)
-        self.assertEqual(1, mock_add_map.call_count)
-        self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
-
-        # Check the fabric state remains mapped to instance
-        self.assertEqual(npiv.FS_INST_MAPPED,
-                         self.vol_drv._get_fabric_state('A'))
-
-    @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
-    @mock.patch('pypowervm.tasks.vfc_mapper.remove_npiv_port_mappings')
-    def test_connect_volume_fc_unmap(self, mock_remove_p_maps,
-                                     mock_add_map):
+    def test_connect_volume(self, mock_add_map):
         # Mock
         self._basic_system_metadata(npiv.FS_UNMAPPED)
 
@@ -168,13 +103,37 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
             return 'good'
         mock_add_map.side_effect = add_map
 
-        # TestCase when there is no mapping
+        # Test connect volume
         self.vol_drv.connect_volume()
 
-        # Remove mapping should not be called
-        self.assertEqual(0, mock_remove_p_maps.call_count)
+        # Verify that the appropriate connections were made.
         self.assertEqual(1, mock_add_map.call_count)
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
+        self.assertEqual(npiv.FS_INST_MAPPED,
+                         self.vol_drv._get_fabric_state('A'))
+
+    def test_connect_volume_not_valid(self):
+        """Validates that a connect will fail if in a bad state."""
+        self.mock_inst_wrap.can_modify_io.return_value = False, 'Invalid I/O'
+        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume)
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
+    def test_connect_volume_inst_mapped(self, mock_add_map):
+        """Test if already connected to an instance, don't do anything"""
+        self._basic_system_metadata(npiv.FS_INST_MAPPED)
+        mock_add_map.return_value = None
+
+        # Test subsequent connect volume calls when the fabric is mapped with
+        # inst partition
+        self.vol_drv.connect_volume()
+
+        # Verify
+        self.assertEqual(1, mock_add_map.call_count)
+        self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
+
+        # Check the fabric state remains mapped to instance
+        self.assertEqual(npiv.FS_INST_MAPPED,
+                         self.vol_drv._get_fabric_state('A'))
 
     def _basic_system_metadata(self, fabric_state):
         meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
@@ -300,18 +259,12 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         inst.host = CONF.host
         self.assertFalse(self.vol_drv._is_migration_wwpn(npiv.FS_INST_MAPPED))
 
-    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.vfc_mapper.derive_npiv_map')
-    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
-    def test_configure_wwpns_for_migration(
-            self, mock_add_npiv_port, mock_derive, mock_mgmt_lpar):
+    def test_configure_wwpns_for_migration(self, mock_derive):
         # Mock out the fabric
         meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
         meta_fb_map = '21000024FF649104,AA,BB,21000024FF649105,CC,DD'
         self.vol_drv.instance.system_metadata = {meta_fb_key: meta_fb_map}
-
-        # Mock the mgmt partition
-        mock_mgmt_lpar.return_value = mock.Mock(uuid=0)
 
         # Mock out what the derive returns
         expected_map = [('21000024FF649104', 'BB AA'),
@@ -321,46 +274,40 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Invoke
         resp_maps = self.vol_drv._configure_wwpns_for_migration('A')
 
-        # Make sure the add port was done properly
-        mock_add_npiv_port.assert_called_once_with(
-            self.vol_drv.adapter, self.vol_drv.host_uuid, 0, expected_map)
-
         # Make sure the updated maps are returned
         expected = [('21000024FF649104', 'BB AA'),
                     ('21000024FF649105', 'DD CC')]
         self.assertEqual(expected, resp_maps)
+        mock_derive.assert_called_with(
+            mock.ANY, ['21000024FF649104', '21000024FF649107'],
+            ['BB', 'AA', 'DD', 'CC'])
 
-    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
-    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
-    def test_configure_wwpns_for_migration_existing(
-            self, mock_add_npiv_port, mock_mgmt_lpar):
-        """Validates nothing is done if WWPNs are already mapped."""
+    @mock.patch('pypowervm.tasks.vfc_mapper.derive_npiv_map')
+    def test_configure_wwpns_for_migration_existing(self, mock_derive):
+        """Validates nothing is done if WWPNs are already flipped."""
         # Mock out the fabric
         meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
-        meta_fb_map = '21000024FF649104,c05076079cff0fa0,c05076079cff0fa1'
-        self.vol_drv.instance.system_metadata = {meta_fb_key: meta_fb_map}
-
-        # Mock the mgmt partition
-        mock_mgmt_lpar.return_value = mock.Mock(uuid=0)
+        meta_fb_map = '21000024FF649104,C05076079CFF0FA0,C05076079CFF0FA1'
+        meta_fb_st_key = self.vol_drv._sys_fabric_state_key('A')
+        meta_fb_st_val = npiv.FS_MIGRATING
+        self.vol_drv.instance.system_metadata = {
+            meta_fb_key: meta_fb_map, meta_fb_st_key: meta_fb_st_val}
 
         # Invoke
         resp_maps = self.vol_drv._configure_wwpns_for_migration('A')
 
-        # Make sure invocations were not made to do any adds
-        self.assertFalse(mock_add_npiv_port.called)
+        # Make sure that the order of the client WWPNs is not changed.
         expected = [('21000024FF649104', 'C05076079CFF0FA0 C05076079CFF0FA1')]
         self.assertEqual(expected, resp_maps)
+        self.assertFalse(mock_derive.called)
 
-    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
-    @mock.patch('pypowervm.tasks.vfc_mapper.add_npiv_port_mappings')
-    def test_wwpns(self, mock_add_port, mock_mgmt_part):
+    @mock.patch('pypowervm.tasks.vfc_mapper.build_wwpn_pair')
+    @mock.patch('pypowervm.tasks.vfc_mapper.derive_npiv_map')
+    def test_wwpns(self, mock_derive, mock_build_pair):
         """Tests that new WWPNs get generated properly."""
         # Mock Data
-        mock_add_port.return_value = [('21000024FF649104', 'AA BB'),
-                                      ('21000024FF649105', 'CC DD')]
-        mock_vios = mock.MagicMock()
-        mock_vios.uuid = '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'
-        mock_mgmt_part.return_value = mock_vios
+        mock_derive.return_value = [('21000024FF649104', 'AA BB'),
+                                    ('21000024FF649105', 'CC DD')]
         self.adpt.read.return_value = self.vios_feed_resp
 
         meta_key = self.vol_drv._sys_meta_fabric_key('A')
@@ -373,15 +320,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertListEqual(['AA', 'CC'], wwpns)
         self.assertEqual('21000024FF649104,AA,BB,21000024FF649105,CC,DD',
                          self.vol_drv.instance.system_metadata[meta_key])
-        self.assertEqual(1, mock_add_port.call_count)
-
-        # Check when mgmt_uuid is None
-        mock_add_port.reset_mock()
-        mock_vios.uuid = None
-        self.vol_drv.wwpns()
-        self.assertEqual(0, mock_add_port.call_count)
-        self.assertEqual('mgmt_mapped',
-                         self.vol_drv._get_fabric_state('A'))
+        self.assertEqual(1, mock_derive.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_get_fabric_state')
@@ -473,21 +412,13 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual([1, 2], mig_data.get('npiv_fabric_slots_A'))
         self.assertEqual([3], mig_data.get('npiv_fabric_slots_B'))
 
-    @mock.patch('pypowervm.tasks.vfc_mapper.remove_maps')
-    @mock.patch('pypowervm.tasks.vfc_mapper.find_vios_for_vfc_wwpns')
     @mock.patch('pypowervm.tasks.vfc_mapper.'
                 'build_migration_mappings_for_fabric')
-    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
-    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
-                '_get_fabric_meta')
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_fabric_names')
     def test_pre_live_migration_on_destination(
-            self, mock_fabric_names, mock_get_fabric_meta, mock_mgmt_lpar_id,
-            mock_build_mig_map, mock_find_vios_for_vfc_wwpns, mock_remove_map):
+            self, mock_fabric_names, mock_build_mig_map):
         mock_fabric_names.return_value = ['A', 'B']
-        mock_get_fabric_meta.side_effect = [[], []]
-        mock_mgmt_lpar_id.return_value = mock.Mock(uuid='1')
 
         src_mig_data = {'npiv_fabric_slots_A': [1, 2],
                         'npiv_fabric_slots_B': [3]}
@@ -505,21 +436,6 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Order of the mappings is not important.
         self.assertEqual(set(['b', 'a']),
                          set(dest_mig_data.get('vfc_lpm_mappings')))
-
-        mock_find_vios_for_vfc_wwpns.return_value = None, None
-        dest_mig_data = {}
-        mock_fabric_names.return_value = ['A', 'B']
-        mock_get_fabric_meta.side_effect = [
-            [('11', 'AA BB'), ('22', 'CC DD')],
-            [('33', 'EE FF')]]
-        mock_build_mig_map.side_effect = [['a'], ['b']]
-
-        # Execute the test
-        with self.assertLogs(npiv.__name__, level='WARNING'):
-            self.vol_drv.pre_live_migration_on_destination(
-                src_mig_data, dest_mig_data)
-            # remove_map should not be called since vios_w is None
-            self.assertEqual(0, mock_remove_map.call_count)
 
     def test_set_fabric_meta(self):
         port_map = [('1', 'aa AA'), ('2', 'bb BB'),
