@@ -231,7 +231,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                  False otherwise.
         """
         return (fc_state == FS_INST_MAPPED and
-                self.instance.task_state == task_states.MIGRATING and
                 self.instance.host != CONF.host)
 
     def _configure_wwpns_for_migration(self, fabric):
