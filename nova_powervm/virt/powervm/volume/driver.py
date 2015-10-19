@@ -150,6 +150,16 @@ class PowerVMVolumeAdapter(object):
         """
         pass
 
+    def post_live_migration_at_source(self, mig_data):
+        """Performs post live migration for the volume on the source host.
+
+        This method can be used to handle any steps that need to taken on
+        the source host after the VM is on the destination.
+
+        :param migrate_data: migration data
+        """
+        pass
+
     def post_live_migration_at_destination(self, mig_vol_stor):
         """Perform post live migration steps for the volume on the target host.
 

@@ -311,8 +311,31 @@ class LiveMigrationSrc(LiveMigration):
         finally:
             LOG.debug("Finished migration.", instance=self.instance)
 
+    def post_live_migration(self, vol_drvs, mig_data):
+        """Post operation of live migration at source host.
+
+        This method is focused on storage.
+
+        :vol_drvs: volume drivers for the attached volume
+        :param migrate_data: migration data
+        """
+        # For each volume, make sure the source is cleaned
+        for vol_drv in vol_drvs:
+            LOG.info(_LI('Performing post migration for volume %(volume)s'),
+                     dict(volume=vol_drv.volume_id))
+            try:
+                vol_drv.post_live_migration_at_source(mig_data)
+            except Exception as e:
+                LOG.exception(e)
+                # Log the exception but no need to raise one because
+                # the VM is already moved.  By raising an exception that
+                # results in the VM being on the new host but the instance
+                # data reflecting it on the old host.
+
     def post_live_migration_at_source(self, network_info):
         """Do post migration cleanup on source host.
+
+        This method is network focused.
 
         :param network_info: instance network information
         """

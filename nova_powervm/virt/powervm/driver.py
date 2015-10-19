@@ -1160,7 +1160,12 @@ class PowerVMDriver(driver.ComputeDriver):
         :block_device_info: instance block device information
         :param migrate_data: if not None, it is a dict which has data
         """
-        pass
+        # Build the volume drivers
+        vol_drvs = self._build_vol_drivers(context, instance,
+                                           block_device_info)
+
+        mig = self.live_migrations[instance.uuid]
+        mig.post_live_migration(vol_drvs, migrate_data)
 
     def post_live_migration_at_source(self, context, instance, network_info):
         """Unplug VIFs from networks at source.

@@ -1273,6 +1273,10 @@ class TestPowerVMDriver(test.TestCase):
         self.assertRaises(
             KeyError, lambda: self.drv.live_migrations[self.lpm_inst.uuid])
 
+    def test_post_live_mig(self):
+        self.drv.post_live_migration('context', self.lpm_inst, None)
+        self.lpm.post_live_migration.assert_called_once_with([], None)
+
     def test_post_live_mig_src(self):
         self.drv.post_live_migration_at_source('context', self.lpm_inst,
                                                'network_info')

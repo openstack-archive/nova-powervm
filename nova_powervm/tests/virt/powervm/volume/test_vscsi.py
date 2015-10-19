@@ -116,6 +116,27 @@ class TestVSCSIAdapter(BaseVSCSITest):
                           self.vol_drv.pre_live_migration_on_destination, {},
                           {})
 
+    @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
+    def test_post_live_migr_source(self, mock_hdisk_from_uuid,
+                                   mock_remove_hdisk):
+        mock_hdisk_from_uuid.return_value = 'device_name'
+
+        # Bad path.  volume id not found
+        mig_data = {'pre_live_migration_result': {'vscsi-BAD': 'udid1'}}
+        # Run the method - this should produce a warning
+        with self.assertLogs(vscsi.__name__, 'WARNING'):
+            self.vol_drv.post_live_migration_at_source(mig_data)
+
+        # Good path
+        mig_data = {'pre_live_migration_result': {'vscsi-id': 'udid1'}}
+        # Run the method
+        self.vol_drv.post_live_migration_at_source(mig_data)
+        # We don't update the feed, we run remove hdisk instead
+        self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
+        mock_remove_hdisk.assert_called_once_with(
+            self.adpt, mock.ANY, 'device_name', self.vios_uuid)
+
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
