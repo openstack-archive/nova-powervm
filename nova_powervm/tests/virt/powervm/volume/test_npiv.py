@@ -243,6 +243,8 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
 
     def test_is_migration_wwpn(self):
         inst = self.vol_drv.instance
+
+        # Migrating on different host
         inst.task_state = task_states.MIGRATING
         inst.host = 'Not Correct Host'
         self.assertTrue(self.vol_drv._is_migration_wwpn(npiv.FS_INST_MAPPED))
@@ -250,9 +252,9 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Try if the instance isn't mapped
         self.assertFalse(self.vol_drv._is_migration_wwpn(npiv.FS_UNMAPPED))
 
-        # Mapped but bad task state
-        inst.task_state = task_states.DELETING
-        self.assertFalse(self.vol_drv._is_migration_wwpn(npiv.FS_INST_MAPPED))
+        # Simulate a rollback on the target host from a live migration failure
+        inst.task_state = None
+        self.assertTrue(self.vol_drv._is_migration_wwpn(npiv.FS_INST_MAPPED))
 
         # Mapped but on same host
         inst.task_state = task_states.MIGRATING
@@ -328,6 +330,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         """Tests that previously stored WWPNs are returned."""
         # Mock
         mock_fabric_state.return_value = npiv.FS_INST_MAPPED
+        self.vol_drv.instance.host = CONF.host
         self.vol_drv.instance.system_metadata = {
             self.vol_drv._sys_meta_fabric_key('A'): 'phys1,a,b,phys2,c,d'}
 
