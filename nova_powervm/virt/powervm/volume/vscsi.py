@@ -116,6 +116,47 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                            instance_name=self.instance.name)
             raise p_exc.VolumePreMigrationFailed(**ex_args)
 
+        dest_mig_data['vscsi-' + volume_id] = udid
+
+    def post_live_migration_at_source(self, mig_data):
+        """Performs post live migration for the volume on the source host.
+
+        This method can be used to handle any steps that need to taken on
+        the source host after the VM is on the destination.
+
+        :param migrate_data: migration data
+        """
+        # Get the udid of the volume to remove the hdisk for.  We can't
+        # use the connection information because LPM 'refreshes' it, which
+        # wipes out our data, so we use the data from the destination host
+        # to avoid having to discover the hdisk to get the udid.
+        udid = mig_data['pre_live_migration_result'].get(
+            'vscsi-' + self.volume_id)
+        if not udid:
+            LOG.warn(_LW('Could not remove hdisk for volume: %s')
+                     % self.volume_id)
+            return
+
+        LOG.info(_LI('Removing hdisk for udid: %s') % udid)
+
+        def find_hdisk_to_remove(vios_w):
+            device_name = vios_w.hdisk_from_uuid(udid)
+            if device_name is None:
+                return
+            LOG.info(_LI('Removing %(hdisk)s from VIOS %(vios)s'),
+                     {'hdisk': device_name, 'vios': vios_w.name})
+            self._add_remove_hdisk(vios_w, device_name,
+                                   stg_ftsk=rmv_hdisk_ftsk)
+
+        # Create a feed task to get the vios, find the hdsik and remove it.
+        rmv_hdisk_ftsk = tx.FeedTask(
+            'find_hdisk_to_remove', pvm_vios.VIOS.getter(
+                self.adapter, xag=[pvm_vios.VIOS.xags.STORAGE]))
+        # Find vios hdisks for this udid to remove.
+        rmv_hdisk_ftsk.add_functor_subtask(
+            find_hdisk_to_remove, flag_update=False)
+        rmv_hdisk_ftsk.execute()
+
     def _discover_volume_on_vios(self, vios_w, volume_id):
         """Discovers an hdisk on a single vios for the volume.
 
@@ -340,16 +381,21 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                        'instance_name': self.instance.name}
             raise p_exc.VolumeDetachFailed(**ex_args)
 
-    def _add_remove_hdisk(self, vio_wrap, device_name):
+    def _add_remove_hdisk(self, vio_wrap, device_name,
+                          stg_ftsk=None):
         """Adds a post-mapping task to remove the hdisk from the VIOS.
 
         This removal is only done after the mapping updates have completed.
+        This method is also used during migration to remove hdisks that remain
+        on the source host after the VM is migrated to the destination.
 
         :param vio_wrap: The Virtual I/O Server wrapper to remove the disk
                          from.
         :param device_name: The hdisk name to remove.
+        :param stg_ftsk: The feed task to add to. If None, then self.stg_ftsk
         """
         def rm_hdisk():
+            LOG.info(_LI("Running remove for hdisk: '%s'") % device_name)
             try:
                 # Attempt to remove the hDisk
                 hdisk.remove_hdisk(self.adapter, CONF.host, device_name,
@@ -361,7 +407,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                          {'disk': device_name})
                 LOG.warn(e)
         name = 'rm_hdisk_%s_%s' % (vio_wrap.name, device_name)
-        self.stg_ftsk.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
+        stg_ftsk = stg_ftsk or self.stg_ftsk
+        stg_ftsk.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
 
     @lockutils.synchronized('vscsi_wwpns')
     def wwpns(self):
