@@ -926,8 +926,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_task_vm.power_off.called)
         self.assertTrue(self.drv.disk_dvr.create_disk_from_image.called)
         self.assertTrue(self.drv.disk_dvr.connect_disk.called)
-        # TODO(IBM): Power on not called until bootmode=sms is supported
-        # self.assertTrue(mock_task_pwr.power_on.called)
+        self.assertTrue(mock_task_pwr.power_on.called)
 
     @mock.patch('nova_powervm.virt.powervm.driver.vm')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')
