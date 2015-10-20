@@ -34,7 +34,7 @@ Getting the code
 
 Grab the code::
 
-    git clone git://git.openstack.org/stackforge/nova-powervm
+    git clone git://git.openstack.org/openstack/nova-powervm
     cd nova-powervm
 
 Setting up your environment
