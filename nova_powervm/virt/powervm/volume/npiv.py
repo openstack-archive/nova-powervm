@@ -211,6 +211,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                  action. False otherwise.
         """
         if (fc_state == FS_UNMAPPED and
+            len(self._get_fabric_meta(fabric)) == 0 and
             self.instance.task_state not in [task_states.DELETING,
                                              task_states.MIGRATING]):
             LOG.info(_LI("Instance %(inst)s has not yet defined a WWPN on "
