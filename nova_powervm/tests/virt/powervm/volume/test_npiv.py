@@ -223,7 +223,12 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertIn(pvm_vios.VIOS.xags.STORAGE, xags)
         self.assertIn(pvm_vios.VIOS.xags.FC_MAPPING, xags)
 
-    def test_is_initial_wwpn(self):
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_meta')
+    def test_is_initial_wwpn(self, mock_fabric_meta):
+        # The deleting state is for roll back on spawn.  Migrating is a
+        # scenario where you can't be creating new wwpns
+        mock_fabric_meta.return_value = [('phys', 'virt1 virt2')]
         bad_states = [task_states.DELETING, task_states.MIGRATING]
         for state in bad_states:
             self.vol_drv.instance.task_state = state
@@ -233,8 +238,14 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Task state should still be bad.
         self.assertFalse(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
 
-        # Set a good task state
+        # Set a good task state, but should still be false due to WWPNs not yet
+        # being assigned.
         self.vol_drv.instance.task_state = task_states.NETWORKING
+        self.assertFalse(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
+
+        # Validate that having no fabric metadata returns that this is an
+        # initial wwpn
+        mock_fabric_meta.return_value = []
         self.assertTrue(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
 
         # And now no task state.
