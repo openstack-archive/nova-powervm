@@ -1,0 +1,12 @@
+# Devstack settings
+# These defaults can be overridden in the localrc section of the local.conf file
+
+# Add ceilometer-powervm to enabled services
+enable_service pvm-ceilometer-acompute
+
+# NovaLink install/upgrade settings
+INSTALL_NOVALINK=${INSTALL_NOVALINK:-False}
+PVM_ADMIN_GROUP=${PVM_ADMIN_GROUP:-pvm_admin}
+
+# Ceilometer settings
+HYPERVISOR_INSPECTOR=${HYPERVISOR_INSPECTOR:-"powervm"}
