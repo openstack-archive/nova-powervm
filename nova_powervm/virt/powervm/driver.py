@@ -249,19 +249,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
-        if bdms is not None:
-            for bdm in bdms:
-                conn_info = bdm.get('connection_info')
-                vol_drv = self._get_inst_vol_adpt(
-                    context, instance, conn_info=conn_info, stg_ftsk=stg_ftsk)
-
-                # First connect the volume.  This will update the
-                # connection_info.
-                flow_spawn.add(tf_stg.ConnectVolume(vol_drv))
-
-                # Save the BDM so that the updated connection info is
-                # persisted.
-                flow_spawn.add(tf_stg.SaveBDM(bdm, instance))
+        self._add_volume_connection_tasks(
+            context, instance, bdms, flow_spawn, stg_ftsk)
 
         # If the config drive is needed, add those steps.  Should be done
         # after all the other I/O.
@@ -287,6 +276,52 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Run the flow.
         tf_eng.run(flow_spawn)
+
+    def _add_volume_connection_tasks(self, context, instance, bdms,
+                                     flow, stg_ftsk):
+        """Determine if there are volumes to connect to this instance.
+
+        If there are volumes to connect to this instance add a task to the
+        flow for each volume.
+
+        :param context: security context.
+        :param instance: Instance object as returned by DB layer.
+        :param bdms: block device mappings.
+        :param flow: the flow to add the tasks to.
+        :param stg_ftsk: the storage task flow.
+        """
+        for bdm in bdms or []:
+            conn_info = bdm.get('connection_info')
+            vol_drv = self._get_inst_vol_adpt(
+                context, instance, conn_info=conn_info, stg_ftsk=stg_ftsk)
+
+            # First connect the volume.  This will update the
+            # connection_info.
+            flow.add(tf_stg.ConnectVolume(vol_drv))
+
+            # Save the BDM so that the updated connection info is
+            # persisted.
+            flow.add(tf_stg.SaveBDM(bdm, instance))
+
+    def _add_volume_disconnection_tasks(self, context, instance, bdms,
+                                        flow, stg_ftsk):
+        """Determine if there are volumes to disconnect from this instance.
+
+        If there are volumes to disconnect from this instance add a task to the
+        flow for each volume.
+
+        :param context: security context.
+        :param instance: Instance object as returned by DB layer.
+        :param bdms: block device mappings.
+        :param flow: the flow to add the tasks to.
+        :param stg_ftsk: the storage task flow.
+        """
+        for bdm in bdms or []:
+            conn_info = bdm.get('connection_info')
+            vol_drv = self._get_inst_vol_adpt(
+                context, instance, conn_info=conn_info,
+                stg_ftsk=stg_ftsk)
+            flow.add(tf_stg.DisconnectVolume(vol_drv))
 
     def _is_booted_from_volume(self, block_device_info):
         """Determine whether the root device is listed in block_device_info.
@@ -347,13 +382,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Determine if there are volumes to disconnect.  If so, remove each
             # volume (within the transaction manager)
-            if bdms is not None:
-                for bdm in bdms:
-                    conn_info = bdm.get('connection_info')
-                    vol_drv = self._get_inst_vol_adpt(
-                        context, instance, conn_info=conn_info,
-                        stg_ftsk=stg_ftsk)
-                    flow.add(tf_stg.DisconnectVolume(vol_drv))
+            self._add_volume_disconnection_tasks(context, instance, bdms, flow,
+                                                 stg_ftsk)
 
             # Only attach the disk adapters if this is not a boot from volume.
             destroy_disk_task = None
@@ -788,6 +818,43 @@ class PowerVMDriver(driver.ComputeDriver):
                 connector["wwpns"] = wwpn_list
         return connector
 
+    def _remove_volume_connections(self, context, instance, block_device_info):
+        """Removes the volume connections for the instance.
+
+        During resize disconnect if there are any volumes connected
+        to an instance.
+        :param context: security context
+        :param instance: Instance object
+        :param block_device_info: Information about block devices that should
+                                  be detached from the instance.
+        """
+        # Extract the block devices.
+        bdms = self._extract_bdm(block_device_info)
+        # Nothing needed if there isn't a bdms.
+        if not bdms:
+            return
+
+        # Define the flow
+        flow = tf_lf.Flow("resize_vm")
+
+        # Create the transaction manager (FeedTask) for Storage I/O.
+        xag = self._get_inst_xag(instance, bdms)
+        stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
+                                           xag=xag)
+
+        # Determine if there are volumes to disconnect.  If so, remove each
+        # volume (within the transaction manager)
+        self._add_volume_disconnection_tasks(context, instance, bdms, flow,
+                                             stg_ftsk)
+        if len(flow):
+            # Add the transaction manager flow to the end of the 'storage
+            # disconnection' tasks.  This will run all the connections in
+            # parallel
+            flow.add(stg_ftsk)
+
+            # Build the engine & run
+            tf_eng.run(flow)
+
     def migrate_disk_and_power_off(self, context, instance, dest,
                                    flavor, network_info,
                                    block_device_info=None,
@@ -818,6 +885,13 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Do any VM resource changes
             self._resize_vm(context, instance, flav_obj, retry_interval)
+
+            # If everything has gone well up to this point, the compute
+            # manager is going to terminate the volume connections for the
+            # instance, so we need to remove our mappings.
+            # Remove the volume connections for the BDMs
+            self._remove_volume_connections(context, instance,
+                                            block_device_info)
         else:
             self._log_operation('migration', instance)
             raise NotImplementedError()
@@ -865,16 +939,43 @@ class PowerVMDriver(driver.ComputeDriver):
         :param image_meta: image object returned by nova.image.glance that
                            defines the image from which this instance
                            was created
-        :param resize_instance: True if the instance is being resized,
+        :param resize_instance: True if the instance disks are being resized,
                                 False otherwise
         :param block_device_info: instance volume block device info
         :param power_on: True if the instance should be powered on, False
                          otherwise
         """
-        # TODO(IBM): Finish this up
+
+        # Extract the block devices.
+        bdms = self._extract_bdm(block_device_info)
+        # Nothing needed if there isn't a bdms or a requirement to power-on.
+        if not bdms and not power_on:
+            return
+
+        # Define the flow
+        flow = tf_lf.Flow("finish_migration")
+
+        if bdms:
+            # Create the transaction manager (FeedTask) for Storage I/O.
+            xag = self._get_inst_xag(instance, bdms)
+            stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
+                                               xag=xag)
+            # Determine if there are volumes to connect.  If so, add a
+            # connection for each type.
+            self._add_volume_connection_tasks(context, instance, bdms,
+                                              flow, stg_ftsk)
+            if len(flow):
+                # Add the transaction manager flow to the end of the 'storage
+                # connection' tasks to run all the connections in parallel
+                flow.add(stg_ftsk)
 
         if power_on:
-            vm.power_on(self.adapter, instance, self.host_uuid)
+            # Get the lpar wrapper (required by power-on), then power-on
+            flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
+            flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
+
+        if len(flow):
+            tf_eng.run(flow)
 
     def confirm_migration(self, migration, instance, network_info):
         """Confirms a resize, destroying the source VM.
@@ -910,7 +1011,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                         instance.instance_type_id))
         # TODO(IBM)  Get the entry once for both power_off and update
         vm.power_off(self.adapter, instance, self.host_uuid)
-        vm.update(self.adapter, self.host_uuid, instance, flav_obj)
+        vm.update(self.adapter, self.host_wrapper, instance, flav_obj)
 
         if power_on:
             vm.power_on(self.adapter, instance, self.host_uuid)
