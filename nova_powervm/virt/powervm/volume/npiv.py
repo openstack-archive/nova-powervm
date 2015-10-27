@@ -210,16 +210,48 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :return: True if the invocation appears to be for a spawn/volume
                  action. False otherwise.
         """
-        if (fc_state == FS_UNMAPPED and
-            len(self._get_fabric_meta(fabric)) == 0 and
-            self.instance.task_state not in [task_states.DELETING,
-                                             task_states.MIGRATING]):
-            LOG.info(_LI("Instance %(inst)s has not yet defined a WWPN on "
-                         "fabric %(fabric)s.  Appropriate WWPNs will be "
-                         "generated."),
-                     {'inst': self.instance.name, 'fabric': fabric})
-            return True
+        # Easy fabric state check.  If its a state other than unmapped, it
+        # can't be an initial WWPN
+        if fc_state != FS_UNMAPPED:
+            return False
 
+        # Easy state check.  This is important in case of a rollback failure.
+        # If it is deleting or migrating, it definitely is not an initial WWPN
+        if self.instance.task_state in [task_states.DELETING,
+                                        task_states.MIGRATING]:
+            return False
+
+        # Next, we have to check the fabric metadata.  Having metadata
+        # indicates that we have been on at least a single host.  However,
+        # a VM could be rescheduled.  In that case, the 'physical WWPNs' won't
+        # match.  So if any of the physical WWPNs are not supported by this
+        # host, we know that it is 'initial' for this host.
+        port_maps = self._get_fabric_meta(fabric)
+        if len(port_maps) > 0 and self._hosts_wwpn(port_maps):
+            return False
+
+        # At this point, it should be correct.
+        LOG.info(_LI("Instance %(inst)s has not yet defined a WWPN on "
+                     "fabric %(fabric)s.  Appropriate WWPNs will be "
+                     "generated."),
+                 {'inst': self.instance.name, 'fabric': fabric})
+        return True
+
+    def _hosts_wwpn(self, port_maps):
+        """Determines if this system hosts the port maps.
+
+        Hosting the port map will be determined if one of the physical WWPNs
+        is hosted by one of the VIOSes.
+
+        :param port_maps: The list of port mappings for the given fabric.
+        """
+        vios_wraps = self.stg_ftsk.feed
+        if port_maps:
+            for port_map in port_maps:
+                for vios_w in vios_wraps:
+                    for pfc_port in vios_w.pfc_ports:
+                        if pfc_port.wwpn == port_map[0]:
+                            return True
         return False
 
     def _is_migration_wwpn(self, fc_state):
@@ -480,12 +512,20 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                  {'fabric': fabric, 'meta': ",".join(meta_elems),
                   'inst': self.instance.name})
 
-        fabric_id_iter = 1
-        meta_key = self._sys_meta_fabric_key(fabric)
-        key_len = len(meta_key)
-        num_keys = self._get_num_keys(port_map)
+        # Clear out the original metadata.  We may be reducing the number of
+        # keys (ex. reschedule) so we need to just delete what we had before
+        # we add something new.
+        meta_key_root = self._sys_meta_fabric_key(fabric)
+        for key in tuple(self.instance.system_metadata.keys()):
+            if key.startswith(meta_key_root):
+                del self.instance.system_metadata[key]
 
-        for key in range(num_keys):
+        # Build up the mapping for the new keys.
+        fabric_id_iter = 1
+        meta_key = meta_key_root
+        key_len = len(meta_key)
+
+        for key in range(self._get_num_keys(port_map)):
             start_elem = 12 * (fabric_id_iter - 1)
             meta_value = ",".join(meta_elems[start_elem:start_elem + 12])
             self.instance.system_metadata[meta_key] = meta_value

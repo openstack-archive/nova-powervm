@@ -228,7 +228,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
     def test_is_initial_wwpn(self, mock_fabric_meta):
         # The deleting state is for roll back on spawn.  Migrating is a
         # scenario where you can't be creating new wwpns
-        mock_fabric_meta.return_value = [('phys', 'virt1 virt2')]
+        mock_fabric_meta.return_value = [('21000024FF649104', 'virt1 virt2')]
         bad_states = [task_states.DELETING, task_states.MIGRATING]
         for state in bad_states:
             self.vol_drv.instance.task_state = state
@@ -238,14 +238,20 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Task state should still be bad.
         self.assertFalse(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
 
-        # Set a good task state, but should still be false due to WWPNs not yet
-        # being assigned.
+        # Set a good task state, but fails due to the WWPNs already being
+        # hosted
         self.vol_drv.instance.task_state = task_states.NETWORKING
         self.assertFalse(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
 
         # Validate that having no fabric metadata returns that this is an
         # initial wwpn
         mock_fabric_meta.return_value = []
+        self.assertTrue(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
+
+        # Validate that has fabric metadata of a different host, and therefore
+        # is still a valid initial wwpn.  It is initial because it simulates
+        # a reschedule on a new host.
+        mock_fabric_meta.return_value = [('BAD_WWPN', 'virt1 virt2')]
         self.assertTrue(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
 
         # And now no task state.
@@ -466,6 +472,10 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv.instance.system_metadata = dict()
         self.vol_drv._set_fabric_meta('A', port_map)
         self.assertEqual(self.vol_drv.instance.system_metadata, expected)
+
+        # Clear out the metadata and make sure it sticks.
+        self.vol_drv._set_fabric_meta('A', [])
+        self.assertEqual(self.vol_drv.instance.system_metadata, {})
 
     def test_get_fabric_meta(self):
         system_meta = {'npiv_adpt_wwpns_A':
