@@ -92,7 +92,8 @@ class Create(task.Task):
 class PowerOn(task.Task):
     """The task to power on the instance."""
 
-    def __init__(self, adapter, host_uuid, instance, pwr_opts=None):
+    def __init__(self, adapter, host_uuid, instance, pwr_opts=None,
+                 synchronous=False):
         """Create the Task for the power on of the LPAR.
 
         Obtains LPAR info through requirement of lpar_wrap (provided by
@@ -101,6 +102,11 @@ class PowerOn(task.Task):
         :param adapter: The pypowervm adapter.
         :param host_uuid: The host UUID.
         :param instance: The nova instance.
+        :param pwr_opts: Additional parameters for the pypowervm PowerOn Job.
+        :param synchronous: (Optional) If False (the default), the Task
+                            completes as soon as the pypowervm PowerOn Job has
+                            successfully started.  If True, the Task waits for
+                            the pypowervm PowerOn Job to complete.
         """
         super(PowerOn, self).__init__(name='pwr_lpar',
                                       requires=['lpar_wrap'])
@@ -108,10 +114,12 @@ class PowerOn(task.Task):
         self.host_uuid = host_uuid
         self.instance = instance
         self.pwr_opts = pwr_opts
+        self.synchronous = synchronous
 
     def execute(self, lpar_wrap):
         LOG.info(_LI('Powering on instance: %s'), self.instance.name)
-        power.power_on(lpar_wrap, self.host_uuid, add_parms=self.pwr_opts)
+        power.power_on(lpar_wrap, self.host_uuid, add_parms=self.pwr_opts,
+                       synchronous=self.synchronous)
 
     def revert(self, lpar_wrap, result, flow_failures):
         LOG.info(_LI('Powering off instance: %s'), self.instance.name)
