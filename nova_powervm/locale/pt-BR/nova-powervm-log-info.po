@@ -1,0 +1,472 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-10-06 13:59-0500\n"
+"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:109
+msgid "The compute driver has been initialized."
+msgstr "O driver de cálculo foi inicializado."
+
+#: nova_powervm/virt/powervm/driver.py:134
+#, python-format
+msgid "Host UUID is:%s"
+msgstr "UUID do host é:%s"
+
+#: nova_powervm/virt/powervm/driver.py:140
+#, python-format
+msgid ""
+"Operation: %(op)s. Virtual machine display name: %(display_name)s, name: "
+"%(name)s, UUID: %(uuid)s"
+msgstr ""
+"Operação: %(op)s. Nome de exibição da máquina virtual: %(display_name)s, nome: "
+"%(name)s, UUID: %(uuid)s"
+
+#: nova_powervm/virt/powervm/driver.py:379
+msgid "Ignoring destroy call during resize revert."
+msgstr "Ignorando
+chamada de destruição durante a reversão do redimensionamento."
+
+#: nova_powervm/virt/powervm/driver.py:441
+msgid "During volume detach, the instance was not found on this host."
+msgstr "
+Durante a remoção do volume, a instância não foi localizada neste host."
+
+#: nova_powervm/virt/powervm/driver.py:821
+msgid "Retrying to update VM."
+msgstr "Tentando novamente atualizar a VM."
+
+#: nova_powervm/virt/powervm/driver.py:952
+msgid "Checking live migration capability on destination host."
+msgstr "Verificando o recurso de migração em tempo real no host de destino."
+
+#: nova_powervm/virt/powervm/driver.py:967
+msgid "Cleaning up from checking live migration capability on destination."
+msgstr "Limpando a partir da verificação do recurso de migração em tempo real no destino."
+
+#: nova_powervm/virt/powervm/driver.py:983
+msgid "Checking live migration capability on source host."
+msgstr "Verificando o recurso de migração em tempo real no host de origem."
+
+#: nova_powervm/virt/powervm/driver.py:1005
+msgid "Pre live migration processing."
+msgstr "Processamento de pré-migração em tempo real."
+
+#: nova_powervm/virt/powervm/driver.py:1165
+msgid "Post live migration processing on source host."
+msgstr "Processamento de pós-migração em tempo real no host de origem."
+
+#: nova_powervm/virt/powervm/driver.py:1181
+msgid "Post live migration processing on destination host."
+msgstr "Processamento de pós-migração em tempo real no host de destino."
+
+#: nova_powervm/virt/powervm/live_migration.py:174
+#, python-format
+msgid "Performing pre migration for volume %(volume)s"
+msgstr "Executando pré-migração para o volume %(volume)s"
+
+#: nova_powervm/virt/powervm/live_migration.py:203
+#, python-format
+msgid "Performing post migration for volume %(volume)s"
+msgstr "Executando pós-migração para o volume %(volume)s "
+
+#: nova_powervm/virt/powervm/media.py:84
+#, python-format
+msgid "Creating config drive for instance: %s"
+msgstr "Criando a unidade de configuração para a instância: %s"
+
+#: nova_powervm/virt/powervm/media.py:104
+#, python-format
+msgid ""
+"Config drive ISO being built for instance %(inst)s building to path "
+"%(iso_path)s."
+msgstr ""
+"A unidade de configuração ISO está sendo construída para a construção da instância %(inst)s para o caminho"
+"%(iso_path)s."
+
+#: nova_powervm/virt/powervm/media.py:174
+#, python-format
+msgid ""
+"Adding cfg drive mapping for instance %(inst)s for Virtual I/O Server "
+"%(vios)s"
+msgstr ""
+"Incluindo o mapeamento de unidade cfg para a instância %(inst)s para o Virtual I/O Server. "
+"%(vios)s"
+
+#: nova_powervm/virt/powervm/media.py:262
+msgid ""
+"An error occurred querying the virtual optical media repository.  "
+"Attempting to re-establish connection with a virtual optical media "
+"repository"
+msgstr ""
+"Ocorreu um erro ao consultar o repositório de mídia ótica virtual.  "
+"Tentativa de restabelecer a conexão com uma mídia ótica virtual "
+"repository"
+
+#: nova_powervm/virt/powervm/media.py:383
+#, python-format
+msgid "Removing virtual optical for VM with UUID %s."
+msgstr "Removendo o ótico virtual para a VM com UUID %s."
+
+#: nova_powervm/virt/powervm/vm.py:511
+#, python-format
+msgid "Deleting virtual machine. LPARID: %s"
+msgstr "Excluindo a máquina virtual. LPARID: %s"
+
+#: nova_powervm/virt/powervm/vm.py:517
+#, python-format
+msgid "Virtual machine delete status: %d"
+msgstr "Status de exclusão da máquina virtual: %d"
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:63
+#, python-format
+msgid "Local Storage driver initialized: volume group: '%s'"
+msgstr "Driver de armazenamento local inicializado: grupo de volumes: '%s'"
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:149
+#, python-format
+msgid "Disconnecting instance %(inst)s from storage disks."
+msgstr "Desconectando a instância %(inst)s a partir de discos de armazenamento."
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:178
+#, python-format
+msgid ""
+"Unmapped boot disk %(disk_name)s from the management partition from "
+"Virtual I/O Server %(vios_name)s."
+msgstr ""
+"Disco de inicialização não mapeado %(disk_name)s da partição de gerenciamento a partir do"
+"Virtual I/O Server %(vios_name)s."
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:198
+msgid "Create disk."
+msgstr "Criar disco."
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:242
+#, python-format
+msgid "Adding logical volume disk connection between VM %(vm)s and VIOS %(vios)s."
+msgstr "Incluindo a conexão de disco do volume lógico entre a VM %(vm)s e o VIOS %(vios)s."
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:288
+#, python-format
+msgid "Extending disk: %s"
+msgstr "Estendendo o disco: %s"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:74
+#, python-format
+msgid ""
+"SSP Storage driver initialized. Cluster '%(clust_name)s'; SSP "
+"'%(ssp_name)s'"
+msgstr ""
+"Driver de armazenamento SSP inicializado. Cluster '%(clust_name)s';
+SSP "
+"'%(ssp_name)s'"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:116
+#, python-format
+msgid "Removing SSP disk connection between VM %(vm)s and VIOS %(vios)s."
+msgstr "Removendo a conexão do disco SSP entre a VM %(vm)s e o VIOS %(vios)s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:160
+#, python-format
+msgid ""
+"Unmapped boot disk %(disk_name)s from the management partition from "
+"Virtual I/O Server %(vios_uuid)s."
+msgstr ""
+"Disco de inicialização não mapeado %(disk_name)s da partição de gerenciamento a partir do"
+"Virtual I/O Server %(vios_uuid)s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:197
+#, python-format
+msgid ""
+"SSP: Create %(image_type)s disk from image %(image_id)s for instance "
+"%(instance_uuid)s."
+msgstr ""
+"SSP: criar disco %(image_type)s a partir da imagem %(image_id)s para instância "
+"%(instance_uuid)s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:210
+#, python-format
+msgid "SSP: Disk name is %s"
+msgstr "SSP: nome do disco é %s"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:235
+#, python-format
+msgid "SSP: Using already-uploaded image LU %s."
+msgstr "SSP: usando
+LU %s de imagem já transferida por upload."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:242
+#, python-format
+msgid "SSP: Uploading new image LU %s."
+msgstr "SSP: fazendo upload da nova LU %s de imagem."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:273
+#, python-format
+msgid "Adding SSP disk connection between VM %(vm)s and VIOS %(vios)s."
+msgstr "Incluindo a conexão do disco SSP entre a VM %(vm)s e o VIOS %(vios)s."
+
+#: nova_powervm/virt/powervm/tasks/image.py:72
+#, python-format
+msgid ""
+"Starting stream of boot device for instance %(inst)s (local blockdev "
+"%(devpath)s) to glance image %(img_id)s."
+msgstr ""
+"Iniciando o fluxo de dispositivo de inicialização para
+a instância %(inst)s (blockdev local "
+"%(devpath)s) para visualizar rapidamente a imagem %(img_id)s."
+
+#: nova_powervm/virt/powervm/tasks/image.py:79
+#, python-format
+msgid ""
+"Completed stream of boot device for instance %(inst)s (local blockdev "
+"%(devpath)s) to glance image %(img_id)s."
+msgstr ""
+"O fluxo concluído do dispositivo de inicialização para
+a instância %(inst)s
+(blockdev local "
+"%(devpath)s) para visualizar rapidamente a imagem %(img_id)s."
+
+#: nova_powervm/virt/powervm/tasks/network.py:63
+#, python-format
+msgid "Unplugging the Network Interfaces to instance %s"
+msgstr "
+Desconectando as interfaces de rede para a instância %s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:85
+#, python-format
+msgid "Deleting VIF with mac %(mac)s for instance %(inst)s."
+msgstr "Excluindo VIF com MAC %(mac)s para a instância %(inst)s."
+
+#: nova_powervm/virt/powervm/tasks/network.py:137
+#, python-format
+msgid "Plugging the Network Interfaces to instance %s"
+msgstr "
+Conectando as interfaces de rede para a instância %s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:174
+#, python-format
+msgid "Creating VIF with mac %(mac)s for instance %(sys)s"
+msgstr "
+Criando VIF com MAC %(mac)s para a instância %(sys)s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:240
+#, python-format
+msgid "Plugging the Management Network Interface to instance %s"
+msgstr "Conectando a Network Management Interface para a instância %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:48
+#, python-format
+msgid "Connecting volume %(vol)s to instance %(inst)s"
+msgstr "
+Conectando o volume %(vol)s para a instância %(inst)s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:91
+#, python-format
+msgid "Disconnecting volume %(vol)s from instance %(inst)s"
+msgstr "
+Desconectando o volume %(vol)s da instância %(inst)s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:148
+#, python-format
+msgid "Creating disk for instance: %s"
+msgstr "Criando o disco para a
+instância: %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:198
+#, python-format
+msgid "Connecting disk to instance: %s"
+msgstr "Conectando o disco
+para instância: %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:242
+#, python-format
+msgid "Mapping boot disk of instance %(instance_name)s to management partition."
+msgstr "
+Mapeando o disco de inicialização da instância %(instance_name)s para
+a partição de gerenciamento."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:259
+#, python-format
+msgid ""
+"Discovering device and path for mapping of %(dev_name)s on the management"
+" partition."
+msgstr ""
+"Descobrindo o dispositivo e o caminho para o mapeamento de
+%(dev_name)s na partição do"
+" partição de gerenciamento."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:327
+#, python-format
+msgid ""
+"Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
+"management partition via Virtual I/O Server %(vios_name)s."
+msgstr ""
+"Removendo o mapeamento do disco de inicialização %(disk_name)s da
+instância %(instance_name)s da "
+"partição de gerenciamento por meio do Virtual I/O
+Server %(vios_name)s."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:334
+#, python-format
+msgid "Removing disk %(disk_path)s from the management partition."
+msgstr "
+Removendo o disco %(disk_path)s da partição de gerenciamento."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:376
+#, python-format
+msgid "Creating Config Drive for instance: %s"
+msgstr "Criando a
+Unidade de configuração para a instância: %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:456
+#, python-format
+msgid "Detaching disk storage adapters for instance %s"
+msgstr "Removendo os adaptadores de armazenamento em disco para a
+instância %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:482
+#, python-format
+msgid "Deleting storage disk for instance %s."
+msgstr "Excluindo o
+disco de armazenamento para a instância %s."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:502
+#, python-format
+msgid "Saving block device mapping for volume id %(vol_id)s on instance %(inst)s."
+msgstr "
+Salvando o mapeamento do dispositivo de bloco para o ID de volume
+%(vol_id)s na instância %(inst)s."
+
+#: nova_powervm/virt/powervm/tasks/vm.py:84
+#, python-format
+msgid "Creating instance: %s"
+msgstr "Criando a instância: %s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:113
+#, python-format
+msgid "Powering on instance: %s"
+msgstr "Ligando a instância: %s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:117
+#, python-format
+msgid "Powering off instance: %s"
+msgstr "Desligando a instância: %s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:145
+#, python-format
+msgid "Powering off instance %s."
+msgstr "Desligando a instância %s."
+
+#: nova_powervm/virt/powervm/tasks/vm.py:166
+#, python-format
+msgid "Deleting instance %s from system."
+msgstr "Excluindo a
+instância %s do sistema."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:156
+#, python-format
+msgid "Removing mgmt NPIV mapping for instance %(inst)s for fabric %(fabric)s."
+msgstr "
+Removendo o mapeamento de NPIV do gerenciamento para a instância
+%(inst)s para a
+malha %(fabric)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:240
+#, python-format
+msgid ""
+"Mapping instance %(inst)s to the mgmt partition for fabric %(fabric)s "
+"because the VM does not yet have a valid vFC device."
+msgstr ""
+"Mapeando a instância %(inst)s para a partição de gerenciamento para a
+malha %(fabric)s "
+"porque a VM ainda não tem um dispositivo vFC válido."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:274
+#, python-format
+msgid ""
+"Mapping instance %(inst)s to the mgmt partition for fabric %(fabric)s "
+"because the VM is migrating to this host."
+msgstr ""
+"Mapeando a instância %(inst)s para a partição de gerenciamento para a malha %(fabric)s "
+"porque a VM está migrando para este host."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:332
+#, python-format
+msgid "NPIV wwpns fabric state=%(st)s for instance %(inst)s"
+msgstr "Estado da malha wwpns de NPIV=%(st)s para a instância %(inst)s"
+
+#: nova_powervm/virt/powervm/volume/npiv.py:363
+#, python-format
+msgid "Adding NPIV Mapping with mgmt partition for instance %s"
+msgstr "Incluindo o mapeamento de NPIV com a partição de gerenciamento para a instância %s"
+
+#: nova_powervm/virt/powervm/volume/npiv.py:424
+#, python-format
+msgid ""
+"Removing NPIV mapping for mgmt partition for instance %(inst)s on VIOS "
+"%(vios)s."
+msgstr ""
+"Removendo o mapeamento de NPIV para a partição de gerenciamento para a instância %(inst)s no VIOS "
+"%(vios)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:436
+#, python-format
+msgid "Adding NPIV mapping for instance %(inst)s for Virtual I/O Server %(vios)s."
+msgstr "Incluindo o mapeamento de NPIV para a instância %(inst)s para o Virtual I/O Server %(vios)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:465
+#, python-format
+msgid "Removing a NPIV mapping for instance %(inst)s for fabric %(fabric)s."
+msgstr "Removendo um mapeamento de NPIV para a instância %(inst)s para a malha %(fabric)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:501
+#, python-format
+msgid "Setting Fabric state=%(st)s for instance=%(inst)s"
+msgstr "Configurando o estado de malha=%(st)s para a instância=%(inst)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:143
+#, python-format
+msgid ""
+"Discovered %(hdisk)s on vios %(vios)s for volume %(volume_id)s. Status "
+"code: %(status)s."
+msgstr ""
+"%(hdisk)s descoberto no vios %(vios)s para o volume %(volume_id)s. Código de"
+"status: %(status)s."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:255
+#, python-format
+msgid ""
+"Disconnect Volume: Discovered the device %(hdisk)s on Virtual I/O Server "
+"%(vios_name)s for volume %(volume_id)s.  Volume UDID: %(volume_uid)s."
+msgstr ""
+"Volume de desconexão: descoberto o dispositivo %(hdisk)s no Virtual I/O Server "
+"%(vios_name)s para o volume %(volume_id)s.  UDID de volume: %(volume_uid)s."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:353
+#, python-format
+msgid "Removing vSCSI mapping from Physical Volume %(dev)s to VM %(vm)s"
+msgstr "Removendo o mapeamento de vSCSI a partir do volume físico %(dev)s para a VM %(vm)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:367
+#, python-format
+msgid "Adding vSCSI mapping to Physical Volume %(dev)s to VM %(vm)s"
+msgstr "Incluindo o mapeamento de vSCSI para o volume físico %(dev)s para a VM %(vm)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:419
+#, python-format
+msgid "Failed to retrieve device_id key from BDM for volume id %s"
+msgstr "Falha ao recuperar a chave device_id a partir do BDM para o ID de volume %s"
+

@@ -6,10 +6,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 0.0.1.dev353\n"
+"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-09-03 10:53-0400\n"
-"PO-Revision-Date: 2015-09-03 10:53-0400\n"
+"POT-Creation-Date: 2015-10-06 13:59-0500\n"
+"PO-Revision-Date: 2015-10-06 13:59-0500\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
@@ -20,18 +20,18 @@ msgstr ""
 #: nova_powervm/virt/powervm/driver.py:131
 #, python-format
 msgid "Expected exactly one host; found %d"
-msgstr "仅期望一个主机；但是找到 %d 个主机"
+msgstr "期望刚好找到一个主机；但是找到 %d 个主机"
 
-#: nova_powervm/virt/powervm/driver.py:679
+#: nova_powervm/virt/powervm/driver.py:695
 #, python-format
 msgid "Plug vif failed because instance %s was not found."
 msgstr "插入 VIF 失败，因为找不到实例 %s。"
 
-#: nova_powervm/virt/powervm/driver.py:684
+#: nova_powervm/virt/powervm/driver.py:700
 msgid "Plug vif failed because of an unexpected error."
 msgstr "插入 VIF 失败，因为发生了意外错误。"
 
-#: nova_powervm/virt/powervm/driver.py:781
+#: nova_powervm/virt/powervm/driver.py:797
 msgid "Cannot reduce disk size."
 msgstr "无法减小磁盘大小。"
 
@@ -41,15 +41,13 @@ msgid ""
 "Unable to locate the volume group %(vol_grp)s to store the virtual "
 "optical media within.  Unable to create the media repository."
 msgstr ""
-"NV-5F976E2 找不到卷组 %(vol_grp)s，"
-"以将虚拟光学介质存储在其中。无法创建介质存储库。"
+"找不到用于存储虚拟光学介质的卷组 %(vol_grp)s。"
+"无法创建介质存储库。"
 
 #: nova_powervm/virt/powervm/exception.py:44
 #, python-format
 msgid "Expected to find exactly one management partition; found %(count)d."
-msgstr ""
-"NV-5E41059 期望刚好找到一个管理分区；"
-"但是找到了 %(count)d 个。"
+msgstr "期望刚好找到一个管理分区；找到 %(count)d 个管理分区。"
 
 #: nova_powervm/virt/powervm/exception.py:50
 #, python-format
@@ -58,9 +56,9 @@ msgid ""
 "UDID %(udid)s failed to appear after %(polls)d polls over %(timeout)d "
 "seconds."
 msgstr ""
-"NV-0611C68 已扫描管理分区上的 SCSI 总线 %(bus)x，"
-"未能显示 UDID 为 %(udid)s 的磁盘（在 %(polls)d 轮询"
-"%(timeout)d 秒之后）。"
+"已扫描管理分区上的 SCSI 总线 %(bus)x，"
+"在 %(timeout)d 秒内进行 %(polls)d 次轮询后，UDID 为 %(udid)s 的磁盘未能"
+"显示。"
 
 #: nova_powervm/virt/powervm/exception.py:57
 #, python-format
@@ -68,8 +66,8 @@ msgid ""
 "Expected to find exactly one disk on the management partition at "
 "%(path_pattern)s; found %(count)d."
 msgstr ""
-"NV-042142B 期望在位于 %(path_pattern)s 的管理分区上刚好找到一个磁盘；"
-"但是找到了 %(count)d 个磁盘。"
+"期望在位于"
+"%(path_pattern)s 的管理分区上刚好找到一个磁盘；找到 %(count)d 个磁盘。"
 
 #: nova_powervm/virt/powervm/exception.py:63
 #, python-format
@@ -78,9 +76,9 @@ msgid ""
 "attempting to delete it.  Polled %(polls)d times over %(timeout)d "
 "seconds."
 msgstr ""
-"NV-AB822D0 在尝试删除设备 %(devpath)s 之后，"
-"该设备仍然存在于管理分区上。在 %(timeout)d 秒钟之内"
-"轮询了 %(polls)d 次。"
+"在尝试删除设备 %(devpath)s 之后，该设备仍存在于"
+"管理分区上。已在 %(timeout)d 秒内进行 %(polls)d 次"
+"轮询。"
 
 #: nova_powervm/virt/powervm/exception.py:69
 #, python-format
@@ -88,8 +86,8 @@ msgid ""
 "Failed to map boot disk of instance %(instance_name)s to the management "
 "partition from any Virtual I/O Server."
 msgstr ""
-"NV-9F22861 未能将实例 %(instance_name)s 的引导磁盘映射至"
-"任何 Virtual I/O Server 中的管理分区。"
+"未能将实例 %(instance_name)s 的引导磁盘从任何"
+"Virtual I/O Server 映射至管理分区。"
 
 #: nova_powervm/virt/powervm/exception.py:75
 #, python-format
@@ -97,27 +95,22 @@ msgid ""
 "Failed to find newly-created mapping of storage element %(stg_name)s from"
 " Virtual I/O Server %(vios_name)s to the management partition."
 msgstr ""
-"NV-75BCC89 未能找到 Virtual I/O Server %(vios_name)s 中的"
-"存储元素 %(stg_name)s 到管理分区的"
-"新建映射。"
+"未能为存储元素 %(stg_name)s 找到从"
+"Virtual I/O Server %(vios_name)s 到管理分区的新创建映射。"
 
 #: nova_powervm/virt/powervm/exception.py:81
 #, python-format
 msgid "Unable to locate the volume group '%(vg_name)s' for this operation."
-msgstr ""
-"NV-CB5875B 找不到此操作的卷组“%(vg_name)s”"
-"。"
+msgstr "无法为此操作找到卷组“%(vg_name)s”。"
 
 #: nova_powervm/virt/powervm/exception.py:86
 #, python-format
 msgid "Unable to locate the Cluster '%(clust_name)s' for this operation."
-msgstr ""
-"NV-DA1D957 找不到此操作的集群“%(clust_name)s”"
-"。"
+msgstr "无法为此操作找到集群“%(clust_name)s”。"
 
 #: nova_powervm/virt/powervm/exception.py:91
 msgid "Unable to locate any Cluster for this operation."
-msgstr "NV-17B82F8 找不到此操作的任何集群。"
+msgstr "无法为此操作找到任何集群。"
 
 #: nova_powervm/virt/powervm/exception.py:95
 #, python-format
@@ -125,7 +118,7 @@ msgid ""
 "Unexpectedly found %(clust_count)d Clusters matching name "
 "'%(clust_name)s'."
 msgstr ""
-"NV-218A375 意外地找到与名称“%(clust_name)s”"
+"意外地找到与名称“%(clust_name)s”"
 "相匹配的 %(clust_count)d 个集群。"
 
 #: nova_powervm/virt/powervm/exception.py:100
@@ -134,8 +127,8 @@ msgid ""
 "No cluster_name specified.  Refusing to select one of the %(clust_count)d"
 " Clusters found."
 msgstr ""
-"NV-F07AD8B 未指定集群名称。拒绝选择所找到的"
-"%(clust_count)d 个集群中的一个集群。"
+"未指定 cluster_name。拒绝选择所找到的 %(clust_count)d 个"
+"集群其中的一个。"
 
 #: nova_powervm/virt/powervm/exception.py:105
 #, python-format
@@ -143,8 +136,8 @@ msgid ""
 "Unable to attach storage (id: %(volume_id)s) to virtual machine "
 "%(instance_name)s.  %(reason)s"
 msgstr ""
-"NV-82FD24F 无法将存储器（标识：%(volume_id)s）"
-"连接到虚拟机 %(instance_name)s。%(reason)s"
+"无法将存储器（标识：%(volume_id)s）连接到虚拟机"
+"%(instance_name)s。%(reason)s"
 
 #: nova_powervm/virt/powervm/exception.py:110
 #, python-format
@@ -152,8 +145,8 @@ msgid ""
 "Unable to detach volume (id: %(volume_id)s) from virtual machine "
 "%(instance_name)s.  %(reason)s"
 msgstr ""
-"NV-30C93CB 无法从虚拟机 %(instance_name)s"
-"拆离卷（标识：%(volume_id)s）。%(reason)s"
+"无法将卷（标识：%(volume_id)s）从虚拟机"
+"%(instance_name)s 拆离。%(reason)s"
 
 #: nova_powervm/virt/powervm/exception.py:115
 #, python-format
@@ -161,15 +154,15 @@ msgid ""
 "Unable to perform pre live migration steps on volume (id: %(volume_id)s) "
 "from virtual machine %(instance_name)s."
 msgstr ""
-"NV-D26FA38 无法对虚拟机 %(instance_name)s 中的"
-"卷（标识：%(volume_id)s）执行预实时迁移步骤。"
+"无法从虚拟机 %(instance_name)s 对卷（标识：%(volume_id)s）执行"
+"实时迁移预处理步骤。"
 
-#: nova_powervm/virt/powervm/live_migration.py:36
+#: nova_powervm/virt/powervm/live_migration.py:37
 #, python-format
 msgid "Live migration of instance '%(name)s' failed for reason: %(reason)s"
 msgstr "实时迁移实例“%(name)s”失败，原因：%(reason)s"
 
-#: nova_powervm/virt/powervm/live_migration.py:41
+#: nova_powervm/virt/powervm/live_migration.py:42
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because the migration state "
@@ -178,7 +171,7 @@ msgstr ""
 "实时迁移实例“%(name)s”失败，"
 "因为迁移状态为 %(state)s"
 
-#: nova_powervm/virt/powervm/live_migration.py:46
+#: nova_powervm/virt/powervm/live_migration.py:47
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because it is not ready. "
@@ -187,7 +180,7 @@ msgstr ""
 "实时迁移实例“%(name)s”失败，因为它未就绪。"
 "原因：%(reason)s"
 
-#: nova_powervm/virt/powervm/live_migration.py:51
+#: nova_powervm/virt/powervm/live_migration.py:52
 #, python-format
 msgid ""
 "Cannot migrate instance '%(name)s' because the memory region size of the "
@@ -198,25 +191,25 @@ msgstr ""
 "因为源的内存区域大小 (%(source_mrs)d MB)"
 "与目标的内存区域大小 (%(target_mrs)d MB) 不匹配。"
 
-#: nova_powervm/virt/powervm/live_migration.py:58
+#: nova_powervm/virt/powervm/live_migration.py:59
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because its processor compatibility mode %(mode)s"
 " is not in the list of modes \"%(modes)s\" supported by the target host."
 msgstr ""
 "无法迁移 %(name)s，因为它的处理器兼容性方式 %(mode)s"
-" 不在目标主机所支持的方式列表“%(modes)s”中。"
+"不在目标主机所支持的方式列表“%(modes)s”中。"
 
-#: nova_powervm/virt/powervm/live_migration.py:65
+#: nova_powervm/virt/powervm/live_migration.py:66
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because the host %(host)s only allows %(allowed)s"
 " concurrent migrations and %(running)s migrations are currently running."
 msgstr ""
 "无法迁移 %(name)s，因为主机 %(host)s 只允许 %(allowed)s 个"
-" 并发迁移，但是有 %(running)s 个迁移当前正在运行。"
+"并发迁移，但是有 %(running)s 个迁移当前正在运行。"
 
-#: nova_powervm/virt/powervm/live_migration.py:71
+#: nova_powervm/virt/powervm/live_migration.py:72
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because the volume %(volume)s cannot be attached "
@@ -248,12 +241,12 @@ msgstr ""
 msgid "Virtual interface unplug failed"
 msgstr "虚拟接口拔出失败"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:175
+#: nova_powervm/virt/powervm/volume/vscsi.py:206
 #, python-format
 msgid ""
 "Failed to discover valid hdisk on any Virtual I/O Server for volume "
 "%(volume_id)s."
 msgstr ""
 "未能在任何 Virtual I/O Server 上发现卷的有效 hdisk"
-"%(volume_id)s."
+"%(volume_id)s。"
 

@@ -6,10 +6,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 0.0.1.dev353\n"
+"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-09-03 10:53-0400\n"
-"PO-Revision-Date: 2015-09-03 10:53-0400\n"
+"POT-Creation-Date: 2015-10-06 13:59-0500\n"
+"PO-Revision-Date: 2015-10-06 13:59-0500\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
@@ -22,16 +22,16 @@ msgstr ""
 msgid "Expected exactly one host; found %d"
 msgstr "정확히 하나의 호스트를 예상했지만 %d개를 찾음"
 
-#: nova_powervm/virt/powervm/driver.py:679
+#: nova_powervm/virt/powervm/driver.py:695
 #, python-format
 msgid "Plug vif failed because instance %s was not found."
 msgstr "%s 인스턴스를 찾을 수 없으므로 vif 플러그에 실패했습니다."
 
-#: nova_powervm/virt/powervm/driver.py:684
+#: nova_powervm/virt/powervm/driver.py:700
 msgid "Plug vif failed because of an unexpected error."
 msgstr "예기치 않은 오류 때문에 vif 플러그에 실패했습니다."
 
-#: nova_powervm/virt/powervm/driver.py:781
+#: nova_powervm/virt/powervm/driver.py:797
 msgid "Cannot reduce disk size."
 msgstr "디스크 크기를 줄일 수 없습니다."
 
@@ -41,15 +41,13 @@ msgid ""
 "Unable to locate the volume group %(vol_grp)s to store the virtual "
 "optical media within.  Unable to create the media repository."
 msgstr ""
-"NV-5F976E2 가상 광학 매체를 저장할 볼륨 그룹 %(vol_grp)s을(를) "
+"가상 광학 매체를 저장할 볼륨 그룹 %(vol_grp)s을(를) "
 "찾을 수 없습니다. 매체 저장소를 작성할 수 없습니다."
 
 #: nova_powervm/virt/powervm/exception.py:44
 #, python-format
 msgid "Expected to find exactly one management partition; found %(count)d."
-msgstr ""
-"NV-5E41059 정확히 하나의 관리 파티션을 찾을 것을 예상했지만 "
-"%(count)d개를 찾았습니다."
+msgstr "정확히 하나의 관리 파티션을 찾을 것을 예상했지만 %(count)d개를 찾았습니다."
 
 #: nova_powervm/virt/powervm/exception.py:50
 #, python-format
@@ -58,8 +56,8 @@ msgid ""
 "UDID %(udid)s failed to appear after %(polls)d polls over %(timeout)d "
 "seconds."
 msgstr ""
-"NV-0611C68 관리 파티션에서 SCSI 버스 %(bus)x을(를) 스캔한 경우 "
-"UDID가 %(udid)s인 디스크가 %(timeout)d초 이상 %(polls)d 폴링한 후"
+"관리 파티션에서 SCSI 버스 %(bus)x을(를) 스캔한 경우 "
+"UDID가 %(udid)s인 디스크가 %(timeout)d초 동안 %(polls)d번 폴링한 후 "
 "표시되지 못했습니다."
 
 #: nova_powervm/virt/powervm/exception.py:57
@@ -68,8 +66,8 @@ msgid ""
 "Expected to find exactly one disk on the management partition at "
 "%(path_pattern)s; found %(count)d."
 msgstr ""
-"NV-042142B %(path_pattern)s의 관리 파티션에서 정확히 하나의 디스크를 찾을 것을 예상했지만"
-"%(count)d개를 찾았습니다."
+"%(path_pattern)s;의 관리 파티션에서 정확히 하나의 디스크를 찾을 것으로 "
+"예상되었지만 %(count)d개를 찾았습니다."
 
 #: nova_powervm/virt/powervm/exception.py:63
 #, python-format
@@ -78,8 +76,8 @@ msgid ""
 "attempting to delete it.  Polled %(polls)d times over %(timeout)d "
 "seconds."
 msgstr ""
-"NV-AB822D0 장치 %(devpath)s 삭제 시도 이후에 해당 장치가 관리 파티션에 "
-"계속 존재합니다. %(timeout)d초 이상 %(polls)d번 "
+"%(devpath)s 장치를 삭제하려고 시도한 후 해당 장치가 관리 "
+"파티션에 계속 존재합니다. %(timeout)d초 동안 %(polls)d번 "
 "폴링했습니다."
 
 #: nova_powervm/virt/powervm/exception.py:69
@@ -88,8 +86,8 @@ msgid ""
 "Failed to map boot disk of instance %(instance_name)s to the management "
 "partition from any Virtual I/O Server."
 msgstr ""
-"NV-9F22861 인스턴스 %(instance_name)s의 부트 디스크를 Virtual I/O Server 관리 파티션에 "
-"맵핑하는 데 실패했습니다."
+"%(instance_name)s 인스턴스의 부트 디스크를 Virtual I/O Server의 "
+"관리 파티션에 맵핑하는 데 실패했습니다."
 
 #: nova_powervm/virt/powervm/exception.py:75
 #, python-format
@@ -97,27 +95,22 @@ msgid ""
 "Failed to find newly-created mapping of storage element %(stg_name)s from"
 " Virtual I/O Server %(vios_name)s to the management partition."
 msgstr ""
-"NV-75BCC89 Virtual I/O Server "
-"%(vios_name)s에서 관리 파티션으로 새로 작성된 스토리지 요소 %(stg_name)s의 맵핑을 "
-"찾는 데 실패했습니다."
+"Virtual I/O Server %(vios_name)s에서 관리 파티션으로 새로 작성된 스토리지"
+" 요소 %(stg_name)s의 맵핑을 찾는 데 실패했습니다."
 
 #: nova_powervm/virt/powervm/exception.py:81
 #, python-format
 msgid "Unable to locate the volume group '%(vg_name)s' for this operation."
-msgstr ""
-"NV-CB5875B 이 조작에 대한 볼륨 그룹 '%(vg_name)s'을(를) 찾을 수 "
-"없습니다."
+msgstr "이 조작에 대한 볼륨 그룹 '%(vg_name)s'을(를) 찾을 수 없습니다."
 
 #: nova_powervm/virt/powervm/exception.py:86
 #, python-format
 msgid "Unable to locate the Cluster '%(clust_name)s' for this operation."
-msgstr ""
-"NV-DA1D957 이 조작에 대한 클러스터 '%(clust_name)s'을(를) 찾을 수 "
-"없습니다."
+msgstr "이 조작에 대한 클러스터 '%(clust_name)s'을(를) 찾을 수 없습니다."
 
 #: nova_powervm/virt/powervm/exception.py:91
 msgid "Unable to locate any Cluster for this operation."
-msgstr "NV-17B82F8 이 조작에 대한 클러스터를 찾을 수 없습니다."
+msgstr "이 조작에 대한 클러스터를 찾을 수 없습니다."
 
 #: nova_powervm/virt/powervm/exception.py:95
 #, python-format
@@ -125,7 +118,7 @@ msgid ""
 "Unexpectedly found %(clust_count)d Clusters matching name "
 "'%(clust_name)s'."
 msgstr ""
-"NV-218A375 예상치 않게 '%(clust_name)s' 이름과 일치하는 %(clust_count)d 클러스터를 "
+"예상치 않게 '%(clust_name)s' 이름과 일치하는 %(clust_count)d 클러스터를 "
 "찾았습니다."
 
 #: nova_powervm/virt/powervm/exception.py:100
@@ -134,8 +127,8 @@ msgid ""
 "No cluster_name specified.  Refusing to select one of the %(clust_count)d"
 " Clusters found."
 msgstr ""
-"NV-F07AD8B cluster_name이 지정되지 않았습니다. 발견된 "
-"%(clust_count)d 클러스터 중 하나를 선택할 수 없습니다."
+"cluster_name이 지정되지 않았습니다. 발견된 %(clust_count)d개의 클러스터 중 "
+"하나를 선택할 수 없습니다."
 
 #: nova_powervm/virt/powervm/exception.py:105
 #, python-format
@@ -143,8 +136,8 @@ msgid ""
 "Unable to attach storage (id: %(volume_id)s) to virtual machine "
 "%(instance_name)s.  %(reason)s"
 msgstr ""
-"NV-82FD24F 가상 머신 "
-"%(instance_name)s에 스토리지(ID: %(volume_id)s)를 연결할 수 없습니다. %(reason)s"
+"스토리지(ID: %(volume_id)s)를 가상 머신 %(instance_name)s에 연결할 "
+"수 없습니다. %(reason)s"
 
 #: nova_powervm/virt/powervm/exception.py:110
 #, python-format
@@ -152,8 +145,8 @@ msgid ""
 "Unable to detach volume (id: %(volume_id)s) from virtual machine "
 "%(instance_name)s.  %(reason)s"
 msgstr ""
-"NV-30C93CB 가상 머신 "
-"%(instance_name)s에서 볼륨(ID: %(volume_id)s)을 분리할 수 없습니다. %(reason)s"
+"가상 머신 %(instance_name)s에서 볼륨(ID: %(volume_id)s)을 분리할 "
+"수 없습니다. %(reason)s"
 
 #: nova_powervm/virt/powervm/exception.py:115
 #, python-format
@@ -161,15 +154,15 @@ msgid ""
 "Unable to perform pre live migration steps on volume (id: %(volume_id)s) "
 "from virtual machine %(instance_name)s."
 msgstr ""
-"NV-D26FA38 가상 머신 %(instance_name)s의 볼륨(ID: "
-"%(volume_id)s)에서 사전 실시간 마이그레이션 단계를 수행할 수 없습니다."
+"가상 머신 %(instance_name)s에서 볼륨(ID: %(volume_id)s)에 대한 사전 "
+"실시간 마이그레이션 단계를 수행할 수 없습니다."
 
-#: nova_powervm/virt/powervm/live_migration.py:36
+#: nova_powervm/virt/powervm/live_migration.py:37
 #, python-format
 msgid "Live migration of instance '%(name)s' failed for reason: %(reason)s"
 msgstr "인스턴스 '%(name)s'의 실시간 마이그레이션에 실패했습니다. 이유: %(reason)s"
 
-#: nova_powervm/virt/powervm/live_migration.py:41
+#: nova_powervm/virt/powervm/live_migration.py:42
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because the migration state "
@@ -178,7 +171,7 @@ msgstr ""
 "마이그레이션 상태가 %(state)s이므로 인스턴스 '%(name)s'의 실시간 마이그레이션에 "
 "실패했습니다."
 
-#: nova_powervm/virt/powervm/live_migration.py:46
+#: nova_powervm/virt/powervm/live_migration.py:47
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because it is not ready. "
@@ -187,7 +180,7 @@ msgstr ""
 "인스턴스 '%(name)s'의 실시간 마이그레이션이 준비되지 않았으므로 실패했습니다. "
 "이유: %(reason)s"
 
-#: nova_powervm/virt/powervm/live_migration.py:51
+#: nova_powervm/virt/powervm/live_migration.py:52
 #, python-format
 msgid ""
 "Cannot migrate instance '%(name)s' because the memory region size of the "
@@ -198,25 +191,25 @@ msgstr ""
 "메모리 영역 크기(%(target_mrs)d MB)와 일치하지 않으므로 "
 "'%(name)s' 인스턴스를 마이그레이션할 수 없습니다."
 
-#: nova_powervm/virt/powervm/live_migration.py:58
+#: nova_powervm/virt/powervm/live_migration.py:59
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because its processor compatibility mode %(mode)s"
 " is not in the list of modes \"%(modes)s\" supported by the target host."
 msgstr ""
 "해당 프로세서 호환성 모드 %(mode)s이(가) 대상 호스트에서 지원하는 모드 \"%(modes)s\"의 목록에 없으므로 "
-" %(name)s을(를) 마이그레이션할 수 없습니다."
+"%(name)s을(를) 마이그레이션할 수 없습니다."
 
-#: nova_powervm/virt/powervm/live_migration.py:65
+#: nova_powervm/virt/powervm/live_migration.py:66
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because the host %(host)s only allows %(allowed)s"
 " concurrent migrations and %(running)s migrations are currently running."
 msgstr ""
 "호스트 %(host)s이(가) %(allowed)s 동시 마이그레이션만 허용하고 "
-" %(running)s 마이그레이션이 현재 실행 중이므로 %(name)s을(를) 마이그레이션할 수 없습니다."
+"%(running)s 마이그레이션이 현재 실행 중이므로 %(name)s을(를) 마이그레이션할 수 없습니다."
 
-#: nova_powervm/virt/powervm/live_migration.py:71
+#: nova_powervm/virt/powervm/live_migration.py:72
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because the volume %(volume)s cannot be attached "
@@ -248,7 +241,7 @@ msgstr ""
 msgid "Virtual interface unplug failed"
 msgstr "가상 인터페이스 언플러그 실패"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:175
+#: nova_powervm/virt/powervm/volume/vscsi.py:206
 #, python-format
 msgid ""
 "Failed to discover valid hdisk on any Virtual I/O Server for volume "
