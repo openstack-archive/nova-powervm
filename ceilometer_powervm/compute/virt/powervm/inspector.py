@@ -27,8 +27,8 @@ from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
 
 from ceilometer.compute.virt import inspector as virt_inspector
-from ceilometer.i18n import _
-from ceilometer.i18n import _LW
+from ceilometer_powervm.compute.virt.powervm.i18n import _
+from ceilometer_powervm.compute.virt.powervm.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 
