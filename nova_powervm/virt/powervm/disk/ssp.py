@@ -19,8 +19,10 @@ import random
 from oslo_config import cfg
 import oslo_log.log as logging
 
-from nova.i18n import _LI, _LE
 from nova_powervm.virt.powervm.disk import driver as disk_drv
+from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm.i18n import _LE
+from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
@@ -31,7 +33,6 @@ import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
-from nova_powervm.virt.powervm import exception as npvmex
 
 ssp_opts = [
     cfg.StrOpt('cluster_name',

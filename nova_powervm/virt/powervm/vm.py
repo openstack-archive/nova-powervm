@@ -15,14 +15,12 @@
 #    under the License.
 
 import json
-import re
-
 from oslo_config import cfg
 from oslo_log import log as logging
+import re
 
 from nova.compute import power_state
 from nova import exception
-from nova.i18n import _LI, _LE, _
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
@@ -38,6 +36,11 @@ from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
 from pypowervm.wrappers import shared_proc_pool as pvm_spp
+
+from nova_powervm.virt.powervm.i18n import _
+from nova_powervm.virt.powervm.i18n import _LE
+from nova_powervm.virt.powervm.i18n import _LI
+
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF

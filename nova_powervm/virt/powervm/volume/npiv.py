@@ -19,11 +19,12 @@ from oslo_log import log as logging
 from taskflow import task
 
 from nova.compute import task_states
-from nova.i18n import _LI, _LW
 from pypowervm.tasks import vfc_mapper as pvm_vfcm
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt import powervm
+from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 LOG = logging.getLogger(__name__)

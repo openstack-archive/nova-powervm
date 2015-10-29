@@ -17,13 +17,16 @@
 import eventlet
 
 from nova import exception
-from nova.i18n import _LI, _LW, _LE, _
 from nova import utils
 
 from oslo_config import cfg
 from oslo_log import log as logging
 from taskflow import task
 
+from nova_powervm.virt.powervm.i18n import _
+from nova_powervm.virt.powervm.i18n import _LE
+from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)

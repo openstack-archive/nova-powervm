@@ -16,7 +16,6 @@
 
 import copy
 from nova.api.metadata import base as instance_metadata
-from nova.i18n import _LI, _LW
 from nova.network import model as network_model
 from nova.virt import configdrive
 import os
@@ -36,6 +35,8 @@ from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)

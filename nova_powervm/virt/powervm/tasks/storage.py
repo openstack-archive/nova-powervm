@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.i18n import _LI, _LW
 from pypowervm.tasks import scsi_mapper as pvm_smap
 
 from oslo_log import log as logging
@@ -23,6 +22,8 @@ from taskflow.types import failure as task_fail
 
 from nova_powervm.virt.powervm.disk import driver as disk_driver
 from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import mgmt
 

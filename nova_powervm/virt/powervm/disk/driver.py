@@ -21,7 +21,6 @@ import oslo_log.log as logging
 from oslo_utils import units
 import six
 
-from nova.i18n import _LW
 from nova import image
 import pypowervm.const as pvm_const
 import pypowervm.tasks.scsi_mapper as tsk_map
@@ -29,6 +28,7 @@ import pypowervm.util as pvm_util
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)

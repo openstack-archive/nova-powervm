@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.i18n import _LI
 from pypowervm.tasks import power
 from pypowervm.tasks import storage as pvm_stg
 
@@ -22,6 +21,7 @@ from oslo_log import log as logging
 from taskflow import task
 from taskflow.types import failure as task_fail
 
+from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)

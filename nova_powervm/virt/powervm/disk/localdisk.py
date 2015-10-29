@@ -19,7 +19,6 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from nova import exception as nova_exc
-from nova.i18n import _LI, _LE
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
@@ -29,6 +28,8 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm.i18n import _LE
+from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
