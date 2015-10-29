@@ -18,14 +18,13 @@ import math
 from nova.compute import arch
 from nova.compute import hv_type
 from nova.compute import vm_mode
-from nova.i18n import _LW
-import subprocess
-
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
-
 from pypowervm.tasks.monitor import util as pcm_util
+import subprocess
+
+from nova_powervm.virt.powervm.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 
