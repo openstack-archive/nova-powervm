@@ -54,7 +54,7 @@ class TestMgmt(test.TestCase):
                 '13fb2aa55a2d7b8d150cb1b7b6bc04d6')
         devlink = ('/dev/disk/by-id/scsi-SIBM_3303_NVDISK' + udid)
         mapping = mock.Mock()
-        mapping.client_adapter.slot_number = 5
+        mapping.client_adapter.lpar_slot_num = 5
         mapping.backing_storage.udid = udid
         # Realistically, first glob would return  e.g. .../host0/.../host0/...
         # but it doesn't matter for test purposes.
@@ -75,7 +75,7 @@ class TestMgmt(test.TestCase):
         udid = ('275b5d5f88fa5611e48be9000098be9400'
                 '13fb2aa55a2d7b8d150cb1b7b6bc04d6')
         mapping = mock.Mock()
-        mapping.client_adapter.slot_number = 5
+        mapping.client_adapter.lpar_slot_num = 5
         mapping.backing_storage.udid = udid
         # No disks found
         mock_glob.side_effect = lambda path: []
