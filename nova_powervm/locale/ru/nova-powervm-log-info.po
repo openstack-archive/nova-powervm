@@ -1,0 +1,442 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-10-06 13:59-0500\n"
+"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:109
+msgid "The compute driver has been initialized."
+msgstr "Вычислительный драйвер инициализирован."
+
+#: nova_powervm/virt/powervm/driver.py:134
+#, python-format
+msgid "Host UUID is:%s"
+msgstr "UUID хоста:%s"
+
+#: nova_powervm/virt/powervm/driver.py:140
+#, python-format
+msgid ""
+"Operation: %(op)s. Virtual machine display name: %(display_name)s, name: "
+"%(name)s, UUID: %(uuid)s"
+msgstr ""
+"Операция: %(op)s. Отображаемое имя виртуальной машины: %(display_name)s, имя: "
+"%(name)s, UUID: %(uuid)s"
+
+#: nova_powervm/virt/powervm/driver.py:379
+msgid "Ignoring destroy call during resize revert."
+msgstr "Во время возвращения изменения размеров вызов функции уничтожения игнорируется."
+
+#: nova_powervm/virt/powervm/driver.py:441
+msgid "During volume detach, the instance was not found on this host."
+msgstr "В процессе отключения тома не найден экземпляр на этом хосте."
+
+#: nova_powervm/virt/powervm/driver.py:821
+msgid "Retrying to update VM."
+msgstr "Повтор операции обновления ВМ."
+
+#: nova_powervm/virt/powervm/driver.py:952
+msgid "Checking live migration capability on destination host."
+msgstr "Проверка возможности оперативной миграции на хосте назначения."
+
+#: nova_powervm/virt/powervm/driver.py:967
+msgid "Cleaning up from checking live migration capability on destination."
+msgstr "Отказ от проверки возможности оперативной миграции на хосте назначения."
+
+#: nova_powervm/virt/powervm/driver.py:983
+msgid "Checking live migration capability on source host."
+msgstr "Проверка возможности оперативной миграции на исходном хосте."
+
+#: nova_powervm/virt/powervm/driver.py:1005
+msgid "Pre live migration processing."
+msgstr "Предварительные действия оперативной миграции."
+
+#: nova_powervm/virt/powervm/driver.py:1165
+msgid "Post live migration processing on source host."
+msgstr "Заключительные действия оперативной миграции на исходном хосте."
+
+#: nova_powervm/virt/powervm/driver.py:1181
+msgid "Post live migration processing on destination host."
+msgstr "Заключительные действия оперативной миграции на хосте назначения."
+
+#: nova_powervm/virt/powervm/live_migration.py:174
+#, python-format
+msgid "Performing pre migration for volume %(volume)s"
+msgstr "Предварительные действия миграции для тома %(volume)s"
+
+#: nova_powervm/virt/powervm/live_migration.py:203
+#, python-format
+msgid "Performing post migration for volume %(volume)s"
+msgstr "Заключительные действия миграции для тома %(volume)s"
+
+#: nova_powervm/virt/powervm/media.py:84
+#, python-format
+msgid "Creating config drive for instance: %s"
+msgstr "Создание настроечного накопителя для экземпляра: %s"
+
+#: nova_powervm/virt/powervm/media.py:104
+#, python-format
+msgid ""
+"Config drive ISO being built for instance %(inst)s building to path "
+"%(iso_path)s."
+msgstr ""
+"Формирование ISO настроечного накопителя для экземпляра %(inst)s с путем "
+"%(iso_path)s."
+
+#: nova_powervm/virt/powervm/media.py:174
+#, python-format
+msgid ""
+"Adding cfg drive mapping for instance %(inst)s for Virtual I/O Server "
+"%(vios)s"
+msgstr ""
+"Добавление связи настроечного накопителя для экземпляра %(inst)s для виртуального сервера ввода-вывода "
+"%(vios)s"
+
+#: nova_powervm/virt/powervm/media.py:262
+msgid ""
+"An error occurred querying the virtual optical media repository.  "
+"Attempting to re-establish connection with a virtual optical media "
+"repository"
+msgstr ""
+"Возникла ошибка при запросе хранилища виртуальных оптических носителей.  "
+"Попытка повторной установки соединения с хранилищем виртуальных оптических "
+"носителей"
+
+#: nova_powervm/virt/powervm/media.py:383
+#, python-format
+msgid "Removing virtual optical for VM with UUID %s."
+msgstr "Удаление виртуального оптического носителя из ВМ с UUID %s."
+
+#: nova_powervm/virt/powervm/vm.py:511
+#, python-format
+msgid "Deleting virtual machine. LPARID: %s"
+msgstr "Удаление виртуальной машины. LPARID: %s"
+
+#: nova_powervm/virt/powervm/vm.py:517
+#, python-format
+msgid "Virtual machine delete status: %d"
+msgstr "Состояние удаления виртуальной машины: %d"
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:63
+#, python-format
+msgid "Local Storage driver initialized: volume group: '%s'"
+msgstr "Инициализирован локальный драйвер хранилища: группа томов: '%s'"
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:149
+#, python-format
+msgid "Disconnecting instance %(inst)s from storage disks."
+msgstr "Отключение экземпляра %(inst)s от дисков хранения данных."
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:178
+#, python-format
+msgid ""
+"Unmapped boot disk %(disk_name)s from the management partition from "
+"Virtual I/O Server %(vios_name)s."
+msgstr ""
+"Загрузочный диск %(disk_name)s отключен от раздела управления из "
+"виртуального сервера ввода-вывода %(vios_name)s."
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:198
+msgid "Create disk."
+msgstr "Создайте диск."
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:242
+#, python-format
+msgid "Adding logical volume disk connection between VM %(vm)s and VIOS %(vios)s."
+msgstr "Добавление связи диска логического тома между ВМ %(vm)s и VIOS %(vios)s."
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:288
+#, python-format
+msgid "Extending disk: %s"
+msgstr "Диск расширения: %s"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:74
+#, python-format
+msgid ""
+"SSP Storage driver initialized. Cluster '%(clust_name)s'; SSP "
+"'%(ssp_name)s'"
+msgstr ""
+"Драйвер хранилища SSP инициализирован. Кластер '%(clust_name)s'; SSP "
+"'%(ssp_name)s'"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:116
+#, python-format
+msgid "Removing SSP disk connection between VM %(vm)s and VIOS %(vios)s."
+msgstr "Удаление связи диска SSP между ВМ %(vm)s и VIOS %(vios)s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:160
+#, python-format
+msgid ""
+"Unmapped boot disk %(disk_name)s from the management partition from "
+"Virtual I/O Server %(vios_uuid)s."
+msgstr ""
+"Загрузочный диск %(disk_name)s отключен от раздела управления из "
+"виртуального сервера ввода-вывода %(vios_uuid)s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:197
+#, python-format
+msgid ""
+"SSP: Create %(image_type)s disk from image %(image_id)s for instance "
+"%(instance_uuid)s."
+msgstr ""
+"SSP: Создать диск %(image_type)s из образа %(image_id)s для экземпляра "
+"%(instance_uuid)s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:210
+#, python-format
+msgid "SSP: Disk name is %s"
+msgstr "SSP: Имя диска - %s"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:235
+#, python-format
+msgid "SSP: Using already-uploaded image LU %s."
+msgstr "SSP: Использование готового переданного LU образа %s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:242
+#, python-format
+msgid "SSP: Uploading new image LU %s."
+msgstr "SSP: Передача нового LU образа %s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:273
+#, python-format
+msgid "Adding SSP disk connection between VM %(vm)s and VIOS %(vios)s."
+msgstr "Добавление связи диска SSP между ВМ %(vm)s и VIOS %(vios)s."
+
+#: nova_powervm/virt/powervm/tasks/image.py:72
+#, python-format
+msgid ""
+"Starting stream of boot device for instance %(inst)s (local blockdev "
+"%(devpath)s) to glance image %(img_id)s."
+msgstr ""
+"Запуск потокового или загрузочного устройства для экземпляра %(inst)s (локальный blockdev "
+"%(devpath)s) для образа glance %(img_id)s."
+
+#: nova_powervm/virt/powervm/tasks/image.py:79
+#, python-format
+msgid ""
+"Completed stream of boot device for instance %(inst)s (local blockdev "
+"%(devpath)s) to glance image %(img_id)s."
+msgstr ""
+"Потоковое или загрузочное устройство для экземпляра %(inst)s запущено (локальный blockdev "
+"%(devpath)s) для образа glance %(img_id)s."
+
+#: nova_powervm/virt/powervm/tasks/network.py:63
+#, python-format
+msgid "Unplugging the Network Interfaces to instance %s"
+msgstr "Отключение сетевых интерфейсов для экземпляра %s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:85
+#, python-format
+msgid "Deleting VIF with mac %(mac)s for instance %(inst)s."
+msgstr "Удаление VIF с mac-адресом %(mac)s для экземпляра %(inst)s."
+
+#: nova_powervm/virt/powervm/tasks/network.py:137
+#, python-format
+msgid "Plugging the Network Interfaces to instance %s"
+msgstr "Подключение сетевых интерфейсов для экземпляра %s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:174
+#, python-format
+msgid "Creating VIF with mac %(mac)s for instance %(sys)s"
+msgstr "Создание VIF с mac-адресом %(mac)s для экземпляра %(sys)s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:240
+#, python-format
+msgid "Plugging the Management Network Interface to instance %s"
+msgstr "Подключение сетевого интерфейса управления для экземпляра %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:48
+#, python-format
+msgid "Connecting volume %(vol)s to instance %(inst)s"
+msgstr "Подключение тома %(vol)s к экземпляру %(inst)s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:91
+#, python-format
+msgid "Disconnecting volume %(vol)s from instance %(inst)s"
+msgstr "Отключение тома %(vol)s от экземпляра %(inst)s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:148
+#, python-format
+msgid "Creating disk for instance: %s"
+msgstr "Создание диска для экземпляра: %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:198
+#, python-format
+msgid "Connecting disk to instance: %s"
+msgstr "Подключение диска к экземпляру: %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:242
+#, python-format
+msgid "Mapping boot disk of instance %(instance_name)s to management partition."
+msgstr "Создание связи загрузочного диска экземпляра %(instance_name)s с разделом управления."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:259
+#, python-format
+msgid ""
+"Discovering device and path for mapping of %(dev_name)s on the management"
+" partition."
+msgstr ""
+"Обнаружение устройства и пути для подключения %(dev_name)s в разделе"
+" управления."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:327
+#, python-format
+msgid ""
+"Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
+"management partition via Virtual I/O Server %(vios_name)s."
+msgstr ""
+"Удаление связи загрузочного диска %(disk_name)s экземпляра %(instance_name)s из "
+"раздела управления через виртуальный сервер ввода-вывода %(vios_name)s."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:334
+#, python-format
+msgid "Removing disk %(disk_path)s from the management partition."
+msgstr "Удаление %(disk_path)s диска из раздела управления."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:376
+#, python-format
+msgid "Creating Config Drive for instance: %s"
+msgstr "Создание настроечного накопителя для экземпляра %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:456
+#, python-format
+msgid "Detaching disk storage adapters for instance %s"
+msgstr "Отключение адаптеров дискового хранилища для экземпляра %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:482
+#, python-format
+msgid "Deleting storage disk for instance %s."
+msgstr "Удаление диска хранения данных для экземпляра %s."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:502
+#, python-format
+msgid "Saving block device mapping for volume id %(vol_id)s on instance %(inst)s."
+msgstr "Сохранение связи блочного устройства для ИД тома %(vol_id)s в экземпляре %(inst)s."
+
+#: nova_powervm/virt/powervm/tasks/vm.py:84
+#, python-format
+msgid "Creating instance: %s"
+msgstr "Создание экземпляра: %s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:113
+#, python-format
+msgid "Powering on instance: %s"
+msgstr "Включение экземпляра: %s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:117
+#, python-format
+msgid "Powering off instance: %s"
+msgstr "Выключение экземпляра: %s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:145
+#, python-format
+msgid "Powering off instance %s."
+msgstr "Выключение экземпляра %s."
+
+#: nova_powervm/virt/powervm/tasks/vm.py:166
+#, python-format
+msgid "Deleting instance %s from system."
+msgstr "Удаление экземпляра %s из системы."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:156
+#, python-format
+msgid "Removing mgmt NPIV mapping for instance %(inst)s for fabric %(fabric)s."
+msgstr "Удаление связи NPIV управления для экземпляра %(inst)s для фабрики %(fabric)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:240
+#, python-format
+msgid ""
+"Mapping instance %(inst)s to the mgmt partition for fabric %(fabric)s "
+"because the VM does not yet have a valid vFC device."
+msgstr ""
+"Подключение экземпляра %(inst)s к разделу управления для фабрики %(fabric)s "
+"так как ВМ еще не содержит соответствующего устройства vFC. "
+
+#: nova_powervm/virt/powervm/volume/npiv.py:274
+#, python-format
+msgid ""
+"Mapping instance %(inst)s to the mgmt partition for fabric %(fabric)s "
+"because the VM is migrating to this host."
+msgstr ""
+"Подключение экземпляра %(inst)s к разделу управления для фабрики %(fabric)s "
+"так как ВМ переносится на этот хост."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:332
+#, python-format
+msgid "NPIV wwpns fabric state=%(st)s for instance %(inst)s"
+msgstr "Состояние фабрики wwpns NPIV=%(st)s для экземпляра %(inst)s"
+
+#: nova_powervm/virt/powervm/volume/npiv.py:363
+#, python-format
+msgid "Adding NPIV Mapping with mgmt partition for instance %s"
+msgstr "Добавление связи NPIV с разделом управления для экземпляра %s"
+
+#: nova_powervm/virt/powervm/volume/npiv.py:424
+#, python-format
+msgid ""
+"Removing NPIV mapping for mgmt partition for instance %(inst)s on VIOS "
+"%(vios)s."
+msgstr ""
+"Удаление связи NPIV для раздела управления для экземпляра %(inst)s в VIOS "
+"%(vios)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:436
+#, python-format
+msgid "Adding NPIV mapping for instance %(inst)s for Virtual I/O Server %(vios)s."
+msgstr "Добавление связи NPIV для экземпляра %(inst)s для виртуального сервера ввода-вывода %(vios)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:465
+#, python-format
+msgid "Removing a NPIV mapping for instance %(inst)s for fabric %(fabric)s."
+msgstr "Удаление связи NPIV для экземпляра %(inst)s для фабрики %(fabric)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:501
+#, python-format
+msgid "Setting Fabric state=%(st)s for instance=%(inst)s"
+msgstr "Установка состояния фабрики =%(st)s для экземпляра=%(inst)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:143
+#, python-format
+msgid ""
+"Discovered %(hdisk)s on vios %(vios)s for volume %(volume_id)s. Status "
+"code: %(status)s."
+msgstr ""
+"Обнаружены %(hdisk)s на сервере VIOS %(vios)s для тома %(volume_id)s. Код "
+"состояния: %(status)s."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:255
+#, python-format
+msgid ""
+"Disconnect Volume: Discovered the device %(hdisk)s on Virtual I/O Server "
+"%(vios_name)s for volume %(volume_id)s.  Volume UDID: %(volume_uid)s."
+msgstr ""
+"Отключение тома: обнаружено устройство %(hdisk)s на виртуальном сервере ввода-вывода "
+"%(vios_name)s для тома %(volume_id)s. UDID тома: %(volume_uid)s."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:353
+#, python-format
+msgid "Removing vSCSI mapping from Physical Volume %(dev)s to VM %(vm)s"
+msgstr "Удаление связи vSCSI от физического тома %(dev)s к ВМ %(vm)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:367
+#, python-format
+msgid "Adding vSCSI mapping to Physical Volume %(dev)s to VM %(vm)s"
+msgstr "Добавление связи vSCSI к физическому тому %(dev)s к ВМ %(vm)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:419
+#, python-format
+msgid "Failed to retrieve device_id key from BDM for volume id %s"
+msgstr "Не удалось извлечь ключ device_id из BDM для ИД тома %s"
+

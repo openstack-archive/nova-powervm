@@ -1,0 +1,100 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-10-06 13:59-0500\n"
+"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:1044
+msgid "Live migration timed out. Aborting migration"
+msgstr "即時移轉逾時。正在中斷移轉"
+
+#: nova_powervm/virt/powervm/live_migration.py:304
+msgid "Live migration failed."
+msgstr "即時移轉失敗。"
+
+#: nova_powervm/virt/powervm/live_migration.py:331
+#, python-format
+msgid "Migration recover failed with error: %s"
+msgstr "移轉回復失敗，發生錯誤：%s"
+
+#: nova_powervm/virt/powervm/live_migration.py:353
+msgid ""
+"Abort of live migration has failed. This is non-blocking. Exception is "
+"logged below."
+msgstr ""
+"中斷即時移轉失敗。這是非區塊傳輸。異常狀況"
+"記載如下。"
+
+#: nova_powervm/virt/powervm/vm.py:521
+#, python-format
+msgid "Virtual machine delete failed: LPARID=%s"
+msgstr "刪除虛擬機器失敗：LPARID=%s"
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:275
+#, python-format
+msgid "Disk %s not found during resize."
+msgstr "在調整大小期間找不到磁碟 %s。"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:330
+#, python-format
+msgid "Error checking for shared storage. exception=%s"
+msgstr "在檢查是否有共用儲存體時發生錯誤。異常狀況為 %s "
+
+#: nova_powervm/virt/powervm/tasks/network.py:70
+#, python-format
+msgid ""
+"Unable to remove VIFs from instance %(inst)s because the system is not in"
+" a correct state.  The reason reported by the system is: %(reason)s"
+msgstr ""
+"無法將 VIF 從實例 %(inst)s 中移除，因為系統未處於"
+"正確狀態。系統所報告的原因為：%(reason)s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:92
+#, python-format
+msgid "Unable to unplug VIF with mac %(mac)s for instance %(inst)s."
+msgstr "無法拔除實例 %(inst)s 的 VIF（MAC 為 %(mac)s）。"
+
+#: nova_powervm/virt/powervm/tasks/network.py:159
+#, python-format
+msgid ""
+"Unable to create VIF(s) for instance %(sys)s.  The VM was in a state "
+"where VIF plugging is not acceptable.  The reason from the system is: "
+"%(reason)s"
+msgstr ""
+"無法建立實例 %(sys)s 的 VIF。VM 所處的狀態"
+"無法接受插上 VIF。來自系統的原因為："
+"%(reason)s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:182
+#, python-format
+msgid "Error waiting for VIF to be created for instance %(sys)s"
+msgstr "等待建立實例 %(sys)s 的 VIF 時發生錯誤"
+
+#: nova_powervm/virt/powervm/tasks/network.py:191
+#, python-format
+msgid "VIF Plug failure for callback on event %(event)s for instance %(uuid)s"
+msgstr "針對實例 %(uuid)s 的事件 %(event)s 回呼，VIF 插上失敗"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:295
+#, python-format
+msgid "Cannot detach volumes from virtual machine: %s"
+msgstr "無法將磁區從虛擬機器分離：%s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:297
+#, python-format
+msgid "Error: %s"
+msgstr "錯誤：%s"
+

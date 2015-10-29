@@ -1,0 +1,100 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-10-06 13:59-0500\n"
+"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:1044
+msgid "Live migration timed out. Aborting migration"
+msgstr "Die Livemigration hat das zulässige Zeitlimit überschritten. Die Migration wird abgebrochen."
+
+#: nova_powervm/virt/powervm/live_migration.py:304
+msgid "Live migration failed."
+msgstr "Die Livemigration ist fehlgeschlagen."
+
+#: nova_powervm/virt/powervm/live_migration.py:331
+#, python-format
+msgid "Migration recover failed with error: %s"
+msgstr "Die Wiederherstellung der Migration ist fehlgeschlagen mit Fehler: %s"
+
+#: nova_powervm/virt/powervm/live_migration.py:353
+msgid ""
+"Abort of live migration has failed. This is non-blocking. Exception is "
+"logged below."
+msgstr ""
+"Der Abbruch der Livemigration ist fehlgeschlagen. Dies ist nicht blockierend. Die Ausnahmebedingung wird "
+"unten protokolliert."
+
+#: nova_powervm/virt/powervm/vm.py:521
+#, python-format
+msgid "Virtual machine delete failed: LPARID=%s"
+msgstr "Das Löschen der virtuellen Maschine ist fehlgeschlagen: LPARID=%s"
+
+#: nova_powervm/virt/powervm/disk/localdisk.py:275
+#, python-format
+msgid "Disk %s not found during resize."
+msgstr "Bei der Größenänderung wurde die Platte %s nicht gefunden."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:330
+#, python-format
+msgid "Error checking for shared storage. exception=%s"
+msgstr "Fehlerprüfung für den gemeinsam genutzten Speicher. Ausnahmebedingung: %s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:70
+#, python-format
+msgid ""
+"Unable to remove VIFs from instance %(inst)s because the system is not in"
+" a correct state.  The reason reported by the system is: %(reason)s"
+msgstr ""
+"VIFs konnten nicht aus der Instanz %(inst)s entfernt werden, weil sich das System nicht in "
+"einem korrekten Zustand befindet. Das System meldet folgenden Grund: %(reason)s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:92
+#, python-format
+msgid "Unable to unplug VIF with mac %(mac)s for instance %(inst)s."
+msgstr "Der VIF mit MAC %(mac)s für Instanz %(inst)s konnte nicht getrennt werden."
+
+#: nova_powervm/virt/powervm/tasks/network.py:159
+#, python-format
+msgid ""
+"Unable to create VIF(s) for instance %(sys)s.  The VM was in a state "
+"where VIF plugging is not acceptable.  The reason from the system is: "
+"%(reason)s"
+msgstr ""
+"Es konnten keine VIF(s) für Instanz %(sys)s erstellt werden. Die VM befand sich in einem Zustand, "
+"der das Verbinden von VIFs nicht zulässt. Das System meldet folgenden Grund: "
+"%(reason)s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:182
+#, python-format
+msgid "Error waiting for VIF to be created for instance %(sys)s"
+msgstr "Beim Warten auf die VIF-Erstellung für Instanz %(sys)s ist ein Fehler aufgetreten."
+
+#: nova_powervm/virt/powervm/tasks/network.py:191
+#, python-format
+msgid "VIF Plug failure for callback on event %(event)s for instance %(uuid)s"
+msgstr "VIF Plug-Ausfall für den Callback bei Ereignis %(event)s für Instanz %(uuid)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:295
+#, python-format
+msgid "Cannot detach volumes from virtual machine: %s"
+msgstr "Die Zuordnung der Datenträger zur folgenden virtuellen Maschine konnte nicht aufgehoben werden: %s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:297
+#, python-format
+msgid "Error: %s"
+msgstr "Fehler: %s"
+
