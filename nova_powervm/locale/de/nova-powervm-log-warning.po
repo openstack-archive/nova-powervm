@@ -1,0 +1,198 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-10-06 13:59-0500\n"
+"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: nova_powervm/virt/powervm/driver.py:386
+#: nova_powervm/virt/powervm/driver.py:396
+msgid "VM was not found during destroy operation."
+msgstr "Die VM wurde während des Löschvorgangs nicht gefunden."
+
+#: nova_powervm/virt/powervm/driver.py:742
+#, python-format
+msgid ""
+"my_ip address (%(my_ip)s) was not found on any of the interfaces: "
+"%(ifaces)s"
+msgstr ""
+"Die my_ip Adresse (%(my_ip)s) wurde auf keiner der folgenden Schnittstellen gefunden: "
+"%(ifaces)s"
+
+#: nova_powervm/virt/powervm/driver.py:1084
+msgid "Rolling back live migration."
+msgstr "Ein Rollback der Livemigration wird durchgeführt."
+
+#: nova_powervm/virt/powervm/host.py:174
+msgid ""
+"Host CPU Metrics determined that the total cycles reported was less than "
+"the used cycles.  This indicates an issue with the PCM data.  Please "
+"investigate the results."
+msgstr ""
+"Anhand der Host-CPU-Metriken wurde festgestellt, dass die gemeldete Gesamtzahl Zyklen kleiner als "
+"die Anzahl der verwendeten Zyklen war. Dies weist auf ein Problem mit den PCM-Daten hin. "
+"Die Ergebnisse sollten überprüft werden."
+
+#: nova_powervm/virt/powervm/media.py:299
+#, python-format
+msgid "Unable to read volume groups for Virtual I/O Server %s"
+msgstr "Die Datenträgergruppen für den virtuellen E/A-Server %s konnten nicht gelesen werden."
+
+#: nova_powervm/virt/powervm/disk/driver.py:168
+#, python-format
+msgid ""
+"Failed to map boot disk %(disk_name)s of instance %(instance_name)s to "
+"the management partition from Virtual I/O Server %(vios_name)s: %(exc)s"
+msgstr ""
+"Fehler beim Zuordnen des Bootdatenträgers %(disk_name)s der Instanz %(instance_name)s zur "
+"Managementpartition des virtuellen E/A-Servers %(vios_name)s: %(exc)s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:104
+#, python-format
+msgid ""
+"Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  The VIF was"
+" not found on the instance."
+msgstr ""
+"Der VIF mit MAC %(mac)s für Instanz %(inst)s konnte nicht getrennt werden. Der VIF wurde "
+"nicht auf der Instanz gefunden."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:55
+#, python-format
+msgid "Volume %(vol)s for instance %(inst)s to be disconnected"
+msgstr "Zu trennender Datenträger %(vol)s für Instanz %(inst)s "
+
+#: nova_powervm/virt/powervm/tasks/storage.py:71
+#, python-format
+msgid ""
+"Unable to disconnect volume for %(inst)s during rollback.  Error was: "
+"%(error)s"
+msgstr ""
+"Der Datenträger %(inst)s konnte während des Rollbacks nicht getrennt werden. Folgender Fehler wurde gemeldet: "
+"%(error)s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:98
+#, python-format
+msgid "Volume %(vol)s for instance %(inst)s to be re-connected"
+msgstr "Datenträger %(vol)s für Instanz %(inst)s, zu dem die Verbindung wiederhergestellt werden soll"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:115
+#, python-format
+msgid ""
+"Unable to re-connect volume for %(inst)s during rollback.  Error was: "
+"%(error)s"
+msgstr ""
+"Die Verbindung zum Datenträger %(inst)s konnte während des Rollbacks nicht wiederhergestellt werden. Folgender Fehler wurde gemeldet: "
+"%(error)s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:156
+#, python-format
+msgid "Image for instance %s to be deleted"
+msgstr "Zu löschendes Image für Instanz %s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:203
+#, python-format
+msgid "Disk image being disconnected from instance %s"
+msgstr "Plattenimage, das von der Instanz %s getrennt wird"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:274
+#, python-format
+msgid ""
+"Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
+"management partition via Virtual I/O Server %(vios_name)s."
+msgstr ""
+"Die Zuordnung des Bootdatenträgers %(disk_name)s der Instanz %(instance_name)s in der "
+"Managementpartition wird über den virtuellen E/A-Server %(vios_name)s aufgehoben."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:286
+#, python-format
+msgid "Removing disk %(disk_path)s from the management partition."
+msgstr "Die Platte %(disk_path)s wird von der Managementpartition entfernt."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:170
+#, python-format
+msgid ""
+"No storage connections found between the Virtual I/O Servers and FC "
+"Fabric %(fabric)s. The connection might be removed already."
+msgstr ""
+"Es wurden keine Speicherverbindungen gefunden zwischen den virtuellen E/A-Servern und FC "
+"Fabric %(fabric)s. Eventuell wurde die Verbindung bereits entfernt."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:478
+#, python-format
+msgid ""
+"No storage connections found between the Virtual I/O Servers and FC "
+"Fabric %(fabric)s."
+msgstr ""
+"Es wurden keine Speicherverbindungen gefunden zwischen den virtuellen E/A-Servern und FC "
+"Fabric %(fabric)s."
+
+#: nova_powervm/virt/powervm/volume/npiv.py:564
+#, python-format
+msgid ""
+"No NPIV mappings exist for instance %(inst)s on fabric %(fabric)s.  May "
+"not have connected to the fabric yet or fabric configuration was recently"
+" modified."
+msgstr ""
+"Es sind keine NPIV-Zuordnungen für Instanz %(inst)s in Fabric %(fabric)s vorhanden. Möglicherweise "
+"wurden sie noch nicht mit dem Fabric verbunden oder die Fabric-Konfiguration wurde vor kurzem "
+"modifiziert."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:148
+#, python-format
+msgid ""
+"Discovered device %(dev)s for volume %(volume)s on %(vios)s is in use. "
+"Error code: %(status)s."
+msgstr ""
+"Die erkannte Einheit %(dev)s für Datenträger %(volume)s auf %(vios)s wird bereits verwendet. "
+"Fehlercode: %(status)s."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:237
+#, python-format
+msgid ""
+"Disconnect Volume: No mapped device found on Virtual I/O Server %(vios)s "
+"for volume %(volume_id)s.  Volume UDID: %(volume_uid)s"
+msgstr ""
+"Datenträger trennen: Auf dem virtuellen E/A-Server %(vios)s wurde keine zugeordnete Einheit "
+"für den Datenträger %(volume_id)s gefunden. Datenträger-UDID: %(volume_uid)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:246
+#, python-format
+msgid ""
+"Disconnect Volume: Failed to find disk on Virtual I/O Server "
+"%(vios_name)s for volume %(volume_id)s. Volume UDID: %(volume_uid)s.  "
+"Error: %(error)s"
+msgstr ""
+"Datenträger trennen: Es wurde keine Platte auf dem virtuellen E/A-Server "
+"%(vios_name)s für Datenträger %(volume_id)s gefunden. Datenträger-UDID: %(volume_uid)s.  "
+"Fehler: %(error)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:288
+#, python-format
+msgid ""
+"Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY "
+"of the Virtual I/O Servers for instance %(inst)s."
+msgstr ""
+"Datenträger trennen: Die Trennung des Datenträgers %(volume_id)s ist auf ALLEN "
+"virtuellen E/A-Servern für Instanz %(inst)s fehlgeschlagen."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:318
+#, python-format
+msgid ""
+"There was an error removing the hdisk %(disk)s from the Virtual I/O "
+"Server."
+msgstr ""
+"Bei der Entfernung der HDisk %(disk)s vom virtuellen E/A-Server "
+"ist ein Fehler aufgetreten."
+

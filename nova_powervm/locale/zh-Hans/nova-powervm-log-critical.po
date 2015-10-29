@@ -1,0 +1,19 @@
+# Translations template for nova_powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the nova_powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-10-06 13:59-0500\n"
+"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
