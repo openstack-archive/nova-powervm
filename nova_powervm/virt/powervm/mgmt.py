@@ -83,7 +83,7 @@ def discover_vscsi_disk(mapping, scan_timeout=10):
     # TODO(IBM): Support for other host platforms.
 
     # Calculate the Linux slot number from the client adapter slot number.
-    lslot = 0x30000000 | mapping.client_adapter.slot_number
+    lslot = 0x30000000 | mapping.client_adapter.lpar_slot_num
     # We'll match the device ID based on the UDID, which is actually the last
     # 32 chars of the field we get from PowerVM.
     udid = mapping.backing_storage.udid[-32:]
