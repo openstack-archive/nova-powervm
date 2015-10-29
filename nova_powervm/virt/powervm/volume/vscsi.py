@@ -14,14 +14,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from nova.i18n import _, _LI, _LW, _LE
-
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
 from taskflow import task
 
 from nova_powervm.virt.powervm import exception as p_exc
+from nova_powervm.virt.powervm.i18n import _
+from nova_powervm.virt.powervm.i18n import _LE
+from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver

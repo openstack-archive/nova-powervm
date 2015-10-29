@@ -17,7 +17,6 @@
 
 import abc
 from nova import exception
-from nova.i18n import _, _LE, _LI
 from pypowervm.tasks import management_console as mgmt_task
 from pypowervm.tasks import migration as mig
 from pypowervm.tasks import storage as stor_task
@@ -27,6 +26,9 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import six
 
+from nova_powervm.virt.powervm.i18n import _
+from nova_powervm.virt.powervm.i18n import _LE
+from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import vm
 

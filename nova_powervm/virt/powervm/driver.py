@@ -21,7 +21,6 @@ from nova.console import type as console_type
 from nova import context as ctx
 from nova import exception
 from nova import image
-from nova.i18n import _LI, _LW, _LE, _
 from nova.objects import flavor as flavor_obj
 from nova import utils as n_utils
 from nova.virt import configdrive
@@ -49,6 +48,10 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import host as pvm_host
+from nova_powervm.virt.powervm.i18n import _
+from nova_powervm.virt.powervm.i18n import _LE
+from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import image as img
 from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import mgmt

@@ -18,9 +18,10 @@
 
 import abc
 from nova import exception as nex
-from nova.i18n import _
 
 import six
+
+from nova_powervm.virt.powervm.i18n import _
 
 
 @six.add_metaclass(abc.ABCMeta)
