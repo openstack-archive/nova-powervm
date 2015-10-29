@@ -108,7 +108,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             for port_map in npiv_port_maps:
                 vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
                     vios_wraps, port_map[1].split())[1]
-                client_slots.append(vfc_map.client_adapter.slot_number)
+                client_slots.append(vfc_map.client_adapter.lpar_slot_num)
 
             # Set the client slots into the fabric data to pass to the
             # destination.

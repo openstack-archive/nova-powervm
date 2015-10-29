@@ -419,7 +419,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
             [('33', 'EE FF')]]
 
         def mock_client_adpt(slot):
-            return mock.Mock(client_adapter=mock.Mock(slot_number=slot))
+            return mock.Mock(client_adapter=mock.Mock(lpar_slot_num=slot))
 
         mock_find_vios_for_vfc_wwpns.side_effect = [
             (None, mock_client_adpt(1)), (None, mock_client_adpt(2)),
@@ -454,7 +454,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual(['b'], dest_mig_data.get('npiv_fabric_mapping_B'))
 
         # Order of the mappings is not important.
-        self.assertEqual(set(['b', 'a']),
+        self.assertEqual({'b', 'a'},
                          set(dest_mig_data.get('vfc_lpm_mappings')))
 
     def test_set_fabric_meta(self):
