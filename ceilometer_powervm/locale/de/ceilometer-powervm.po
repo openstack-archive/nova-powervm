@@ -6,10 +6,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ceilometer-powervm 0.0.1.dev21\n"
+"Project-Id-Version: ceilometer-powervm 0.0.1.dev26\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-09-03 10:56-0400\n"
-"PO-Revision-Date: 2015-09-03 10:56-0400\n"
+"POT-Creation-Date: 2015-10-06 14:01-0500\n"
+"PO-Revision-Date: 2015-10-06 14:01-0500\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
@@ -19,20 +19,20 @@ msgstr ""
 
 #: ceilometer_powervm/compute/virt/powervm/inspector.py:80
 #, python-format
-msgid "Expected exactly one host; found %d"
-msgstr "Erwartet wurde genau ein Host; gefunden: %d"
+msgid "Expected exactly one host; found %d."
+msgstr "Erwartet wurde genau ein Host; gefunden: %d."
 
 #: ceilometer_powervm/compute/virt/powervm/inspector.py:98
-#: ceilometer_powervm/compute/virt/powervm/inspector.py:134
-#: ceilometer_powervm/compute/virt/powervm/inspector.py:252
-#: ceilometer_powervm/compute/virt/powervm/inspector.py:306
-#: ceilometer_powervm/compute/virt/powervm/inspector.py:386
-#: ceilometer_powervm/compute/virt/powervm/inspector.py:429
+#: ceilometer_powervm/compute/virt/powervm/inspector.py:135
+#: ceilometer_powervm/compute/virt/powervm/inspector.py:260
+#: ceilometer_powervm/compute/virt/powervm/inspector.py:315
+#: ceilometer_powervm/compute/virt/powervm/inspector.py:396
+#: ceilometer_powervm/compute/virt/powervm/inspector.py:440
 #, python-format
-msgid "VM %s not found in PowerVM Metrics Sample"
-msgstr "VM %s in Beispiel für PowerVM-Metriken nicht gefunden"
+msgid "VM %s not found in PowerVM Metrics Sample."
+msgstr "VM %s in Beispiel für PowerVM-Metriken nicht gefunden."
 
-#: ceilometer_powervm/compute/virt/powervm/inspector.py:156
+#: ceilometer_powervm/compute/virt/powervm/inspector.py:158
 #, python-format
 msgid "Unable to derive CPU Utilization for VM %s."
 msgstr "CPU-Auslastung für VM %s konnte nicht abgeleitet werden."
