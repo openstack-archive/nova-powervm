@@ -1,0 +1,29 @@
+# Translations template for ceilometer-powervm.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the ceilometer-powervm
+# project.
+# Automatically generated, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ceilometer-powervm 0.0.1.dev26\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-10-06 14:01-0500\n"
+"PO-Revision-Date: 2015-10-06 14:01-0500\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.0\n"
+
+#: ceilometer_powervm/compute/virt/powervm/inspector.py:154
+#, python-format
+msgid ""
+"Unable to derive CPU Utilization for VM %s.  It is either a new VM or was"
+" recently migrated.  It will be collected in the next inspection cycle."
+msgstr ""
+"Impossible de dériver l'utilisation d'UC pour la machine virtuelle %s. "
+"La machine est nouvelle ou vient d'être migrée. Les données seront "
+"collectées au prochain cycle d'inspection. "
+
