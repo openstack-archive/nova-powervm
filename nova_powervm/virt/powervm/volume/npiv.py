@@ -317,7 +317,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports."""
-        vios_wraps = None
+        vios_wraps = self.stg_ftsk.feed
         resp_wwpns = []
 
         # If this is the first time to query the WWPNs for the instance, we
@@ -331,15 +331,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                      {'st': fc_state, 'inst': self.instance.name})
 
             if self._is_initial_wwpn(fc_state, fabric):
-                # It is a new WWPN.  Need to investigate the Virtual I/O
-                # Servers.  We only do this for the first loop through so as
-                # to ensure that we do not keep invoking the expensive call
-                # unnecessarily.
-                if vios_wraps is None:
-                    # The VIOS wrappers are not set at this point.  Seed
-                    # them.  Will get reused on subsequent loops.
-                    vios_wraps = self.stg_ftsk.feed
-
                 # Get a set of WWPNs that are globally unique from the system.
                 v_wwpns = pvm_vfcm.build_wwpn_pair(
                     self.adapter, self.host_uuid,
@@ -349,14 +340,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 port_maps = pvm_vfcm.derive_npiv_map(
                     vios_wraps, self._fabric_ports(fabric), v_wwpns)
 
-                # Every loop through, we reverse the vios wrappers.  This is
-                # done so that if Fabric A only has 1 port, it goes on the
-                # first VIOS.  Then Fabric B would put its port on a different
-                # VIOS.  This servers as a form of multi pathing (so that your
-                # paths are not restricted to a single VIOS).
-                vios_wraps.reverse()
-
-                # Set the fabric meta (which indicates on the instance how
                 # the fabric is mapped to the physical port) and the fabric
                 # state.
                 self._set_fabric_meta(fabric, port_maps)
@@ -370,6 +353,13 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 # from the meta (as it is likely already mapped to the
                 # instance)
                 port_maps = self._get_fabric_meta(fabric)
+
+            # Every loop through, we reverse the vios wrappers.  This is
+            # done so that if Fabric A only has 1 port, it goes on the
+            # first VIOS.  Then Fabric B would put its port on a different
+            # VIOS.  This servers as a form of multi pathing (so that your
+            # paths are not restricted to a single VIOS).
+            vios_wraps.reverse()
 
             # Port map is set by either conditional, but may be set to None.
             # If not None, then add the WWPNs to the response.

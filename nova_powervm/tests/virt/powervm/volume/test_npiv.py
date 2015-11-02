@@ -355,6 +355,30 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertListEqual(['a', 'c'], self.vol_drv.wwpns())
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_configure_wwpns_for_migration')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_is_migration_wwpn')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_is_initial_wwpn')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_state')
+    def test_wwpns_for_migration(self, mock_fabric_state, mock_initial,
+                                 mock_migration, mock_configure):
+        """Tests that wwpns for migration are generated properly."""
+        # Mock
+        mock_fabric_state.return_value = npiv.FS_INST_MAPPED
+        mock_initial.return_value = False
+        mock_migration.return_value = True
+        mock_configure.return_value = [('phys1', 'a b'), ('phys2', 'c d')]
+        self.vol_drv.stg_ftsk = mock.MagicMock()
+
+        # Invoke and Verify
+        self.assertListEqual(['a', 'c'], self.vol_drv.wwpns())
+
+        # Verify that on migration, the WWPNs are reversed.
+        self.assertEqual(1, self.vol_drv.stg_ftsk.feed.reverse.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_get_fabric_state')
     def test_wwpns_bad_task_state(self, mock_fabric_state):
         """Tests behavior with a bad task state."""
