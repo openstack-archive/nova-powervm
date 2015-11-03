@@ -445,6 +445,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         dest_mig_data = {}
 
         mock_build_mig_map.side_effect = [['a'], ['b']]
+        self.vol_drv.stg_ftsk = mock.MagicMock()
 
         # Execute the test
         self.vol_drv.pre_live_migration_on_destination(
@@ -456,6 +457,9 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Order of the mappings is not important.
         self.assertEqual({'b', 'a'},
                          set(dest_mig_data.get('vfc_lpm_mappings')))
+
+        # Verify that on migration, the WWPNs are reversed.
+        self.assertEqual(2, self.vol_drv.stg_ftsk.feed.reverse.call_count)
 
     def test_set_fabric_meta(self):
         port_map = [('1', 'aa AA'), ('2', 'bb BB'),

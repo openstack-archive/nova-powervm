@@ -145,6 +145,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             fabric_mapping = pvm_vfcm.build_migration_mappings_for_fabric(
                 vios_wraps, self._fabric_ports(fabric), slots)
             dest_mig_data['npiv_fabric_mapping_%s' % fabric] = fabric_mapping
+            # Reverse the vios wrapper so that the other fabric will get the
+            # on the second vios.
+            vios_wraps.reverse()
 
         # Collate all of the individual fabric mappings into a single element.
         full_map = []
