@@ -890,21 +890,24 @@ class TestPowerVMDriver(test.TestCase):
         resp.entry = pvm_lpar.LPAR._bld(None).entry
         self.apt.read.return_value = resp
 
+        # BDMs
+        mock_bdms = self._fake_bdms()
+
         # Catch root disk resize smaller.
         small_root = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=9)
         self.assertRaises(
             exc.InstanceFaultRollback, self.drv.migrate_disk_and_power_off,
-            'context', inst, 'dest', small_root, 'network_info')
+            'context', inst, 'dest', small_root, 'network_info', mock_bdms)
 
         new_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=10)
 
         # We don't support resize to different host.
         self.assertRaises(
             NotImplementedError, self.drv.migrate_disk_and_power_off,
-            'context', inst, 'bogus host', new_flav, 'network_info')
+            'context', inst, 'bogus host', new_flav, 'network_info', mock_bdms)
 
         self.drv.migrate_disk_and_power_off(
-            'context', inst, host, new_flav, 'network_info')
+            'context', inst, host, new_flav, 'network_info', mock_bdms)
         mock_pwr_off.assert_called_with(
             self.drv.adapter, inst, self.drv.host_uuid, entry=mock.ANY)
         mock_update.assert_called_with(
@@ -914,7 +917,7 @@ class TestPowerVMDriver(test.TestCase):
         # Boot disk resize
         boot_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=12)
         self.drv.migrate_disk_and_power_off(
-            'context', inst, host, boot_flav, 'network_info')
+            'context', inst, host, boot_flav, 'network_info', mock_bdms)
         self.drv.disk_dvr.extend_disk.assert_called_with(
             'context', inst, dict(type='boot'), 12)
 
