@@ -340,6 +340,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual('21000024FF649104,AA,BB,21000024FF649105,CC,DD',
                          self.vol_drv.instance.system_metadata[meta_key])
         self.assertEqual(1, mock_derive.call_count)
+        self.assertTrue(self.vol_drv.instance.save.called)
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_get_fabric_state')

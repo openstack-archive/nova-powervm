@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
 from taskflow import task
@@ -319,8 +320,12 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # Return the mappings
         return port_mappings
 
+    @lockutils.synchronized('npiv_wwpns')
     def wwpns(self):
         """Builds the WWPNs of the adapters that will connect the ports."""
+        # Refresh the instance.  It could have been updated by a concurrent
+        # call from another thread to get the wwpns.
+        self.instance.refresh()
         vios_wraps = self.stg_ftsk.feed
         resp_wwpns = []
 
@@ -348,6 +353,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 # state.
                 self._set_fabric_meta(fabric, port_maps)
                 self._set_fabric_state(fabric, FS_UNMAPPED)
+                self.instance.save()
             elif self._is_migration_wwpn(fc_state):
                 # The migration process requires the 'second' wwpn from the
                 # fabric to be used.
