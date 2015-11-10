@@ -41,36 +41,6 @@ class LiveMigrationFailed(exception.NovaException):
                 "%(reason)s")
 
 
-class LiveMigrationInvalidState(exception.NovaException):
-    msg_fmt = _("Live migration of instance '%(name)s' failed because the "
-                "migration state is: %(state)s")
-
-
-class LiveMigrationNotReady(exception.NovaException):
-    msg_fmt = _("Live migration of instance '%(name)s' failed because it is "
-                "not ready. Reason: %(reason)s")
-
-
-class LiveMigrationMRS(exception.NovaException):
-    msg_fmt = _("Cannot migrate instance '%(name)s' because the memory region "
-                "size of the source (%(source_mrs)d MB) does not "
-                "match the memory region size of the target "
-                "(%(target_mrs)d MB).")
-
-
-class LiveMigrationProcCompat(exception.NovaException):
-    msg_fmt = _("Cannot migrate %(name)s because its "
-                "processor compatibility mode %(mode)s "
-                "is not in the list of modes \"%(modes)s\" "
-                "supported by the target host.")
-
-
-class LiveMigrationCapacity(exception.NovaException):
-    msg_fmt = _("Cannot migrate %(name)s because the host %(host)s only "
-                "allows %(allowed)s concurrent migrations and %(running)s "
-                "migrations are currently running.")
-
-
 class LiveMigrationVolume(exception.NovaException):
     msg_fmt = _("Cannot migrate %(name)s because the volume %(volume)s "
                 "cannot be attached on the destination host %(host)s.")
@@ -82,10 +52,13 @@ def _verify_migration_capacity(host_w, instance):
     if (mig_stats['active_migrations_in_progress'] >=
             mig_stats['active_migrations_supported']):
 
-        raise LiveMigrationCapacity(
-            name=instance.name, host=host_w.system_name,
-            running=mig_stats['active_migrations_in_progress'],
-            allowed=mig_stats['active_migrations_supported'])
+        msg = (_("Cannot migrate %(name)s because the host %(host)s only "
+                 "allows %(allowed)s concurrent migrations and "
+                 "%(running)s migrations are currently running.") %
+               dict(name=instance.name, host=host_w.system_name,
+                    running=mig_stats['active_migrations_in_progress'],
+                    allowed=mig_stats['active_migrations_supported']))
+        raise exception.MigrationPreCheckError(reason=msg)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -129,10 +102,15 @@ class LiveMigrationDest(LiveMigration):
         # Check the lmb sizes for compatability
         if (src_stats['memory_region_size'] !=
                 dst_stats['memory_region_size']):
-            raise LiveMigrationMRS(
-                name=self.instance.name,
-                source_mrs=src_stats['memory_region_size'],
-                target_mrs=dst_stats['memory_region_size'])
+            msg = (_("Cannot migrate instance '%(name)s' because the "
+                     "memory region size of the source (%(source_mrs)d MB) "
+                     "does not match the memory region size of the target "
+                     "(%(target_mrs)d MB).") %
+                   dict(name=self.instance.name,
+                        source_mrs=src_stats['memory_region_size'],
+                        target_mrs=dst_stats['memory_region_size']))
+
+            raise exception.MigrationPreCheckError(reason=msg)
 
         _verify_migration_capacity(self.drvr.host_wrapper, self.instance)
 
@@ -181,9 +159,10 @@ class LiveMigrationDest(LiveMigration):
             except Exception as e:
                 LOG.exception(e)
                 # It failed.
-                raise LiveMigrationVolume(
+                vol_exc = LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
                     name=self.instance.name, volume=vol_drv.volume_id)
+                raise exception.MigrationPreCheckError(reason=vol_exc.message)
 
         # Scrub stale/orphan mappings and storage to minimize probability of
         # collisions on the destination.
@@ -205,7 +184,7 @@ class LiveMigrationDest(LiveMigration):
         # data from one call to the next.
         mig_vol_stor = {}
 
-        # For each volume, make sure it's ready to migrate
+        # For each volume, make sure it completes the migration
         for vol_drv in vol_drvs:
             LOG.info(_LI('Performing post migration for volume %(volume)s'),
                      dict(volume=vol_drv.volume_id))
@@ -254,16 +233,26 @@ class LiveMigrationSrc(LiveMigration):
         # Check proc compatability modes
         if (lpar_w.proc_compat_mode and lpar_w.proc_compat_mode not in
                 self.dest_data['dest_proc_compat'].split(',')):
-            raise LiveMigrationProcCompat(
-                name=self.instance.name, mode=lpar_w.proc_compat_mode,
-                modes=', '.join(self.dest_data['dest_proc_compat'].split(',')))
+            msg = (_("Cannot migrate %(name)s because its "
+                     "processor compatibility mode %(mode)s "
+                     "is not in the list of modes \"%(modes)s\" "
+                     "supported by the target host.") %
+                   dict(name=self.instance.name,
+                        mode=lpar_w.proc_compat_mode,
+                        modes=', '.join(
+                            self.dest_data['dest_proc_compat'].split(','))))
+
+            raise exception.MigrationPreCheckError(reason=msg)
 
         # Check if VM is ready for migration
         self._check_migration_ready(lpar_w, self.drvr.host_wrapper)
 
         if lpar_w.migration_state != 'Not_Migrating':
-            raise LiveMigrationInvalidState(name=self.instance.name,
-                                            state=lpar_w.migration_state)
+            msg = (_("Live migration of instance '%(name)s' failed because "
+                     "the migration state is: %(state)s") %
+                   dict(name=self.instance.name,
+                        state=lpar_w.migration_state))
+            raise exception.MigrationPreCheckError(reason=msg)
 
         # Check the number of migrations for capacity
         _verify_migration_capacity(self.drvr.host_wrapper, self.instance)
@@ -371,7 +360,10 @@ class LiveMigrationSrc(LiveMigration):
         """
         ready, msg = lpar_w.can_lpm(host_w)
         if not ready:
-            raise LiveMigrationNotReady(name=self.instance.name, reason=msg)
+            msg = (_("Live migration of instance '%(name)s' failed because it "
+                     "is not ready. Reason: %(reason)s") %
+                   dict(name=self.instance.name, reason=msg))
+            raise exception.MigrationPreCheckError(reason=msg)
 
     def migration_abort(self):
         """Abort the migration if the operation exceeds the configured timeout.
