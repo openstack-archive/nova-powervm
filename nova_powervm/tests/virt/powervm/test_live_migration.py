@@ -17,6 +17,7 @@
 
 import mock
 
+from nova import exception
 from nova import objects
 from nova import test
 
@@ -57,7 +58,7 @@ class TestLPM(test.TestCase):
             mock_wrap = mock.Mock()
             mock_get_wrap.return_value = mock_wrap
 
-            self.assertRaises(lpm.LiveMigrationProcCompat,
+            self.assertRaises(exception.MigrationPreCheckError,
                               self.lpmsrc.check_source, 'context',
                               'block_device_info', [])
 
@@ -65,7 +66,7 @@ class TestLPM(test.TestCase):
             pm = mock.PropertyMock(return_value='b')
             type(mock_wrap).proc_compat_mode = pm
 
-            self.assertRaises(lpm.LiveMigrationInvalidState,
+            self.assertRaises(exception.MigrationPreCheckError,
                               self.lpmsrc.check_source, 'context',
                               'block_device_info', [])
 
@@ -86,7 +87,7 @@ class TestLPM(test.TestCase):
 
             # Ensure migration counts are validated
             migr_data['active_migrations_in_progress'] = 4
-            self.assertRaises(lpm.LiveMigrationCapacity,
+            self.assertRaises(exception.MigrationPreCheckError,
                               self.lpmsrc.check_source, 'context',
                               'block_device_info', [])
 
@@ -111,7 +112,7 @@ class TestLPM(test.TestCase):
 
             # Ensure migration counts are validated
             migr_data['active_migrations_in_progress'] = 4
-            self.assertRaises(lpm.LiveMigrationCapacity,
+            self.assertRaises(exception.MigrationPreCheckError,
                               self.lpmdst.check_destination, 'context',
                               src_compute_info, dst_compute_info)
             # Repair the stat
@@ -119,7 +120,7 @@ class TestLPM(test.TestCase):
 
             # Ensure diff memory sizes raises an exception
             dst_compute_info['stats']['memory_region_size'] = 2
-            self.assertRaises(lpm.LiveMigrationMRS,
+            self.assertRaises(exception.MigrationPreCheckError,
                               self.lpmdst.check_destination, 'context',
                               src_compute_info, dst_compute_info)
 
@@ -144,7 +145,7 @@ class TestLPM(test.TestCase):
         raising_vol_drv.pre_live_migration_on_destination.side_effect = (
             Exception('foo'))
         self.assertRaises(
-            lpm.LiveMigrationVolume, self.lpmdst.pre_live_migration,
+            exception.MigrationPreCheckError, self.lpmdst.pre_live_migration,
             'context', 'block_device_info', 'network_info', 'disk_info',
             {'migrate_data': {'public_key': 'abc123'}},
             [vol_drv, raising_vol_drv])
@@ -205,8 +206,8 @@ class TestLPM(test.TestCase):
         lpar_w.can_lpm.return_value = (True, None)
         self.lpmsrc._check_migration_ready(lpar_w, host_w)
 
-        lpar_w.can_lpm.return_value = (False, 'Not ready for migration reason')
-        self.assertRaises(lpm.LiveMigrationNotReady,
+        lpar_w.can_lpm.return_value = (False, 'This is the reason message.')
+        self.assertRaises(exception.MigrationPreCheckError,
                           self.lpmsrc._check_migration_ready, lpar_w, host_w)
 
     @mock.patch('pypowervm.tasks.migration.migrate_abort')
