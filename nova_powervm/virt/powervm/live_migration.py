@@ -273,11 +273,16 @@ class LiveMigrationSrc(LiveMigration):
         for vol_drv in vol_drvs:
             vol_drv.pre_live_migration_on_source(mig_data)
 
-        # Remove the VOpt devices
-        LOG.debug('Removing VOpt.', instance=self.instance)
+        # Create a FeedTask to scrub any orphaned mappings/storage associated
+        # with this LPAR.  (Don't run it yet - we want to do the VOpt removal
+        # within the same FeedTask.)
+        stg_ftsk = stor_task.ScrubOrphanStorageForLpar(self.drvr.adapter,
+                                                       lpar_w.id)
+        # Add subtasks to remove the VOpt devices under the same FeedTask.
         media.ConfigDrivePowerVM(self.drvr.adapter, self.drvr.host_uuid
-                                 ).dlt_vopt(lpar_w.uuid)
-        LOG.debug('Removing VOpt finished.', instance=self.instance)
+                                 ).dlt_vopt(lpar_w.uuid, stg_ftsk=stg_ftsk)
+        # Now execute the FeedTask, performing both scrub and VOpt removal.
+        stg_ftsk.execute()
 
         # Ensure the vterm is non-active
         vterm.close_vterm(self.drvr.adapter, lpar_w.uuid)
