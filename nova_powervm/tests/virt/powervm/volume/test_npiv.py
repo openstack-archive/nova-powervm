@@ -117,6 +117,11 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.mock_inst_wrap.can_modify_io.return_value = False, 'Invalid I/O'
         self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume)
 
+    def test_connect_volume_bad_wwpn(self):
+        """Ensures an error is raised if a bad WWPN is used."""
+        self._basic_system_metadata(npiv.FS_UNMAPPED, p_wwpn='bad')
+        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume)
+
     @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
     def test_connect_volume_inst_mapped(self, mock_add_map):
         """Test if already connected to an instance, don't do anything"""
@@ -135,9 +140,9 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual(npiv.FS_INST_MAPPED,
                          self.vol_drv._get_fabric_state('A'))
 
-    def _basic_system_metadata(self, fabric_state):
+    def _basic_system_metadata(self, fabric_state, p_wwpn='21000024FF649104'):
         meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
-        meta_fb_map = '21000024FF649104,AA,BB'
+        meta_fb_map = '%s,AA,BB' % p_wwpn
         meta_st_key = self.vol_drv._sys_fabric_state_key('A')
         self.vol_drv.instance.system_metadata = {meta_st_key: fabric_state,
                                                  meta_fb_key: meta_fb_map}
