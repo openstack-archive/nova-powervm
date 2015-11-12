@@ -1047,6 +1047,18 @@ class TestPowerVMDriver(test.TestCase):
         self.assertRaises(exc.VirtualInterfacePlugException,
                           self.drv.plug_vifs, inst, {})
 
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get')
+    def test_unplug_vif_failures(self, mock_vm):
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Test instance not found handling
+        mock_vm.execute.side_effect = exc.InstanceNotFound(
+            instance_id=inst)
+
+        # Run method
+        self.assertRaises(exc.InterfaceDetachFailed,
+                          self.drv.unplug_vifs, inst, {})
+
     def test_extract_bdm(self):
         """Tests the _extract_bdm method."""
         self.assertEqual([], self.drv._extract_bdm(None))

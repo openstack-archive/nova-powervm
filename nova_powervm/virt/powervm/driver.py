@@ -755,7 +755,11 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
-        engine.run()
+        try:
+            engine.run()
+        except Exception as e:
+            LOG.exception(e)
+            raise exception.InterfaceDetachFailed(instance_uuid=instance.uuid)
 
     def get_available_nodes(self, refresh=False):
         """Returns nodenames of all nodes managed by the compute service.
