@@ -168,6 +168,8 @@ class LiveMigrationDest(LiveMigration):
         # collisions on the destination.
         stor_task.ComprehensiveScrub(self.drvr.adapter).execute()
 
+        # Save the migration data, we'll use it if the LPM fails
+        self.pre_live_data = dest_mig_data
         return dest_mig_data
 
     def post_live_migration_at_destination(self, network_info, vol_drvs):
@@ -196,6 +198,20 @@ class LiveMigrationDest(LiveMigration):
                 raise LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
                     name=self.instance.name, volume=vol_drv.volume_id)
+
+    def cleanup_volume(self, vol_drv):
+        """Cleanup a volume after a failed migration.
+
+        :param vol_drv: volume driver for the attached volume
+        """
+        LOG.info(_LI('Performing detach for volume %(volume)s'),
+                 dict(volume=vol_drv.volume_id))
+        try:
+            vol_drv.cleanup_volume_at_destination(self.pre_live_data)
+        except Exception as e:
+            LOG.exception(e)
+            # Log the exception but no need to raise one because
+            # the VM is still on the source host.
 
 
 class LiveMigrationSrc(LiveMigration):
@@ -302,12 +318,12 @@ class LiveMigrationSrc(LiveMigration):
         finally:
             LOG.debug("Finished migration.", instance=self.instance)
 
-    def post_live_migration(self, vol_drvs, mig_data):
+    def post_live_migration(self, vol_drvs, migrate_data):
         """Post operation of live migration at source host.
 
         This method is focused on storage.
 
-        :vol_drvs: volume drivers for the attached volume
+        :param vol_drvs: volume drivers for the attached volume
         :param migrate_data: migration data
         """
         # For each volume, make sure the source is cleaned
@@ -315,7 +331,7 @@ class LiveMigrationSrc(LiveMigration):
             LOG.info(_LI('Performing post migration for volume %(volume)s'),
                      dict(volume=vol_drv.volume_id))
             try:
-                vol_drv.post_live_migration_at_source(mig_data)
+                vol_drv.post_live_migration_at_source(migrate_data)
             except Exception as e:
                 LOG.exception(e)
                 # Log the exception but no need to raise one because
