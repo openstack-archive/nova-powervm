@@ -474,6 +474,10 @@ class PowerVMDriver(driver.ComputeDriver):
         """Detach the volume attached to the instance."""
         self._log_operation('detach_volume', instance)
 
+        # Get a volume adapter for this volume
+        vol_drv = self._get_inst_vol_adpt(ctx.get_admin_context(), instance,
+                                          conn_info=connection_info)
+
         # Before attempting to detach a volume, ensure the instance exists
         # If a live migration fails, the compute manager will call detach
         # for each volume attached to the instance, against the destination
@@ -482,14 +486,17 @@ class PowerVMDriver(driver.ComputeDriver):
         if not vm.instance_exists(self.adapter, instance, self.host_uuid):
             LOG.info(_LI('During volume detach, the instance was not found'
                          ' on this host.'), instance=instance)
+
+            # Check if there is live migration cleanup to do on this volume.
+            mig = self.live_migrations.get(instance.uuid, None)
+            if mig is not None and isinstance(mig, lpm.LiveMigrationDest):
+                mig.cleanup_volume(vol_drv)
             return
 
         # Define the flow
         flow = tf_lf.Flow("detach_volume")
 
-        # Get a volume adapter for this volume and add task to detach it
-        vol_drv = self._get_inst_vol_adpt(ctx.get_admin_context(), instance,
-                                          conn_info=connection_info)
+        # Add a task to detach the volume
         flow.add(tf_stg.DisconnectVolume(vol_drv))
 
         # Build the engine & run!
