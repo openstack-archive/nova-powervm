@@ -24,6 +24,9 @@ from pypowervm.tasks import vfc_mapper as pvm_vfcm
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt import powervm
+from nova_powervm.virt.powervm import exception as exc
+from nova_powervm.virt.powervm.i18n import _
+from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm.volume import driver as v_driver
@@ -389,10 +392,20 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         npiv_port_maps = self._get_fabric_meta(fabric)
         vios_wraps = self.stg_ftsk.feed
+        volume_id = self.connection_info['data']['volume_id']
 
         # This loop adds the maps from the appropriate VIOS to the client VM
         for npiv_port_map in npiv_port_maps:
             vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
+
+            if vios_w is None:
+                LOG.error(_LE("Mappings were not able to find a proper VIOS. "
+                              "The port mappings were %s."), npiv_port_maps)
+                raise exc.VolumeAttachFailed(
+                    volume_id=volume_id, instance_name=self.instance.name,
+                    reason=_("Unable to find a Virtual I/O Server that "
+                             "hosts the NPIV port map for the server."))
+
             ls = [LOG.info, _LI("Adding NPIV mapping for instance %(inst)s "
                                 "for Virtual I/O Server %(vios)s."),
                   {'inst': self.instance.name, 'vios': vios_w.name}]
@@ -405,7 +418,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # After all the mappings, make sure the fabric state is updated.
         def set_state():
             self._set_fabric_state(fabric, FS_INST_MAPPED)
-        volume_id = self.connection_info['data']['volume_id']
         self.stg_ftsk.add_post_execute(task.FunctorTask(
             set_state, name='fab_%s_%s' % (fabric, volume_id)))
 
