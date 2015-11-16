@@ -817,7 +817,7 @@ class TestPowerVMDriver(test.TestCase):
         inst.task_state = None
 
         # Mock that the instance exists for the first test, then not.
-        mock_inst_exists.side_effect = [True, False]
+        mock_inst_exists.side_effect = [True, False, False]
 
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
@@ -828,11 +828,22 @@ class TestPowerVMDriver(test.TestCase):
         # Verify the disconnect volume was invoked
         self.assertEqual(1, self.vol_drv.disconnect_volume.call_count)
 
-        # Invoke the method, instance doesn't exist.
+        # Invoke the method, instance doesn't exist, no migration
         self.vol_drv.disconnect_volume.reset_mock()
         self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
                                mock.Mock())
+        # Verify the disconnect volume was not invoked
+        self.assertEqual(0, self.vol_drv.disconnect_volume.call_count)
 
+        # Test instance doesn't exist, migration cleanup
+        self.vol_drv.disconnect_volume.reset_mock()
+        mig = lpm.LiveMigrationDest(self.drv, inst)
+        self.drv.live_migrations[inst.uuid] = mig
+        with mock.patch.object(mig, 'cleanup_volume') as mock_clnup:
+            self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
+                                   mock.Mock())
+        # The cleanup should have been called since there was a migration
+        self.assertEqual(1, mock_clnup.call_count)
         # Verify the disconnect volume was not invoked
         self.assertEqual(0, self.vol_drv.disconnect_volume.call_count)
 

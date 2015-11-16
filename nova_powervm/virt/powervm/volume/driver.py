@@ -150,7 +150,7 @@ class PowerVMVolumeAdapter(object):
         """
         pass
 
-    def post_live_migration_at_source(self, mig_data):
+    def post_live_migration_at_source(self, migrate_data):
         """Performs post live migration for the volume on the source host.
 
         This method can be used to handle any steps that need to taken on
@@ -170,6 +170,16 @@ class PowerVMVolumeAdapter(object):
                              each volume adapter during the post live migration
                              call.  Adapters can store data in here that may
                              be used by subsequent volume adapters.
+        """
+        pass
+
+    def cleanup_volume_at_destination(self, migrate_data):
+        """Performs volume cleanup after LPM failure on the dest host.
+
+        This method can be used to handle any steps that need to taken on
+        the destination host after the migration has failed.
+
+        :param migrate_data: migration data
         """
         pass
 

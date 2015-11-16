@@ -120,20 +120,9 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         dest_mig_data['vscsi-' + volume_id] = udid
 
-    def post_live_migration_at_source(self, mig_data):
-        """Performs post live migration for the volume on the source host.
+    def _cleanup_volume(self, udid):
+        """Cleanup the hdisk associated with this udid."""
 
-        This method can be used to handle any steps that need to taken on
-        the source host after the VM is on the destination.
-
-        :param migrate_data: migration data
-        """
-        # Get the udid of the volume to remove the hdisk for.  We can't
-        # use the connection information because LPM 'refreshes' it, which
-        # wipes out our data, so we use the data from the destination host
-        # to avoid having to discover the hdisk to get the udid.
-        udid = mig_data['pre_live_migration_result'].get(
-            'vscsi-' + self.volume_id)
         if not udid:
             LOG.warn(_LW('Could not remove hdisk for volume: %s')
                      % self.volume_id)
@@ -150,7 +139,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             self._add_remove_hdisk(vios_w, device_name,
                                    stg_ftsk=rmv_hdisk_ftsk)
 
-        # Create a feed task to get the vios, find the hdsik and remove it.
+        # Create a feed task to get the vios, find the hdisk and remove it.
         rmv_hdisk_ftsk = tx.FeedTask(
             'find_hdisk_to_remove', pvm_vios.VIOS.getter(
                 self.adapter, xag=[pvm_vios.VIOS.xags.STORAGE]))
@@ -158,6 +147,33 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         rmv_hdisk_ftsk.add_functor_subtask(
             find_hdisk_to_remove, flag_update=False)
         rmv_hdisk_ftsk.execute()
+
+    def post_live_migration_at_source(self, migrate_data):
+        """Performs post live migration for the volume on the source host.
+
+        This method can be used to handle any steps that need to taken on
+        the source host after the VM is on the destination.
+
+        :param migrate_data: migration data
+        """
+        # Get the udid of the volume to remove the hdisk for.  We can't
+        # use the connection information because LPM 'refreshes' it, which
+        # wipes out our data, so we use the data from the destination host
+        # to avoid having to discover the hdisk to get the udid.
+        udid = migrate_data['pre_live_migration_result'].get(
+            'vscsi-' + self.volume_id)
+        self._cleanup_volume(udid)
+
+    def cleanup_volume_at_destination(self, migrate_data):
+        """Performs volume cleanup after LPM failure on the dest host.
+
+        This method can be used to handle any steps that need to taken on
+        the destination host after the migration has failed.
+
+        :param migrate_data: migration data
+        """
+        udid = migrate_data.get('vscsi-' + self.volume_id)
+        self._cleanup_volume(udid)
 
     def _discover_volume_on_vios(self, vios_w, volume_id):
         """Discovers an hdisk on a single vios for the volume.
