@@ -118,24 +118,50 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
-    def test_post_live_migr_source(self, mock_hdisk_from_uuid,
-                                   mock_remove_hdisk):
+    def test_cleanup_volume(self, mock_hdisk_from_uuid, mock_remove_hdisk):
         mock_hdisk_from_uuid.return_value = 'device_name'
 
-        # Bad path.  volume id not found
-        mig_data = {'pre_live_migration_result': {'vscsi-BAD': 'udid1'}}
+        # Bad path.  udid not found
         # Run the method - this should produce a warning
         with self.assertLogs(vscsi.__name__, 'WARNING'):
-            self.vol_drv.post_live_migration_at_source(mig_data)
+            self.vol_drv._cleanup_volume(None)
 
         # Good path
-        mig_data = {'pre_live_migration_result': {'vscsi-id': 'udid1'}}
-        # Run the method
-        self.vol_drv.post_live_migration_at_source(mig_data)
+        self.vol_drv._cleanup_volume('udid1')
         # We don't update the feed, we run remove hdisk instead
         self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
         mock_remove_hdisk.assert_called_once_with(
             self.adpt, mock.ANY, 'device_name', self.vios_uuid)
+
+    def test_post_live_migr_source(self):
+
+        # Bad path.  volume id not found
+        bad_data = {'pre_live_migration_result': {'vscsi-BAD': 'udid1'}}
+        # good path.
+        good_data = {'pre_live_migration_result': {'vscsi-id': 'udid1'}}
+
+        with mock.patch.object(self.vol_drv, '_cleanup_volume') as mock_cln:
+            self.vol_drv.post_live_migration_at_source(bad_data)
+            mock_cln.assert_called_once_with(None)
+
+            mock_cln.reset_mock()
+            self.vol_drv.post_live_migration_at_source(good_data)
+            mock_cln.assert_called_once_with('udid1')
+
+    def test_cleanup_at_dest(self):
+
+        # Bad path.  volume id not found
+        bad_data = {'vscsi-BAD': 'udid1'}
+        # good path.
+        good_data = {'vscsi-id': 'udid1'}
+
+        with mock.patch.object(self.vol_drv, '_cleanup_volume') as mock_cln:
+            self.vol_drv.cleanup_volume_at_destination(bad_data)
+            mock_cln.assert_called_once_with(None)
+
+            mock_cln.reset_mock()
+            self.vol_drv.cleanup_volume_at_destination(good_data)
+            mock_cln.assert_called_once_with('udid1')
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
