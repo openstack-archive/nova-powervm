@@ -39,13 +39,14 @@ class TestLPM(test.TestCase):
         self.lpmsrc = lpm.LiveMigrationSrc(self.drv, self.inst, {})
         self.lpmdst = lpm.LiveMigrationDest(self.drv, self.inst)
 
+    @mock.patch('pypowervm.tasks.storage.ScrubOrphanStorageForLpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('pypowervm.tasks.vterm.close_vterm')
     @mock.patch('pypowervm.wrappers.managed_system.System.migration_data',
                 new_callable=mock.PropertyMock, name='MigDataProp')
     def test_lpm_source(self, mock_migrdata, mock_vterm_close, mock_get_wrap,
-                        mock_cd):
+                        mock_cd, mock_scrub):
         migr_data = {'active_migrations_supported': 4,
                      'active_migrations_in_progress': 2}
         mock_migrdata.return_value = migr_data
@@ -55,7 +56,7 @@ class TestLPM(test.TestCase):
 
             # Test the bad path first, then patch in values to make suceed
             self.lpmsrc.dest_data = {'dest_proc_compat': 'a,b,c'}
-            mock_wrap = mock.Mock()
+            mock_wrap = mock.Mock(id=123)
             mock_get_wrap.return_value = mock_wrap
 
             self.assertRaises(exception.MigrationPreCheckError,
@@ -79,9 +80,13 @@ class TestLPM(test.TestCase):
             # Finally, good path.
             self.lpmsrc.check_source('context', 'block_device_info',
                                      [mock_vol_drv])
-            # Ensure we tried to remove the vopts.
+            # Ensure we built a scrubber.
+            mock_scrub.assert_called_with(mock.ANY, 123)
+            # Ensure we added the subtasks to remove the vopts.
             mock_cd.return_value.dlt_vopt.assert_called_once_with(
-                mock.ANY)
+                mock.ANY, stg_ftsk=mock_scrub.return_value)
+            # And ensure the scrubber was executed
+            mock_scrub.return_value.execute.assert_called_once_with()
             mock_vol_drv.pre_live_migration_on_source.assert_called_once_with(
                 {'public_key': None})
 
