@@ -53,4 +53,4 @@ into a virtualenv.
 
 Additional project requirements may be found in the requirements.txt file.
 
-.. _pypowervm: https://github.com/pypowervm/pypowervm
+.. _pypowervm: https://github.com/powervm/pypowervm

@@ -3,7 +3,7 @@
 # devstack/powervm-functions.sh
 # Functions to control the installation and configuration of the PowerVM compute services
 
-GITREPO["pypowervm"]=${PYPOWERVM_REPO:-https://github.com/pypowervm/pypowervm}
+GITREPO["pypowervm"]=${PYPOWERVM_REPO:-https://github.com/powervm/pypowervm}
 GITBRANCH["pypowervm"]=${PYPOWERVM_BRANCH:-master}
 GITDIR["pypowervm"]=$DEST/pypowervm
 

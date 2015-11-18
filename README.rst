@@ -34,7 +34,7 @@ stack through `pypowervm`_, an open source python project.
 This inspector requires that the PowerVM system be configured for management
 via `NovaLink`_.
 
-.. _pypowervm: https://github.com/pypowervm/pypowervm
+.. _pypowervm: https://github.com/powervm/pypowervm
 .. _NovaLink: http://www-01.ibm.com/common/ssi/cgi-bin/ssialias?infotype=AN&subtype=CA&htmlfid=897/ENUS215-262&appname=USN
 
 
@@ -100,7 +100,7 @@ References
 -  Ceilometer Architecture:
    http://docs.openstack.org/developer/ceilometer/architecture.html
 
--  pypowervm: https://github.com/pypowervm/pypowervm
+-  pypowervm: https://github.com/powervm/pypowervm
 
 -  NovaLink: http://www-01.ibm.com/common/ssi/cgi-bin/ssialias?infotype=AN&subtype=CA&htmlfid=897/ENUS215-262&appname=USN
 
