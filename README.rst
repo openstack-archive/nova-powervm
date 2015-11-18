@@ -211,7 +211,7 @@ Dependencies
 * Builds on top of the `pypowervm library`_.  This is a prerequisite to
   utilizing the driver.
 
-.. _pypowervm library: https://github.com/pypowervm
+.. _pypowervm library: https://github.com/powervm/pypowervm
 
 Testing
 =======
