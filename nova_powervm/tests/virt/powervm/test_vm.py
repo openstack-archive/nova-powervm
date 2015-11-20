@@ -297,6 +297,45 @@ class TestVM(test.TestCase):
         self.assertRaises(exception.InvalidAttribute, vm.crt_lpar,
                           self.apt, host_wrapper, instance, flavor)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder')
+    def test_update(self, mock_vmb, mock_get_inst):
+        instance = objects.Instance(**powervm.TEST_INSTANCE)
+        flavor, entry = mock.Mock(), mock.Mock()
+        name = "new_name"
+        entry.update.return_value = 'NewEntry'
+        bldr = mock_vmb.return_value
+        lpar_bldr = bldr.lpar_builder.return_value
+        new_entry = vm.update(self.apt, 'mock_host_wrap', instance, flavor,
+                              entry=entry, name=name)
+        # Ensure the lpar was rebuilt
+        lpar_bldr.rebuild.assert_called_once_with(entry)
+        entry.update.assert_called_once_with()
+        self.assertEqual(name, entry.name)
+        self.assertEqual('NewEntry', new_entry)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    def test_rename(self, mock_get_inst):
+        instance = objects.Instance(**powervm.TEST_INSTANCE)
+
+        entry = mock.Mock()
+        entry.update.return_value = 'NewEntry'
+        new_entry = vm.rename(self.apt, 'mock_host_uuid', instance, 'new_name',
+                              entry=entry)
+        self.assertEqual('new_name', entry.name)
+        entry.update.assert_called_once_with()
+        self.assertEqual('NewEntry', new_entry)
+
+        # Test optional entry parameter
+        entry.reset_mock()
+        mock_get_inst.return_value = entry
+        new_entry = vm.rename(self.apt, 'mock_host_uuid', instance, 'new_name')
+        mock_get_inst.assert_called_once_with(self.apt, instance,
+                                              'mock_host_uuid')
+        self.assertEqual('new_name', entry.name)
+        entry.update.assert_called_once_with()
+        self.assertEqual('NewEntry', new_entry)
+
     def test_add_IBMi_attrs(self):
         inst = mock.Mock()
         # Non-ibmi distro

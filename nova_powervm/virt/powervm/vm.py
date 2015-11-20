@@ -490,7 +490,7 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
     return lpar_w
 
 
-def update(adapter, host_wrapper, instance, flavor, entry=None):
+def update(adapter, host_wrapper, instance, flavor, entry=None, name=None):
     """Update an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
@@ -499,6 +499,9 @@ def update(adapter, host_wrapper, instance, flavor, entry=None):
     :param flavor: The nova flavor.
     :param entry: The instance pvm entry, if available, otherwise it will
         be fetched.
+    :param name: VM name to use for the update.  Used on resize when we want
+        to rename it but not use the instance name.
+    :returns: The updated LPAR wrapper.
     """
 
     if not entry:
@@ -507,8 +510,30 @@ def update(adapter, host_wrapper, instance, flavor, entry=None):
     lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
     lpar_b.rebuild(entry)
 
-    # Write out the new specs
-    entry.update()
+    # Set the new name if the instance name is not desired.
+    if name:
+        entry.name = name
+    # Write out the new specs, return the updated version
+    return entry.update()
+
+
+def rename(adapter, host_uuid, instance, name, entry=None):
+    """Rename a VM.
+
+    :param adapter: The adapter for the pypowervm API
+    :param host_uuid: The host UUID.
+    :param instance: The nova instance.
+    :param name: The new name.
+    :param entry: The instance pvm entry, if available, otherwise it will
+        be fetched.
+    :returns: The updated LPAR wrapper.
+    """
+
+    if not entry:
+        entry = get_instance_wrapper(adapter, instance, host_uuid)
+
+    entry.name = name
+    return entry.update()
 
 
 def dlt_lpar(adapter, lpar_uuid):

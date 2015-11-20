@@ -89,6 +89,66 @@ class Create(task.Task):
         return wrap
 
 
+class Resize(task.Task):
+    """The task for resizing an existing VM."""
+
+    def __init__(self, adapter, host_wrapper, instance, flavor, name=None):
+        """Creates the Task to resize a VM.
+
+        Provides the 'lpar_wrap' for other tasks.
+
+        :param adapter: The adapter for the pypowervm API
+        :param host_wrapper: The managed system wrapper
+        :param instance: The nova instance.
+        :param flavor: The nova flavor.
+        :param name: VM name to use for the update.  Used on resize when we
+            want to rename it but not use the instance name.
+        """
+        super(Resize, self).__init__(name='resize_lpar',
+                                     provides='lpar_wrap')
+        self.adapter = adapter
+        self.host_wrapper = host_wrapper
+        self.instance = instance
+        self.flavor = flavor
+        self.vm_name = name
+
+    def execute(self):
+        LOG.info(_LI('Resizing instance: %s'), self.instance.name,
+                 instance=self.instance)
+        wrap = vm.update(self.adapter, self.host_wrapper,
+                         self.instance, self.flavor, entry=None,
+                         name=self.vm_name)
+        return wrap
+
+
+class Rename(task.Task):
+    """The task for renaming an existing VM."""
+
+    def __init__(self, adapter, host_uuid, instance, name):
+        """Creates the Task to rename a VM.
+
+        Provides the 'lpar_wrap' for other tasks.
+
+        :param adapter: The adapter for the pypowervm API
+        :param host_uuid: The managed system uuid
+        :param instance: The nova instance.
+        :param name: The new VM name.
+        """
+        super(Rename, self).__init__(name='rename_lpar_%s' % name,
+                                     provides='lpar_wrap')
+        self.adapter = adapter
+        self.host_uuid = host_uuid
+        self.instance = instance
+        self.vm_name = name
+
+    def execute(self):
+        LOG.info(_LI('Renaming instance to name: %s'), self.name,
+                 instance=self.instance)
+        wrap = vm.rename(self.adapter, self.host_uuid, self.instance,
+                         self.vm_name)
+        return wrap
+
+
 class PowerOn(task.Task):
     """The task to power on the instance."""
 
@@ -171,7 +231,8 @@ class Delete(task.Task):
         self.instance = instance
 
     def execute(self):
-        LOG.info(_LI('Deleting instance %s from system.'), self.instance.name)
+        LOG.info(_LI('Deleting instance %s from system.'), self.instance.name,
+                 instance=self.instance)
         vm.dlt_lpar(self.adapter, self.lpar_uuid)
 
 

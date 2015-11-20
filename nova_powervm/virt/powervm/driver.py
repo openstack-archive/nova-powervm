@@ -27,7 +27,6 @@ from nova import utils as n_utils
 from nova.virt import configdrive
 from nova.virt import driver
 import re
-import time
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -43,7 +42,6 @@ from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks import memory as pvm_mem
 from pypowervm.tasks import power as pvm_pwr
 from pypowervm.tasks import vterm as pvm_vterm
-from pypowervm.utils import retry as pvm_retry
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -330,11 +328,9 @@ class PowerVMDriver(driver.ComputeDriver):
         :param flow: the flow to add the tasks to.
         :param stg_ftsk: the storage task flow.
         """
-        for bdm in bdms or []:
-            conn_info = bdm.get('connection_info')
-            vol_drv = self._get_inst_vol_adpt(
-                context, instance, conn_info=conn_info, stg_ftsk=stg_ftsk)
 
+        for bdm, vol_drv in self._vol_drv_iter(context, instance, bdms=bdms,
+                                               stg_ftsk=stg_ftsk):
             # First connect the volume.  This will update the
             # connection_info.
             flow.add(tf_stg.ConnectVolume(vol_drv))
@@ -356,11 +352,8 @@ class PowerVMDriver(driver.ComputeDriver):
         :param flow: the flow to add the tasks to.
         :param stg_ftsk: the storage task flow.
         """
-        for bdm in bdms or []:
-            conn_info = bdm.get('connection_info')
-            vol_drv = self._get_inst_vol_adpt(
-                context, instance, conn_info=conn_info,
-                stg_ftsk=stg_ftsk)
+        for bdm, vol_drv in self._vol_drv_iter(context, instance, bdms=bdms,
+                                               stg_ftsk=stg_ftsk):
             flow.add(tf_stg.DisconnectVolume(vol_drv))
 
     def _is_booted_from_volume(self, block_device_info):
@@ -373,6 +366,9 @@ class PowerVMDriver(driver.ComputeDriver):
         :return: True if the root device is in block_device_info and False if
                  it is not.
         """
+        if block_device_info is None:
+            return False
+
         root_bdm = block_device.get_root_bdm(
             driver.block_device_info_get_mapping(block_device_info))
         return (root_bdm is not None)
@@ -380,6 +376,101 @@ class PowerVMDriver(driver.ComputeDriver):
     @property
     def need_legacy_block_device_info(self):
         return False
+
+    def _destroy(self, context, instance, block_device_info=None,
+                 destroy_disks=True, shutdown=True):
+
+        """Internal destroy method used by multiple operations.
+
+        :param context: security context
+        :param instance: Instance object as returned by DB layer.
+        :param block_device_info: Information about block devices that should
+                                  be detached from the instance.
+                                  This can be None when destroying the original
+                                  VM during confirm resize/migration.  In that
+                                  case, the storage mappings have already been
+                                  removed from the original VM, so no work to
+                                  do.
+        :param destroy_disks: Indicates if disks should be destroyed
+        :param shutdown: Indicate whether to shutdown the VM first
+        """
+
+        def _setup_flow_and_run():
+            # Extract the block devices.
+            bdms = self._extract_bdm(block_device_info)
+
+            # Define the flow
+            flow = tf_lf.Flow("destroy")
+
+            if shutdown:
+                # Power Off the LPAR
+                flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
+                                        pvm_inst_uuid, instance))
+
+            # Create the transaction manager (FeedTask) for Storage I/O.
+            xag = self._get_inst_xag(instance, bdms)
+            stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
+                                               xag=xag)
+
+            # Add the disconnect/deletion of the vOpt to the transaction
+            # manager.
+            flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
+                                       pvm_inst_uuid, stg_ftsk=stg_ftsk))
+
+            # Determine if there are volumes to disconnect.  If so, remove each
+            # volume (within the transaction manager)
+            self._add_volume_disconnection_tasks(context, instance, bdms, flow,
+                                                 stg_ftsk)
+
+            # Only detach the disk adapters if this is not a boot from volume
+            # since volumes are handled above.  This is only for disks.
+            destroy_disk_task = None
+            if not self._is_booted_from_volume(block_device_info):
+                # Detach the disk storage adapters (when the stg_ftsk runs)
+                flow.add(tf_stg.DetachDisk(
+                    self.disk_dvr, context, instance, stg_ftsk))
+
+                # Delete the storage disks
+                if destroy_disks:
+                    destroy_disk_task = tf_stg.DeleteDisk(
+                        self.disk_dvr, context, instance)
+
+            # Add the transaction manager flow to the end of the 'storage
+            # connection' tasks.  This will run all the disconnection ops
+            # in parallel
+            flow.add(stg_ftsk)
+
+            # The disks shouldn't be destroyed until the unmappings are done.
+            if destroy_disk_task:
+                flow.add(destroy_disk_task)
+
+            # Last step is to delete the LPAR from the system.
+            # Note: If moving to a Graph Flow, will need to change to depend on
+            # the prior step.
+            flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
+
+            # Build the engine & run!
+            tf_eng.run(flow)
+
+        try:
+            pvm_inst_uuid = vm.get_pvm_uuid(instance)
+            _setup_flow_and_run()
+        except exception.InstanceNotFound:
+            LOG.warning(_LW('VM was not found during destroy operation.'),
+                        instance=instance)
+            return
+        except pvm_exc.HttpError as e:
+            # See if we were operating on the LPAR that we're deleting
+            # and it wasn't found
+            resp = e.response
+            exp = '/ManagedSystem/.*/LogicalPartition/.*-.*-.*-.*-.*'
+            if resp.status == 404 and re.search(exp, resp.reqpath):
+                # It's the LPAR, so just return.
+                LOG.warning(_LW('VM was not found during destroy operation.'),
+                            instance=instance)
+                return
+            else:
+                raise
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True, migrate_data=None):
@@ -398,88 +489,28 @@ class PowerVMDriver(driver.ComputeDriver):
         :param destroy_disks: Indicates if disks should be destroyed
         :param migrate_data: implementation specific params
         """
-
-        def _run_flow():
-            # Extract the block devices.
-            bdms = self._extract_bdm(block_device_info)
-
-            # Define the flow
-            flow = tf_lf.Flow("destroy")
-
-            # Power Off the LPAR
-            flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
-                                    pvm_inst_uuid, instance))
-
-            # Create the transaction manager (FeedTask) for Storage I/O.
-            xag = self._get_inst_xag(instance, bdms)
-            stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
-                                               xag=xag)
-
-            # Add the disconnect/deletion of the vOpt to the transaction
-            # manager.
-            flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
-                                       pvm_inst_uuid, stg_ftsk=stg_ftsk))
-
-            # Determine if there are volumes to disconnect.  If so, remove each
-            # volume (within the transaction manager)
-            self._add_volume_disconnection_tasks(context, instance, bdms, flow,
-                                                 stg_ftsk)
-
-            # Only attach the disk adapters if this is not a boot from volume.
-            destroy_disk_task = None
-            if not self._is_booted_from_volume(block_device_info):
-                # Detach the disk storage adapters (when the stg_ftsk runs)
-                flow.add(tf_stg.DetachDisk(
-                    self.disk_dvr, context, instance, stg_ftsk))
-
-                # Delete the storage disks
-                if destroy_disks:
-                    destroy_disk_task = tf_stg.DeleteDisk(
-                        self.disk_dvr, context, instance)
-
-            # Add the transaction manager flow to the end of the 'storage
-            # connection' tasks.  This will run all the connections in parallel
-            flow.add(stg_ftsk)
-
-            # The disks shouldn't be destroyed until the unmappings are done.
-            if destroy_disk_task:
-                flow.add(destroy_disk_task)
-
-            # Last step is to delete the LPAR from the system.
-            # Note: If moving to a Graph Flow, will need to change to depend on
-            # the prior step.
-            flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
-
-            # Build the engine & run!
-            engine = tf_eng.load(flow)
-            engine.run()
-
-        self._log_operation('destroy', instance)
         if instance.task_state == task_states.RESIZE_REVERTING:
-            # This destroy is part of resize, just skip destroying
-            # TODO(IBM): What to do longer term
-            LOG.info(_LI('Ignoring destroy call during resize revert.'))
-            return
+            LOG.info(_LI('Destroy called for migrated instance.'),
+                     instance=instance)
+            # This destroy is part of resize or migrate.  It's called to
+            # revert the resize/migration on the destination host.
 
-        try:
+            # Get the VM and see if we've renamed it to the resize name,
+            # if not delete as usual because then we know it's not the
+            # original VM.
             pvm_inst_uuid = vm.get_pvm_uuid(instance)
-            _run_flow()
-        except exception.InstanceNotFound:
-            LOG.warning(_LW('VM was not found during destroy operation.'),
-                        instance=instance)
-            return
-        except pvm_exc.HttpError as e:
-            # See if we were operating on the LPAR that we're deleting
-            # and it wasn't found
-            resp = e.response
-            exp = '/ManagedSystem/.*/LogicalPartition/.*-.*-.*-.*-.*'
-            if (resp.status == 404 and re.search(exp, resp.reqpath)):
-                # It's the LPAR, so just return.
-                LOG.warning(_LW('VM was not found during destroy operation.'),
-                            instance=instance)
+            vm_name = vm.get_vm_qp(self.adapter, pvm_inst_uuid,
+                                   qprop='PartitionName', log_errors=False)
+            if vm_name == self._gen_resize_name(instance, same_host=True):
+                # Since it matches it must have been a resize, don't delete it!
+                LOG.info(_LI('Ignoring destroy call during resize revert.'),
+                         instance=instance)
                 return
-            else:
-                raise
+
+        # Run the destroy
+        self._log_operation('destroy', instance)
+        self._destroy(context, instance, block_device_info=block_device_info,
+                      destroy_disks=destroy_disks, shutdown=True)
 
     def attach_volume(self, context, connection_info, instance, mountpoint,
                       disk_bus=None, device_type=None, encryption=None):
@@ -869,43 +900,6 @@ class PowerVMDriver(driver.ComputeDriver):
                 connector["wwpns"] = wwpn_list
         return connector
 
-    def _remove_volume_connections(self, context, instance, block_device_info):
-        """Removes the volume connections for the instance.
-
-        During resize disconnect if there are any volumes connected
-        to an instance.
-        :param context: security context
-        :param instance: Instance object
-        :param block_device_info: Information about block devices that should
-                                  be detached from the instance.
-        """
-        # Extract the block devices.
-        bdms = self._extract_bdm(block_device_info)
-        # Nothing needed if there isn't a bdms.
-        if not bdms:
-            return
-
-        # Define the flow
-        flow = tf_lf.Flow("resize_vm")
-
-        # Create the transaction manager (FeedTask) for Storage I/O.
-        xag = self._get_inst_xag(instance, bdms)
-        stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
-                                           xag=xag)
-
-        # Determine if there are volumes to disconnect.  If so, remove each
-        # volume (within the transaction manager)
-        self._add_volume_disconnection_tasks(context, instance, bdms, flow,
-                                             stg_ftsk)
-        if len(flow):
-            # Add the transaction manager flow to the end of the 'storage
-            # disconnection' tasks.  This will run all the connections in
-            # parallel
-            flow.add(stg_ftsk)
-
-            # Build the engine & run
-            tf_eng.run(flow)
-
     def migrate_disk_and_power_off(self, context, instance, dest,
                                    flavor, network_info,
                                    block_device_info=None,
@@ -924,62 +918,78 @@ class PowerVMDriver(driver.ComputeDriver):
             raise exception.InstanceFaultRollback(
                 exception.ResizeError(reason=_('Cannot reduce disk size.')))
 
-        if dest == self.get_host_ip_addr():
+        same_host = dest == self.get_host_ip_addr()
+        if same_host:
             self._log_operation('resize', instance)
-            # This is a local resize
-            # Check for disk resizes before VM resources
-            if flav_obj.root_gb > instance.root_gb:
-                vm.power_off(self.adapter, instance, self.host_uuid)
-                # Resize the root disk
-                self.disk_dvr.extend_disk(context, instance, dict(type='boot'),
-                                          flav_obj.root_gb)
-
-            # Do any VM resource changes
-            self._resize_vm(context, instance, flav_obj, retry_interval)
-
-            # If everything has gone well up to this point, the compute
-            # manager is going to terminate the volume connections for the
-            # instance, so we need to remove our mappings.
-            # Remove the volume connections for the BDMs
-            self._remove_volume_connections(context, instance,
-                                            block_device_info)
         else:
             self._log_operation('migration', instance)
-            raise NotImplementedError()
 
-        # TODO(IBM): The caller is expecting disk info returned
+            # Can't migrate the disks if they are not on shared storage
+            if not self._is_booted_from_volume(block_device_info):
+
+                if not self.disk_dvr.capabilities['shared_storage']:
+                    raise exception.InstanceFaultRollback(
+                        exception.ResizeError(
+                            reason=_('Cannot migrate local disks.')))
+
+                # Get disk info from disk driver.
+                disk_info = dict(disk_info, **self.disk_dvr.get_info())
+
+        pvm_inst_uuid = vm.get_pvm_uuid(instance)
+
+        # Define the migrate flow
+        flow = tf_lf.Flow("migrate_vm")
+
+        # Power off the VM
+        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
+                                pvm_inst_uuid, instance))
+
+        if flav_obj.root_gb > instance.root_gb:
+            # Resize the root disk
+            flow.add(tf_stg.ExtendDisk(self.disk_dvr, context, instance,
+                                       dict(type='boot'), flav_obj.root_gb))
+
+        # Disconnect any volumes that are attached.  They are reattached
+        # on the new VM (or existing VM if this is just a resize.)
+        # Extract the block devices.
+        bdms = self._extract_bdm(block_device_info)
+        if bdms:
+            # Create the transaction manager (FeedTask) for Storage I/O.
+            xag = self._get_inst_xag(instance, bdms)
+            stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
+                                               xag=xag)
+
+            # Determine if there are volumes to disconnect.  If so, remove each
+            # volume (within the transaction manager)
+            self._add_volume_disconnection_tasks(context, instance, bdms, flow,
+                                                 stg_ftsk)
+
+            # Add the transaction manager flow to the end of the 'storage
+            # disconnection' tasks.  This will run all the disconnections in
+            # parallel
+            flow.add(stg_ftsk)
+
+        # We rename the VM to help identify if this is a resize and so it's
+        # easy to see the VM is being migrated from pvmctl.  We use the resize
+        # name so we don't destroy it on a revert when it's on the same host.
+        new_name = self._gen_resize_name(instance, same_host=same_host)
+        flow.add(tf_vm.Rename(self.adapter, self.host_uuid, instance,
+                              new_name))
+        try:
+            tf_eng.run(flow)
+        except Exception as e:
+            raise exception.InstanceFaultRollback(e)
+
         return disk_info
 
-    def _resize_vm(self, context, instance, flav_obj, retry_interval=0):
-
-        def _delay(attempt, max_attempts, *args, **kwds):
-            LOG.info(_LI('Retrying to update VM.'), instance=instance)
-            time.sleep(retry_interval)
-
-        @pvm_retry.retry(delay_func=_delay)
-        def _update_vm():
-            LOG.debug('Resizing instance %s.', instance.name,
-                      instance=instance)
-            entry = vm.get_instance_wrapper(self.adapter, instance,
-                                            self.host_uuid)
-
-            pwrd = vm.power_off(self.adapter, instance,
-                                self.host_uuid, entry=entry)
-            # If it was powered off then the etag changed, fetch it again
-            if pwrd:
-                entry = vm.get_instance_wrapper(self.adapter, instance,
-                                                self.host_uuid)
-
-            vm.update(self.adapter, self.host_wrapper,
-                      instance, flav_obj, entry=entry)
-
-        # Update the VM
-        _update_vm()
+    def _gen_resize_name(self, instance, same_host=False):
+        prefix = 'resize_' if same_host else 'migrate_'
+        return (prefix + instance.name)[:31]
 
     def finish_migration(self, context, migration, instance, disk_info,
                          network_info, image_meta, resize_instance,
                          block_device_info=None, power_on=True):
-        """Completes a resize.
+        """Completes a resize or cold migration.
 
         :param context: the context for the migration/resize
         :param migration: the migrate/resize information
@@ -997,36 +1007,93 @@ class PowerVMDriver(driver.ComputeDriver):
                          otherwise
         """
 
+        # See if this was to the same host
+        same_host = migration.source_compute == migration.dest_compute
+
+        if same_host:
+            self._log_operation('finish resize', instance)
+        else:
+            self._log_operation('finish migration', instance)
+
+        # Ensure the disk drivers are compatible.
+        if (not same_host and
+                not self._is_booted_from_volume(block_device_info)):
+            # Can't migrate the disks if they are not on shared storage
+            if not self.disk_dvr.capabilities['shared_storage']:
+                raise exception.InstanceFaultRollback(
+                    exception.ResizeError(
+                        reason=_('Cannot migrate local disks.')))
+            # Call the disk driver to evaluate the disk info
+            reason = self.disk_dvr.validate(disk_info)
+            if reason:
+                raise exception.InstanceFaultRollback(
+                    exception.ResizeError(reason=reason))
+
+        # Get the new flavor
+        flav_obj = flavor_obj.Flavor.get_by_id(
+            context, migration.new_instance_type_id)
+
         # Extract the block devices.
         bdms = self._extract_bdm(block_device_info)
-        # Nothing needed if there isn't a bdms or a requirement to power-on.
-        if not bdms and not power_on:
-            return
 
         # Define the flow
         flow = tf_lf.Flow("finish_migration")
 
-        if bdms:
+        # If attaching disks or volumes
+        if bdms or not same_host:
             # Create the transaction manager (FeedTask) for Storage I/O.
             xag = self._get_inst_xag(instance, bdms)
             stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
                                                xag=xag)
+        else:
+            stg_ftsk = None
+
+        if same_host:
+            # This is just a resize.
+            new_name = self._gen_resize_name(instance, same_host=True)
+            flow.add(tf_vm.Resize(self.adapter, self.host_wrapper, instance,
+                                  flav_obj, name=new_name))
+        else:
+            # This is a migration over to another host.  We have a lot of work.
+
+            # Create the LPAR
+            flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
+                                  flav_obj, stg_ftsk))
+
+            # Create a flow for the network IO
+            flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
+                                     network_info, self.host_uuid))
+            flow.add(tf_net.PlugMgmtVif(self.adapter, instance,
+                                        self.host_uuid))
+
+            # Need to attach the boot disk, if present.
+            if not self._is_booted_from_volume(block_device_info):
+                flow.add(tf_stg.FindDisk(self.disk_dvr, context, instance,
+                                         disk_dvr.DiskType.BOOT))
+                # Connects up the disk to the LPAR
+                flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance,
+                                            stg_ftsk=stg_ftsk))
+
+        if bdms:
             # Determine if there are volumes to connect.  If so, add a
             # connection for each type.
             self._add_volume_connection_tasks(context, instance, bdms,
                                               flow, stg_ftsk)
-            if len(flow):
-                # Add the transaction manager flow to the end of the 'storage
-                # connection' tasks to run all the connections in parallel
-                flow.add(stg_ftsk)
+
+        if stg_ftsk:
+            # Add the transaction manager flow to the end of the 'storage
+            # connection' tasks to run all the connections in parallel
+            flow.add(stg_ftsk)
 
         if power_on:
             # Get the lpar wrapper (required by power-on), then power-on
             flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
             flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
 
-        if len(flow):
+        try:
             tf_eng.run(flow)
+        except Exception as e:
+            raise exception.InstanceFaultRollback(e)
 
     def confirm_migration(self, migration, instance, network_info):
         """Confirms a resize, destroying the source VM.
@@ -1036,12 +1103,26 @@ class PowerVMDriver(driver.ComputeDriver):
         :param network_info:
            :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
         """
-        # TODO(IBM): Anything to do here?
-        pass
+        # See if this was to the same host
+        same_host = migration.source_compute == migration.dest_compute
+        if same_host:
+            # This was a local resize, don't delete our only VM!
+            self._log_operation('confirm resize', instance)
+            vm.rename(self.adapter, self.host_uuid, instance, instance.name)
+            return
+
+        # Confirming the migrate means we need to delete source VM.
+        self._log_operation('confirm migration', instance)
+
+        # Destroy the old VM.
+        destroy_disks = not self.disk_dvr.capabilities['shared_storage']
+        context = ctx.get_admin_context()
+        self._destroy(context, instance, block_device_info=None,
+                      destroy_disks=destroy_disks, shutdown=False)
 
     def finish_revert_migration(self, context, instance, network_info,
                                 block_device_info=None, power_on=True):
-        """Finish reverting a resize.
+        """Finish reverting a resize on the source host.
 
         :param context: the context for the finish_revert_migration
         :param instance: nova.objects.instance.Instance being migrated/resized
@@ -1051,16 +1132,17 @@ class PowerVMDriver(driver.ComputeDriver):
         :param power_on: True if the instance should be powered on, False
                          otherwise
         """
-        self._log_operation('revert resize', instance)
-        # TODO(IBM): What to do here?  Do we want to recreate the LPAR
-        # Or just change the settings back to the flavor?
+        self._log_operation('revert resize/migration', instance)
+        # This method is always run on the source host, so we just need to
+        # revert the VM back to it's old sizings, if it was even changed
+        # at all.  If it was a migration, then it wasn't changed but it
+        # shouldn't hurt to "update" it with the prescribed flavor.  This
+        # makes it easy to handle both resize and migrate.
 
         # Get the flavor from the instance, so we can revert it
         admin_ctx = ctx.get_admin_context(read_deleted='yes')
-        flav_obj = (
-            flavor_obj.Flavor.get_by_id(admin_ctx,
-                                        instance.instance_type_id))
-        # TODO(IBM)  Get the entry once for both power_off and update
+        flav_obj = flavor_obj.Flavor.get_by_id(
+            admin_ctx, instance.instance_type_id)
         vm.power_off(self.adapter, instance, self.host_uuid)
         vm.update(self.adapter, self.host_wrapper, instance, flav_obj)
 
@@ -1357,16 +1439,30 @@ class PowerVMDriver(driver.ComputeDriver):
         mig.post_live_migration_at_destination(network_info, vol_drvs)
         del self.live_migrations[instance.uuid]
 
-    def _build_vol_drivers(self, context, instance, block_device_info):
+    def _vol_drv_iter(self, context, instance, block_device_info=None,
+                      bdms=None, stg_ftsk=None):
+        """Yields a bdm and volume driver."""
+        # Get a volume driver for each volume
+        if not bdms:
+            bdms = self._extract_bdm(block_device_info)
+        for bdm in bdms or []:
+            conn_info = bdm.get('connection_info')
+            # if it doesn't have connection_info, it's not a volume
+            if not conn_info:
+                continue
+
+            vol_drv = self._get_inst_vol_adpt(context, instance,
+                                              conn_info=conn_info,
+                                              stg_ftsk=stg_ftsk)
+            yield bdm, vol_drv
+
+    def _build_vol_drivers(self, context, instance, block_device_info=None,
+                           bdms=None, stg_ftsk=None):
         """Builds the volume connector drivers for a block device info."""
         # Get a volume driver for each volume
-        vol_drvs = []
-        bdms = self._extract_bdm(block_device_info)
-        for bdm in bdms or []:
-            vol_drvs.append(
-                self._get_inst_vol_adpt(
-                    context, instance, conn_info=bdm.get('connection_info')))
-        return vol_drvs
+        return [vol_drv for bdm, vol_drv in self._vol_drv_iter(
+            context, instance, block_device_info=block_device_info, bdms=bdms,
+            stg_ftsk=stg_ftsk)]
 
     def unfilter_instance(self, instance, network_info):
         """Stop filtering instance."""

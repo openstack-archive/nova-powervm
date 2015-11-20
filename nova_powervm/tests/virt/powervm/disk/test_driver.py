@@ -43,3 +43,11 @@ class TestDiskAdapter(test.TestCase):
         img_meta = {'id': 'test_id'}
         temp = self.st_adpt._get_image_upload(mock.Mock(), img_meta)
         self.assertIsInstance(temp, disk_dvr.IterableToFileAdapter)
+
+    def test_get_info(self):
+        # Ensure the base method returns empty dict
+        self.assertEqual({}, self.st_adpt.get_info())
+
+    def test_validate(self):
+        # Ensure the base method returns error message
+        self.assertIsNotNone(self.st_adpt.validate(None))

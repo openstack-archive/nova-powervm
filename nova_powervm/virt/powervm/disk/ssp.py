@@ -21,6 +21,7 @@ import oslo_log.log as logging
 
 from nova_powervm.virt.powervm.disk import driver as disk_drv
 from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vios
@@ -60,6 +61,10 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
     exist in the future.
     """
 
+    capabilities = {
+        'shared_storage': True,
+    }
+
     def __init__(self, connection):
         """Initialize the SSPDiskAdapter.
 
@@ -87,6 +92,35 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """Capacity of the storage in gigabytes that is used."""
         ssp = self._ssp
         return float(ssp.capacity) - float(ssp.free_space)
+
+    def get_info(self):
+        """Return disk information for the driver.
+
+        This method is used on cold migration to pass disk information from
+        the source to the destination.
+
+        :return: returns a dict of disk information
+        """
+        return {'cluster_name': self.clust_name,
+                'ssp_name': self.ssp_name,
+                'ssp_uuid': self._ssp.uuid}
+
+    def validate(self, disk_info):
+        """Validate the disk information is compatible with this driver.
+
+        This method is called during cold migration to ensure the disk
+        drivers on the destination host is compatible with the source host.
+
+        :param disk_info: disk information dictionary
+        :returns: None if compatible, otherwise a reason for incompatibility
+        """
+        if disk_info.get('ssp_uuid') != self._ssp.uuid:
+            return (_('The host is not a member of the same SSP cluster. '
+                      'The source host cluster: %(source_clust_name)s. '
+                      'The source host SSP: %(source_ssp_name)s.') %
+                    {'source_clust_name': disk_info.get('cluster_name'),
+                     'source_ssp_name': disk_info.get('ssp_name')}
+                    )
 
     def disconnect_image_disk(self, context, instance, stg_ftsk=None,
                               disk_type=None):
@@ -216,6 +250,12 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         return boot_lu
 
+    def _find_lu(self, lu_name, lu_type):
+        """Find a specified lu by name and type."""
+        for lu in self._ssp.logical_units:
+            if lu.lu_type == lu_type and lu.name == lu_name:
+                return lu
+
     def _get_or_upload_image_lu(self, context, img_meta):
         """Ensures our SSP has an LU containing the specified image.
 
@@ -231,19 +271,24 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         # Key off of the name to see whether we already have the image
         luname = self._get_image_name(img_meta)
-        ssp = self._ssp
-        for lu in ssp.logical_units:
-            if lu.lu_type == pvm_stg.LUType.IMAGE and lu.name == luname:
-                LOG.info(_LI('SSP: Using already-uploaded image LU %s.'),
-                         luname)
-                return lu
+        lu = self._find_lu(luname, pvm_stg.LUType.IMAGE)
+        if lu:
+            LOG.info(_LI('SSP: Using already-uploaded image LU %s.'), luname)
+            return lu
 
         # We don't have it yet.  Create it and upload the glance image to it.
         # Make the image LU only as big as the image.
         stream = self._get_image_upload(context, img_meta)
         LOG.info(_LI('SSP: Uploading new image LU %s.'), luname)
-        lu, f_wrap = tsk_stg.upload_new_lu(self._any_vios_uuid(), ssp, stream,
-                                           luname, img_meta['size'])
+        lu, f_wrap = tsk_stg.upload_new_lu(
+            self._any_vios_uuid(), self._ssp, stream, luname, img_meta['size'])
+        return lu
+
+    def get_disk_ref(self, instance, disk_type):
+        """Returns a reference to the disk for the instance."""
+
+        lu_name = self._get_disk_name(disk_type, instance)
+        lu = self._find_lu(lu_name, pvm_stg.LUType.DISK)
         return lu
 
     def connect_disk(self, context, instance, disk_info, stg_ftsk=None):

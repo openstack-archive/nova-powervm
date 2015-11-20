@@ -28,6 +28,7 @@ import pypowervm.util as pvm_util
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
@@ -68,6 +69,10 @@ class IterableToFileAdapter(object):
 @six.add_metaclass(abc.ABCMeta)
 class DiskAdapter(object):
 
+    capabilities = {
+        'shared_storage': False,
+    }
+
     def __init__(self, connection):
         """Initialize the DiskAdapter
 
@@ -83,6 +88,33 @@ class DiskAdapter(object):
     def vios_uuids(self):
         """List the UUIDs of the Virtual I/O Servers hosting the storage."""
         raise NotImplementedError()
+
+    def get_info(self):
+        """Return disk information for the driver.
+
+        This method is used on cold migration to pass disk information from
+        the source to the destination. The data needed to be retrieved and
+        validated (see the validate method below) are determined by the disk
+        driver implementation.
+
+        Currently this and the validate method will only be called for the SSP
+        driver because it's the only one that supports shared storage.
+
+        :return: returns a dict of disk information
+        """
+        return {}
+
+    def validate(self, disk_info):
+        """Validate the disk information is compatible with this driver.
+
+        This method is called during cold migration to ensure the disk
+        drivers on the destination host is compatible with the source host.
+
+        :param disk_info: disk information dictionary
+        :returns: None if compatible, otherwise a reason for incompatibility
+        """
+        return _('The configured disk driver does not support migration '
+                 'or resize.')
 
     def disk_match_func(self, disk_type, instance):
         """Return a matching function to locate the disk for an instance.

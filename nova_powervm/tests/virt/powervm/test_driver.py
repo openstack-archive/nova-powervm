@@ -22,6 +22,7 @@ from oslo_config import cfg
 from oslo_serialization import jsonutils
 
 from nova import block_device as nova_block_device
+from nova.compute import task_states
 from nova import exception as exc
 from nova import objects
 from nova.objects import base as obj_base
@@ -662,6 +663,10 @@ class TestPowerVMDriver(test.TestCase):
         self.assertFalse(ret)
         self.assertEqual(1, mock_get_mapping.call_count)
 
+        # Test if block_device_info is None
+        ret = self.drv._is_booted_from_volume(None)
+        self.assertFalse(ret)
+
     def test_get_inst_xag(self):
         # No volumes - should be just the SCSI mapping
         xag = self.drv._get_inst_xag(mock.Mock(), None)
@@ -679,6 +684,24 @@ class TestPowerVMDriver(test.TestCase):
                               pvm_vios.VIOS.xags.SCSI_MAPPING,
                               pvm_vios.VIOS.xags.FC_MAPPING]), set(xag))
 
+    def test_add_vol_conn_task(self):
+        bdm, vol_drv = mock.MagicMock(), mock.MagicMock()
+        flow = mock.Mock()
+        vals = [(bdm, vol_drv), (bdm, vol_drv)]
+        with mock.patch.object(self.drv, '_vol_drv_iter', return_value=vals):
+            self.drv._add_volume_connection_tasks(
+                'context', 'instance', 'bdms', flow, 'stg_ftsk')
+        self.assertEqual(4, flow.add.call_count)
+
+    def test_add_vol_disconn_task(self):
+        bdm, vol_drv = mock.MagicMock(), mock.MagicMock()
+        flow = mock.Mock()
+        vals = [(bdm, vol_drv), (bdm, vol_drv)]
+        with mock.patch.object(self.drv, '_vol_drv_iter', return_value=vals):
+            self.drv._add_volume_disconnection_tasks(
+                'context', 'instance', 'bdms', flow, 'stg_ftsk')
+        self.assertEqual(2, flow.add.call_count)
+
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
@@ -689,7 +712,7 @@ class TestPowerVMDriver(test.TestCase):
                 '_validate_vopt_vg')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    def test_destroy(
+    def test_destroy_internal(
         self, mock_get_flv, mock_pvmuuid, mock_val_vopt, mock_dlt_vopt,
         mock_pwroff, mock_dlt, mock_boot_from_vol):
         """Validates the basic PowerVM destroy."""
@@ -792,6 +815,46 @@ class TestPowerVMDriver(test.TestCase):
                           mock.Mock(), block_device_info=mock_bdms)
         assert_not_called()
 
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
+    def test_destroy(self, mock_getqp, mock_getuuid):
+        """Validates the basic PowerVM destroy."""
+        # Set up the mocks to the tasks.
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst.task_state = None
+
+        # BDMs
+        mock_bdms = self._fake_bdms()
+
+        with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
+            # Invoke the method.
+            self.drv.destroy('context', inst, mock.Mock(),
+                             block_device_info=mock_bdms)
+        mock_dst_int.assert_called_with(
+            'context', inst, block_device_info=mock_bdms, destroy_disks=True,
+            shutdown=True)
+
+        # Test delete during migrate / resize
+        inst.task_state = task_states.RESIZE_REVERTING
+        mock_getqp.return_value = ('resize_' + inst.name)[:31]
+        with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
+            # Invoke the method.
+            self.drv.destroy('context', inst, mock.Mock(),
+                             block_device_info=mock_bdms)
+        # We shouldn't delete our resize_ instances
+        mock_dst_int.assert_not_called()
+
+        # Now test migrating...
+        mock_getqp.return_value = ('migrate_' + inst.name)[:31]
+        with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
+            # Invoke the method.
+            self.drv.destroy('context', inst, mock.Mock(),
+                             block_device_info=mock_bdms)
+        # If it is a migrated instance, it should be deleted.
+        mock_dst_int.assert_called_with(
+            'context', inst, block_device_info=mock_bdms, destroy_disks=True,
+            shutdown=True)
+
     def test_attach_volume(self):
         """Validates the basic PowerVM attach volume."""
         # Set up the mocks to the tasks.
@@ -891,11 +954,9 @@ class TestPowerVMDriver(test.TestCase):
         # Validate the rollbacks were called.
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
-    @mock.patch('nova_powervm.virt.powervm.vm.update')
-    def test_resize(self, mock_update, mock_pwr_off):
-        """Validates the PowerVM driver resize operation."""
-        # Set up the mocks to the resize operation.
+    def test_migrate_disk_and_power_off(self):
+        """Validates the PowerVM driver migrate / resize operation."""
+        # Set up the mocks to the migrate / resize operation.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         host = self.drv.get_host_ip_addr()
         resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
@@ -911,27 +972,90 @@ class TestPowerVMDriver(test.TestCase):
             exc.InstanceFaultRollback, self.drv.migrate_disk_and_power_off,
             'context', inst, 'dest', small_root, 'network_info', mock_bdms)
 
-        new_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=10)
-
-        # We don't support resize to different host.
-        self.assertRaises(
-            NotImplementedError, self.drv.migrate_disk_and_power_off,
-            'context', inst, 'bogus host', new_flav, 'network_info', mock_bdms)
-
-        self.drv.migrate_disk_and_power_off(
-            'context', inst, host, new_flav, 'network_info', mock_bdms)
-        mock_pwr_off.assert_called_with(
-            self.drv.adapter, inst, self.drv.host_uuid, entry=mock.ANY)
-        mock_update.assert_called_with(
-            self.drv.adapter, self.drv.host_wrapper, inst, new_flav,
-            entry=mock.ANY)
-
         # Boot disk resize
         boot_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=12)
-        self.drv.migrate_disk_and_power_off(
-            'context', inst, host, boot_flav, 'network_info', mock_bdms)
-        self.drv.disk_dvr.extend_disk.assert_called_with(
-            'context', inst, dict(type='boot'), 12)
+        # Tasks expected to be added for resize to the same host
+        expected = [
+            'pwr_off_lpar',
+            'extend_disk_boot',
+            'disconnect_vol_*',
+            'disconnect_vol_*',
+            'fake',
+            'rename_lpar_resize_instance-00000001',
+        ]
+        with fx.DriverTaskFlow() as taskflow_fix:
+            self.drv.migrate_disk_and_power_off(
+                'context', inst, host, boot_flav, 'network_info', mock_bdms)
+            taskflow_fix.assert_tasks_added(self, expected)
+            # Check the size set in the resize task
+            extend_task = taskflow_fix.tasks_added[1]
+            self.assertEqual(extend_task.size, 12)
+
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    def test_finish_migration(self, mock_get_flv):
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        mock_bdms = self._fake_bdms()
+        mig = objects.Migration(**powervm.TEST_MIGRATION)
+        mig_same_host = objects.Migration(**powervm.TEST_MIGRATION_SAME_HOST)
+        disk_info = {}
+
+        # The first test is different hosts but local storage, should fail
+        self.assertRaises(exc.InstanceFaultRollback,
+                          self.drv.finish_migration,
+                          'context', mig, inst, disk_info, 'network_info',
+                          'image_meta', 'resize_instance', mock_bdms)
+
+        # The rest of the test need to pass the shared disk test
+        self.disk_dvr.validate.return_value = None
+
+        # Tasks expected to be added for migration to different host
+        expected = [
+            'crt_lpar',
+            'plug_vifs',
+            'plug_mgmt_vif',
+            'find_disk',
+            'connect_disk',
+            'connect_vol_*',
+            'save_bdm_fake_vol1',
+            'connect_vol_*',
+            'save_bdm_fake_vol2',
+            'fake',
+            'get_lpar',
+            'pwr_lpar',
+        ]
+        with fx.DriverTaskFlow() as taskflow_fix:
+            self.drv.finish_migration(
+                'context', mig, inst, disk_info, 'network_info', 'image_meta',
+                'resize_instance', block_device_info=mock_bdms)
+            taskflow_fix.assert_tasks_added(self, expected)
+
+        # Tasks expected to be added for resize to the same host
+        expected = [
+            'resize_lpar',
+            'connect_vol_*',
+            'save_bdm_fake_vol1',
+            'connect_vol_*',
+            'save_bdm_fake_vol2',
+            'fake',
+            'get_lpar',
+            'pwr_lpar',
+        ]
+        with fx.DriverTaskFlow() as taskflow_fix:
+            self.drv.finish_migration(
+                'context', mig_same_host, inst, disk_info, 'network_info',
+                'image_meta', 'resize_instance', block_device_info=mock_bdms)
+            taskflow_fix.assert_tasks_added(self, expected)
+
+        # Tasks expected to be added for resize to the same host, no BDMS,
+        # and no power_on
+        expected = [
+            'resize_lpar',
+        ]
+        with fx.DriverTaskFlow() as taskflow_fix:
+            self.drv.finish_migration(
+                'context', mig_same_host, inst, disk_info, 'network_info',
+                'image_meta', 'resize_instance', power_on=False)
+            taskflow_fix.assert_tasks_added(self, expected)
 
     @mock.patch('nova_powervm.virt.powervm.driver.vm')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')
@@ -1356,3 +1480,46 @@ class TestPowerVMDriver(test.TestCase):
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         overhead = self.drv.estimate_instance_overhead(inst_info)
         self.assertEqual({'memory_mb': '2048'}, overhead)
+
+    def test_vol_drv_iter(self):
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        block_device_info = self._fake_bdms()
+        vol_adpt = mock.Mock()
+
+        def _get_results(block_device_info=None, bdms=None):
+            # Patch so we get the same mock back each time.
+            with mock.patch.object(self.drv, '_get_inst_vol_adpt',
+                                   return_value=vol_adpt):
+                return [
+                    (bdm, vol_drv) for bdm, vol_drv in self.drv._vol_drv_iter(
+                        'context', inst, block_device_info=block_device_info,
+                        bdms=bdms)]
+
+        def validate(results):
+            # For each good call, we should get back two bdms / vol_adpt
+            self.assertEqual(
+                'fake_vol1',
+                results[0][0]['connection_info']['data']['volume_id'])
+            self.assertEqual(vol_adpt, results[0][1])
+            self.assertEqual(
+                'fake_vol2',
+                results[1][0]['connection_info']['data']['volume_id'])
+            self.assertEqual(vol_adpt, results[1][1])
+
+        # Send block device info
+        results = _get_results(block_device_info=block_device_info)
+        validate(results)
+        # Same results with bdms
+        results = _get_results(bdms=self.drv._extract_bdm(block_device_info))
+        validate(results)
+        # Empty bdms
+        self.assertEqual([], _get_results(bdms=[]))
+
+    def test_build_vol_drivers(self):
+        # This utility just returns a list of drivers from the _vol_drv_iter()
+        # iterator so mock it and ensure the drivers are returned.
+        vals = [('bdm0', 'drv0'), ('bdm1', 'drv1')]
+        with mock.patch.object(self.drv, '_vol_drv_iter', return_value=vals):
+            drivers = self.drv._build_vol_drivers('context', 'instance')
+
+        self.assertEqual(['drv0', 'drv1'], drivers)

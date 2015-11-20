@@ -29,6 +29,7 @@ from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
+from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm.disk import ssp
 from nova_powervm.virt.powervm import exception as npvmex
 
@@ -137,6 +138,30 @@ class TestSSPDiskAdapter(test.TestCase):
             else:
                 resp.entry = entry_or_list
         return resp
+
+    def test_capabilities(self):
+        ssp_stor = self._get_ssp_stor()
+        # Ensure return shared storage
+        self.assertTrue(ssp_stor.capabilities.get('shared_storage'))
+
+    def test_get_info(self):
+        ssp_stor = self._get_ssp_stor()
+        expected = {'cluster_name': 'neoclust1',
+                    'ssp_name': 'neossp1',
+                    'ssp_uuid': 'e357a79a-7a3d-35b6-8405-55ab6a2d0de7'}
+        # Ensure the base method returns empty dict
+        self.assertEqual(expected, ssp_stor.get_info())
+
+    def test_validate(self):
+        ssp_stor = self._get_ssp_stor()
+        fake_data = {}
+        # Ensure returns error message when no data
+        self.assertIsNotNone(ssp_stor.validate(fake_data))
+
+        # Get our own data and it should always match!
+        fake_data = ssp_stor.get_info()
+        # Ensure returns no error on good data
+        self.assertIsNone(ssp_stor.validate(fake_data))
 
     def test_init_green_with_config(self):
         """Bootstrap SSPStorage, testing call to _fetch_cluster.
@@ -330,6 +355,30 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_crt_lnk_cln.side_effect = verify_create_lu_linked_clone
         lu = ssp_stor.create_disk_from_image(None, Instance(), img, 1)
         self.assertEqual('new_lu', lu)
+
+    def test_find_lu(self):
+        # Bad path, lu not found, None returned
+        ssp = self._get_ssp_stor()
+        lu = ssp._find_lu('not_found_name', pvm_stg.LUType.DISK)
+        self.assertIsNone(lu)
+
+        # Good path, found correct name and type
+        lu_name = 'neolu1'
+        lu = ssp._find_lu(lu_name, pvm_stg.LUType.DISK)
+        self.assertIsNotNone(lu)
+        self.assertEqual(lu_name, lu.name)
+        self.assertEqual(pvm_stg.LUType.DISK, lu.lu_type)
+
+    def test_get_disk_ref(self):
+        ssp = self._get_ssp_stor()
+        with mock.patch.object(ssp, '_find_lu', return_value='foundit'):
+            lu = ssp.get_disk_ref(self.instance, disk_dvr.DiskType.BOOT)
+        self.assertEqual('foundit', lu)
+
+        # Assert handles not finding it.
+        with mock.patch.object(ssp, '_find_lu', return_value=None):
+            lu = ssp.get_disk_ref(self.instance, disk_dvr.DiskType.BOOT)
+        self.assertIsNone(lu)
 
     @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
                 'vios_uuids')

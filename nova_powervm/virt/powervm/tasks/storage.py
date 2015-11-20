@@ -506,3 +506,62 @@ class SaveBDM(task.Task):
                      'on instance %(inst)s.'),
                  {'vol_id': self.bdm.volume_id, 'inst': self.instance.name})
         self.bdm.save()
+
+
+class FindDisk(task.Task):
+    """The Task to find a disk and provide information to downstream tasks."""
+
+    def __init__(self, disk_dvr, context, instance, disk_type):
+        """Create the Task.
+
+        Provides the 'disk_dev_info' for other tasks.  Comes from the disk_dvr
+        create_disk_from_image method.
+
+        :param disk_dvr: The storage driver.
+        :param context: The context passed into the driver method.
+        :param instance: The nova instance.
+        :param disk_type: One of the DiskType enum values.
+        """
+        super(FindDisk, self).__init__(name='find_disk',
+                                       provides='disk_dev_info')
+        self.disk_dvr = disk_dvr
+        self.context = context
+        self.instance = instance
+        self.disk_type = disk_type
+
+    def execute(self):
+        LOG.info(_LI('Finding disk for instance: %s'), self.instance.name)
+        disk = self.disk_dvr.get_disk_ref(self.instance, self.disk_type)
+        if not disk:
+            LOG.warn(_LW('Disk not found: %(disk_name)s'),
+                     {'disk_name': self.disk_dvr._get_disk_name(self.disk_type,
+                                                                self.instance)
+                      }, instance=self.instance)
+        return disk
+
+
+class ExtendDisk(task.Task):
+    """Task to extend a disk."""
+
+    def __init__(self, disk_dvr, context, instance, disk_info, size):
+        """Creates the Task to extend a disk.
+
+        :param disk_dvr: The storage driver.
+        :param context: nova context for operation.
+        :param instance: instance to extend the disk for.
+        :param disk_info: dictionary with disk info.
+        :param size: the new size in gb.
+        """
+        self.disk_dvr = disk_dvr
+        self.context = context
+        self.instance = instance
+        self.disk_info = disk_info
+        self.size = size
+        super(ExtendDisk, self).__init__(name='extend_disk_%s' %
+                                         disk_info['type'])
+
+    def execute(self):
+        LOG.info(_LI('Extending disk size of disk: %(disk)s size: %(size)s.'),
+                 {'disk': self.disk_info['type'], 'size': self.size})
+        self.disk_dvr.extend_disk(self.context, self.instance, self.disk_info,
+                                  self.size)

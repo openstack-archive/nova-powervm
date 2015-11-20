@@ -130,3 +130,33 @@ class TestStorage(test.TestCase):
         disk_dvr.disconnect_disk_from_mgmt.assert_called_with('vios_uuid',
                                                               'stg_name')
         mock_rm.assert_called_with('/dev/disk')
+
+    def test_finddisk(self):
+        disk_dvr = mock.Mock()
+        disk_dvr.get_disk_ref.return_value = 'disk_ref'
+        instance = mock.Mock()
+        context = 'context'
+        disk_type = 'disk_type'
+
+        task = tf_stg.FindDisk(disk_dvr, context, instance, disk_type)
+        ret_disk = task.execute()
+        disk_dvr.get_disk_ref.assert_called_once_with(instance, disk_type)
+        self.assertEqual('disk_ref', ret_disk)
+
+        # Bad path for no disk found
+        disk_dvr.reset_mock()
+        disk_dvr.get_disk_ref.return_value = None
+        ret_disk = task.execute()
+        disk_dvr.get_disk_ref.assert_called_once_with(instance, disk_type)
+        self.assertIsNone(ret_disk)
+
+    def test_extenddisk(self):
+        disk_dvr = mock.Mock()
+        instance = mock.Mock()
+        context = 'context'
+        disk_info = {'type': 'disk_type'}
+
+        task = tf_stg.ExtendDisk(disk_dvr, context, instance, disk_info, 1024)
+        task.execute()
+        disk_dvr.extend_disk.assert_called_once_with(context, instance,
+                                                     disk_info, 1024)

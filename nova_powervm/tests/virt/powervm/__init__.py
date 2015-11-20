@@ -36,7 +36,25 @@ TEST_INSTANCE = {
     'root_gb': 10,
     'ephemeral_gb': 0,
     'instance_type_id': '5',
-    'flavor': TEST_FLAVOR
+    'flavor': TEST_FLAVOR,
+}
+
+TEST_MIGRATION = {
+    'id': 1,
+    'source_compute': 'host1',
+    'dest_compute': 'host2',
+    'migration_type': 'resize',
+    'old_instance_type_id': 1,
+    'new_instance_type_id': 2,
+}
+
+TEST_MIGRATION_SAME_HOST = {
+    'id': 1,
+    'source_compute': 'host1',
+    'dest_compute': 'host1',
+    'migration_type': 'resize',
+    'old_instance_type_id': 1,
+    'new_instance_type_id': 2,
 }
 
 # NOTE(mikal): All of this is because if dnspython is present in your

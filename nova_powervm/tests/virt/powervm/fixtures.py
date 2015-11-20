@@ -112,3 +112,64 @@ class PowerVMComputeDriver(fixtures.Fixture):
 
         disk_adpt = self.useFixture(DiskAdapter())
         self.drv.disk_dvr = disk_adpt.std_disk_adpt
+
+
+class TaskFlow(fixtures.Fixture):
+    """Construct a fake TaskFlow.
+
+    This fixture makes it easy to check if tasks were added to a task flow
+    without having to mock each task.
+    """
+
+    def __init__(self, linear_flow='taskflow.patterns.linear_flow',
+                 engines='taskflow.engines'):
+        """Create the fixture.
+
+        :param linear_flow: The import path to patch for the linear flow.
+        :param engines: The import path to patch for the engines.
+        """
+        super(TaskFlow, self).__init__()
+        self.linear_flow_import = linear_flow
+        self.engines_import = engines
+
+    def setUp(self):
+        super(TaskFlow, self).setUp()
+        self._linear_flow = mock.patch(self.linear_flow_import)
+        self.linear_flow = self._linear_flow.start()
+        self.tasks_added = []
+        self.linear_flow.Flow.return_value.add.side_effect = self._record_tasks
+        self.addCleanup(self._linear_flow.stop)
+
+        self._engine = mock.patch(self.engines_import)
+        self.engine = self._engine.start()
+        self.addCleanup(self._engine.stop)
+
+    def _record_tasks(self, *args, **kwargs):
+        self.tasks_added.append(args[0])
+
+    def assert_tasks_added(self, testcase, expected_tasks):
+        # Ensure the lists are the same size.
+        testcase.assertEqual(len(expected_tasks), len(self.tasks_added),
+                             'Expected tasks not added: %s, %s' %
+                             (expected_tasks,
+                              [t.name for t in self.tasks_added]))
+
+        def compare_tasks(expected, observed):
+            if expected.endswith('*'):
+                cmplen = len(expected[:-1])
+                testcase.assertEqual(expected[:cmplen], observed.name[:cmplen])
+            else:
+                testcase.assertEqual(expected, observed.name)
+
+        # Compare the list of expected against added.
+        for func in map(compare_tasks, expected_tasks, self.tasks_added):
+            # Call the function to do the compare
+            func
+
+
+class DriverTaskFlow(TaskFlow):
+    """Specific TaskFlow fixture for the main compute driver."""
+    def __init__(self):
+        super(DriverTaskFlow, self).__init__(
+            linear_flow='nova_powervm.virt.powervm.driver.tf_lf',
+            engines='nova_powervm.virt.powervm.driver.tf_eng')
