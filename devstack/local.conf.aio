@@ -1,0 +1,46 @@
+[[local|localrc]]
+LOGFILE=/opt/stack/logs/stack.sh.log
+SCREEN_LOGDIR=~/screen_log/
+LOGDAYS=1
+
+ADMIN_PASSWORD=admin
+MYSQL_PASSWORD=mysql
+RABBIT_PASSWORD=rabbit
+SERVICE_PASSWORD=admin
+SERVICE_TOKEN=service
+
+MULTI_HOST=0
+HOST_NAME=$(hostname)
+
+FLOATING_RANGE=192.168.2.0/24
+FIXED_RANGE=10.11.12.0/24
+NETWORK_GATEWAY=10.11.12.1
+PUBLIC_NETWORK_GATEWAY=192.168.2.1
+FLAT_INTERFACE=eth0
+Q_PLUGIN=ml2
+Q_ML2_TENANT_NETWORK_TYPE=vlan
+Q_ML2_PLUGIN_TYPE_DRIVERS=vlan
+ENABLE_TENANT_VLANS=True
+PHYSICAL_NETWORK=default
+TENANT_VLAN_RANGE=1000:1999
+
+# TODO: Set disk driver details for your environment
+# DISK_DRIVER: localdisk or ssp. localdisk requires VOL_GRP_NAME. Set to the
+# volume group that will host the volume groups. Must not be rootvg.
+DISK_DRIVER=localdisk
+VOL_GRP_NAME=devstackvg
+
+# Enable services (pvm-q-agt and pvm-ceilometer-acompute started by their plugins)
+enable_service n-novnc neutron q-svc
+disable_service n-net
+
+# Enable plugins
+enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git
+enable_plugin nova-powervm https://git.openstack.org/openstack/nova-powervm.git
+enable_plugin networking-powervm https://git.openstack.org/openstack/networking-powervm.git
+enable_plugin ceilometer-powervm https://git.openstack.org/openstack/ceilometer-powervm.git
+
+[[post-config|$NOVA_CONF]]
+[DEFAULT]
+debug=False
+default_log_levels=nova_powervm=DEBUG,nova=DEBUG,iamqplib=WARN,sqlalchemy=WARN,boto=WARN,suds=INFO,keystone=INFO,eventlet.wsgi.server=WARN
