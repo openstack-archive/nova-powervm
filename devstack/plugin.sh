@@ -79,10 +79,6 @@ if is_service_enabled pvm-ceilometer-acompute; then
             echo_summary "Installing NovaLink"
             install_novalink
         fi
-
-        echo_summary "Configuring ceilometer services"
-        # Configure telemetry services
-        disable_service ceilometer-aipmi
     fi
 
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
