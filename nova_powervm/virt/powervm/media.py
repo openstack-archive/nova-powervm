@@ -21,6 +21,7 @@ from nova.virt import configdrive
 import os
 from taskflow import task
 
+from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -224,6 +225,7 @@ class ConfigDrivePowerVM(object):
             return tsk_stg.upload_vopt(self.adapter, self.vios_uuid, d_stream,
                                        file_name, file_size)
 
+    @lockutils.synchronized('validate_vopt')
     def _validate_vopt_vg(self):
         """Will ensure that the virtual optical media repository exists.
 
@@ -241,9 +243,6 @@ class ConfigDrivePowerVM(object):
         If there are no Virtual I/O Servers that can support the media, then
         an exception will be thrown.
         """
-
-        # TODO(IBM) Add thread safety here in case two calls into this are
-        # done at once.
 
         # If our static variables were set, then we should validate that the
         # repo is still running.  Otherwise, we need to reset the variables
@@ -299,7 +298,6 @@ class ConfigDrivePowerVM(object):
             except Exception:
                 LOG.warn(_LW('Unable to read volume groups for Virtual '
                              'I/O Server %s'), vio_wrap.name)
-                pass
 
         # If we didn't find a volume group...raise the exception.  It should
         # default to being the rootvg, which all VIOSes will have.  Otherwise,
