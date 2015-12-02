@@ -33,6 +33,9 @@ disable_service n-net n-cpu q-agt c-vol
 enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git
 enable_plugin networking-powervm https://git.openstack.org/openstack/networking-powervm.git
 
+# Disable ceilometer-acompute, as it's not needed on a control-only node
+disable_service ceilometer-acompute
+
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
 debug=False
