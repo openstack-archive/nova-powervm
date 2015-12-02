@@ -30,6 +30,7 @@ Installing with Devstack
     [powervm]
     ...
 
+   Example devstack config files for all-in-one, compute, and control nodes `can be found here <https://github.com/openstack/nova-  powervm/tree/master/devstack>`_
 
 4. Run ``stack.sh`` from devstack::
 

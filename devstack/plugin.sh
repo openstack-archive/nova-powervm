@@ -106,10 +106,6 @@ if is_service_enabled nova-powervm; then
             echo_summary "Installing NovaLink"
             install_novalink
         fi
-
-        echo_summary "Configuring nova-powervm compute services"
-        # Configure controller services
-        enable_service n-novnc
     fi
 
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
