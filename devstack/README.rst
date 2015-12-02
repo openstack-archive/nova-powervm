@@ -11,10 +11,11 @@ Installing with Devstack
     [[local|localrc]]
     enable_plugin nova-powervm http://git.openstack.org/openstack/nova-powervm
 
-   See the file "local.conf.example" in nova-powervm/devstack for reference
-   on using this driver with the corresponding networking-powervm and
-   ceilometer-powervm drivers. Following the example file will enable all
-   three plugins, resulting an all-in-one powervm devstack node.
+   Example files are available in the nova-powervm project to provide
+   reference on using this driver with the corresponding networking-powervm
+   and ceilometer-powervm drivers. Following these example files will enable
+   the appropriate drivers and services for each node type. Example config
+   files for all-in-one, compute, and control nodes `can be found here. <https://github.com/openstack/nova-powervm/tree/master/devstack>`_
 
 3. See nova-powervm/doc/source/devref/usage.rst, review the configuration options,
    then configure the installation in local.conf as needed for your environment.
@@ -29,8 +30,6 @@ Installing with Devstack
     [[post-config|$NOVA_CONF]]
     [powervm]
     ...
-
-   Example devstack config files for all-in-one, compute, and control nodes `can be found here <https://github.com/openstack/nova-  powervm/tree/master/devstack>`_
 
 4. Run ``stack.sh`` from devstack::
 
