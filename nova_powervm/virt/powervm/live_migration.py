@@ -285,7 +285,8 @@ class LiveMigrationSrc(LiveMigration):
                                                        lpar_w.id)
         # Add subtasks to remove the VOpt devices under the same FeedTask.
         media.ConfigDrivePowerVM(self.drvr.adapter, self.drvr.host_uuid
-                                 ).dlt_vopt(lpar_w.uuid, stg_ftsk=stg_ftsk)
+                                 ).dlt_vopt(lpar_w.uuid, stg_ftsk=stg_ftsk,
+                                            remove_mappings=False)
         # Now execute the FeedTask, performing both scrub and VOpt removal.
         stg_ftsk.execute()
 
