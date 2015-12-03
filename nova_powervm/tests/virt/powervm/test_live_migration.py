@@ -84,7 +84,8 @@ class TestLPM(test.TestCase):
             mock_scrub.assert_called_with(mock.ANY, 123)
             # Ensure we added the subtasks to remove the vopts.
             mock_cd.return_value.dlt_vopt.assert_called_once_with(
-                mock.ANY, stg_ftsk=mock_scrub.return_value)
+                mock.ANY, stg_ftsk=mock_scrub.return_value,
+                remove_mappings=False)
             # And ensure the scrubber was executed
             mock_scrub.return_value.execute.assert_called_once_with()
             mock_vol_drv.pre_live_migration_on_source.assert_called_once_with(
