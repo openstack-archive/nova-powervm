@@ -199,12 +199,10 @@ class TestConfigDrivePowerVM(test.TestCase):
                           m.ConfigDrivePowerVM, self.apt, 'fake_host')
 
     @mock.patch('pypowervm.tasks.storage.rm_vg_storage')
-    @mock.patch('pypowervm.tasks.scsi_mapper.remove_vopt_mapping')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_validate_vopt_vg')
-    def test_dlt_vopt(self, mock_vop_valid, mock_vm_id, mock_remove_map,
-                      rm_vg_stor):
+    def test_dlt_vopt(self, mock_vop_valid, mock_vm_id, rm_vg_stor):
         feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
         ft_fx = pvm_fx.FeedTaskFx(feed)
         self.useFixture(ft_fx)
@@ -212,11 +210,6 @@ class TestConfigDrivePowerVM(test.TestCase):
         # Set up the mock data.
         self.apt.read.side_effect = [self.vio_to_vg, self.vg_to_vio]
         mock_vm_id.return_value = '2'
-
-        # We tell it to remove all the optical medias.
-        vg = pvm_stor.VG.wrap(self.vg_to_vio)
-        mock_remove_map.return_value = ('fake_vios',
-                                        vg.vmedia_repos[0].optical_media)
 
         # Make sure that the first update is a VIO and doesn't have the vopt
         # mapping
@@ -235,10 +228,49 @@ class TestConfigDrivePowerVM(test.TestCase):
             self.assertIsInstance(vopts[0], pvm_stor.VOptMedia)
         rm_vg_stor.side_effect = validate_remove_stor
 
+        # Count the number of SCSI mappings beforehand
+        num_maps_before = len(feed[0].scsi_mappings)
+
         # Invoke the operation
         cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
         cfg_dr.vios_uuid = feed[0].uuid
         cfg_dr.dlt_vopt('2')
 
+        self.assertEqual(num_maps_before - 1, len(feed[0].scsi_mappings))
         self.assertTrue(ft_fx.patchers['update'].mock.called)
         self.assertTrue(rm_vg_stor.called)
+
+    @mock.patch('pypowervm.tasks.storage.rm_vg_storage')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_validate_vopt_vg')
+    def test_dlt_vopt_no_map(self, mock_vop_valid, mock_vm_id, rm_vg_stor):
+        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        ft_fx = pvm_fx.FeedTaskFx(feed)
+        self.useFixture(ft_fx)
+
+        # Set up the mock data.
+        self.apt.read.side_effect = [self.vio_to_vg, self.vg_to_vio]
+        mock_vm_id.return_value = '2'
+
+        def validate_remove_stor(vg_w, vopts=[]):
+            self.assertIsInstance(vg_w, pvm_stor.VG)
+            self.assertEqual(1, len(vopts))
+            self.assertIsInstance(vopts[0], pvm_stor.VOptMedia)
+        rm_vg_stor.side_effect = validate_remove_stor
+
+        # Count the number of SCSI mappings beforehand
+        num_maps_before = len(feed[0].scsi_mappings)
+
+        # Invoke the operation
+        cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        cfg_dr.vios_uuid = feed[0].uuid
+        cfg_dr.dlt_vopt('2', remove_mappings=False)
+
+        # The storage should have been removed
+        self.assertTrue(rm_vg_stor.called)
+
+        # The mappings should have changed
+        self.assertTrue(ft_fx.patchers['update'].mock.called)
+        # But the number should be the same (the vopt mapping was replaced)
+        self.assertEqual(num_maps_before, len(feed[0].scsi_mappings))

@@ -320,7 +320,7 @@ class ConfigDrivePowerVM(object):
         ConfigDrivePowerVM._cur_vios_uuid = found_vios.uuid
         ConfigDrivePowerVM._cur_vios_name = found_vios.name
 
-    def dlt_vopt(self, lpar_uuid, stg_ftsk=None):
+    def dlt_vopt(self, lpar_uuid, stg_ftsk=None, remove_mappings=True):
         """Deletes the virtual optical and scsi mappings for a VM.
 
         :param lpar_uuid: The pypowervm UUID of the LPAR to remove.
@@ -328,6 +328,13 @@ class ConfigDrivePowerVM(object):
                          modify the storage will be added as batched functions
                          onto the FeedTask.  If not provided (the default) the
                          operation to delete the vOpt will execute immediately.
+        :param remove_mappings: (Optional, Default: True) If set to true, will
+                                remove the SCSI mappings as part of the
+                                operation.  If false, will leave the mapping
+                                but detach the storage from it.  If the VM is
+                                running, it may be necessary to do the latter
+                                as some operating systems will not allow the
+                                removal.
         """
         # If no transaction manager, build locally so that we can run
         # immediately
@@ -342,22 +349,31 @@ class ConfigDrivePowerVM(object):
             built_stg_ftsk = False
 
         # Run the remove maps method.
-        self.add_dlt_vopt_tasks(lpar_uuid, stg_ftsk)
+        self.add_dlt_vopt_tasks(lpar_uuid, stg_ftsk,
+                                remove_mappings=remove_mappings)
 
         # If built locally, then execute
         if built_stg_ftsk:
             stg_ftsk.execute()
 
-    def add_dlt_vopt_tasks(self, lpar_uuid, stg_ftsk):
-        """Deletes the virtual optical and scsi mappings for a VM.
+    def add_dlt_vopt_tasks(self, lpar_uuid, stg_ftsk, remove_mappings=True):
+        """Deletes the virtual optical and (optionally) scsi mappings for a VM.
 
-        :param lpar_uuid: The pypowervm UUID of the LPAR to remove.
+        :param lpar_uuid: The pypowervm UUID of the LPAR whose vopt is to be
+                          removed.
         :param stg_ftsk: A FeedTask handling storage I/O.  The task to remove
                          the mappings and media from the VM will be deferred on
                          to the FeedTask passed in. The execute can be done all
                          in one method (batched together).  No updates are
                          actually made here; they are simply added to the
                          FeedTask.
+        :param remove_mappings: (Optional, Default: True) If set to true, will
+                                remove the SCSI mappings as part of the
+                                operation.  If false, will leave the mapping
+                                but detach the storage from it.  If the VM is
+                                running, it may be necessary to do the latter
+                                as some operating systems will not allow the
+                                removal.
         """
         # The function to find the VOpt
         match_func = tsk_map.gen_match_func(pvm_stg.VOptMedia)
@@ -366,9 +382,27 @@ class ConfigDrivePowerVM(object):
             return tsk_map.remove_maps(vios_w, lpar_uuid,
                                        match_func=match_func)
 
-        # Add a function to remove the map
+        def detach_vopt_from_map(vios_w):
+            """Detach the virtual optical device from the mapping."""
+            # TODO(IBM): Request this function in pypowervm.
+            # Remove the maps and re-add them with no storage
+            rms = tsk_map.remove_maps(vios_w, lpar_uuid, match_func=match_func)
+            adds = []
+            for rmap in rms:
+                new_map = pvm_vios.VSCSIMapping._bld(rmap.adapter)
+                if rmap.client_lpar_href is not None:
+                    new_map._client_lpar_href(rmap.client_lpar_href)
+                if rmap.client_adapter is not None:
+                    new_map._client_adapter(copy.deepcopy(rmap.client_adapter))
+                if rmap.server_adapter is not None:
+                    new_map._server_adapter(copy.deepcopy(rmap.server_adapter))
+                adds.append(new_map)
+            vios_w.scsi_mappings.extend(adds)
+            return adds
+
+        # Add a function to remove the map or detach the vopt
         stg_ftsk.wrapper_tasks[self.vios_uuid].add_functor_subtask(
-            rm_vopt_mapping)
+            rm_vopt_mapping if remove_mappings else detach_vopt_from_map)
 
         # Find the vOpt device (before the remove is done) so that it can be
         # removed.
