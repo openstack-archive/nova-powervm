@@ -383,22 +383,8 @@ class ConfigDrivePowerVM(object):
                                        match_func=match_func)
 
         def detach_vopt_from_map(vios_w):
-            """Detach the virtual optical device from the mapping."""
-            # TODO(IBM): Request this function in pypowervm.
-            # Remove the maps and re-add them with no storage
-            rms = tsk_map.remove_maps(vios_w, lpar_uuid, match_func=match_func)
-            adds = []
-            for rmap in rms:
-                new_map = pvm_vios.VSCSIMapping._bld(rmap.adapter)
-                if rmap.client_lpar_href is not None:
-                    new_map._client_lpar_href(rmap.client_lpar_href)
-                if rmap.client_adapter is not None:
-                    new_map._client_adapter(copy.deepcopy(rmap.client_adapter))
-                if rmap.server_adapter is not None:
-                    new_map._server_adapter(copy.deepcopy(rmap.server_adapter))
-                adds.append(new_map)
-            vios_w.scsi_mappings.extend(adds)
-            return adds
+            return tsk_map.detach_storage(vios_w, lpar_uuid,
+                                          match_func=match_func)
 
         # Add a function to remove the map or detach the vopt
         stg_ftsk.wrapper_tasks[self.vios_uuid].add_functor_subtask(
