@@ -24,6 +24,7 @@ set +o xtrace
 # Set up base directories
 CEILOMETER_CONF_DIR=${CEILOMETER_CONF_DIR:-/etc/ceilometer}
 CEILOMETER_CONF=${CEILOMETER_CONF:-CEILOMETER_CONF_DIR/ceilometer.conf}
+NOVA_CONF=${NOVA_CONF:-/etc/nova/nova.conf}
 
 # ceilometer-powervm directories
 CEILOMETER_POWERVM_DIR=${CEILOMETER_POWERVM_DIR:-${DEST}/ceilometer-powervm}
@@ -39,6 +40,9 @@ source $CEILOMETER_POWERVM_PLUGIN_DIR/powervm-functions.sh
 function configure_ceilometer_powervm {
     # Set the hypervisor inspector to be powervm
     iniset $CEILOMETER_CONF DEFAULT hypervisor_inspector $HYPERVISOR_INSPECTOR
+
+    # Set the compute monitors
+    iniset $NOVA_CONF DEFAULT compute_monitors cpu.virt_driver
 }
 
 # install_ceilometer_powervm() - Install ceilometer_powervm and necessary dependencies
