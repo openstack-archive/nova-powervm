@@ -48,6 +48,9 @@ enable_plugin nova-powervm https://git.openstack.org/openstack/nova-powervm.git
 enable_plugin networking-powervm https://git.openstack.org/openstack/networking-powervm.git
 enable_plugin ceilometer-powervm https://git.openstack.org/openstack/ceilometer-powervm.git
 
+# Disable services
+disable_service ceilometer-acentral ceilometer-collector ceilometer-api
+
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
 debug=False
