@@ -21,6 +21,7 @@ from nova.console import type as console_type
 from nova import context as ctx
 from nova import exception
 from nova import image
+from nova import objects
 from nova.objects import flavor as flavor_obj
 from nova import utils as n_utils
 from nova.virt import configdrive
@@ -39,6 +40,7 @@ from pypowervm import adapter as pvm_apt
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.helpers import vios_busy as vio_hlp
+from pypowervm.tasks import memory as pvm_mem
 from pypowervm.tasks import power as pvm_pwr
 from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm.utils import retry as pvm_retry
@@ -170,6 +172,44 @@ class PowerVMDriver(driver.ComputeDriver):
         the host, False otherwise.
         """
         return vm.instance_exists(self.adapter, instance, self.host_uuid)
+
+    def estimate_instance_overhead(self, instance_info):
+        """Estimate the virtualization overhead required to build an instance.
+
+        Defaults to zero, Per-instance overhead calculations are desired.
+
+        :param instance_info: Instance/flavor to calculate overhead for.
+         It can be Instance or Flavor object or a simple dict. The dict is
+         expected to contain:
+         { 'memory_mb': <int>, 'extra_specs': {'powervm:max_mem': <int> }}
+         Values not found will default to zero.
+        :return: Dict of estimated overhead values {'memory_mb': overhead}
+        """
+        # Check if input passed is an object instance then extract Flavor
+        if isinstance(instance_info, objects.Instance):
+            instance_info = instance_info.get_flavor()
+        # If the instance info passed is dict then create Flavor object.
+        elif isinstance(instance_info, dict):
+            instance_info = objects.Flavor(**instance_info)
+
+        try:
+            max_mem = 0
+            overhead = 0
+            cur_mem = instance_info.memory_mb
+            if hasattr(instance_info, 'extra_specs'):
+                if 'powervm:max_mem' in instance_info.extra_specs.keys():
+                    mem = instance_info.extra_specs.get('powervm:max_mem',
+                                                        max_mem)
+                    max_mem = int(mem)
+
+            mem_data = {'max_mem': max(cur_mem, max_mem)}
+
+            overhead, avail_mem = pvm_mem.calculate_memory_overhead_on_host(
+                self.adapter, self.host_uuid, mem_data)
+        except Exception as e:
+            LOG.exception(e)
+
+        return {'memory_mb': overhead}
 
     def list_instances(self):
         """Return the names of all the instances known to the virtualization
