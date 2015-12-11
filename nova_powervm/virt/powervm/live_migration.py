@@ -114,6 +114,8 @@ class LiveMigrationDest(LiveMigration):
 
         _verify_migration_capacity(self.drvr.host_wrapper, self.instance)
 
+        self.dest_data['dest_host_migr_data'] = (self.drvr.host_wrapper.
+                                                 migration_data)
         self.dest_data['dest_ip'] = CONF.my_ip
         self.dest_data['dest_user_id'] = self._get_dest_user_id()
         self.dest_data['dest_sys_name'] = self.drvr.host_wrapper.system_name
@@ -380,7 +382,8 @@ class LiveMigrationSrc(LiveMigration):
         :param lpar_w: LogicalPartition wrapper
         :param host_w: ManagedSystem wrapper
         """
-        ready, msg = lpar_w.can_lpm(host_w)
+        ready, msg = lpar_w.can_lpm(host_w, migr_data=(
+            self.dest_data.get('dest_host_migr_data')))
         if not ready:
             msg = (_("Live migration of instance '%(name)s' failed because it "
                      "is not ready. Reason: %(reason)s") %
