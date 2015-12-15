@@ -34,6 +34,9 @@ TENANT_VLAN_RANGE=1000:1999
 DISK_DRIVER=localdisk
 VOL_GRP_NAME=devstackvg
 
+# Set to True to install the latest pypowervm from source
+INSTALL_PYPOWERVM=False
+
 NOVA_VNC_ENABLED=True
 NOVNCPROXY_BASE_URL="http://$SERVICE_HOST:6080/vnc_auto.html"
 VNCSERVER_LISTEN=$HOST_IP
