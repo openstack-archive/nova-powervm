@@ -47,7 +47,10 @@ function configure_ceilometer_powervm {
 
 # install_ceilometer_powervm() - Install ceilometer_powervm and necessary dependencies
 function install_ceilometer_powervm {
-    install_pypowervm
+    if [[ "$INSTALL_PYPOWERVM" == "True" ]]; then
+        echo_summary "Installing pypowervm"
+        install_pypowervm
+    fi
 
     # Install the ceilometer-powervm package
     setup_develop $CEILOMETER_POWERVM_DIR
@@ -79,7 +82,7 @@ function cleanup_ceilometer_powervm {
 if is_service_enabled pvm-ceilometer-acompute; then
     if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
         # Install NovaLink if set
-        if [[ "$INSTALL_NOVALINK" == "True" ]]; then
+        if [[ "$INSTALL_NOVALINK" = "True" ]]; then
             echo_summary "Installing NovaLink"
             install_novalink
         fi
