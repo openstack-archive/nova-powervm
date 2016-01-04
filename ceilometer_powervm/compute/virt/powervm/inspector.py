@@ -151,10 +151,10 @@ class PowerVMInspector(virt_inspector.Inspector):
             # the CPU utilization within the last X seconds...because to THIS
             # host its new (only in the cur_metric).  So we error out, the
             # inspector will use a debug message in the log.
-            LOG.warn(_LW("Unable to derive CPU Utilization for VM %s.  It is "
-                         "either a new VM or was recently migrated.  It will "
-                         "be collected in the next inspection cycle."),
-                     instance.name)
+            LOG.warning(_LW("Unable to derive CPU Utilization for VM %s. "
+                            "It is either a new VM or was recently migrated. "
+                            "It will be collected in the next inspection "
+                            "cycle."), instance.name)
             message = (_("Unable to derive CPU Utilization for VM %s.") %
                        instance.name)
             raise virt_inspector.InstanceNotFoundException(message)
