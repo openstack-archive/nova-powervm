@@ -296,8 +296,8 @@ class ConfigDrivePowerVM(object):
                         found_vios = vio_wrap
                         break
             except Exception:
-                LOG.warn(_LW('Unable to read volume groups for Virtual '
-                             'I/O Server %s'), vio_wrap.name)
+                LOG.warning(_LW('Unable to read volume groups for Virtual '
+                                'I/O Server %s'), vio_wrap.name)
 
         # If we didn't find a volume group...raise the exception.  It should
         # default to being the rootvg, which all VIOSes will have.  Otherwise,

@@ -170,10 +170,10 @@ class HostCPUStats(pcm_util.MetricCache):
         # Should not happen, but just in case there is any precision loss from
         # CPU data back to system.
         if user_cycles + fw_cycles > tot_cycles:
-            LOG.warn(_LW("Host CPU Metrics determined that the total cycles "
-                         "reported was less than the used cycles.  This "
-                         "indicates an issue with the PCM data.  Please "
-                         "investigate the results."))
+            LOG.warning(_LW("Host CPU Metrics determined that the total "
+                            "cycles reported was less than the used cycles.  "
+                            "This indicates an issue with the PCM data.  "
+                            "Please investigate the results."))
             tot_cycles = user_cycles + fw_cycles
 
         # Idle is the subtraction of all.

@@ -124,8 +124,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """Cleanup the hdisk associated with this udid."""
 
         if not udid:
-            LOG.warn(_LW('Could not remove hdisk for volume: %s')
-                     % self.volume_id)
+            LOG.warning(_LW('Could not remove hdisk for volume: %s')
+                        % self.volume_id)
             return
 
         LOG.info(_LI('Removing hdisk for udid: %s') % udid)
@@ -204,10 +204,10 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                      {'hdisk': device_name, 'vios': vios_w.name,
                       'volume_id': volume_id, 'status': str(status)})
         elif status == hdisk.LUAStatus.DEVICE_IN_USE:
-            LOG.warn(_LW('Discovered device %(dev)s for volume %(volume)s '
-                         'on %(vios)s is in use. Error code: %(status)s.'),
-                     {'dev': device_name, 'volume': volume_id,
-                      'vios': vios_w.name, 'status': str(status)})
+            LOG.warning(_LW('Discovered device %(dev)s for volume %(volume)s '
+                            'on %(vios)s is in use. Error code: %(status)s.'),
+                        {'dev': device_name, 'volume': volume_id,
+                         'vios': vios_w.name, 'status': str(status)})
 
         return status, device_name, udid
 
@@ -322,7 +322,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     # in the I/O Server.  Subsequent scrub code on future
                     # deploys will clean this up.
                     if not hdisk.good_discovery(status, device_name):
-                        LOG.warn(_LW(
+                        LOG.warning(_LW(
                             "Disconnect Volume: The backing hdisk for volume "
                             "%(volume_id)s on Virtual I/O Server %(vios)s is "
                             "not in a valid state.  No disconnect "
@@ -334,7 +334,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     device_name = vios_w.hdisk_from_uuid(udid)
 
                 if not device_name:
-                    LOG.warn(_LW(
+                    LOG.warning(_LW(
                         "Disconnect Volume: No mapped device found on Virtual "
                         "I/O Server %(vios)s for volume %(volume_id)s.  "
                         "Volume UDID: %(volume_uid)s"),
@@ -343,7 +343,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     return False
 
             except Exception as e:
-                LOG.warn(_LW(
+                LOG.warning(_LW(
                     "Disconnect Volume: Failed to find disk on Virtual I/O "
                     "Server %(vios_name)s for volume %(volume_id)s. Volume "
                     "UDID: %(volume_uid)s.  Error: %(error)s"),
@@ -385,11 +385,11 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             # Warn if no hdisks disconnected.
             if not any([result['vio_modified']
                         for result in ret['wrapper_task_rets'].values()]):
-                LOG.warn(_LW("Disconnect Volume: Failed to disconnect the "
-                             "volume %(volume_id)s on ANY of the Virtual I/O "
-                             "Servers for instance %(inst)s."),
-                         {'inst': self.instance.name,
-                          'volume_id': self.volume_id})
+                LOG.warning(_LW("Disconnect Volume: Failed to disconnect the "
+                                "volume %(volume_id)s on ANY of the Virtual "
+                                "I/O Servers for instance %(inst)s."),
+                            {'inst': self.instance.name,
+                             'volume_id': self.volume_id})
 
         except Exception as e:
             LOG.error(_LE('Cannot detach volumes from virtual machine: %s'),
@@ -420,10 +420,10 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                                    vio_wrap.uuid)
             except Exception as e:
                 # If there is a failure, log it, but don't stop the process
-                LOG.warn(_LW("There was an error removing the hdisk "
-                         "%(disk)s from the Virtual I/O Server."),
-                         {'disk': device_name})
-                LOG.warn(e)
+                LOG.warning(_LW("There was an error removing the hdisk "
+                            "%(disk)s from the Virtual I/O Server."),
+                            {'disk': device_name})
+                LOG.warning(e)
         name = 'rm_hdisk_%s_%s' % (vio_wrap.name, device_name)
         stg_ftsk = stg_ftsk or self.stg_ftsk
         stg_ftsk.add_post_execute(task.FunctorTask(rm_hdisk, name=name))

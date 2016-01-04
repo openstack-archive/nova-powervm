@@ -165,10 +165,10 @@ class DiskAdapter(object):
                 return stg_elem, vios
             except Exception as e:
                 msg_args['exc'] = e
-                LOG.warn(_LW("Failed to map boot disk %(disk_name)s of "
-                             "instance %(instance_name)s to the management "
-                             "partition from Virtual I/O Server "
-                             "%(vios_name)s: %(exc)s"), msg_args)
+                LOG.warning(_LW("Failed to map boot disk %(disk_name)s of "
+                                "instance %(instance_name)s to the management "
+                                "partition from Virtual I/O Server "
+                                "%(vios_name)s: %(exc)s"), msg_args)
                 # Try the next hit, if available.
         # We either didn't find the boot dev, or failed all attempts to map it.
         raise npvmex.InstanceDiskMappingFailed(**msg_args)

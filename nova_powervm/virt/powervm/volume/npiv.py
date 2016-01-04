@@ -446,9 +446,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     pvm_vfcm.remove_maps, self.vm_uuid,
                     port_map=npiv_port_map, logspec=ls)
             else:
-                LOG.warn(_LW("No storage connections found between the "
-                             "Virtual I/O Servers and FC Fabric %(fabric)s."),
-                         {'fabric': fabric})
+                LOG.warning(_LW("No storage connections found between the "
+                                "Virtual I/O Servers and FC Fabric "
+                                "%(fabric)s."), {'fabric': fabric})
 
     def host_name(self):
         """Derives the host name that should be used for the storage device.
@@ -563,11 +563,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         if self.instance.system_metadata.get(meta_key) is None:
             # If no mappings exist, log a warning.
-            LOG.warn(_LW("No NPIV mappings exist for instance %(inst)s on "
-                         "fabric %(fabric)s.  May not have connected to "
-                         "the fabric yet or fabric configuration was recently "
-                         "modified."),
-                     {'inst': self.instance.name, 'fabric': fabric})
+            LOG.warning(_LW("No NPIV mappings exist for instance %(inst)s on "
+                            "fabric %(fabric)s.  May not have connected to "
+                            "the fabric yet or fabric configuration was "
+                            "recently modified."),
+                        {'inst': self.instance.name, 'fabric': fabric})
             return []
 
         wwpns = self.instance.system_metadata[meta_key]

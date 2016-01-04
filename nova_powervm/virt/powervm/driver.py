@@ -425,8 +425,8 @@ class PowerVMDriver(driver.ComputeDriver):
             pvm_inst_uuid = vm.get_pvm_uuid(instance)
             _run_flow()
         except exception.InstanceNotFound:
-            LOG.warn(_LW('VM was not found during destroy operation.'),
-                     instance=instance)
+            LOG.warning(_LW('VM was not found during destroy operation.'),
+                        instance=instance)
             return
         except pvm_exc.HttpError as e:
             # See if we were operating on the LPAR that we're deleting
@@ -435,8 +435,8 @@ class PowerVMDriver(driver.ComputeDriver):
             exp = '/ManagedSystem/.*/LogicalPartition/.*-.*-.*-.*-.*'
             if (resp.status == 404 and re.search(exp, resp.reqpath)):
                 # It's the LPAR, so just return.
-                LOG.warn(_LW('VM was not found during destroy operation.'),
-                         instance=instance)
+                LOG.warning(_LW('VM was not found during destroy operation.'),
+                            instance=instance)
                 return
             else:
                 raise
@@ -790,9 +790,9 @@ class PowerVMDriver(driver.ComputeDriver):
         # This code was pulled from the libvirt driver.
         ips = compute_utils.get_machine_ips()
         if CONF.my_ip not in ips:
-            LOG.warn(_LW('my_ip address (%(my_ip)s) was not found on '
-                         'any of the interfaces: %(ifaces)s'),
-                     {'my_ip': CONF.my_ip, 'ifaces': ", ".join(ips)})
+            LOG.warning(_LW('my_ip address (%(my_ip)s) was not found on '
+                            'any of the interfaces: %(ifaces)s'),
+                        {'my_ip': CONF.my_ip, 'ifaces': ", ".join(ips)})
         return CONF.my_ip
 
     def get_volume_connector(self, instance):
@@ -1203,8 +1203,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param ex: exception reason
 
         """
-        LOG.warn(_LW("Rolling back live migration."),
-                 instance=instance)
+        LOG.warning(_LW("Rolling back live migration."), instance=instance)
         try:
             mig.rollback_live_migration(context)
             recover_method(context, instance, dest, block_migration,

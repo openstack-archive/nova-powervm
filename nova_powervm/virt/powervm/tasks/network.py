@@ -104,11 +104,12 @@ class UnplugVifs(task.Task):
                     # This prevents from going to 'else' loop.
                     break
             else:
-                LOG.warn(_LW('Unable to unplug VIF with mac %(mac)s for '
-                             'instance %(inst)s.  The VIF was not found on '
-                             'the instance.'),
-                         {'mac': vif['address'], 'inst': self.instance.name},
-                         instance=self.instance)
+                LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
+                                'instance %(inst)s.  The VIF was not found on '
+                                'the instance.'),
+                            {'mac': vif['address'],
+                             'inst': self.instance.name},
+                            instance=self.instance)
         return cna_w_list
 
 

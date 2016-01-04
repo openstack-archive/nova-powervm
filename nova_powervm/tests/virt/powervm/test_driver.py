@@ -1089,7 +1089,7 @@ class TestPowerVMDriver(test.TestCase):
     def test_get_host_ip_addr(self):
         self.assertEqual(self.drv.get_host_ip_addr(), CONF.my_ip)
 
-    @mock.patch('nova_powervm.virt.powervm.driver.LOG.warn')
+    @mock.patch('nova_powervm.virt.powervm.driver.LOG.warning')
     @mock.patch('nova.compute.utils.get_machine_ips')
     def test_get_host_ip_addr_failure(self, mock_ips, mock_log):
         mock_ips.return_value = ['1.1.1.1']

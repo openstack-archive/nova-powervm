@@ -361,7 +361,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_remove_maps.return_value = None
         mock_hdisk_from_uuid.return_value = None
 
-        # Run the method.  No disconnects should yield a LOG.warn.
+        # Run the method.  No disconnects should yield a LOG.warning.
         with self.assertLogs(vscsi.__name__, 'WARNING'):
             self.vol_drv.disconnect_volume()
 

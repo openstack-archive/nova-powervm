@@ -53,9 +53,9 @@ class ConnectVolume(task.Task):
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
-                     'disconnected'),
-                 {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
+        LOG.warning(_LW('Volume %(vol)s for instance %(inst)s to be '
+                        'disconnected'),
+                    {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
@@ -69,9 +69,10 @@ class ConnectVolume(task.Task):
         except npvmex.VolumeDetachFailed as e:
             # Only log that the volume detach failed.  Should not be blocking
             # due to being in the revert flow.
-            LOG.warn(_LW("Unable to disconnect volume for %(inst)s during "
-                         "rollback.  Error was: %(error)s"),
-                     {'inst': self.vol_drv.instance.name, 'error': e.message})
+            LOG.warning(_LW("Unable to disconnect volume for %(inst)s during "
+                            "rollback.  Error was: %(error)s"),
+                        {'inst': self.vol_drv.instance.name,
+                         'error': e.message})
 
 
 class DisconnectVolume(task.Task):
@@ -96,9 +97,9 @@ class DisconnectVolume(task.Task):
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warn(_LW('Volume %(vol)s for instance %(inst)s to be '
-                     're-connected'),
-                 {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
+        LOG.warning(_LW('Volume %(vol)s for instance %(inst)s to be '
+                        're-connected'),
+                    {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
@@ -113,9 +114,10 @@ class DisconnectVolume(task.Task):
         except npvmex.VolumeAttachFailed as e:
             # Only log that the volume attach failed.  Should not be blocking
             # due to being in the revert flow.  See comment above.
-            LOG.warn(_LW("Unable to re-connect volume for %(inst)s during "
-                         "rollback.  Error was: %(error)s"),
-                     {'inst': self.vol_drv.instance.name, 'error': e.message})
+            LOG.warning(_LW("Unable to re-connect volume for %(inst)s during "
+                            "rollback.  Error was: %(error)s"),
+                        {'inst': self.vol_drv.instance.name,
+                         'error': e.message})
 
 
 class CreateDiskForImg(task.Task):
@@ -154,8 +156,8 @@ class CreateDiskForImg(task.Task):
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warn(_LW('Image for instance %s to be deleted'),
-                 self.instance.name)
+        LOG.warning(_LW('Image for instance %s to be deleted'),
+                    self.instance.name)
 
         # If there is no result, or its a direct failure, then there isn't
         # anything to delete.
@@ -201,8 +203,8 @@ class ConnectDisk(task.Task):
                                    stg_ftsk=self.stg_ftsk)
 
     def revert(self, disk_dev_info, result, flow_failures):
-        LOG.warn(_LW('Disk image being disconnected from instance %s'),
-                 self.instance.name)
+        LOG.warning(_LW('Disk image being disconnected from instance %s'),
+                    self.instance.name)
         # Note that the FeedTask is None - to force instant disconnect.
         self.disk_dvr.disconnect_image_disk(self.context, self.instance)
 
@@ -272,20 +274,20 @@ class InstanceDiskToMgmt(task.Task):
         if self.vios_wrap is None or self.stg_elem is None:
             # We never even got connected - nothing to do
             return
-        LOG.warn(_LW("Unmapping boot disk %(disk_name)s of instance "
-                     "%(instance_name)s from management partition via Virtual "
-                     "I/O Server %(vios_name)s."),
-                 {'disk_name': self.stg_elem.name,
-                  'instance_name': self.instance.name,
-                  'vios_name': self.vios_wrap.name})
+        LOG.warning(_LW("Unmapping boot disk %(disk_name)s of instance "
+                        "%(instance_name)s from management partition via "
+                        "Virtual I/O Server %(vios_name)s."),
+                    {'disk_name': self.stg_elem.name,
+                     'instance_name': self.instance.name,
+                     'vios_name': self.vios_wrap.name})
         self.disk_dvr.disconnect_disk_from_mgmt(self.vios_wrap.uuid,
                                                 self.stg_elem.name)
 
         if self.disk_path is None:
             # We did not discover the disk - nothing else to do.
             return
-        LOG.warn(_LW("Removing disk %(disk_path)s from the management "
-                     "partition."), {'disk_path': self.disk_path})
+        LOG.warning(_LW("Removing disk %(disk_path)s from the management "
+                        "partition."), {'disk_path': self.disk_path})
         mgmt.remove_block_dev(self.disk_path)
 
 
