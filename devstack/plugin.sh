@@ -69,7 +69,10 @@ function configure_nova_powervm {
 
 # install_nova_powervm() - Install nova_powervm and necessary dependencies
 function install_nova_powervm {
-    install_pypowervm
+    if [[ "$INSTALL_PYPOWERVM" == "True" ]]; then
+        echo_summary "Installing pypowervm"
+        install_pypowervm
+    fi
 
     # Install the nova-powervm package
     setup_develop $NOVA_POWERVM_DIR
@@ -102,7 +105,7 @@ function cleanup_nova_powervm {
 if is_service_enabled nova-powervm; then
     if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
         # Install NovaLink if set
-        if [[ "$INSTALL_NOVALINK" == "True" ]]; then
+        if [[ "$INSTALL_NOVALINK" = "True" ]]; then
             echo_summary "Installing NovaLink"
             install_novalink
         fi
