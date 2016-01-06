@@ -24,6 +24,7 @@ from oslo_serialization import jsonutils
 from nova import block_device as nova_block_device
 from nova import exception as exc
 from nova import objects
+from nova.objects import base as obj_base
 from nova.objects import block_device as bdmobj
 from nova import test
 from nova.tests.unit import fake_instance
@@ -1324,3 +1325,34 @@ class TestPowerVMDriver(test.TestCase):
             'context', self.lpm_inst, 'network_info')
         self.lpm.post_live_migration_at_destination.assert_called_once_with(
             'network_info', [])
+
+    @mock.patch('pypowervm.tasks.memory.calculate_memory_overhead_on_host')
+    def test_estimate_instance_overhead(self, mock_calc_over):
+        mock_calc_over.return_value = ('2048', '96')
+
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        inst_info = inst.get_flavor()
+        inst_info.extra_specs = {}
+        overhead = self.drv.estimate_instance_overhead(inst_info)
+        self.assertEqual({'memory_mb': '2048'}, overhead)
+
+        # Flavor having extra_specs
+        inst_info.extra_specs = {'powervm:max_mem': 4096}
+        overhead = self.drv.estimate_instance_overhead(inst_info)
+        mock_calc_over.assert_called_with(self.apt, self.drv.host_uuid,
+                                          {'max_mem': 4096})
+        self.assertEqual({'memory_mb': '2048'}, overhead)
+
+        # Test when instance passed is dict
+        inst_info = obj_base.obj_to_primitive(inst_info)
+        overhead = self.drv.estimate_instance_overhead(inst_info)
+        self.assertEqual({'memory_mb': '2048'}, overhead)
+
+        # When instance_info is None
+        overhead = self.drv.estimate_instance_overhead(None)
+        self.assertEqual({'memory_mb': 0}, overhead)
+
+        # Test when instance Object is passed
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+        overhead = self.drv.estimate_instance_overhead(inst_info)
+        self.assertEqual({'memory_mb': '2048'}, overhead)
