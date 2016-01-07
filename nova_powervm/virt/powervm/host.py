@@ -40,12 +40,10 @@ LOG = logging.getLogger(__name__)
 IBM_POWERVM_HYPERVISOR_VERSION = 8
 
 # The types of LPARS that are supported.
-POWERVM_SUPPORTED_INSTANCES = jsonutils.dumps([(arch.PPC64,
-                                                hv_type.PHYP,
-                                                vm_mode.HVM),
-                                               (arch.PPC64LE,
-                                                hv_type.PHYP,
-                                                vm_mode.HVM)])
+POWERVM_SUPPORTED_INSTANCES = [
+    (arch.PPC64, hv_type.PHYP, vm_mode.HVM),
+    (arch.PPC64LE, hv_type.PHYP, vm_mode.HVM),
+]
 
 # cpu_info that will be returned by build_host_stats_from_entry()
 HOST_STATS_CPU_INFO = jsonutils.dumps({'vendor': 'ibm', 'arch': 'ppc64'})
