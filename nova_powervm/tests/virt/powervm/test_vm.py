@@ -370,6 +370,18 @@ class TestVM(test.TestCase):
                 None, None, 'host_uuid', mock.Mock(state=stop_state)))
             self.assertTrue(mock_power_off.called)
 
+    @mock.patch('pypowervm.tasks.power.power_off')
+    def test_power_off_negative(self, mock_power_off):
+        """Negative tests."""
+
+        # Raise the expected pypowervm exception
+        mock_power_off.side_effect = pvm_exc.VMPowerOffFailure(
+            reason='Something bad.', lpar_nm='TheLPAR')
+        # We should get a valid Nova exception that the compute manager expects
+        self.assertRaises(exception.InstancePowerOffFailure,
+                          vm.power_off, None, None, 'host_uuid',
+                          mock.Mock(state=pvm_bp.LPARState.RUNNING))
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('pypowervm.tasks.cna.crt_cna')
     def test_crt_vif(self, mock_crt_cna, mock_pvm_uuid):

@@ -18,6 +18,7 @@ import json
 from oslo_config import cfg
 from oslo_log import log as logging
 import re
+import six
 
 from nova.compute import power_state
 from nova import exception
@@ -580,7 +581,11 @@ def power_off(adapter, instance, host_uuid, entry=None, add_parms=None):
     # Get the current state and see if we can stop the VM
     if entry.state in POWERVM_STOPABLE_STATE:
         # Now stop the lpar
-        power.power_off(entry, host_uuid, add_parms=add_parms)
+        try:
+            power.power_off(entry, host_uuid, add_parms=add_parms)
+        except Exception as e:
+            LOG.exception(e)
+            raise exception.InstancePowerOffFailure(reason=six.text_type(e))
         return True
 
     return False
