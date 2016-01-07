@@ -1,4 +1,4 @@
-# Copyright 2014, 2015 IBM Corp.
+# Copyright 2014, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -470,7 +470,14 @@ class PowerVMDriver(driver.ComputeDriver):
                             instance=instance)
                 return
             else:
-                raise
+                # Convert to a Nova exception
+                raise exception.InstanceTerminationFailure(
+                    reason=six.text_type(e))
+        except Exception as e:
+                LOG.exception(e)
+                # Convert to a Nova exception
+                raise exception.InstanceTerminationFailure(
+                    reason=six.text_type(e))
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True, migrate_data=None):
