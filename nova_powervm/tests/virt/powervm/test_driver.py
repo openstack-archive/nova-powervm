@@ -1,4 +1,4 @@
-# Copyright 2014, 2015 IBM Corp.
+# Copyright 2014, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -811,7 +811,16 @@ class TestPowerVMDriver(test.TestCase):
             'b16fb039d63b/SomeResource/1B5FB633-16D1-4E10-A14'
             '5-E6FB905161A3?group=None')
         # Invoke the method.
-        self.assertRaises(pvm_exc.HttpError, self.drv.destroy, 'context', inst,
+        self.assertRaises(exc.InstanceTerminationFailure,
+                          self.drv.destroy, 'context', inst,
+                          mock.Mock(), block_device_info=mock_bdms)
+        assert_not_called()
+
+        # Test generic exception
+        mock_pvmuuid.side_effect = ValueError('Some error')
+        # Invoke the method.
+        self.assertRaises(exc.InstanceTerminationFailure,
+                          self.drv.destroy, 'context', inst,
                           mock.Mock(), block_device_info=mock_bdms)
         assert_not_called()
 
@@ -939,8 +948,9 @@ class TestPowerVMDriver(test.TestCase):
             volume_id='1', instance_name=inst.name, reason='Test Case')
 
         # Invoke the method.
-        self.assertRaises(exc.Forbidden, self.drv.destroy, 'context', inst,
-                          mock.Mock(), block_device_info=mock_bdms)
+        self.assertRaises(exc.InstanceTerminationFailure, self.drv.destroy,
+                          'context', inst, mock.Mock(),
+                          block_device_info=mock_bdms)
 
         # Validate that the vopt delete was called
         self.assertTrue(mock_dlt_vopt.called)
