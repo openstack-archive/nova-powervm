@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -37,10 +37,7 @@ class ImageAPI(fixtures.Fixture):
 
     def setUp(self):
         super(ImageAPI, self).setUp()
-        self._img_api_patcher = mock.patch('nova.image.API')
-        self.img_api = self._img_api_patcher.start()
-
-        self.addCleanup(self.img_api)
+        self.img_api_fx = self.useFixture(fixtures.MockPatch('nova.image.API'))
 
 
 class DiskAdapter(fixtures.Fixture):
@@ -48,10 +45,10 @@ class DiskAdapter(fixtures.Fixture):
 
     def setUp(self):
         super(DiskAdapter, self).setUp()
-        self._std_disk_adpt = mock.patch('nova_powervm.virt.powervm.disk.'
-                                         'localdisk.LocalStorage')
-        self.std_disk_adpt = self._std_disk_adpt.start()
-        self.addCleanup(self._std_disk_adpt.stop)
+        self.std_disk_adpt_fx = self.useFixture(
+            fixtures.MockPatch('nova_powervm.virt.powervm.disk.localdisk.'
+                               'LocalStorage'))
+        self.std_disk_adpt = self.std_disk_adpt_fx.mock
 
 
 class HostCPUStats(fixtures.Fixture):
@@ -59,10 +56,8 @@ class HostCPUStats(fixtures.Fixture):
 
     def setUp(self):
         super(HostCPUStats, self).setUp()
-        self._host_cpu_stats = mock.patch('nova_powervm.virt.powervm.host.'
-                                          'HostCPUStats')
-        self.host_cpu_stats = self._host_cpu_stats.start()
-        self.addCleanup(self._host_cpu_stats.stop)
+        self.host_cpu_stats = self.useFixture(
+            fixtures.MockPatch('nova_powervm.virt.powervm.host.HostCPUStats'))
 
 
 class VolumeAdapter(fixtures.Fixture):
@@ -70,10 +65,10 @@ class VolumeAdapter(fixtures.Fixture):
 
     def setUp(self):
         super(VolumeAdapter, self).setUp()
-        self._std_vol_adpt = mock.patch('nova_powervm.virt.powervm.volume.'
-                                        'vscsi.VscsiVolumeAdapter',
-                                        __name__='MockVSCSI')
-        self.std_vol_adpt = self._std_vol_adpt.start()
+        self.std_vol_adpt_fx = self.useFixture(
+            fixtures.MockPatch('nova_powervm.virt.powervm.volume.vscsi.'
+                               'VscsiVolumeAdapter', __name__='MockVSCSI'))
+        self.std_vol_adpt = self.std_vol_adpt_fx.mock
         # We want to mock out the connection_info individually so it gives
         # back a new mock on every call.  That's because the vol id is
         # used for task names and we can't have duplicates.  Here we have
@@ -82,7 +77,6 @@ class VolumeAdapter(fixtures.Fixture):
         self.std_vol_adpt.return_value.connection_info.__getitem__\
             .side_effect = mock.MagicMock
         self.drv = self.std_vol_adpt.return_value
-        self.addCleanup(self._std_vol_adpt.stop)
 
 
 class PowerVMComputeDriver(fixtures.Fixture):
@@ -110,8 +104,8 @@ class PowerVMComputeDriver(fixtures.Fixture):
         self._init_host()
         self.drv.image_api = mock.Mock()
 
-        disk_adpt = self.useFixture(DiskAdapter())
-        self.drv.disk_dvr = disk_adpt.std_disk_adpt
+        disk_adpt_fx = self.useFixture(DiskAdapter())
+        self.drv.disk_dvr = disk_adpt_fx.std_disk_adpt
 
 
 class TaskFlow(fixtures.Fixture):
@@ -134,15 +128,13 @@ class TaskFlow(fixtures.Fixture):
 
     def setUp(self):
         super(TaskFlow, self).setUp()
-        self._linear_flow = mock.patch(self.linear_flow_import)
-        self.linear_flow = self._linear_flow.start()
         self.tasks_added = []
-        self.linear_flow.Flow.return_value.add.side_effect = self._record_tasks
-        self.addCleanup(self._linear_flow.stop)
+        self.lf_fix = self.useFixture(
+            fixtures.MockPatch(self.linear_flow_import))
+        self.lf_fix.mock.Flow.return_value.add.side_effect = self._record_tasks
 
-        self._engine = mock.patch(self.engines_import)
-        self.engine = self._engine.start()
-        self.addCleanup(self._engine.stop)
+        self.engine_fx = self.useFixture(
+            fixtures.MockPatch(self.engines_import))
 
     def _record_tasks(self, *args, **kwargs):
         self.tasks_added.append(args[0])
