@@ -1,4 +1,4 @@
-# Copyright 2014, 2015 IBM Corp.
+# Copyright 2014, 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -326,10 +326,18 @@ class TestVM(test.TestCase):
                        pvm_bp.LPARState.OPEN_FIRMWARE, pvm_bp.LPARState.ERROR,
                        pvm_bp.LPARState.RESUMING]
         for stop_state in stop_states:
+            entry = mock.Mock(state=stop_state)
             mock_power_off.reset_mock()
-            self.assertTrue(vm.power_off(
-                None, None, 'host_uuid', mock.Mock(state=stop_state)))
-            self.assertTrue(mock_power_off.called)
+            self.assertTrue(vm.power_off(None, None, 'host_uuid', entry))
+            mock_power_off.assert_called_once_with(entry, 'host_uuid',
+                                                   force_immediate=False,
+                                                   add_parms=None)
+            mock_power_off.reset_mock()
+            self.assertTrue(vm.power_off(None, None, 'host_uuid', entry,
+                                         force_immediate=True))
+            mock_power_off.assert_called_once_with(entry, 'host_uuid',
+                                                   force_immediate=True,
+                                                   add_parms=None)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('pypowervm.tasks.cna.crt_cna')

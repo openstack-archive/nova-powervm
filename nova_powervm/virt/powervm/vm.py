@@ -1,4 +1,4 @@
-# Copyright 2014, 2015 IBM Corp.
+# Copyright 2014, 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -18,6 +18,7 @@ import json
 from oslo_config import cfg
 from oslo_log import log as logging
 import re
+import six
 
 from nova.compute import power_state
 from nova import exception
@@ -548,14 +549,20 @@ def power_on(adapter, instance, host_uuid, entry=None):
     return False
 
 
-def power_off(adapter, instance, host_uuid, entry=None, add_parms=None):
+def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
+              force_immediate=False):
     if entry is None:
         entry = get_instance_wrapper(adapter, instance, host_uuid)
 
     # Get the current state and see if we can stop the VM
     if entry.state in POWERVM_STOPABLE_STATE:
         # Now stop the lpar
-        power.power_off(entry, host_uuid, add_parms=add_parms)
+        try:
+            power.power_off(entry, host_uuid, force_immediate=force_immediate,
+                            add_parms=add_parms)
+        except Exception as e:
+            LOG.exception(e)
+            raise exception.InstancePowerOffFailure(reason=six.text_type(e))
         return True
 
     return False

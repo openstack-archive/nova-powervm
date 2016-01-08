@@ -1,4 +1,4 @@
-# Copyright 2014, 2015 IBM Corp.
+# Copyright 2014, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -366,9 +366,11 @@ class PowerVMDriver(driver.ComputeDriver):
             # Define the flow
             flow = tf_lf.Flow("destroy")
 
-            # Power Off the LPAR
+            # Power Off the LPAR. If its disks are about to be deleted,
+            # VSP hard shutdown it.
             flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
-                                    pvm_inst_uuid, instance))
+                                    pvm_inst_uuid, instance,
+                                    force_immediate=destroy_disks))
 
             # Create the transaction manager (FeedTask) for Storage I/O.
             xag = self._get_inst_xag(instance, bdms)
