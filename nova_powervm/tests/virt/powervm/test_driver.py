@@ -728,7 +728,9 @@ class TestPowerVMDriver(test.TestCase):
                          block_device_info=mock_bdms)
 
         # Power off was called
-        self.assertTrue(mock_pwroff.called)
+        mock_pwroff.assert_called_with(self.drv.adapter, inst,
+                                       self.drv.host_uuid,
+                                       force_immediate=True)
 
         # Validate that the vopt delete was called
         self.assertTrue(mock_dlt_vopt.called)
@@ -781,6 +783,20 @@ class TestPowerVMDriver(test.TestCase):
         # Validate disk driver detach and delete disk methods were called.
         self.assertFalse(self.drv.disk_dvr.delete_disks.called)
         self.assertFalse(self.drv.disk_dvr.disconnect_image_disk.called)
+
+        # Test when destroy_disks set to False.
+        reset_mocks()
+        mock_boot_from_vol.return_value = True
+        self.drv.disk_dvr.delete_disks.reset_mock()
+        self.drv.disk_dvr.disconnect_image_disk.reset_mock()
+
+        # Invoke the method.
+        self.drv.destroy('context', inst, mock.Mock(),
+                         block_device_info=mock_bdms, destroy_disks=False)
+
+        mock_pwroff.assert_called_with(self.drv.adapter, inst,
+                                       self.drv.host_uuid,
+                                       force_immediate=False)
 
         # Start negative tests
         reset_mocks()

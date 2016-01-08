@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -195,24 +195,27 @@ class PowerOn(task.Task):
 class PowerOff(task.Task):
     """The task to power off a VM."""
 
-    def __init__(self, adapter, host_uuid, lpar_uuid, instance):
+    def __init__(self, adapter, host_uuid, lpar_uuid, instance,
+                 force_immediate=False):
         """Creates the Task to power off an LPAR.
 
         :param adapter: The adapter for the pypowervm API
         :param host_uuid: The host UUID
         :param lpar_uuid: The UUID of the lpar that has media.
         :param instance: The nova instance.
+        :param force_immediate: Boolean. Perform a VSP hard power off.
         """
         super(PowerOff, self).__init__(name='pwr_off_lpar')
         self.adapter = adapter
         self.host_uuid = host_uuid
         self.lpar_uuid = lpar_uuid
         self.instance = instance
+        self.force_immediate = force_immediate
 
     def execute(self):
         LOG.info(_LI('Powering off instance %s.'), self.instance.name)
         vm.power_off(self.adapter, self.instance, self.host_uuid,
-                     add_parms=dict(immediate='true'))
+                     force_immediate=self.force_immediate)
 
 
 class Delete(task.Task):
