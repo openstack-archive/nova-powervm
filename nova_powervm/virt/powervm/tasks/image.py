@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -36,13 +36,16 @@ class UpdateTaskState(task.Task):
         """
         self.update_task_state = update_task_state
         self.task_state = task_state
-        self.expected_state = expected_state
+        self.kwargs = {}
+        if expected_state is not None:
+            # We only want to pass expected state if it's not None! That's so
+            # we take the update_task_state method's default.
+            self.kwargs['expected_state'] = expected_state
         super(UpdateTaskState, self).__init__(
             name='update_task_state_%s' % task_state)
 
     def execute(self):
-        self.update_task_state(task_state=self.task_state,
-                               expected_state=self.expected_state)
+        self.update_task_state(self.task_state, **self.kwargs)
 
 
 class StreamToGlance(task.Task):
