@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -16,9 +16,9 @@
 
 import random
 
-from oslo_config import cfg
 import oslo_log.log as logging
 
+from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_drv
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _
@@ -35,19 +35,8 @@ import pypowervm.wrappers.storage as pvm_stg
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 
-ssp_opts = [
-    cfg.StrOpt('cluster_name',
-               default='',
-               help='Cluster hosting the Shared Storage Pool to use for '
-                    'storage operations.  If none specified, the host is '
-                    'queried; if a single Cluster is found, it is used. '
-                    'Not used unless disk_driver option is set to ssp.')
-]
-
-
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
-CONF.register_opts(ssp_opts, group='powervm')
 
 
 class SSPDiskAdapter(disk_drv.DiskAdapter):

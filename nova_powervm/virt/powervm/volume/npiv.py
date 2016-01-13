@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -15,7 +15,6 @@
 #    under the License.
 
 from oslo_concurrency import lockutils
-from oslo_config import cfg
 from oslo_log import log as logging
 from taskflow import task
 
@@ -23,7 +22,8 @@ from nova.compute import task_states
 from pypowervm.tasks import vfc_mapper as pvm_vfcm
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.virt import powervm
+from nova_powervm import conf as cfg
+from nova_powervm.conf import powervm as pvm_cfg
 from nova_powervm.virt.powervm import exception as exc
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
@@ -593,11 +593,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
     def _fabric_names(self):
         """Returns a list of the fabric names."""
-        return powervm.NPIV_FABRIC_WWPNS.keys()
+        return pvm_cfg.NPIV_FABRIC_WWPNS.keys()
 
     def _fabric_ports(self, fabric_name):
         """Returns a list of WWPNs for the fabric's physical ports."""
-        return powervm.NPIV_FABRIC_WWPNS[fabric_name]
+        return pvm_cfg.NPIV_FABRIC_WWPNS[fabric_name]
 
     def _ports_per_fabric(self):
         """Returns the number of virtual ports that should be used per fabric.

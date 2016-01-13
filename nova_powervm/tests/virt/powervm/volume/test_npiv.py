@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -15,13 +15,13 @@
 #    under the License.
 
 import mock
-from oslo_config import cfg
 
 from nova.compute import task_states
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm import conf as cfg
 from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
 from nova_powervm.virt.powervm import exception as exc
 from nova_powervm.virt.powervm.volume import npiv

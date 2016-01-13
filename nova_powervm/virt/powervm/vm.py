@@ -15,7 +15,6 @@
 #    under the License.
 
 import json
-from oslo_config import cfg
 from oslo_log import log as logging
 import re
 import six
@@ -38,6 +37,7 @@ from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
 from pypowervm.wrappers import shared_proc_pool as pvm_spp
 
+from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI

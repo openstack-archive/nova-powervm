@@ -18,7 +18,6 @@
 import logging
 
 import mock
-from oslo_config import cfg
 from oslo_serialization import jsonutils
 
 from nova import block_device as nova_block_device
@@ -41,6 +40,7 @@ import pypowervm.wrappers.logical_partition as pvm_lpar
 import pypowervm.wrappers.managed_system as pvm_ms
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
+from nova_powervm import conf as cfg
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import driver
@@ -56,7 +56,6 @@ LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
 CONF = cfg.CONF
-CONF.import_opt('my_ip', 'nova.netconf')
 
 
 class FakeClass(object):
