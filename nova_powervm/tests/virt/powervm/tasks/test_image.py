@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -23,14 +23,14 @@ from nova_powervm.virt.powervm.tasks import image as tsk_img
 
 class TestImage(test.TestCase):
     def test_update_task_state(self):
-        def func(task_state, expected_state):
+        def func(task_state, expected_state='delirious'):
             self.assertEqual('task_state', task_state)
-            self.assertIsNone(expected_state)
+            self.assertEqual('delirious', expected_state)
         tf = tsk_img.UpdateTaskState(func, 'task_state')
         self.assertEqual('update_task_state_task_state', tf.name)
         tf.execute()
 
-        def func2(task_state, expected_state):
+        def func2(task_state, expected_state=None):
             self.assertEqual('task_state', task_state)
             self.assertEqual('expected_state', expected_state)
         tf = tsk_img.UpdateTaskState(func2, 'task_state',
