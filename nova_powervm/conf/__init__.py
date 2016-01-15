@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -14,12 +14,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# Defines the various volume connectors that can be used.
-from nova_powervm import conf as cfg
+from oslo_config import cfg
+
+from nova_powervm.conf import powervm
 
 CONF = cfg.CONF
 
-FC_STRATEGY_MAPPING = {
-    'npiv': CONF.powervm.fc_npiv_adapter_api,
-    'vscsi': CONF.powervm.fc_vscsi_adapter_api
-}
+powervm.register_opts(CONF)

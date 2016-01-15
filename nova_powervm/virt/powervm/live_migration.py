@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -22,10 +22,10 @@ from pypowervm.tasks import migration as mig
 from pypowervm.tasks import storage as stor_task
 from pypowervm.tasks import vterm
 
-from oslo_config import cfg
 from oslo_log import log as logging
 import six
 
+from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI

@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
 from oslo_log import log as logging
 
 from pypowervm.utils import transaction as pvm_tx
@@ -24,7 +23,6 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 
 LOG = logging.getLogger(__name__)
-CONF = cfg.CONF
 
 # RMC must be either active or busy.  Busy is allowed because that simply
 # means that something is running against the VIOS at the moment...but

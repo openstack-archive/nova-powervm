@@ -28,7 +28,6 @@ from nova.virt import configdrive
 from nova.virt import driver
 import re
 
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import importutils
 import six
@@ -46,6 +45,7 @@ from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import host as pvm_host
 from nova_powervm.virt.powervm.i18n import _

@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -15,10 +15,10 @@
 #    under the License.
 
 from oslo_concurrency import lockutils
-from oslo_config import cfg
 from oslo_log import log as logging
 from taskflow import task
 
+from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE

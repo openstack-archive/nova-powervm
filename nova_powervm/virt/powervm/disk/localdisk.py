@@ -1,5 +1,5 @@
 # Copyright 2013 OpenStack Foundation
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -15,7 +15,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
 from oslo_log import log as logging
 
 from nova import exception as nova_exc
@@ -26,6 +25,7 @@ from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _LE
@@ -33,29 +33,9 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
-localdisk_opts = [
-    cfg.StrOpt('volume_group_name',
-               default='',
-               help='Volume Group to use for block device operations.  Must '
-                    'not be rootvg.  If disk_driver is localdisk, and more '
-                    'than one non-rootvg volume group exists across the '
-                    'Virtual I/O Servers, then this attribute must be '
-                    'specified.'),
-    cfg.StrOpt('volume_group_vios_name',
-               default='',
-               help='(Optional) The name of the Virtual I/O Server hosting '
-                    'the volume group.  If this is not specified, the system '
-                    'will query through the Virtual I/O Servers looking for '
-                    'one that matches the volume_group_vios_name.  This is '
-                    'only needed if the system has multiple Virtual I/O '
-                    'Servers with a non-rootvg volume group whose name is '
-                    'duplicated.')
-]
-
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
-CONF.register_opts(localdisk_opts, group='powervm')
 
 
 class LocalStorage(disk_dvr.DiskAdapter):

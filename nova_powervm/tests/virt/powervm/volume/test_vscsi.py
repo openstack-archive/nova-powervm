@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -16,8 +16,7 @@
 
 import mock
 
-from oslo_config import cfg
-
+from nova_powervm import conf as cfg
 from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.volume import vscsi
