@@ -35,7 +35,7 @@ powervm_opts = [
                  help='Factor used to calculate the processor units per vcpu. '
                  'Valid values are: 0.05 - 1.0'),
     cfg.IntOpt('uncapped_proc_weight',
-               default=64,
+               default=64, min=1, max=255,
                help='The processor weight to assign to newly created VMs.  '
                     'Value should be between 1 and 255.  Represents how '
                     'aggressively LPARs grab CPU when unused cycles are '
@@ -46,7 +46,7 @@ powervm_opts = [
                     'to store the config drive metadata that will be attached '
                     'to VMs.'),
     cfg.IntOpt('vopt_media_rep_size',
-               default=1,
+               default=1, min=1,
                help='The size of the media repository (in GB) for the '
                     'metadata for config drive.  Only used if the media '
                     'repository needs to be created.'),
@@ -55,6 +55,7 @@ powervm_opts = [
                help='The location where the config drive ISO files should be '
                     'built.'),
     cfg.StrOpt('disk_driver',
+               choices=['localdisk', 'ssp'], ignore_case=True,
                default='localdisk',
                help='The disk driver to use for PowerVM disks. '
                'Valid options are: localdisk, ssp'),
@@ -90,10 +91,15 @@ ssp_opts = [
 
 vol_adapter_opts = [
     cfg.StrOpt('fc_attach_strategy',
+               choices=['vscsi', 'npiv'], ignore_case=True,
                default='vscsi',
                help='The Fibre Channel Volume Strategy defines how FC Cinder '
                     'volumes should be attached to the Virtual Machine.  The '
-                    'options are: npiv or vscsi.'),
+                    'options are: npiv or vscsi. If npiv is selected then '
+                    'the ports_per_fabric and fabrics option should be '
+                    'specified and at least one fabric_X_port_wwpns option '
+                    '(where X corresponds to the fabric name) must be '
+                    'specified.'),
     cfg.StrOpt('fc_npiv_adapter_api',
                default='nova_powervm.virt.powervm.volume.npiv.'
                'NPIVVolumeAdapter',
@@ -104,7 +110,8 @@ vol_adapter_opts = [
                'VscsiVolumeAdapter',
                help='Volume Adapter API to connect FC volumes through Virtual '
                     'I/O Server using PowerVM vSCSI connection mechanism.'),
-    cfg.IntOpt('vscsi_vios_connections_required', default=1,
+    cfg.IntOpt('vscsi_vios_connections_required',
+               default=1, min=1,
                help='Indicates a minimum number of Virtual I/O Servers that '
                     'are required to support a Cinder volume attach with the '
                     'vSCSI volume connector.')
@@ -113,7 +120,8 @@ vol_adapter_opts = [
 # NPIV Options.  Only applicable if the 'fc_attach_strategy' is set to 'npiv'.
 # Otherwise this section can be ignored.
 npiv_opts = [
-    cfg.IntOpt('ports_per_fabric', default=1,
+    cfg.IntOpt('ports_per_fabric',
+               default=1, min=1,
                help='The number of physical ports that should be connected '
                     'directly to the Virtual Machine, per fabric.  '
                     'Example: 2 fabrics and ports_per_fabric set to 2 will '

@@ -140,6 +140,14 @@ class TestPowerVMDriver(test.TestCase):
         self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
 
+    def test_get_disk_adapter(self):
+        # Ensure we can handle upper case option and we instantiate the class
+        self.flags(disk_driver='LoCaLDisK', group='powervm')
+        self.drv.disk_dvr = None
+        self.drv._get_disk_adapter()
+        # The local disk driver has been mocked, so we just compare the name
+        self.assertIn('LocalStorage()', str(self.drv.disk_dvr))
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.context.get_admin_context')
     def test_driver_ops(self, mock_get_ctx, mock_getuuid):
@@ -682,6 +690,11 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual(set([pvm_vios.VIOS.xags.STORAGE,
                               pvm_vios.VIOS.xags.SCSI_MAPPING,
                               pvm_vios.VIOS.xags.FC_MAPPING]), set(xag))
+
+        # The vSCSI Volume attach - Ensure case insensitive.
+        self.flags(fc_attach_strategy='VSCSI', group='powervm')
+        xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
+        self.assertEqual([pvm_vios.VIOS.xags.SCSI_MAPPING], xag)
 
     def test_add_vol_conn_task(self):
         bdm, vol_drv = mock.MagicMock(), mock.MagicMock()

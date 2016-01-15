@@ -123,7 +123,7 @@ class PowerVMDriver(driver.ComputeDriver):
                      'mp_uuid': self.mp_uuid}
 
         self.disk_dvr = importutils.import_object_ns(
-            DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.powervm.disk_driver],
+            DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.powervm.disk_driver.lower()],
             conn_info)
 
     def _get_host_uuid(self):
@@ -1553,7 +1553,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # If we have any volumes, add the volumes required mapping XAGs.
         adp_type = vol_attach.FC_STRATEGY_MAPPING[
-            CONF.powervm.fc_attach_strategy]
+            CONF.powervm.fc_attach_strategy.lower()]
         vol_cls = importutils.import_class(adp_type)
         xags.update(set(vol_cls.min_xags()))
         LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',

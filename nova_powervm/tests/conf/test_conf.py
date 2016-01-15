@@ -42,6 +42,105 @@ class TestConf(test.TestCase):
         self.assertEqual(1, CONF.powervm.ports_per_fabric)
 
 
+class TestConfBounds(test.TestCase):
+    def setUp(self):
+        super(TestConfBounds, self).setUp()
+
+    def _bounds_test(self, should_pass, opts, **kwargs):
+        """Test the bounds of an option."""
+        # Use the Oslo fixture to create a temporary conf object
+        with oslo_config.fixture.Config(oslo_config.cfg.ConfigOpts()) as fx:
+            # Load the raw values
+            fx.load_raw_values(group='powervm', **kwargs)
+            # Register the options
+            fx.register_opts(opts, group='powervm')
+            # For each kwarg option passed, validate it.
+            for kw in kwargs:
+                if not should_pass:
+                    # Reference the option to cause a bounds exception
+                    self.assertRaises(oslo_config.cfg.ConfigFileValueError,
+                                      lambda: fx.conf.powervm[kw])
+                else:
+                    # It's expected to succeed
+                    fx.conf.powervm[kw]
+
+    def test_bounds(self):
+        # Uncapped proc weight
+        self._bounds_test(False, cfg.powervm.powervm_opts,
+                          uncapped_proc_weight=0)
+        self._bounds_test(False, cfg.powervm.powervm_opts,
+                          uncapped_proc_weight=256)
+        self._bounds_test(True, cfg.powervm.powervm_opts,
+                          uncapped_proc_weight=200)
+        # vopt media repo size
+        self._bounds_test(False, cfg.powervm.powervm_opts,
+                          vopt_media_rep_size=0)
+        self._bounds_test(True, cfg.powervm.powervm_opts,
+                          vopt_media_rep_size=10)
+        # vscsi connections
+        self._bounds_test(False, cfg.powervm.vol_adapter_opts,
+                          vscsi_vios_connections_required=0)
+        self._bounds_test(True, cfg.powervm.vol_adapter_opts,
+                          vscsi_vios_connections_required=2)
+        # ports per fabric
+        self._bounds_test(False, cfg.powervm.npiv_opts,
+                          ports_per_fabric=0)
+        self._bounds_test(True, cfg.powervm.npiv_opts,
+                          ports_per_fabric=2)
+
+
+class TestConfChoices(test.TestCase):
+    def setUp(self):
+        super(TestConfChoices, self).setUp()
+
+    def _choice_test(self, invalid_choice, valid_choices, opts, option,
+                     ignore_case=True):
+        """Test the choices of an option."""
+
+        def _setup(fx, value):
+            # Load the raw values
+            fx.load_raw_values(group='powervm', **{option: value})
+            # Register the options
+            fx.register_opts(opts, group='powervm')
+
+        def _build_list():
+            for val in valid_choices:
+                yield val
+                yield val.lower()
+                yield val.upper()
+
+        if ignore_case:
+            # We expect to be able to ignore upper/lower case, so build a list
+            # of possibilities and ensure we do ignore them.
+            valid_choices = [x for x in _build_list()]
+
+        if invalid_choice:
+            # Use the Oslo fixture to create a temporary conf object
+            with oslo_config.fixture.Config(oslo_config.cfg.ConfigOpts()
+                                            ) as fx:
+                _setup(fx, invalid_choice)
+                # Reference the option to cause an exception
+                self.assertRaises(oslo_config.cfg.ConfigFileValueError,
+                                  lambda: fx.conf.powervm[option])
+
+        for choice in valid_choices:
+            # Use the Oslo fixture to create a temporary conf object
+            with oslo_config.fixture.Config(oslo_config.cfg.ConfigOpts()
+                                            ) as fx:
+                _setup(fx, choice)
+
+                # It's expected to succeed
+                fx.conf.powervm[option]
+
+    def test_choices(self):
+        # Disk driver
+        self._choice_test('bad_driver', ['localdisk', 'ssp'],
+                          cfg.powervm.powervm_opts, 'disk_driver')
+        # FC attachment
+        self._choice_test('bad_value', ['vscsi', 'npiv'],
+                          cfg.powervm.vol_adapter_opts, 'fc_attach_strategy')
+
+
 class TestConfDynamic(test.TestCase):
     def setUp(self):
         super(TestConfDynamic, self).setUp()
