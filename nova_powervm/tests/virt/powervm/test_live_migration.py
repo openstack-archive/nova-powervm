@@ -115,6 +115,7 @@ class TestLPM(test.TestCase):
             self.lpmdst.check_destination(
                 'context', src_compute_info, dst_compute_info)
             mock_rfh.assert_called_once_with()
+            self.assertEqual(2, mock_migrdata.call_count)
 
             # Ensure migration counts are validated
             migr_data['active_migrations_in_progress'] = 4
@@ -220,6 +221,7 @@ class TestLPM(test.TestCase):
         lpar_w, host_w = mock.Mock(), mock.Mock()
         lpar_w.can_lpm.return_value = (True, None)
         self.lpmsrc._check_migration_ready(lpar_w, host_w)
+        lpar_w.can_lpm.assert_called_once_with(host_w, migr_data=None)
 
         lpar_w.can_lpm.return_value = (False, 'This is the reason message.')
         self.assertRaises(exception.MigrationPreCheckError,
