@@ -179,7 +179,13 @@ def register_opts(conf):
     _register_fabrics(conf, NPIV_FABRIC_WWPNS)
 
 
-# list_opts is called by the nova sample creation tooling.  It's not used for
-# powervm for now.
+# To generate a sample config run:
+# $ oslo-config-generator --namespace nova_powervm > nova_powervm_sample.conf
 def list_opts():
-    return {powervm_group.name: STATIC_OPTIONS + fabric_sample}
+    # The nova conf tooling expects each module to return a dict of options.
+    # When powervm is pulled into nova proper the return value would be in
+    # this form:
+    # return {powervm_group.name: STATIC_OPTIONS + fabric_sample}
+    #
+    # The oslo-config-generator tooling expects a tuple:
+    return [(powervm_group.name, STATIC_OPTIONS + fabric_sample)]
