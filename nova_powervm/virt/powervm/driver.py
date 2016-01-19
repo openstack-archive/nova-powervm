@@ -236,8 +236,8 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: Instance object as returned by DB layer.
                          This function should use the data there to guide
                          the creation of the new instance.
-        :param image_meta: image object returned by nova.image.glance that
-                           defines the image from which to boot this instance
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
         :param injected_files: User files to inject into instance.
         :param admin_password: Administrator password to set in instance.
         :param network_info:
@@ -635,13 +635,17 @@ class PowerVMDriver(driver.ComputeDriver):
                rescue_password):
         """Rescue the specified instance.
 
-        :param instance: nova.objects.instance.Instance
+        :param nova.context.RequestContext context:
+            The context for the rescue.
+        :param nova.objects.instance.Instance instance:
+            The instance being rescued.
+        :param nova.network.model.NetworkInfo network_info:
+            Necessary network information for the resume.
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
+        :param rescue_password: new root password to set for rescue.
         """
         self._log_operation('rescue', instance)
-
-        # We need the image size, which isn't in the system meta data
-        # so get the all the info.
-        image_meta = self.image_api.get(context, image_meta['id'])
 
         pvm_inst_uuid = vm.get_pvm_uuid(instance)
         # Define the flow
@@ -1006,9 +1010,8 @@ class PowerVMDriver(driver.ComputeDriver):
         :param disk_info: the newly transferred disk information
         :param network_info:
            :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
-        :param image_meta: image object returned by nova.image.glance that
-                           defines the image from which this instance
-                           was created
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
         :param resize_instance: True if the instance disks are being resized,
                                 False otherwise
         :param block_device_info: instance volume block device info

@@ -199,7 +199,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         tsk_stg.rm_ssp_storage(self._ssp, storage_elems)
 
-    def create_disk_from_image(self, context, instance, img_meta, disk_size_gb,
+    def create_disk_from_image(self, context, instance, image_meta,
+                               disk_size_gb,
                                image_type=disk_drv.DiskType.BOOT):
         """Creates a boot disk and links the specified image to it.
 
@@ -209,9 +210,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
-        :param img_meta: image metadata dict:
-                      { 'id': reference used to locate the image in glance,
-                        'size': size in bytes of the image. }
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
         :param disk_size_gb: The size of the disk to create in GB.  If smaller
                              than the image, it will be ignored (as the disk
                              must be at least as big as the image).  Must be an
@@ -221,7 +221,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         LOG.info(_LI('SSP: Create %(image_type)s disk from image %(image_id)s '
                      'for instance %(instance_uuid)s.'),
-                 dict(image_type=image_type, image_id=img_meta['id'],
+                 dict(image_type=image_type, image_id=image_meta.id,
                       instance_uuid=instance.uuid))
 
         # TODO(IBM): There's an optimization to be had here if we can create
@@ -229,7 +229,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         # This will require some nontrivial refactoring, though, as the LUs are
         # created down inside of upload_new_lu and crt_lu_linked_clone.
 
-        image_lu = self._get_or_upload_image_lu(context, img_meta)
+        image_lu = self._get_or_upload_image_lu(context, image_meta)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
         LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)
@@ -245,7 +245,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             if lu.lu_type == lu_type and lu.name == lu_name:
                 return lu
 
-    def _get_or_upload_image_lu(self, context, img_meta):
+    def _get_or_upload_image_lu(self, context, image_meta):
         """Ensures our SSP has an LU containing the specified image.
 
         If an LU of type IMAGE corresponding to the input image metadata
@@ -253,13 +253,12 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         with the image contents from glance, and return it.
 
         :param context: nova context used to retrieve image from glance
-        :param img_meta: image metadata dict:
-                      { 'id': reference used to locate the image in glance,
-                        'size': size in bytes of the image. }
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
         :return: A pypowervm LU ElementWrapper representing the image.
         """
         # Key off of the name to see whether we already have the image
-        luname = self._get_image_name(img_meta)
+        luname = self._get_image_name(image_meta)
         lu = self._find_lu(luname, pvm_stg.LUType.IMAGE)
         if lu:
             LOG.info(_LI('SSP: Using already-uploaded image LU %s.'), luname)
@@ -267,10 +266,10 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         # We don't have it yet.  Create it and upload the glance image to it.
         # Make the image LU only as big as the image.
-        stream = self._get_image_upload(context, img_meta)
+        stream = self._get_image_upload(context, image_meta)
         LOG.info(_LI('SSP: Uploading new image LU %s.'), luname)
         lu, f_wrap = tsk_stg.upload_new_lu(
-            self._any_vios_uuid(), self._ssp, stream, luname, img_meta['size'])
+            self._any_vios_uuid(), self._ssp, stream, luname, image_meta.size)
         return lu
 
     def get_disk_ref(self, instance, disk_type):

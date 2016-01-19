@@ -18,6 +18,7 @@ import mock
 
 from nova import test
 
+from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 
@@ -40,8 +41,7 @@ class TestDiskAdapter(test.TestCase):
 
     def test_get_image_upload(self):
         # Test if there is an ID, that we get a file adapter back
-        img_meta = {'id': 'test_id'}
-        temp = self.st_adpt._get_image_upload(mock.Mock(), img_meta)
+        temp = self.st_adpt._get_image_upload(mock.Mock(), powervm.TEST_IMAGE1)
         self.assertIsInstance(temp, disk_dvr.IterableToFileAdapter)
 
     def test_get_info(self):

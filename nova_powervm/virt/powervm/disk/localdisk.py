@@ -166,13 +166,14 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
                 'vios_name': vios_uuid})
 
-    def create_disk_from_image(self, context, instance, image, disk_size,
+    def create_disk_from_image(self, context, instance, image_meta, disk_size,
                                image_type=disk_dvr.DiskType.BOOT):
         """Creates a disk and copies the specified image to it.
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
-        :param image: image dict used to locate the image in glance
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
         :param disk_size: The size of the disk to create in GB.  If smaller
                           than the image, it will be ignored (as the disk
                           must be at least as big as the image).  Must be an
@@ -183,11 +184,11 @@ class LocalStorage(disk_dvr.DiskAdapter):
         LOG.info(_LI('Create disk.'))
 
         # Transfer the image
-        stream = self._get_image_upload(context, image)
+        stream = self._get_image_upload(context, image_meta)
         vol_name = self._get_disk_name(image_type, instance, short=True)
 
         # Disk size to API is in bytes.  Input from method is in Gb
-        disk_bytes = self._disk_gb_to_bytes(disk_size, floor=image['size'])
+        disk_bytes = self._disk_gb_to_bytes(disk_size, floor=image_meta.size)
 
         # This method will create a new disk at our specified size.  It will
         # then put the image in the disk.  If the disk is bigger, user can
@@ -196,7 +197,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # enough to support the image (up to 1 Gb boundary).
         vdisk, f_wrap = tsk_stg.upload_new_vdisk(
             self.adapter, self._vios_uuid, self.vg_uuid, stream, vol_name,
-            image['size'], d_size=disk_bytes)
+            image_meta.size, d_size=disk_bytes)
 
         return vdisk
 

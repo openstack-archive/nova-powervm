@@ -24,6 +24,7 @@ from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm.disk import localdisk as ld
@@ -75,16 +76,16 @@ class TestLocalDisk(test.TestCase):
     @mock.patch('nova.image.API')
     def test_create_disk_from_image(self, mock_img_api, mock_file_adpt,
                                     mock_upload_vdisk):
-        mock_img = {'id': 'fake_id', 'size': 50}
         mock_upload_vdisk.return_value = ('vdisk', None)
         inst = mock.Mock()
         inst.name = 'Inst Name'
         inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
 
         vdisk = self.get_ls(self.apt).create_disk_from_image(
-            None, inst, mock_img, 20)
+            None, inst, powervm.TEST_IMAGE1, 20)
         mock_upload_vdisk.assert_called_with(mock.ANY, mock.ANY, mock.ANY,
-                                             mock.ANY, 'b_Inst_Nam_d506', 50,
+                                             mock.ANY, 'b_Inst_Nam_d506',
+                                             powervm.TEST_IMAGE1.size,
                                              d_size=21474836480)
         self.assertEqual('vdisk', vdisk)
 

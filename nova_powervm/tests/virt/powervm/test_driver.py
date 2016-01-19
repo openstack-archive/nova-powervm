@@ -1093,7 +1093,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Invoke the method.
         self.drv.rescue('context', inst, mock.MagicMock(),
-                        mock.MagicMock(), 'rescue_psswd')
+                        powervm.TEST_IMAGE1, 'rescue_psswd')
 
         self.assertTrue(mock_task_vm.power_off.called)
         self.assertTrue(self.drv.disk_dvr.create_disk_from_image.called)
