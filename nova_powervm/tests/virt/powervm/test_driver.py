@@ -28,6 +28,7 @@ from nova.objects import block_device as bdmobj
 from nova import test
 from nova.tests.unit import fake_instance
 from nova.virt import block_device as nova_virt_bdm
+from nova.virt import driver as virt_driver
 from nova.virt import fake
 import pypowervm.adapter as pvm_adp
 import pypowervm.exceptions as pvm_exc
@@ -169,6 +170,39 @@ class TestPowerVMDriver(test.TestCase):
             mock_inst_exists.side_effect = [True, False]
             self.assertTrue(self.drv.instance_exists(mock.Mock()))
             self.assertFalse(self.drv.instance_exists(mock.Mock()))
+
+    def test_instance_on_disk(self):
+        """Validates the instance_on_disk method."""
+
+        @mock.patch.object(self.drv, '_is_booted_from_volume')
+        @mock.patch.object(self.drv, '_get_block_device_info')
+        @mock.patch.object(self.disk_dvr, 'capabilities')
+        @mock.patch.object(self.disk_dvr, 'get_disk_ref')
+        def inst_on_disk(mock_disk_ref, mock_capb, mock_block, mock_boot):
+            # Test boot from volume.
+            mock_boot.return_value = True
+            self.assertTrue(self.drv.instance_on_disk(self.inst))
+
+            mock_boot.return_value = False
+            # Disk driver is shared storage and can find the disk
+            mock_capb['shared_storage'] = True
+            mock_disk_ref.return_value = 'disk_reference'
+            self.assertTrue(self.drv.instance_on_disk(self.inst))
+
+            # Disk driver can't find it
+            mock_disk_ref.return_value = None
+            self.assertFalse(self.drv.instance_on_disk(self.inst))
+
+            # Disk driver exception
+            mock_disk_ref.side_effect = ValueError('Bad disk')
+            self.assertFalse(self.drv.instance_on_disk(self.inst))
+            mock_disk_ref.side_effect = None
+
+            # Not on shared storage
+            mock_capb['shared_storage'] = False
+            self.assertFalse(self.drv.instance_on_disk(self.inst))
+
+        inst_on_disk()
 
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
                 'CreateAndConnectCfgDrive.execute')
@@ -403,6 +437,49 @@ class TestPowerVMDriver(test.TestCase):
         # Make sure the BDM save was invoked twice.
         self.assertEqual(2, mock_save.call_count)
 
+        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
+                'CreateAndConnectCfgDrive.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume'
+                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.FindDisk'
+                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
+    @mock.patch('nova.virt.configdrive.required_by')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('pypowervm.tasks.power.power_on')
+    def test_spawn_recreate(
+        self, mock_pwron, mock_get_flv, mock_cfg_drv, mock_plug_vifs,
+        mock_plug_mgmt_vif, mock_boot_from_vol, mock_find_disk,
+        mock_conn_vol, mock_crt_cfg_drv):
+        """Validates the 'recreate' spawn flow.
+
+        Uses a basic disk image, attaching networks and powering on.
+        """
+        # Set up the mocks to the tasks.
+        mock_get_flv.return_value = self.inst.get_flavor()
+        mock_cfg_drv.return_value = False
+        mock_boot_from_vol.return_value = False
+        self.inst.task_state = task_states.REBUILD_SPAWNING
+        # Invoke the method.
+        self.drv.spawn('context', self.inst, powervm.EMPTY_IMAGE,
+                       'injected_files', 'admin_password')
+
+        # Assert the correct tasks were called
+        self.assertTrue(mock_plug_vifs.called)
+        self.assertTrue(mock_plug_mgmt_vif.called)
+        self.assertTrue(mock_find_disk.called)
+        self.crt_lpar.assert_called_with(
+            self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor())
+        self.assertTrue(mock_pwron.called)
+        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        # Assert that tasks that are not supposed to be called are not called
+        self.assertFalse(mock_conn_vol.called)
+        self.assertFalse(mock_crt_cfg_drv.called)
         self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
@@ -1481,3 +1558,10 @@ class TestPowerVMDriver(test.TestCase):
             drivers = self.drv._build_vol_drivers('context', 'instance')
 
         self.assertEqual(['drv0', 'drv1'], drivers)
+
+    @mock.patch.object(objects.BlockDeviceMappingList, 'get_by_instance_uuid')
+    @mock.patch.object(virt_driver, 'get_block_device_info')
+    def test_get_block_device_info(self, mock_bk_dev, mock_bdml):
+        mock_bk_dev.return_value = 'info'
+        self.assertEqual('info',
+                         self.drv._get_block_device_info('ctx', self.inst))
