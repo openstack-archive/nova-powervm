@@ -1,5 +1,5 @@
 ..
-      Copyright 2015 IBM
+      Copyright 2015, 2016 IBM
       All Rights Reserved.
 
       Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -35,7 +35,7 @@ configured ahead of time.
 Configuration File Options
 --------------------------
 The standard nova configuration options are supported.  Additionally, a
-[powervm] section is used to provide additional customization to the driver.
+``[powervm]`` section is used to provide additional customization to the driver.
 
 By default, no additional inputs are needed.  The base configuration allows for
 a Nova driver to support ephemeral disks to a local volume group (only
@@ -44,11 +44,17 @@ hosted disks via Cinder will use the Virtual SCSI connections through the
 Virtual I/O Servers.
 
 Operators may change the disk driver (nova based disks - NOT Cinder) via the
-disk_driver property.
+``disk_driver`` property.
 
-All of these values are under the [powervm] section.  The tables are broken
+All of these values are under the ``[powervm]`` section.  The tables are broken
 out into logical sections.
 
+To generate a sample config file for ``[powervm]`` run::
+
+  oslo-config-generator --namespace nova_powervm > nova_powervm_sample.conf
+
+The ``[powervm]`` section of the sample can then be edited and pasted into the
+full nova.conf file.
 
 VM Processor Options
 ~~~~~~~~~~~~~~~~~~~~
