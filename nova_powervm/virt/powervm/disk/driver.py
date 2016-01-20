@@ -238,10 +238,11 @@ class DiskAdapter(object):
         built for the invoker.
 
         :param context: User context
-        :param image_meta: The image metadata.
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
         :return: The stream to send to pypowervm.
         """
-        chunks = self.image_api.download(context, image_meta['id'])
+        chunks = self.image_api.download(context, image_meta.id)
         return IterableToFileAdapter(chunks)
 
     @staticmethod
@@ -265,7 +266,7 @@ class DiskAdapter(object):
     @staticmethod
     def _get_image_name(image_meta):
         """Generate a name for a virtual storage copy of an image."""
-        return pvm_util.sanitize_file_name_for_api(image_meta['name'],
+        return pvm_util.sanitize_file_name_for_api(image_meta.name,
                                                    prefix=DiskType.IMAGE + '_')
 
     @staticmethod
@@ -320,7 +321,8 @@ class DiskAdapter(object):
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
-        :param image_meta: dict identifying the image in glance
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
         :param disk_size: The size of the disk to create in GB.  If smaller
                           than the image, it will be ignored (as the disk
                           must be at least as big as the image).  Must be an

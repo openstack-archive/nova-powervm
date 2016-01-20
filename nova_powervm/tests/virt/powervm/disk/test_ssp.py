@@ -28,6 +28,7 @@ from pypowervm.wrappers import cluster as pvm_clust
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm.disk import ssp
@@ -304,17 +305,14 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('nova.image.API')
     def test_create_disk_from_new_image(self, mock_img_api, mock_it2fadp,
                                         mock_upload_lu, mock_crt_lnk_cln):
-        b1G = 1024 * 1024 * 1024
-        b2G = 2 * b1G
         ssp_stor = self._get_ssp_stor()
-        img = dict(name='image-name', id='image-id', size=b2G)
 
         def verify_upload_new_lu(vios_uuid, ssp1, stream, lu_name, f_size):
             self.assertIn(vios_uuid, ssp_stor.vios_uuids)
             self.assertEqual(ssp_stor._ssp_wrap, ssp1)
-            # 'image' + '_' + s/-/_/g(image['id']), per _get_image_name
-            self.assertEqual('image_image_name', lu_name)
-            self.assertEqual(b2G, f_size)
+            # 'image' + '_' + s/-/_/g(image.name), per _get_image_name
+            self.assertEqual('image_' + powervm.TEST_IMAGE1.name, lu_name)
+            self.assertEqual(powervm.TEST_IMAGE1.size, f_size)
             return 'image_lu', None
 
         def verify_create_lu_linked_clone(ssp1, clust1, imglu, lu_name, sz_gb):
@@ -325,7 +323,8 @@ class TestSSPDiskAdapter(test.TestCase):
 
         mock_upload_lu.side_effect = verify_upload_new_lu
         mock_crt_lnk_cln.side_effect = verify_create_lu_linked_clone
-        lu = ssp_stor.create_disk_from_image(None, self.instance, img, 1)
+        lu = ssp_stor.create_disk_from_image(None, self.instance,
+                                             powervm.TEST_IMAGE1, 1)
         self.assertEqual('new_lu', lu)
 
     @mock.patch('pypowervm.tasks.storage.crt_lu_linked_clone')
@@ -333,12 +332,9 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('nova.image.API')
     def test_create_disk_from_existing_image(self, mock_img_api, mock_it2fadp,
                                              mock_crt_lnk_cln):
-        b1G = 1024 * 1024 * 1024
-        b2G = 2 * b1G
         ssp_stor = self._get_ssp_stor()
-        img = dict(name='image-name', id='image-id', size=b2G)
         # Mock the 'existing' image LU
-        img_lu = pvm_stg.LU.bld(None, 'image_image_name', 123,
+        img_lu = pvm_stg.LU.bld(None, 'image_' + powervm.TEST_IMAGE1.name, 123,
                                 typ=pvm_stg.LUType.IMAGE)
         ssp_stor._ssp_wrap.logical_units.append(img_lu)
 
@@ -353,7 +349,8 @@ class TestSSPDiskAdapter(test.TestCase):
             return ssp1, 'new_lu'
 
         mock_crt_lnk_cln.side_effect = verify_create_lu_linked_clone
-        lu = ssp_stor.create_disk_from_image(None, Instance(), img, 1)
+        lu = ssp_stor.create_disk_from_image(
+            None, Instance(), powervm.TEST_IMAGE1, 1)
         self.assertEqual('new_lu', lu)
 
     def test_find_lu(self):

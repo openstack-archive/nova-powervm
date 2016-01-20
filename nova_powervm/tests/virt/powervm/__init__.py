@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nova import objects
 from nova.objects import flavor
 import os
 import sys
@@ -56,6 +57,16 @@ TEST_MIGRATION_SAME_HOST = {
     'old_instance_type_id': 1,
     'new_instance_type_id': 2,
 }
+
+IMAGE1 = {
+    'id': 1,
+    'name': 'image1',
+    'size': 300,
+    'container_format': 'bare',
+    'disk_format': 'raw'
+
+}
+TEST_IMAGE1 = objects.ImageMeta.from_dict(IMAGE1)
 
 # NOTE(mikal): All of this is because if dnspython is present in your
 # environment then eventlet monkeypatches socket.getaddrinfo() with an

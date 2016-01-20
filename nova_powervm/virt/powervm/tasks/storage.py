@@ -133,7 +133,8 @@ class CreateDiskForImg(task.Task):
         :param disk_dvr: The storage driver.
         :param context: The context passed into the driver method.
         :param instance: The nova instance.
-        :param image_meta: The image metadata.
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
         :param disk_size: The size of disk to create. If the size is smaller
                           than the image, the image size will be used.
         :param image_type: The image type. See disk/driver.py
