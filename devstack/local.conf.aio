@@ -46,4 +46,4 @@ enable_plugin ceilometer-powervm https://git.openstack.org/openstack/ceilometer-
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
 debug=False
-default_log_levels=nova_powervm=DEBUG,nova=DEBUG,iamqplib=WARN,sqlalchemy=WARN,boto=WARN,suds=INFO,keystone=INFO,eventlet.wsgi.server=WARN
+default_log_levels=nova_powervm=DEBUG,nova=DEBUG,pypowervm=INFO,iamqplib=WARN,sqlalchemy=WARN,boto=WARN,suds=INFO,keystone=INFO,eventlet.wsgi.server=WARN
