@@ -16,7 +16,6 @@
 #
 
 import logging
-
 import mock
 from oslo_serialization import jsonutils
 
@@ -40,7 +39,6 @@ import pypowervm.wrappers.logical_partition as pvm_lpar
 import pypowervm.wrappers.managed_system as pvm_ms
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
-from nova_powervm import conf as cfg
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import driver
@@ -54,13 +52,6 @@ VIOS_HTTPRESP_FILE = "fake_vios_ssp_npiv.txt"
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
-
-CONF = cfg.CONF
-
-
-class FakeClass(object):
-    """Used for the test_inst_dict."""
-    pass
 
 
 class TestPowerVMDriver(test.TestCase):
@@ -80,6 +71,7 @@ class TestPowerVMDriver(test.TestCase):
         self.wrapper = pvm_ms.System.wrap(entries[0])
 
         self.flags(disk_driver='localdisk', group='powervm')
+        self.flags(host='host1', my_ip='127.0.0.1')
         self.drv_fix = self.useFixture(fx.PowerVMComputeDriver())
         self.drv = self.drv_fix.drv
         self.apt = self.drv.adapter
@@ -117,6 +109,11 @@ class TestPowerVMDriver(test.TestCase):
                                  'add_lpar_storage_scrub_tasks')
         self.scrub_stg = scrub_stg_p.start()
         self.addCleanup(scrub_stg_p.stop)
+
+        # Create an instance to test with
+        self.inst = objects.Instance(**powervm.TEST_INST_SPAWNING)
+        self.inst_ibmi = objects.Instance(**powervm.TEST_INST_SPAWNING)
+        self.inst_ibmi.system_metadata = {'image_os_distro': 'ibmi'}
 
     def _setup_lpm(self):
         """Setup the lpm environment.
@@ -195,14 +192,11 @@ class TestPowerVMDriver(test.TestCase):
         Uses a basic disk image, attaching networks and powering on.
         """
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'rhel'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = False
         # Invoke the method.
-        self.drv.spawn('context', inst, mock.Mock(),
+        self.drv.spawn('context', self.inst, powervm.IMAGE1,
                        'injected_files', 'admin_password')
 
         # Assert the correct tasks were called
@@ -210,7 +204,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_plug_mgmt_vif.called)
         self.assertTrue(mock_crt_disk_img.called)
         self.crt_lpar.assert_called_with(
-            self.apt, self.drv.host_wrapper, inst, my_flavor)
+            self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor())
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
         # Assert that tasks that are not supposed to be called are not called
@@ -232,19 +226,16 @@ class TestPowerVMDriver(test.TestCase):
         mock_cfg_vopt, mock_plug_vifs, mock_plug_mgmt_vif):
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'rhel'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = True
 
         # Invoke the method.
-        self.drv.spawn('context', inst, mock.Mock(),
+        self.drv.spawn('context', self.inst, powervm.IMAGE1,
                        'injected_files', 'admin_password')
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         inst, my_flavor)
+                                         self.inst, self.inst.get_flavor())
         # Config drive was called
         self.assertTrue(mock_val_vopt.called)
         self.assertTrue(mock_cfg_vopt.called)
@@ -275,10 +266,7 @@ class TestPowerVMDriver(test.TestCase):
         the BDMs passed in do not have the root device for the instance.
         """
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'rhel'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = False
 
@@ -286,7 +274,7 @@ class TestPowerVMDriver(test.TestCase):
         block_device_info = self._fake_bdms()
 
         # Invoke the method.
-        self.drv.spawn('context', inst, mock.Mock(),
+        self.drv.spawn('context', self.inst, powervm.IMAGE1,
                        'injected_files', 'admin_password',
                        block_device_info=block_device_info)
 
@@ -297,7 +285,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         inst, my_flavor)
+                                         self.inst, self.inst.get_flavor())
         # Power on was called
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
@@ -339,18 +327,14 @@ class TestPowerVMDriver(test.TestCase):
         nova.compute.api.API.snapshot_volume_backed flow produces such images.
         """
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'rhel'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = True
 
         # Create some fake BDMs
         block_device_info = self._fake_bdms()
-        image_meta = {'id': 'imageuuid'}
         # Invoke the method.
-        self.drv.spawn('context', inst, image_meta,
+        self.drv.spawn('context', self.inst, powervm.IMAGE1,
                        'injected_files', 'admin_password',
                        block_device_info=block_device_info)
 
@@ -361,7 +345,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         inst, my_flavor)
+                                         self.inst, self.inst.get_flavor())
         # Power on was called
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
@@ -390,18 +374,14 @@ class TestPowerVMDriver(test.TestCase):
         are given on the create server request.
         """
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'rhel'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = True
 
         # Create some fake BDMs
         block_device_info = self._fake_bdms()
-        image_meta = {}
         # Invoke the method.
-        self.drv.spawn('context', inst, image_meta,
+        self.drv.spawn('context', self.inst, powervm.IMAGE1,
                        'injected_files', 'admin_password',
                        block_device_info=block_device_info)
 
@@ -412,7 +392,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         inst, my_flavor)
+                                         self.inst, self.inst.get_flavor())
         # Power on was called
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
@@ -438,10 +418,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_plug_vifs, mock_plug_mgmt_vifs, mock_save):
         """Validates the PowerVM driver operations.  Will do a rollback."""
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'rhel'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         block_device_info = self._fake_bdms()
 
@@ -449,13 +426,13 @@ class TestPowerVMDriver(test.TestCase):
         mock_pwron.side_effect = exc.Forbidden()
 
         # Invoke the method.
-        self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', inst,
-                          mock.Mock(), 'injected_files', 'admin_password',
+        self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', self.inst,
+                          powervm.IMAGE1, 'injected_files', 'admin_password',
                           block_device_info=block_device_info)
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         inst, my_flavor)
+                                         self.inst, self.inst.get_flavor())
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
         # Power on was called
@@ -487,18 +464,14 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the PowerVM spawn to create an IBMi server.
         """
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'ibmi'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst_ibmi.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = True
         mock_boot_conn_type.return_value = 'vscsi'
         # Create some fake BDMs
         block_device_info = self._fake_bdms()
-        image_meta = {}
         # Invoke the method.
-        self.drv.spawn('context', inst, image_meta,
+        self.drv.spawn('context', self.inst_ibmi, powervm.IMAGE1,
                        'injected_files', 'admin_password',
                        block_device_info=block_device_info)
 
@@ -509,7 +482,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         inst, my_flavor)
+                                         self.inst_ibmi,
+                                         self.inst_ibmi.get_flavor())
 
         self.assertTrue(mock_boot_conn_type.called)
         self.assertTrue(mock_update_lod_src.called)
@@ -551,15 +525,12 @@ class TestPowerVMDriver(test.TestCase):
         and powering on.
         """
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'ibmi'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst_ibmi.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = False
         mock_boot_conn_type.return_value = 'vscsi'
         # Invoke the method.
-        self.drv.spawn('context', inst, mock.Mock(),
+        self.drv.spawn('context', self.inst_ibmi, powervm.IMAGE1,
                        'injected_files', 'admin_password')
 
         # Assert the correct tasks were called
@@ -567,7 +538,8 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_plug_mgmt_vif.called)
         self.assertTrue(mock_crt_disk_img.called)
         self.crt_lpar.assert_called_with(
-            self.apt, self.drv.host_wrapper, inst, my_flavor)
+            self.apt, self.drv.host_wrapper, self.inst_ibmi,
+            self.inst_ibmi.get_flavor())
         self.assertTrue(mock_update_lod_src.called)
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
@@ -589,23 +561,20 @@ class TestPowerVMDriver(test.TestCase):
         mock_plug_mgmt_vifs, mock_crt_disk, mock_delete_disks):
         """Validates the rollback if failure occurs on disk create."""
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'rhel'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
 
         # Make sure power on fails.
         mock_crt_disk.side_effect = exc.Forbidden()
 
         # Invoke the method.
-        self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', inst,
-                          mock.Mock(), 'injected_files', 'admin_password',
+        self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', self.inst,
+                          powervm.IMAGE1, 'injected_files', 'admin_password',
                           block_device_info=None)
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         inst, my_flavor)
+                                         self.inst, self.inst.get_flavor())
 
         # Since the create disks method failed, the delete disks should not
         # have been called
@@ -624,10 +593,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_plug_vifs, mock_plug_mgmt_vifs, mock_save):
         """Validates the rollbacks on a volume connect failure."""
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.system_metadata = {'image_os_distro': 'rhel'}
-        my_flavor = inst.get_flavor()
-        mock_get_flv.return_value = my_flavor
+        mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         block_device_info = self._fake_bdms()
 
@@ -635,16 +601,16 @@ class TestPowerVMDriver(test.TestCase):
         # not block the rollback.
         self.vol_drv.connect_volume.side_effect = exc.Forbidden()
         self.vol_drv.disconnect_volume.side_effect = p_exc.VolumeDetachFailed(
-            volume_id='1', instance_name=inst.name, reason='Test Case')
+            volume_id='1', instance_name=self.inst.name, reason='Test Case')
 
         # Invoke the method.
-        self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', inst,
-                          mock.Mock(), 'injected_files', 'admin_password',
+        self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', self.inst,
+                          powervm.IMAGE1, 'injected_files', 'admin_password',
                           block_device_info=block_device_info)
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         inst, my_flavor)
+                                         self.inst, self.inst.get_flavor())
         self.assertEqual(1, self.vol_drv.connect_volume.call_count)
 
         # Power on should not be called.  Shouldn't get that far in flow.
@@ -728,19 +694,15 @@ class TestPowerVMDriver(test.TestCase):
         self, mock_get_flv, mock_pvmuuid, mock_val_vopt, mock_dlt_vopt,
         mock_pwroff, mock_dlt, mock_boot_from_vol):
         """Validates the basic PowerVM destroy."""
-        # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.task_state = None
-
         # BDMs
         mock_bdms = self._fake_bdms()
         mock_boot_from_vol.return_value = False
         # Invoke the method.
-        self.drv.destroy('context', inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, mock.Mock(),
                          block_device_info=mock_bdms)
 
         # Power off was called
-        mock_pwroff.assert_called_with(self.drv.adapter, inst,
+        mock_pwroff.assert_called_with(self.drv.adapter, self.inst,
                                        self.drv.host_uuid,
                                        force_immediate=True)
 
@@ -786,7 +748,7 @@ class TestPowerVMDriver(test.TestCase):
         self.drv.disk_dvr.disconnect_image_disk.reset_mock()
 
         # Invoke the method.
-        self.drv.destroy('context', inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, mock.Mock(),
                          block_device_info=mock_bdms)
 
         # Validate root device in bdm was checked.
@@ -803,20 +765,21 @@ class TestPowerVMDriver(test.TestCase):
         self.drv.disk_dvr.disconnect_image_disk.reset_mock()
 
         # Invoke the method.
-        self.drv.destroy('context', inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, mock.Mock(),
                          block_device_info=mock_bdms, destroy_disks=False)
 
-        mock_pwroff.assert_called_with(self.drv.adapter, inst,
+        mock_pwroff.assert_called_with(self.drv.adapter, self.inst,
                                        self.drv.host_uuid,
                                        force_immediate=False)
 
         # Start negative tests
         reset_mocks()
         # Pretend we didn't find the VM on the system
-        mock_pvmuuid.side_effect = exc.InstanceNotFound(instance_id=inst.name)
+        mock_pvmuuid.side_effect = exc.InstanceNotFound(
+            instance_id=self.inst.name)
 
         # Invoke the method.
-        self.drv.destroy('context', inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, mock.Mock(),
                          block_device_info=mock_bdms)
         assert_not_called()
 
@@ -828,7 +791,7 @@ class TestPowerVMDriver(test.TestCase):
             '5-E6FB905161A3?group=None')
         mock_pvmuuid.side_effect = pvm_exc.HttpError(mock_resp)
         # Invoke the method.
-        self.drv.destroy('context', inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, mock.Mock(),
                          block_device_info=mock_bdms)
         assert_not_called()
 
@@ -840,7 +803,7 @@ class TestPowerVMDriver(test.TestCase):
             '5-E6FB905161A3?group=None')
         # Invoke the method.
         self.assertRaises(exc.InstanceTerminationFailure,
-                          self.drv.destroy, 'context', inst,
+                          self.drv.destroy, 'context', self.inst,
                           mock.Mock(), block_device_info=mock_bdms)
         assert_not_called()
 
@@ -848,7 +811,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_pvmuuid.side_effect = ValueError('Some error')
         # Invoke the method.
         self.assertRaises(exc.InstanceTerminationFailure,
-                          self.drv.destroy, 'context', inst,
+                          self.drv.destroy, 'context', self.inst,
                           mock.Mock(), block_device_info=mock_bdms)
         assert_not_called()
 
@@ -856,74 +819,62 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
     def test_destroy(self, mock_getqp, mock_getuuid):
         """Validates the basic PowerVM destroy."""
-        # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.task_state = None
-
         # BDMs
         mock_bdms = self._fake_bdms()
 
         with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
             # Invoke the method.
-            self.drv.destroy('context', inst, mock.Mock(),
+            self.drv.destroy('context', self.inst, mock.Mock(),
                              block_device_info=mock_bdms)
         mock_dst_int.assert_called_with(
-            'context', inst, block_device_info=mock_bdms, destroy_disks=True,
-            shutdown=True)
+            'context', self.inst, block_device_info=mock_bdms,
+            destroy_disks=True, shutdown=True)
 
         # Test delete during migrate / resize
-        inst.task_state = task_states.RESIZE_REVERTING
-        mock_getqp.return_value = ('resize_' + inst.name)[:31]
+        self.inst.task_state = task_states.RESIZE_REVERTING
+        mock_getqp.return_value = ('resize_' + self.inst.name)[:31]
         with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
             # Invoke the method.
-            self.drv.destroy('context', inst, mock.Mock(),
+            self.drv.destroy('context', self.inst, mock.Mock(),
                              block_device_info=mock_bdms)
         # We shouldn't delete our resize_ instances
         mock_dst_int.assert_not_called()
 
         # Now test migrating...
-        mock_getqp.return_value = ('migrate_' + inst.name)[:31]
+        mock_getqp.return_value = ('migrate_' + self.inst.name)[:31]
         with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
             # Invoke the method.
-            self.drv.destroy('context', inst, mock.Mock(),
+            self.drv.destroy('context', self.inst, mock.Mock(),
                              block_device_info=mock_bdms)
         # If it is a migrated instance, it should be deleted.
         mock_dst_int.assert_called_with(
-            'context', inst, block_device_info=mock_bdms, destroy_disks=True,
-            shutdown=True)
+            'context', self.inst, block_device_info=mock_bdms,
+            destroy_disks=True, shutdown=True)
 
     def test_attach_volume(self):
         """Validates the basic PowerVM attach volume."""
-        # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.task_state = None
-        inst.save = mock.Mock()
-
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
 
-        # Invoke the method.
-        self.drv.attach_volume('context', mock_bdm.get('connection_info'),
-                               inst, mock.Mock())
+        with mock.patch.object(self.inst, 'save') as mock_save:
+            # Invoke the method.
+            self.drv.attach_volume('context', mock_bdm.get('connection_info'),
+                                   self.inst, mock.Mock())
 
         # Verify the connect volume was invoked
         self.assertEqual(1, self.vol_drv.connect_volume.call_count)
-        self.assertTrue(inst.save.called)
+        self.assertTrue(mock_save.called)
 
     @mock.patch('nova_powervm.virt.powervm.vm.instance_exists')
     def test_detach_volume(self, mock_inst_exists):
         """Validates the basic PowerVM detach volume."""
-        # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.task_state = None
-
         # Mock that the instance exists for the first test, then not.
         mock_inst_exists.side_effect = [True, False, False]
 
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
         # Invoke the method, good path test.
-        self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
+        self.drv.detach_volume(mock_bdm.get('connection_info'), self.inst,
                                mock.Mock())
 
         # Verify the disconnect volume was invoked
@@ -931,17 +882,17 @@ class TestPowerVMDriver(test.TestCase):
 
         # Invoke the method, instance doesn't exist, no migration
         self.vol_drv.disconnect_volume.reset_mock()
-        self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
+        self.drv.detach_volume(mock_bdm.get('connection_info'), self.inst,
                                mock.Mock())
         # Verify the disconnect volume was not invoked
         self.assertEqual(0, self.vol_drv.disconnect_volume.call_count)
 
         # Test instance doesn't exist, migration cleanup
         self.vol_drv.disconnect_volume.reset_mock()
-        mig = lpm.LiveMigrationDest(self.drv, inst)
-        self.drv.live_migrations[inst.uuid] = mig
+        mig = lpm.LiveMigrationDest(self.drv, self.inst)
+        self.drv.live_migrations[self.inst.uuid] = mig
         with mock.patch.object(mig, 'cleanup_volume') as mock_clnup:
-            self.drv.detach_volume(mock_bdm.get('connection_info'), inst,
+            self.drv.detach_volume(mock_bdm.get('connection_info'), self.inst,
                                    mock.Mock())
         # The cleanup should have been called since there was a migration
         self.assertEqual(1, mock_clnup.call_count)
@@ -960,9 +911,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_dlt):
         """Validates the basic PowerVM destroy rollback mechanism works."""
         # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst.task_state = None
-        mock_get_flv.return_value = inst.get_flavor()
+        mock_get_flv.return_value = self.inst.get_flavor()
 
         # BDMs
         mock_bdms = self._fake_bdms()
@@ -973,11 +922,11 @@ class TestPowerVMDriver(test.TestCase):
         # Have the connect volume fail on the rollback.  Should not block the
         # full rollback.
         self.vol_drv.connect_volume.side_effect = p_exc.VolumeAttachFailed(
-            volume_id='1', instance_name=inst.name, reason='Test Case')
+            volume_id='1', instance_name=self.inst.name, reason='Test Case')
 
         # Invoke the method.
         self.assertRaises(exc.InstanceTerminationFailure, self.drv.destroy,
-                          'context', inst, mock.Mock(),
+                          'context', self.inst, mock.Mock(),
                           block_device_info=mock_bdms)
 
         # Validate that the vopt delete was called
@@ -995,7 +944,6 @@ class TestPowerVMDriver(test.TestCase):
     def test_migrate_disk_and_power_off(self):
         """Validates the PowerVM driver migrate / resize operation."""
         # Set up the mocks to the migrate / resize operation.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
         host = self.drv.get_host_ip_addr()
         resp = pvm_adp.Response('method', 'path', 'status', 'reason', {})
         resp.entry = pvm_lpar.LPAR._bld(None).entry
@@ -1008,7 +956,8 @@ class TestPowerVMDriver(test.TestCase):
         small_root = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=9)
         self.assertRaises(
             exc.InstanceFaultRollback, self.drv.migrate_disk_and_power_off,
-            'context', inst, 'dest', small_root, 'network_info', mock_bdms)
+            'context', self.inst, 'dest', small_root, 'network_info',
+            mock_bdms)
 
         # Boot disk resize
         boot_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=12)
@@ -1023,7 +972,8 @@ class TestPowerVMDriver(test.TestCase):
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
             self.drv.migrate_disk_and_power_off(
-                'context', inst, host, boot_flav, 'network_info', mock_bdms)
+                'context', self.inst, host, boot_flav, 'network_info',
+                mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
             # Check the size set in the resize task
             extend_task = taskflow_fix.tasks_added[1]
@@ -1031,7 +981,6 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_finish_migration(self, mock_get_flv):
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
         mock_bdms = self._fake_bdms()
         mig = objects.Migration(**powervm.TEST_MIGRATION)
         mig_same_host = objects.Migration(**powervm.TEST_MIGRATION_SAME_HOST)
@@ -1040,8 +989,8 @@ class TestPowerVMDriver(test.TestCase):
         # The first test is different hosts but local storage, should fail
         self.assertRaises(exc.InstanceFaultRollback,
                           self.drv.finish_migration,
-                          'context', mig, inst, disk_info, 'network_info',
-                          'image_meta', 'resize_instance', mock_bdms)
+                          'context', mig, self.inst, disk_info, 'network_info',
+                          powervm.IMAGE1, 'resize_instance', mock_bdms)
 
         # The rest of the test need to pass the shared disk test
         self.disk_dvr.validate.return_value = None
@@ -1063,8 +1012,8 @@ class TestPowerVMDriver(test.TestCase):
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
             self.drv.finish_migration(
-                'context', mig, inst, disk_info, 'network_info', 'image_meta',
-                'resize_instance', block_device_info=mock_bdms)
+                'context', mig, self.inst, disk_info, 'network_info',
+                powervm.IMAGE1, 'resize_instance', block_device_info=mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
 
         # Tasks expected to be added for resize to the same host
@@ -1080,8 +1029,8 @@ class TestPowerVMDriver(test.TestCase):
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
             self.drv.finish_migration(
-                'context', mig_same_host, inst, disk_info, 'network_info',
-                'image_meta', 'resize_instance', block_device_info=mock_bdms)
+                'context', mig_same_host, self.inst, disk_info, 'network_info',
+                powervm.IMAGE1, 'resize_instance', block_device_info=mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
 
         # Tasks expected to be added for resize to the same host, no BDMS,
@@ -1091,8 +1040,8 @@ class TestPowerVMDriver(test.TestCase):
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
             self.drv.finish_migration(
-                'context', mig_same_host, inst, disk_info, 'network_info',
-                'image_meta', 'resize_instance', power_on=False)
+                'context', mig_same_host, self.inst, disk_info, 'network_info',
+                powervm.IMAGE1, 'resize_instance', power_on=False)
             taskflow_fix.assert_tasks_added(self, expected)
 
     @mock.patch('nova_powervm.virt.powervm.driver.vm')
@@ -1100,17 +1049,14 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.power')
     def test_rescue(self, mock_task_pwr, mock_task_vm, mock_dvr_vm):
         """Validates the PowerVM driver rescue operation."""
-        # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        self.drv.disk_dvr = mock.Mock()
-
-        # Invoke the method.
-        self.drv.rescue('context', inst, mock.MagicMock(),
-                        powervm.TEST_IMAGE1, 'rescue_psswd')
+        with mock.patch.object(self.drv, 'disk_dvr') as mock_disk_dvr:
+            # Invoke the method.
+            self.drv.rescue('context', self.inst, mock.MagicMock(),
+                            powervm.TEST_IMAGE1, 'rescue_psswd')
 
         self.assertTrue(mock_task_vm.power_off.called)
-        self.assertTrue(self.drv.disk_dvr.create_disk_from_image.called)
-        self.assertTrue(self.drv.disk_dvr.connect_disk.called)
+        self.assertTrue(mock_disk_dvr.create_disk_from_image.called)
+        self.assertTrue(mock_disk_dvr.connect_disk.called)
         self.assertTrue(mock_task_pwr.power_on.called)
         self.assertFalse(mock_task_pwr.power_on.call_args[1]['synchronous'])
 
@@ -1119,26 +1065,20 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.power')
     def test_unrescue(self, mock_task_pwr, mock_task_vm, mock_dvr_vm):
         """Validates the PowerVM driver rescue operation."""
-        # Set up the mocks to the tasks.
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        self.drv.disk_dvr = mock.Mock()
-
-        # Invoke the method.
-        self.drv.unrescue(inst, 'network_info')
+        with mock.patch.object(self.drv, 'disk_dvr') as mock_disk_dvr:
+            # Invoke the method.
+            self.drv.unrescue(self.inst, 'network_info')
 
         self.assertTrue(mock_task_vm.power_off.called)
-        self.assertTrue(self.drv.disk_dvr.disconnect_image_disk.called)
-        self.assertTrue(self.drv.disk_dvr.delete_disks.called)
+        self.assertTrue(mock_disk_dvr.disconnect_image_disk.called)
+        self.assertTrue(mock_disk_dvr.delete_disks.called)
         self.assertTrue(mock_task_pwr.power_on.called)
         self.assertFalse(mock_task_pwr.power_on.call_args[1]['synchronous'])
 
-    @mock.patch('nova_powervm.virt.powervm.driver.LOG')
+    @mock.patch.object(driver, 'LOG')
     def test_log_op(self, mock_log):
         """Validates the log_operations."""
-        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-
-        drv._log_operation('fake_op', inst)
+        self.drv._log_operation('fake_op', self.inst)
         entry = (r'Operation: %(op)s. Virtual machine display '
                  'name: %(display_name)s, name: %(name)s, '
                  'UUID: %(uuid)s')
@@ -1171,8 +1111,6 @@ class TestPowerVMDriver(test.TestCase):
     def test_plug_vifs(
         self, mock_vm_get, mock_vm_crt, mock_get_rmc_vswitch, mock_crt_rmc_vif,
         mock_can_modify_io):
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-
         # Mock up the CNA response
         cnas = [mock.MagicMock(), mock.MagicMock()]
         cnas[0].mac = 'AABBCCDDEEFF'
@@ -1195,7 +1133,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_get_rmc_vswitch.return_value = vswitch_w
 
         # Run method
-        self.drv.plug_vifs(inst, net_info)
+        self.drv.plug_vifs(self.inst, net_info)
 
         # The create should have only been called once.  The other was already
         # existing.
@@ -1204,34 +1142,30 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get')
     def test_plug_vif_failures(self, mock_vm):
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-
         # Test instance not found handling
         mock_vm.execute.side_effect = exc.InstanceNotFound(
-            instance_id=inst)
+            instance_id=self.inst)
 
         # Run method
         self.assertRaises(exc.VirtualInterfacePlugException,
-                          self.drv.plug_vifs, inst, {})
+                          self.drv.plug_vifs, self.inst, {})
 
         # Test a random Exception
         mock_vm.execute.side_effect = ValueError()
 
         # Run method
         self.assertRaises(exc.VirtualInterfacePlugException,
-                          self.drv.plug_vifs, inst, {})
+                          self.drv.plug_vifs, self.inst, {})
 
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get')
     def test_unplug_vif_failures(self, mock_vm):
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-
         # Test instance not found handling
         mock_vm.execute.side_effect = exc.InstanceNotFound(
-            instance_id=inst)
+            instance_id=self.inst)
 
         # Run method
         self.assertRaises(exc.InterfaceDetachFailed,
-                          self.drv.unplug_vifs, inst, {})
+                          self.drv.unplug_vifs, self.inst, {})
 
     def test_extract_bdm(self):
         """Tests the _extract_bdm method."""
@@ -1241,16 +1175,8 @@ class TestPowerVMDriver(test.TestCase):
         fake_bdi = {'block_device_mapping': ['content']}
         self.assertListEqual(['content'], self.drv._extract_bdm(fake_bdi))
 
-    def test_inst_dict(self):
-        """Tests the _inst_dict method."""
-        class_name = 'nova_powervm.tests.virt.powervm.test_driver.FakeClass'
-        inst_dict = driver._inst_dict({'test': class_name})
-
-        self.assertEqual(1, len(inst_dict.keys()))
-        self.assertIsInstance(inst_dict['test'], FakeClass)
-
     def test_get_host_ip_addr(self):
-        self.assertEqual(self.drv.get_host_ip_addr(), CONF.my_ip)
+        self.assertEqual(self.drv.get_host_ip_addr(), '127.0.0.1')
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG.warning')
     @mock.patch('nova.compute.utils.get_machine_ips')
@@ -1281,16 +1207,15 @@ class TestPowerVMDriver(test.TestCase):
     def test_reboot(self, mock_pwroff, mock_pwron):
         entry = mock.Mock()
         self.get_inst_wrap.return_value = entry
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         # VM is in 'not activated' state
         # Validate SOFT vs HARD and power_on called with each.
         entry.state = pvm_bp.LPARState.NOT_ACTIVATED
-        self.assertTrue(self.drv.reboot('context', inst, None, 'SOFT'))
+        self.assertTrue(self.drv.reboot('context', self.inst, None, 'SOFT'))
         # Make sure power off is not called
         self.assertEqual(0, mock_pwroff.call_count)
         mock_pwron.assert_called_with(entry, self.drv.host_uuid)
-        self.assertTrue(self.drv.reboot('context', inst, None, 'HARD'))
+        self.assertTrue(self.drv.reboot('context', self.inst, None, 'HARD'))
         # Make sure power off is not called
         self.assertEqual(0, mock_pwroff.call_count)
         self.assertEqual(2, mock_pwron.call_count)
@@ -1300,12 +1225,12 @@ class TestPowerVMDriver(test.TestCase):
         # reset mock_pwron
         mock_pwron.reset_mock()
         entry.state = 'whatever'
-        self.assertTrue(self.drv.reboot('context', inst, None, 'SOFT'))
+        self.assertTrue(self.drv.reboot('context', self.inst, None, 'SOFT'))
         mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
                                        restart=True,
                                        force_immediate=False)
         self.assertEqual(0, mock_pwron.call_count)
-        self.assertTrue(self.drv.reboot('context', inst, None, 'HARD'))
+        self.assertTrue(self.drv.reboot('context', self.inst, None, 'HARD'))
         mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
                                        restart=True,
                                        force_immediate=True)
@@ -1317,14 +1242,14 @@ class TestPowerVMDriver(test.TestCase):
         mock_pwroff.side_effect = pvm_exc.VMPowerOffFailure(lpar_nm='lpar',
                                                             reason='reason')
         self.assertRaises(pvm_exc.VMPowerOffFailure, self.drv.reboot,
-                          'context', inst, None, 'HARD')
+                          'context', self.inst, None, 'HARD')
 
         # If power_on raises an exception, it percolates up.
         entry.state = pvm_bp.LPARState.NOT_ACTIVATED
         mock_pwron.side_effect = pvm_exc.VMPowerOnFailure(lpar_nm='lpar',
                                                           reason='reason')
         self.assertRaises(pvm_exc.VMPowerOnFailure, self.drv.reboot, 'context',
-                          inst, None, 'SOFT')
+                          self.inst, None, 'SOFT')
 
     @mock.patch('pypowervm.tasks.vterm.open_remotable_vnc_vterm')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
@@ -1333,8 +1258,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_vterm.return_value = '10'
 
         # Invoke
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        resp = self.drv.get_vnc_console(mock.ANY, inst)
+        resp = self.drv.get_vnc_console(mock.ANY, self.inst)
 
         # Validate
         self.assertEqual('127.0.0.1', resp.host)
@@ -1371,10 +1295,9 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
                 'RemoveInstanceDiskFromMgmt.execute')
     def test_snapshot(self, mock_rm, mock_stream, mock_conn, mock_update):
-        inst = mock.Mock()
-        inst.display_name = 'inst'
         mock_conn.return_value = 'stg_elem', 'vios_wrap', 'disk_path'
-        self.drv.snapshot('context', inst, 'image_id', 'update_task_state')
+        self.drv.snapshot('context', self.inst, 'image_id',
+                          'update_task_state')
         self.assertEqual(2, mock_update.call_count)
         self.assertEqual(1, mock_conn.call_count)
         mock_stream.assert_called_with(disk_path='disk_path')
@@ -1492,8 +1415,7 @@ class TestPowerVMDriver(test.TestCase):
     def test_estimate_instance_overhead(self, mock_calc_over):
         mock_calc_over.return_value = ('2048', '96')
 
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        inst_info = inst.get_flavor()
+        inst_info = self.inst.get_flavor()
         inst_info.extra_specs = {}
         overhead = self.drv.estimate_instance_overhead(inst_info)
         self.assertEqual({'memory_mb': '2048'}, overhead)
@@ -1515,12 +1437,10 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual({'memory_mb': 0}, overhead)
 
         # Test when instance Object is passed
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
-        overhead = self.drv.estimate_instance_overhead(inst_info)
+        overhead = self.drv.estimate_instance_overhead(self.inst)
         self.assertEqual({'memory_mb': '2048'}, overhead)
 
     def test_vol_drv_iter(self):
-        inst = objects.Instance(**powervm.TEST_INSTANCE)
         block_device_info = self._fake_bdms()
         vol_adpt = mock.Mock()
 
@@ -1530,8 +1450,8 @@ class TestPowerVMDriver(test.TestCase):
                                    return_value=vol_adpt):
                 return [
                     (bdm, vol_drv) for bdm, vol_drv in self.drv._vol_drv_iter(
-                        'context', inst, block_device_info=block_device_info,
-                        bdms=bdms)]
+                        'context', self.inst,
+                        block_device_info=block_device_info, bdms=bdms)]
 
         def validate(results):
             # For each good call, we should get back two bdms / vol_adpt

@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nova.compute import task_states
 from nova import objects
 from nova.objects import flavor
 import os
@@ -37,8 +38,16 @@ TEST_INSTANCE = {
     'root_gb': 10,
     'ephemeral_gb': 0,
     'instance_type_id': '5',
+    'system_metadata': {'image_os_distro': 'rhel'},
+    'host': 'host1',
     'flavor': TEST_FLAVOR,
+    'task_state': None,
 }
+
+TEST_INST_SPAWNING = dict(TEST_INSTANCE, task_state=task_states.SPAWNING)
+
+TEST_INST1 = objects.Instance(**TEST_INSTANCE)
+TEST_INST2 = objects.Instance(**TEST_INST_SPAWNING)
 
 TEST_MIGRATION = {
     'id': 1,
@@ -48,15 +57,7 @@ TEST_MIGRATION = {
     'old_instance_type_id': 1,
     'new_instance_type_id': 2,
 }
-
-TEST_MIGRATION_SAME_HOST = {
-    'id': 1,
-    'source_compute': 'host1',
-    'dest_compute': 'host1',
-    'migration_type': 'resize',
-    'old_instance_type_id': 1,
-    'new_instance_type_id': 2,
-}
+TEST_MIGRATION_SAME_HOST = dict(TEST_MIGRATION, dest_compute='host1')
 
 IMAGE1 = {
     'id': 1,
@@ -67,6 +68,7 @@ IMAGE1 = {
 
 }
 TEST_IMAGE1 = objects.ImageMeta.from_dict(IMAGE1)
+EMPTY_IMAGE = objects.ImageMeta.from_dict({})
 
 # NOTE(mikal): All of this is because if dnspython is present in your
 # environment then eventlet monkeypatches socket.getaddrinfo() with an

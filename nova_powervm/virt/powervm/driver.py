@@ -1619,20 +1619,3 @@ class PowerVMDriver(driver.ComputeDriver):
                     return boot_conn_type
         else:
             return boot_conn_type
-
-
-def _inst_dict(input_dict):
-    """Builds a dictionary with instances as values based on the input classes.
-
-    :param input_dict: A dictionary with keys, whose values are class
-                       names.
-    :return: A dictionary with the same keys.  But the values are instances
-             of the class.  No parameters are passed in  to the init methods.
-    """
-    response = dict()
-
-    for key in input_dict.keys():
-        class_inst = importutils.import_class(input_dict[key])
-        response[key] = class_inst()
-
-    return response
