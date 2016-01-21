@@ -26,7 +26,7 @@ function cleanup_pypowervm {
 function check_novalink_install {
     echo_summary "Checking NovaLink installation"
     if ! ( is_package_installed pvm-novalink ); then
-        die $LINENO "Please install NovaLink before continuing"
+        echo "WARNING: You are using the NovaLink drivers, but NovaLink is not installed on this system."
     fi
 
     # The user that nova runs as should be a member of **pvm_admin** group
