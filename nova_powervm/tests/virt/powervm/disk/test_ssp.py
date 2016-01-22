@@ -19,8 +19,10 @@ import fixtures
 import mock
 
 import copy
+from nova.objects import image_meta
 from nova import test
 import pypowervm.adapter as pvm_adp
+from pypowervm import const
 import pypowervm.entities as pvm_ent
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
@@ -311,7 +313,8 @@ class TestSSPDiskAdapter(test.TestCase):
             self.assertIn(vios_uuid, ssp_stor.vios_uuids)
             self.assertEqual(ssp_stor._ssp_wrap, ssp1)
             # 'image' + '_' + s/-/_/g(image.name), per _get_image_name
-            self.assertEqual('image_' + powervm.TEST_IMAGE1.name, lu_name)
+            self.assertEqual('image_' + powervm.TEST_IMAGE1.name + '_' +
+                             powervm.TEST_IMAGE1.checksum, lu_name)
             self.assertEqual(powervm.TEST_IMAGE1.size, f_size)
             return 'image_lu', None
 
@@ -334,7 +337,8 @@ class TestSSPDiskAdapter(test.TestCase):
                                              mock_crt_lnk_cln):
         ssp_stor = self._get_ssp_stor()
         # Mock the 'existing' image LU
-        img_lu = pvm_stg.LU.bld(None, 'image_' + powervm.TEST_IMAGE1.name, 123,
+        img_lu = pvm_stg.LU.bld(None, 'image_' + powervm.TEST_IMAGE1.name + '_'
+                                + powervm.TEST_IMAGE1.checksum, 123,
                                 typ=pvm_stg.LUType.IMAGE)
         ssp_stor._ssp_wrap.logical_units.append(img_lu)
 
@@ -352,6 +356,24 @@ class TestSSPDiskAdapter(test.TestCase):
         lu = ssp_stor.create_disk_from_image(
             None, Instance(), powervm.TEST_IMAGE1, 1)
         self.assertEqual('new_lu', lu)
+
+    def test_get_image_name(self):
+        """Generate image name from ImageMeta."""
+        ssp = self._get_ssp_stor()
+
+        def verify_image_name(name, checksum, expected):
+            img_meta = image_meta.ImageMeta(name=name, checksum=checksum)
+            self.assertEqual(expected, ssp._get_image_name(img_meta))
+            self.assertTrue(len(expected) <= const.MaxLen.FILENAME_DEFAULT)
+
+        verify_image_name('foo', 'bar', 'image_foo_bar')
+        # Ensure a really long name gets truncated properly.  Note also '-'
+        # chars are sanitized.
+        verify_image_name(
+            'Template_zw82enbix_PowerVM-CI-18y2385y9123785192364',
+            'b518a8ba2b152b5607aceb5703fac072',
+            'image_Template_zw82enbix_PowerVM_CI_18y2385y91'
+            '_b518a8ba2b152b5607aceb5703fac072')
 
     def test_find_lu(self):
         # Bad path, lu not found, None returned
