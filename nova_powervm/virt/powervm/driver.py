@@ -1530,10 +1530,16 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         self._log_operation('get_vnc_console', instance)
         lpar_uuid = vm.get_pvm_uuid(instance)
+
+        # Build the connection to the VNC.
         host = CONF.vnc.vncserver_proxyclient_address
-        port = pvm_vterm.open_remotable_vnc_vterm(self.adapter, lpar_uuid,
-                                                  host)
-        return console_type.ConsoleVNC(host=host, port=port)
+        port = pvm_vterm.open_remotable_vnc_vterm(
+            self.adapter, lpar_uuid, host, vnc_path=lpar_uuid)
+
+        # Note that the VNC viewer will wrap the internal_access_path with
+        # the HTTP content.
+        return console_type.ConsoleVNC(host=host, port=port,
+                                       internal_access_path=lpar_uuid)
 
     def _get_inst_xag(self, instance, bdms):
         """Returns the extended attributes required for a given instance.

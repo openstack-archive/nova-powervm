@@ -1256,6 +1256,7 @@ class TestPowerVMDriver(test.TestCase):
     def test_get_vnc_console(self, mock_uuid, mock_vterm):
         # Mock response
         mock_vterm.return_value = '10'
+        mock_uuid.return_value = 'uuid'
 
         # Invoke
         resp = self.drv.get_vnc_console(mock.ANY, self.inst)
@@ -1263,6 +1264,10 @@ class TestPowerVMDriver(test.TestCase):
         # Validate
         self.assertEqual('127.0.0.1', resp.host)
         self.assertEqual('10', resp.port)
+        self.assertEqual('uuid', resp.internal_access_path)
+
+        mock_vterm.assert_called_once_with(
+            mock.ANY, 'uuid', mock.ANY, vnc_path='uuid')
 
     @staticmethod
     def _fake_bdms():
