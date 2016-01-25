@@ -280,6 +280,36 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_remove_hdisk.assert_called_once_with(
             self.adpt, mock.ANY, 'device_name', self.vios_uuid)
 
+    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
+    @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    def test_disconnect_volume_shared(self, mock_get_vm_id, mock_remove_maps,
+                                      mock_hdisk_from_uuid, mock_remove_hdisk,
+                                      mock_find_maps):
+        # The mock return values
+        mock_hdisk_from_uuid.return_value = 'device_name'
+        mock_get_vm_id.return_value = 'partition_id'
+        # Consider there are multiple attachments
+        mock_find_maps.return_value = [mock.MagicMock(), mock.MagicMock()]
+        self.vol_drv._set_udid('UDIDIT!')
+
+        def validate_remove_maps(vios_w, vm_uuid, match_func):
+            self.assertIsInstance(vios_w, pvm_vios.VIOS)
+            self.assertEqual('partition_id', vm_uuid)
+            return 'removed'
+        mock_remove_maps.side_effect = validate_remove_maps
+
+        # Run the method
+        self.vol_drv.disconnect_volume()
+
+        # As initialized above, remove_maps returns True to trigger update.
+        self.assertEqual(1, mock_remove_maps.call_count)
+        self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
+        # Since device has multiple mappings remove disk should not get called
+        self.assertEqual(0, mock_remove_hdisk.call_count)
+
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
@@ -426,6 +456,23 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_vios.get_active_pfc_wwpns.return_value = ['12345']
         i_wwpn, t_wwpns, lun = self.vol_drv._get_hdisk_itls(mock_vios)
         self.assertListEqual([], i_wwpn)
+
+    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
+    def test_check_host_mappings(self, mock_find):
+        mock_vios = mock.MagicMock()
+        mock_vios.uuid = self.vios_uuid
+        # Test when multiple matching entries found
+        mock_find.return_value = [mock.MagicMock(), mock.MagicMock()]
+        mapping = self.vol_drv._check_host_mappings(mock_vios, self.volume_id)
+        self.assertTrue(mapping)
+        # Test when single entry found check host mapping should return False
+        mock_find.return_value = [mock.MagicMock()]
+        mapping = self.vol_drv._check_host_mappings(mock_vios, self.volume_id)
+        self.assertFalse(mapping)
+        # Test when no entry found check host mapping should return False
+        mock_find.return_value = []
+        mapping = self.vol_drv._check_host_mappings(mock_vios, self.volume_id)
+        self.assertFalse(mapping)
 
 
 class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):

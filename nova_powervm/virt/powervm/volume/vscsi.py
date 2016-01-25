@@ -365,8 +365,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 self._add_remove_mapping(partition_id, vios_w.uuid,
                                          device_name)
 
-                # Add a step after the mapping removal to also remove the
-                # hdisk.
+                # Add a step to also remove the hdisk
                 self._add_remove_hdisk(vios_w, device_name)
 
             # Found a valid element to remove
@@ -399,6 +398,27 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                        'instance_name': self.instance.name}
             raise p_exc.VolumeDetachFailed(**ex_args)
 
+    def _check_host_mappings(self, vios_wrap, device_name):
+        """Checks if the given hdisk has multiple mappings
+
+        :param vio_wrap: The Virtual I/O Server wrapper to remove the disk
+                         from.
+        :param device_name: The hdisk name to remove.
+
+        :return: True is there are multiple instances using the given hdisk
+        """
+        vios_scsi_mappings = next(v.scsi_mappings for v in self.stg_ftsk.feed
+                                  if v.uuid == vios_wrap.uuid)
+        mappings = tsk_map.find_maps(
+            vios_scsi_mappings, None,
+            tsk_map.gen_match_func(pvm_stor.PV, names=[device_name]))
+
+        LOG.info(_LI("%(num)d Storage Mappings found for %(dev)s"),
+                 {'num': len(mappings), 'dev': device_name})
+        # the mapping is still present as the task feed removes
+        # the mapping later
+        return len(mappings) > 1
+
     def _add_remove_hdisk(self, vio_wrap, device_name,
                           stg_ftsk=None):
         """Adds a post-mapping task to remove the hdisk from the VIOS.
@@ -424,9 +444,15 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                             "%(disk)s from the Virtual I/O Server."),
                             {'disk': device_name})
                 LOG.warning(e)
-        name = 'rm_hdisk_%s_%s' % (vio_wrap.name, device_name)
-        stg_ftsk = stg_ftsk or self.stg_ftsk
-        stg_ftsk.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
+
+        # Check if there are not multiple mapping for the device
+        if not self._check_host_mappings(vio_wrap, device_name):
+            name = 'rm_hdisk_%s_%s' % (vio_wrap.name, device_name)
+            stg_ftsk = stg_ftsk or self.stg_ftsk
+            stg_ftsk.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
+        else:
+            LOG.info(_LI("hdisk %(disk)s is not removed because it has "
+                         "existing storage mappings"), {'disk': device_name})
 
     @lockutils.synchronized('vscsi_wwpns')
     def wwpns(self):
