@@ -45,6 +45,7 @@ from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import driver
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import live_migration as lpm
+from nova_powervm.virt.powervm import vm
 
 MS_HTTPRESP_FILE = "managedsystem.txt"
 MS_NAME = 'HV4'
@@ -131,6 +132,11 @@ class TestPowerVMDriver(test.TestCase):
         """Validates that a driver of the PowerVM type can be initialized."""
         test_drv = driver.PowerVMDriver(fake.FakeVirtAPI())
         self.assertIsNotNone(test_drv)
+
+    def test_cleanup_host(self):
+        self.drv.cleanup_host('fake_host')
+        self.assertTrue(
+            self.drv.session.get_event_listener.return_value.shutdown.called)
 
     def test_get_volume_connector(self):
         """Tests that a volume connector can be built."""
@@ -1570,3 +1576,54 @@ class TestPowerVMDriver(test.TestCase):
         mock_bk_dev.return_value = 'info'
         self.assertEqual('info',
                          self.drv._get_block_device_info('ctx', self.inst))
+
+
+class TestNovaEventHandler(test.TestCase):
+    def setUp(self):
+        super(TestNovaEventHandler, self).setUp()
+        self.mock_driver = mock.Mock()
+        self.handler = driver.NovaEventHandler(self.mock_driver)
+
+    @mock.patch.object(vm, 'get_instance')
+    @mock.patch.object(vm, 'get_vm_qp')
+    def test_events(self, mock_qprops, mock_get_inst):
+        # Test events
+        event_data = [
+            {
+                'EventType': 'NEW_CLIENT',
+                'EventData': '',
+                'EventID': '1452692619554',
+                'EventDetail': '',
+            },
+            {
+                'EventType': 'MODIFY_URI',
+                'EventData': 'http://localhost:12080/rest/api/uom/Managed'
+                             'System/c889bf0d-9996-33ac-84c5-d16727083a77',
+                'EventID': '1452692619555',
+                'EventDetail': 'Other',
+            },
+            {
+                'EventType': 'MODIFY_URI',
+                'EventData': 'http://localhost:12080/rest/api/uom/Managed'
+                             'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
+                             'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
+                             'A73E41EAA938',
+                'EventID': '1452692619563',
+                'EventDetail': 'ReferenceCode,Other',
+            },
+            {
+                'EventType': 'MODIFY_URI',
+                'EventData': 'http://localhost:12080/rest/api/uom/Managed'
+                             'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
+                             'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
+                             'A73E41EAA938',
+                'EventID': '1452692619566',
+                'EventDetail': 'RMCState,PartitionState,Other',
+            },
+        ]
+
+        mock_qprops.return_value = pvm_bp.LPARState.RUNNING
+        mock_get_inst.return_value = powervm.TEST_INST1
+
+        self.handler.process(event_data)
+        self.assertTrue(self.mock_driver.emit_event.called)

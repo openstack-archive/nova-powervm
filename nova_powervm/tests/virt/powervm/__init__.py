@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nova.compute import power_state
 from nova.compute import task_states
 from nova.objects import flavor
 from nova.objects import image_meta
@@ -43,6 +44,7 @@ TEST_INSTANCE = {
     'host': 'host1',
     'flavor': TEST_FLAVOR,
     'task_state': None,
+    'power_state': power_state.SHUTDOWN,
 }
 
 TEST_INST_SPAWNING = dict(TEST_INSTANCE, task_state=task_states.SPAWNING)
