@@ -14,8 +14,9 @@
 #    under the License.
 
 from nova.compute import task_states
-from nova import objects
 from nova.objects import flavor
+from nova.objects import image_meta
+from nova.objects import instance
 import os
 import sys
 
@@ -46,8 +47,8 @@ TEST_INSTANCE = {
 
 TEST_INST_SPAWNING = dict(TEST_INSTANCE, task_state=task_states.SPAWNING)
 
-TEST_INST1 = objects.Instance(**TEST_INSTANCE)
-TEST_INST2 = objects.Instance(**TEST_INST_SPAWNING)
+TEST_INST1 = instance.Instance(**TEST_INSTANCE)
+TEST_INST2 = instance.Instance(**TEST_INST_SPAWNING)
 
 TEST_MIGRATION = {
     'id': 1,
@@ -64,11 +65,11 @@ IMAGE1 = {
     'name': 'image1',
     'size': 300,
     'container_format': 'bare',
-    'disk_format': 'raw'
-
+    'disk_format': 'raw',
+    'checksum': 'b518a8ba2b152b5607aceb5703fac072',
 }
-TEST_IMAGE1 = objects.ImageMeta.from_dict(IMAGE1)
-EMPTY_IMAGE = objects.ImageMeta.from_dict({})
+TEST_IMAGE1 = image_meta.ImageMeta.from_dict(IMAGE1)
+EMPTY_IMAGE = image_meta.ImageMeta.from_dict({})
 
 # NOTE(mikal): All of this is because if dnspython is present in your
 # environment then eventlet monkeypatches socket.getaddrinfo() with an

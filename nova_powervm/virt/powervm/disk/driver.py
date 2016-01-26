@@ -266,8 +266,9 @@ class DiskAdapter(object):
     @staticmethod
     def _get_image_name(image_meta):
         """Generate a name for a virtual storage copy of an image."""
-        return pvm_util.sanitize_file_name_for_api(image_meta.name,
-                                                   prefix=DiskType.IMAGE + '_')
+        return pvm_util.sanitize_file_name_for_api(
+            image_meta.name, prefix=DiskType.IMAGE + '_',
+            suffix='_' + image_meta.checksum)
 
     @staticmethod
     def _disk_gb_to_bytes(size_gb, floor=None):
