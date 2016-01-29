@@ -27,13 +27,13 @@ from nova import utils as n_utils
 from nova.virt import configdrive
 from nova.virt import driver
 from nova.virt import event
-import re
-
 from oslo_log import log as logging
 from oslo_utils import importutils
+import re
 import six
 from taskflow import engines as tf_eng
 from taskflow.patterns import linear_flow as tf_lf
+import time
 
 from pypowervm import adapter as pvm_apt
 from pypowervm import exceptions as pvm_exc
@@ -57,6 +57,7 @@ from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import image as img
 from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import mgmt
+from nova_powervm.virt.powervm.nvram import manager as nvram_mgr
 from nova_powervm.virt.powervm.tasks import image as tf_img
 from nova_powervm.virt.powervm.tasks import network as tf_net
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
@@ -81,6 +82,11 @@ DISK_ADPT_MAPPINGS = {
     'localdisk': 'localdisk.LocalStorage',
     'ssp': 'ssp.SSPDiskAdapter'
 }
+# NVRAM store APIs for the NVRAM manager to use
+NVRAM_NS = 'nova_powervm.virt.powervm.nvram.'
+NVRAM_APIS = {
+    'swift': 'swift.SwiftNvramStore',
+}
 
 
 class PowerVMDriver(driver.ComputeDriver):
@@ -104,6 +110,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Live migrations
         self.live_migrations = {}
+        # Set the nvram mgr to None so events are not handled until it's setup
+        self.nvram_mgr = None
         # Get an adapter
         self._get_adapter()
         # First need to resolve the managed host UUID
@@ -114,6 +122,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # Initialize the disk adapter.  Sets self.disk_dvr
         self._get_disk_adapter()
         self.image_api = image.API()
+
+        self._setup_nvram_store()
 
         # Init Host CPU Statistics
         self.host_cpu_stats = pvm_host.HostCPUStats(self.adapter,
@@ -150,6 +160,32 @@ class PowerVMDriver(driver.ComputeDriver):
         self.disk_dvr = importutils.import_object_ns(
             DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.powervm.disk_driver.lower()],
             conn_info)
+
+    def _setup_nvram_store(self):
+        """Setup the NVRAM store for remote restart."""
+        store = CONF.powervm.nvram_store.lower()
+        if store != 'none':
+            store_api = importutils.import_object(
+                NVRAM_NS + NVRAM_APIS[store])
+            # Events will be handled once the nvram_mgr is set.
+            self.nvram_mgr = nvram_mgr.NvramManager(
+                store_api, self.adapter, self.host_uuid)
+            # Do host startup for NVRAM for existing VMs on the host
+            n_utils.spawn(self._nvram_host_startup)
+
+    def _nvram_host_startup(self):
+        """NVRAM Startup.
+
+        When the compute node starts up, it's not known if any NVRAM events
+        were missed when the compute process was not running. During startup
+        put each LPAR on the queue to be updated, just incase.
+        """
+        for lpar_w in vm.get_lpars(self.adapter):
+            # Find the instance for the LPAR.
+            inst = vm.get_instance(ctx.get_admin_context(), lpar_w.uuid)
+            if inst is not None and inst.host == CONF.host:
+                self.nvram_mgr.store(inst)
+            time.sleep(0)
 
     def _get_host_uuid(self):
         """Get the System wrapper and its UUID for the (single) host."""
@@ -1046,6 +1082,11 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
                                 pvm_inst_uuid, instance))
 
+        if not same_host:
+            # If VM is moving to a new host make sure the NVRAM is at the very
+            # latest.
+            flow.add(tf_vm.StoreNvram(self.nvram_mgr, instance,
+                     immediate=True))
         if flav_obj.root_gb > instance.root_gb:
             # Resize the root disk
             flow.add(tf_stg.ExtendDisk(self.disk_dvr, context, instance,
@@ -1727,7 +1768,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
 class NovaEventHandler(pvm_apt.RawEventHandler):
     """Used to receive and handle events from PowerVM."""
-    inst_actions_handled = {'PartitionState'}
+    inst_actions_handled = {'PartitionState', 'NVRAM'}
 
     def __init__(self, driver):
         self._driver = driver
@@ -1788,6 +1829,11 @@ class NovaEventHandler(pvm_apt.RawEventHandler):
                 LOG.info(_LI('Sending life cycle event for instance state '
                              'change to: %s'), pvm_state, instance=inst)
                 self._driver.emit_event(lce)
+
+        # If the NVRAM has changed for this instance and a store is configured.
+        if 'NVRAM' in details and self._driver.nvram_mgr is not None:
+            # Schedule the NVRAM for the instance to be stored.
+            self._driver.nvram_mgr.store(inst)
 
     def process(self, events):
         """Process the event that comes back from PowerVM.

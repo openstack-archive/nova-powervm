@@ -47,3 +47,11 @@ class TestVMTasks(test.TestCase):
         mock_vm_rename.assert_called_once_with(self.apt, 'host_uuid',
                                                self.instance, 'new_name')
         self.assertEqual('new_entry', new_entry)
+
+    def test_store_nvram(self):
+        nvram_mgr = mock.Mock()
+        store_nvram = tf_vm.StoreNvram(nvram_mgr, self.instance,
+                                       immediate=True)
+        store_nvram.execute()
+        nvram_mgr.store.assert_called_once_with(self.instance,
+                                                immediate=True)

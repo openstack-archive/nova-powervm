@@ -224,6 +224,27 @@ class PowerOff(task.Task):
                      force_immediate=self.force_immediate)
 
 
+class StoreNvram(task.Task):
+
+    """Store the NVRAM for an instance."""
+
+    def __init__(self, nvram_mgr, instance, immediate=False):
+        """Creates a task to store the NVRAM of an instance.
+
+        :param nvram_mgr: The NVRAM manager.
+        :param instance: The nova instance.
+        :param immediate: boolean whether to update the NVRAM immediately
+        """
+        super(StoreNvram, self).__init__(name='store_nvram')
+        self.nvram_mgr = nvram_mgr
+        self.instance = instance
+        self.immediate = immediate
+
+    def execute(self):
+        if self.nvram_mgr is not None:
+            self.nvram_mgr.store(self.instance, immediate=self.immediate)
+
+
 class Delete(task.Task):
 
     """The task to delete the instance from the system."""
