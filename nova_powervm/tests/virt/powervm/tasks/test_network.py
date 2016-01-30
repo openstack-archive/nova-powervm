@@ -37,6 +37,7 @@ def cna(mac):
 class TestNetwork(test.TestCase):
     def setUp(self):
         super(TestNetwork, self).setUp()
+        self.flags(host='host1')
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
         self.mock_lpar_wrap = mock.MagicMock()
@@ -180,6 +181,66 @@ class TestNetwork(test.TestCase):
 
         # The create should have only been called once.
         self.assertEqual(1, mock_vm_crt.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_plug_vifs_diff_host(self, mock_vm_get, mock_vm_crt):
+        """Tests that crt vif handles bad inst.host value."""
+        inst = powervm.TEST_INST1
+        # Set this up as a different host from the inst.host
+        self.flags(host='host2')
+
+        # Mock up the CNA response.  Only doing one for simplicity
+        mock_vm_get.return_value = [cna('AABBCCDDEE11')]
+
+        # Mock up the network info.
+        net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
+
+        # Run method
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
+                                 'host_uuid')
+        with mock.patch.object(inst, 'save') as mock_inst_save:
+            p_vifs.execute(self.mock_lpar_wrap)
+
+        # The create should have only been called once.
+        self.assertEqual(1, mock_vm_crt.call_count)
+        # Should have called save to save the new host and then changed it back
+        self.assertEqual(2, mock_inst_save.call_count)
+        self.assertEqual('host1', inst.host)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_plug_vifs_diff_host_except(self, mock_vm_get, mock_vm_crt):
+        """Tests that crt vif handles bad inst.host value.
+
+        This test ensures that if we get a timeout exception we still reset
+        the inst.host value back to the original value
+        """
+        inst = powervm.TEST_INST1
+        # Set this up as a different host from the inst.host
+        self.flags(host='host2')
+
+        # Mock up the CNA response.  Only doing one for simplicity
+        mock_vm_get.return_value = [cna('AABBCCDDEE11')]
+
+        # Mock up the network info.
+        net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
+
+        # Ensure that an exception is raised by a timeout.
+        mock_vm_crt.side_effect = eventlet.timeout.Timeout()
+
+        # Run method
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
+                                 'host_uuid')
+        with mock.patch.object(inst, 'save') as mock_inst_save:
+            self.assertRaises(exception.VirtualInterfaceCreateException,
+                              p_vifs.execute, self.mock_lpar_wrap)
+
+        # The create should have only been called once.
+        self.assertEqual(1, mock_vm_crt.call_count)
+        # Should have called save to save the new host and then changed it back
+        self.assertEqual(2, mock_inst_save.call_count)
+        self.assertEqual('host1', inst.host)
 
     @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_secure_rmc_vswitch')

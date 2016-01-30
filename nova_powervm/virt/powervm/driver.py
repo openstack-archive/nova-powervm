@@ -85,6 +85,12 @@ class PowerVMDriver(driver.ComputeDriver):
 
     """PowerVM Implementation of Compute Driver."""
 
+    capabilities = {
+        "has_imagecache": False,
+        "supports_recreate": True,
+        "supports_migrate_to_same_host": False
+    }
+
     def __init__(self, virtapi):
         super(PowerVMDriver, self).__init__(virtapi)
 
@@ -220,6 +226,44 @@ class PowerVMDriver(driver.ComputeDriver):
         """Return the current CPU state of the host."""
         return self.host_cpu_stats.get_host_cpu_stats()
 
+    def instance_on_disk(self, instance):
+        """Checks access of instance files on the host.
+
+        :param instance: nova.objects.instance.Instance to lookup
+
+        Returns True if files of an instance with the supplied ID accessible on
+        the host, False otherwise.
+
+        .. note::
+            Used in rebuild for HA implementation and required for validation
+            of access to instance shared disk files
+        """
+
+        # If the instance is booted from volume then we shouldn't
+        # really care if instance "disks" are on shared storage.
+        context = ctx.get_admin_context()
+        block_device_info = self._get_block_device_info(context, instance)
+        if self._is_booted_from_volume(block_device_info):
+            LOG.debug('Instance booted from volume.', instance=instance)
+            return True
+
+        # If configured for shared storage, see if we can find the disks
+        if self.disk_dvr.capabilities['shared_storage']:
+            LOG.debug('Looking for instance disks on shared storage.',
+                      instance=instance)
+            # Try to get a reference to the disk
+            try:
+                if self.disk_dvr.get_disk_ref(instance,
+                                              disk_dvr.DiskType.BOOT):
+                    LOG.debug('Disks found on shared storage.',
+                              instance=instance)
+                    return True
+            except Exception as e:
+                LOG.exception(e)
+
+        LOG.debug('Instance disks not found on this host.', instance=instance)
+        return False
+
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None,
               flavor=None):
@@ -231,6 +275,11 @@ class PowerVMDriver(driver.ComputeDriver):
         If this fails, any partial instance should be completely
         cleaned up, and the virtualization platform should be in the state
         that it was before this call began.
+
+        Spawn can be called while deploying an instance for the first time or
+        it can be called to recreate an instance that was shelved or during
+        evacuation.  We have to be careful to handle all these cases.  During
+        evacuation, when on shared storage, the image_meta will be empty.
 
         :param context: security context
         :param instance: Instance object as returned by DB layer.
@@ -276,11 +325,17 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Only add the image disk if this is from Glance.
         if not self._is_booted_from_volume(block_device_info):
-            # Creates the boot image.
-            flow_spawn.add(tf_stg.CreateDiskForImg(
-                self.disk_dvr, context, instance, image_meta,
-                disk_size=flavor.root_gb))
 
+            # If a rebuild, just hookup the existing disk on shared storage.
+            if (instance.task_state == task_states.REBUILD_SPAWNING and
+                    'id' not in image_meta):
+                flow_spawn.add(tf_stg.FindDisk(
+                    self.disk_dvr, context, instance, disk_dvr.DiskType.BOOT))
+            else:
+                # Creates the boot image.
+                flow_spawn.add(tf_stg.CreateDiskForImg(
+                    self.disk_dvr, context, instance, image_meta,
+                    disk_size=flavor.root_gb))
             # Connects up the disk to the LPAR
             flow_spawn.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance,
                                               stg_ftsk=stg_ftsk))
@@ -355,6 +410,13 @@ class PowerVMDriver(driver.ComputeDriver):
         for bdm, vol_drv in self._vol_drv_iter(context, instance, bdms=bdms,
                                                stg_ftsk=stg_ftsk):
             flow.add(tf_stg.DisconnectVolume(vol_drv))
+
+    def _get_block_device_info(self, context, instance):
+        """Retrieves the instance's block_device_info."""
+
+        bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
+            context, instance.uuid)
+        return driver.get_block_device_info(instance, bdms)
 
     def _is_booted_from_volume(self, block_device_info):
         """Determine whether the root device is listed in block_device_info.
