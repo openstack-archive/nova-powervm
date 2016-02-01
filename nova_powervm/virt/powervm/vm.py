@@ -40,6 +40,7 @@ from pypowervm.wrappers import network as pvm_net
 from pypowervm.wrappers import shared_proc_pool as pvm_spp
 
 from nova_powervm import conf as cfg
+from nova_powervm.virt.powervm import exception as nvex
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
@@ -526,13 +527,23 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
     :param flavor: The nova flavor.
     :return: The LPAR response from the API.
     """
-    lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
-    pending_lpar_w = lpar_b.build()
-    vldn.LPARWrapperValidator(pending_lpar_w, host_wrapper).validate_all()
-    lpar_w = pending_lpar_w.create(parent_type=pvm_ms.System,
-                                   parent_uuid=host_wrapper.uuid)
-
-    return lpar_w
+    try:
+        lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance,
+                                                               flavor)
+        pending_lpar_w = lpar_b.build()
+        vldn.LPARWrapperValidator(pending_lpar_w, host_wrapper).validate_all()
+        lpar_w = pending_lpar_w.create(parent_type=pvm_ms.System,
+                                       parent_uuid=host_wrapper.uuid)
+        return lpar_w
+    except lpar_bldr.LPARBuilderException as e:
+        # Raise the BuildAbortException since LPAR failed to build
+        raise exception.BuildAbortException(instance_uuid=instance.uuid,
+                                            reason=e)
+    except pvm_exc.HttpError as he:
+        # Raise the API exception
+        LOG.exception(he)
+        values = dict(inst_name=instance.name, reason=he)
+        raise nvex.PowerVMAPIFailed(values)
 
 
 def update(adapter, host_wrapper, instance, flavor, entry=None, name=None):

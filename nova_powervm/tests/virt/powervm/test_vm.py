@@ -29,10 +29,12 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
+from pypowervm.utils import lpar_builder as lpar_bld
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from nova_powervm.tests.virt import powervm
+from nova_powervm.virt.powervm import exception as nvex
 from nova_powervm.virt.powervm import vm
 
 LPAR_HTTPRESP_FILE = "lpar.txt"
@@ -345,6 +347,18 @@ class TestVM(test.TestCase):
         vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
         self.assertTrue(self.apt.create.called)
         self.assertTrue(mock_vld_all.called)
+
+        # Test to verify the LPAR Creation with invalid name specification
+        mock_bld.side_effect = lpar_bld.LPARBuilderException("Invalid Name")
+        host_wrapper = mock.Mock()
+        self.assertRaises(exception.BuildAbortException, vm.crt_lpar,
+                          self.apt, host_wrapper, instance, flavor)
+
+        resp = mock.Mock(status=202, method='fake', path='/dev/',
+                         reason='Failure')
+        mock_bld.side_effect = pvm_exc.HttpError(resp)
+        self.assertRaises(nvex.PowerVMAPIFailed, vm.crt_lpar,
+                          self.apt, host_wrapper, instance, flavor)
 
         flavor.extra_specs = {'powervm:BADATTR': 'true'}
         host_wrapper = mock.Mock()

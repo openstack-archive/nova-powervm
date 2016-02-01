@@ -115,3 +115,8 @@ class VolumeDetachFailed(nex.NovaException):
 class VolumePreMigrationFailed(nex.NovaException):
     msg_fmt = _("Unable to perform pre live migration steps on volume (id: "
                 "%(volume_id)s) from virtual machine %(instance_name)s.")
+
+
+class PowerVMAPIFailed(nex.NovaException):
+    msg_fmt = _("PowerVM API Failed to complete for instance=%(inst_name)s."
+                "%(reason)s")
