@@ -115,7 +115,7 @@ class TestHostCPUStats(test.TestCase):
         # Make sure None is returned if there is no data.
         host_stats.cur_phyp = None
         host_stats._update_internal_metric()
-        self.assertEqual(None, host_stats.cur_data)
+        self.assertIsNone(host_stats.cur_data)
 
         # Make the 'prev' the current...for the first pass
         host_stats.cur_phyp = self.prev_phyp

@@ -9,6 +9,8 @@ Nova-PowerVM Specific Commandments
 ----------------------------------
 - Follow the Nova HACKING.rst
 
+- [P301] LOG.warn() is not allowed. Use LOG.warning()
+
 Creating Unit Tests
 -------------------
 For every new feature, unit tests should be created that both test and

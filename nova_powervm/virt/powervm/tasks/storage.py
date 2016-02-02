@@ -534,10 +534,11 @@ class FindDisk(task.Task):
         LOG.info(_LI('Finding disk for instance: %s'), self.instance.name)
         disk = self.disk_dvr.get_disk_ref(self.instance, self.disk_type)
         if not disk:
-            LOG.warn(_LW('Disk not found: %(disk_name)s'),
-                     {'disk_name': self.disk_dvr._get_disk_name(self.disk_type,
-                                                                self.instance)
-                      }, instance=self.instance)
+            LOG.warning(_LW('Disk not found: %(disk_name)s'),
+                        {'disk_name':
+                            self.disk_dvr._get_disk_name(self.disk_type,
+                                                         self.instance),
+                         }, instance=self.instance)
         return disk
 
 

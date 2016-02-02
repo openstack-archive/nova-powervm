@@ -14,8 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
 from oslo_log import log as logging
+from oslo_serialization import jsonutils
 import re
 import six
 
@@ -470,7 +470,7 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
             LOG.exception(e)
             raise
 
-    return json.loads(resp.body)
+    return jsonutils.loads(resp.body)
 
 
 def crt_lpar(adapter, host_wrapper, instance, flavor):

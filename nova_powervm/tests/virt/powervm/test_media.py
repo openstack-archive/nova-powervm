@@ -222,7 +222,8 @@ class TestConfigDrivePowerVM(test.TestCase):
 
         self.apt.update_by_path.side_effect = validate_update
 
-        def validate_remove_stor(vg_w, vopts=[]):
+        def validate_remove_stor(vg_w, vopts=None):
+            vopts = {} if vopts is None else vopts
             self.assertIsInstance(vg_w, pvm_stor.VG)
             self.assertEqual(1, len(vopts))
             self.assertIsInstance(vopts[0], pvm_stor.VOptMedia)
@@ -253,7 +254,8 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.apt.read.side_effect = [self.vio_to_vg, self.vg_to_vio]
         mock_vm_id.return_value = '2'
 
-        def validate_remove_stor(vg_w, vopts=[]):
+        def validate_remove_stor(vg_w, vopts=None):
+            vopts = {} if vopts is None else vopts
             self.assertIsInstance(vg_w, pvm_stor.VG)
             self.assertEqual(1, len(vopts))
             self.assertIsInstance(vopts[0], pvm_stor.VOptMedia)
