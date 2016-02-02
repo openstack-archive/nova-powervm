@@ -47,6 +47,24 @@ How to use the NovaLink DevStack plugins:
        Example config files for all-in-one, compute, and control nodes
        `can be found here. <https://github.com/openstack/nova-powervm/tree/master/devstack>`_
 
+       The nova-powervm project provides three different sample local.conf files as a
+       starting point for devstack.
+
+       * local.conf.aio
+
+          * Runs on the NovaLink VM of the PowerVM system
+          * Provides a full 'all in one' devstack VM
+
+       * local.conf.control
+
+          * Can run on any devstack capable machine (POWER or x86)
+          * Provides the controller node for devstack.  Typically paired with the local.conf.compute
+
+       * local.conf.compute
+
+          * Runs on the NovaLink VM of the PowerVM system
+          * Provides the compute node for a devstack.  Typically paired with the local.conf.control
+
 3. See our devrefs and plugin references for the configuration options for each driver,
    then configure the installation in local.conf as needed for your environment.
 
