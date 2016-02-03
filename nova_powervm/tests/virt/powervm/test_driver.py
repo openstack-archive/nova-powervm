@@ -1187,13 +1187,13 @@ class TestPowerVMDriver(test.TestCase):
             self.assertIsNotNone(value)
 
     @mock.patch('pypowervm.wrappers.logical_partition.LPAR.can_modify_io')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_secure_rmc_vswitch')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
     def test_plug_vifs(
-        self, mock_vm_get, mock_vm_crt, mock_get_rmc_vswitch, mock_crt_rmc_vif,
-        mock_can_modify_io):
+        self, mock_vm_get, mock_plug_vif, mock_get_rmc_vswitch,
+        mock_plug_rmc_vif, mock_can_modify_io):
         # Mock up the CNA response
         cnas = [mock.MagicMock(), mock.MagicMock()]
         cnas[0].mac = 'AABBCCDDEEFF'
@@ -1220,8 +1220,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # The create should have only been called once.  The other was already
         # existing.
-        self.assertEqual(1, mock_vm_crt.call_count)
-        self.assertEqual(0, mock_crt_rmc_vif.call_count)
+        self.assertEqual(1, mock_plug_vif.call_count)
+        self.assertEqual(0, mock_plug_rmc_vif.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get')
     def test_plug_vif_failures(self, mock_vm):

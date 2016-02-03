@@ -26,7 +26,6 @@ from nova.virt import event
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
-from pypowervm.tasks import cna
 from pypowervm.tasks import ibmi
 from pypowervm.tasks import power
 from pypowervm.tasks import vterm
@@ -94,11 +93,6 @@ POWERVM_STARTABLE_STATE = (pvm_bp.LPARState.NOT_ACTIVATED)
 POWERVM_STOPABLE_STATE = (pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
                           pvm_bp.LPARState.OPEN_FIRMWARE,
                           pvm_bp.LPARState.ERROR, pvm_bp.LPARState.RESUMING)
-
-# Attributes for secure RMC
-# TODO(thorst) The name of the secure RMC vswitch will change.
-SECURE_RMC_VSWITCH = 'MGMTSWITCH'
-SECURE_RMC_VLAN = 4094
 
 
 def translate_event(pvm_state, pwr_state):
@@ -706,52 +700,6 @@ def get_cnas(adapter, instance, host_uuid):
                             root_id=get_pvm_uuid(instance),
                             child_type=pvm_net.CNA.schema_type)
     return pvm_net.CNA.wrap(cna_resp)
-
-
-def crt_vif(adapter, instance, host_uuid, vif):
-    """Will create a Client Network Adapter on the system.
-
-    :param adapter: The pypowervm adapter API interface.
-    :param instance: The nova instance to create the VIF against.
-    :param host_uuid: The host system UUID.
-    :param vif: The nova VIF that describes the ethernet interface.
-    :return: The created network adapter wrapper.
-    """
-    lpar_uuid = get_pvm_uuid(instance)
-    # CNA's require a VLAN.  If the network doesn't provide, default to 1
-    vlan = vif['network']['meta'].get('vlan', 1)
-    return cna.crt_cna(adapter, host_uuid, lpar_uuid, vlan,
-                       mac_addr=vif['address'])
-
-
-def crt_secure_rmc_vif(adapter, instance, host_uuid):
-    """Creates the Secure RMC Network Adapter on the VM.
-
-    :param adapter: The pypowervm adapter API interface.
-    :param instance: The nova instance to create the VIF against.
-    :param host_uuid: The host system UUID.
-    :return: The created network adapter wrapper.
-    """
-    lpar_uuid = get_pvm_uuid(instance)
-    return cna.crt_cna(adapter, host_uuid, lpar_uuid, SECURE_RMC_VLAN,
-                       vswitch=SECURE_RMC_VSWITCH, crt_vswitch=True)
-
-
-def get_secure_rmc_vswitch(adapter, host_uuid):
-    """Returns the vSwitch that is used for secure RMC.
-
-    :param adapter: The pypowervm adapter API interface.
-    :param host_uuid: The host system UUID.
-    :return: The wrapper for the secure RMC vSwitch.  If it does not exist
-             on the system, None is returned.
-    """
-    resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
-                        child_type=pvm_net.VSwitch.schema_type)
-    vswitches = pvm_net.VSwitch.wrap(resp)
-    for vswitch in vswitches:
-        if vswitch.name == SECURE_RMC_VSWITCH:
-            return vswitch
-    return None
 
 
 def norm_mac(mac):

@@ -27,6 +27,7 @@ from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
+from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -43,18 +44,18 @@ class VirtualInterfaceUnplugException(exception.NovaException):
 class UnplugVifs(task.Task):
     """The task to unplug Virtual Network Interfaces from a VM."""
 
-    def __init__(self, adapter, instance, network_info, host_uuid):
+    def __init__(self, adapter, instance, network_infos, host_uuid):
         """Create the task.
 
         :param adapter: The pypowervm adapter.
         :param instance: The nova instance.
-        :param network_info: The network information containing the nova
-                             VIFs to create.
+        :param network_infos: The network information containing the nova
+                              VIFs to create.
         :param host_uuid: The host system's PowerVM UUID.
         """
         self.adapter = adapter
         self.instance = instance
-        self.network_info = network_info
+        self.network_infos = network_infos
         self.host_uuid = host_uuid
 
         super(UnplugVifs, self).__init__(name='unplug_vifs',
@@ -79,42 +80,17 @@ class UnplugVifs(task.Task):
         cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
 
         # Walk through the VIFs and delete the corresponding CNA on the VM.
-        for vif in self.network_info:
-            for cna_w in cna_w_list:
-                # If the MAC address matched, attempt the delete.
-                if vm.norm_mac(cna_w.mac) == vif['address']:
-                    LOG.info(_LI('Deleting VIF with mac %(mac)s for instance '
-                                 '%(inst)s.'), {'mac': vif['address'],
-                                                'inst': self.instance.name},
-                             instance=self.instance)
-                    try:
-                        cna_w.delete()
-                    except Exception as e:
-                        LOG.error(_LE('Unable to unplug VIF with mac %(mac)s '
-                                      'for instance %(inst)s.'),
-                                  {'mac': vif['address'],
-                                   'inst': self.instance.name},
-                                  instance=self.instance)
-                        LOG.error(e)
-                        raise VirtualInterfaceUnplugException()
+        for network_info in self.network_infos:
+            vif.unplug(self.adapter, self.host_uuid, self.instance,
+                       network_info, cna_w_list=cna_w_list)
 
-                    # Break from the loop as we had a successful unplug.
-                    # This prevents from going to 'else' loop.
-                    break
-            else:
-                LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
-                                'instance %(inst)s.  The VIF was not found on '
-                                'the instance.'),
-                            {'mac': vif['address'],
-                             'inst': self.instance.name},
-                            instance=self.instance)
         return cna_w_list
 
 
 class PlugVifs(task.Task):
     """The task to plug the Virtual Network Interfaces to a VM."""
 
-    def __init__(self, virt_api, adapter, instance, network_info, host_uuid):
+    def __init__(self, virt_api, adapter, instance, network_infos, host_uuid):
         """Create the task.
 
         Provides the 'vm_cnas' - the Virtual Machine's Client Network Adapters.
@@ -122,14 +98,14 @@ class PlugVifs(task.Task):
         :param virt_api: The VirtAPI for the operation.
         :param adapter: The pypowervm adapter.
         :param instance: The nova instance.
-        :param network_info: The network information containing the nova
-                             VIFs to create.
+        :param network_infos: The network information containing the nova
+                              VIFs to create.
         :param host_uuid: The host system's PowerVM UUID.
         """
         self.virt_api = virt_api
         self.adapter = adapter
         self.instance = instance
-        self.network_info = network_info
+        self.network_infos = network_infos
         self.host_uuid = host_uuid
 
         super(PlugVifs, self).__init__(name='plug_vifs', provides='vm_cnas',
@@ -143,16 +119,16 @@ class PlugVifs(task.Task):
         cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
 
         # Trim the VIFs down to the ones that haven't yet been created.
-        crt_vifs = []
-        for vif in self.network_info:
+        crt_network_infos = []
+        for network_info in self.network_infos:
             for cna_w in cna_w_list:
-                if vm.norm_mac(cna_w.mac) == vif['address']:
+                if vm.norm_mac(cna_w.mac) == network_info['address']:
                     break
             else:
-                crt_vifs.append(vif)
+                crt_network_infos.append(network_info)
 
         # If there are no vifs to create, then just exit immediately.
-        if len(crt_vifs) == 0:
+        if len(crt_network_infos) == 0:
             return []
 
         # Check to see if the LPAR is OK to add VIFs to.
@@ -188,14 +164,14 @@ class PlugVifs(task.Task):
                     self.instance, self._get_vif_events(),
                     deadline=CONF.vif_plugging_timeout,
                     error_callback=self._vif_callback_failed):
-                for vif in crt_vifs:
+                for network_info in crt_network_infos:
                     LOG.info(_LI('Creating VIF with mac %(mac)s for instance '
                                  '%(sys)s'),
-                             {'mac': vif['address'],
+                             {'mac': network_info['address'],
                               'sys': self.instance.name},
                              instance=self.instance)
-                    vm.crt_vif(self.adapter, self.instance, self.host_uuid,
-                               vif)
+                    vif.plug(self.adapter, self.host_uuid, self.instance,
+                             network_info)
         except eventlet.timeout.Timeout:
             LOG.error(_LE('Error waiting for VIF to be created for instance '
                           '%(sys)s'), {'sys': self.instance.name},
@@ -231,9 +207,9 @@ class PlugVifs(task.Task):
         # more information.
         if (utils.is_neutron() and CONF.vif_plugging_is_fatal and
                 CONF.vif_plugging_timeout):
-            return [('network-vif-plugged', vif['id'])
-                    for vif in self.network_info
-                    if not vif.get('active', True)]
+            return [('network-vif-plugged', network_info['id'])
+                    for network_info in self.network_infos
+                    if not network_info.get('active', True)]
         else:
             return []
 
@@ -265,7 +241,7 @@ class PlugMgmtVif(task.Task):
                      '%s'), self.instance.name, instance=self.instance)
         # Determine if we need to create the secure RMC VIF.  This should only
         # be needed if there is not a VIF on the secure RMC vSwitch
-        vswitch_w = vm.get_secure_rmc_vswitch(self.adapter, self.host_uuid)
+        vswitch_w = vif.get_secure_rmc_vswitch(self.adapter, self.host_uuid)
         if vswitch_w is None:
             LOG.debug('No management VIF created for instance %s due to '
                       'lack of Management Virtual Switch',
@@ -281,5 +257,5 @@ class PlugMgmtVif(task.Task):
                 return None
 
         # Return the created management CNA
-        return vm.crt_secure_rmc_vif(self.adapter, self.instance,
-                                     self.host_uuid)
+        return vif.plug_secure_rmc_vif(self.adapter, self.instance,
+                                       self.host_uuid)
