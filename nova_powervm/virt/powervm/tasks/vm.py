@@ -28,6 +28,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Get(task.Task):
+
     """The task for getting a VM entry."""
 
     def __init__(self, adapter, host_uuid, instance):
@@ -50,6 +51,7 @@ class Get(task.Task):
 
 
 class Create(task.Task):
+
     """The task for creating a VM."""
 
     def __init__(self, adapter, host_wrapper, instance, flavor, stg_ftsk):
@@ -90,6 +92,7 @@ class Create(task.Task):
 
 
 class Resize(task.Task):
+
     """The task for resizing an existing VM."""
 
     def __init__(self, adapter, host_wrapper, instance, flavor, name=None):
@@ -122,6 +125,7 @@ class Resize(task.Task):
 
 
 class Rename(task.Task):
+
     """The task for renaming an existing VM."""
 
     def __init__(self, adapter, host_uuid, instance, name):
@@ -150,6 +154,7 @@ class Rename(task.Task):
 
 
 class PowerOn(task.Task):
+
     """The task to power on the instance."""
 
     def __init__(self, adapter, host_uuid, instance, pwr_opts=None,
@@ -193,6 +198,7 @@ class PowerOn(task.Task):
 
 
 class PowerOff(task.Task):
+
     """The task to power off a VM."""
 
     def __init__(self, adapter, host_uuid, lpar_uuid, instance,
@@ -219,6 +225,7 @@ class PowerOff(task.Task):
 
 
 class Delete(task.Task):
+
     """The task to delete the instance from the system."""
 
     def __init__(self, adapter, lpar_uuid, instance):
@@ -240,6 +247,7 @@ class Delete(task.Task):
 
 
 class UpdateIBMiSettings(task.Task):
+
     """The task to update settings of an ibmi instance."""
 
     def __init__(self, adapter, instance, host_uuid, boot_type):

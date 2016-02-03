@@ -127,8 +127,9 @@ def translate_event(pvm_state, pwr_state):
 
 
 def _translate_vm_state(pvm_state):
-    """Find the current state of the lpar and convert it to
-    the appropriate nova.compute.power_state
+    """Find the current state of the lpar.
+
+    State is converted to the appropriate nova.compute.power_state
 
     :return: The appropriate integer state value from power_state
     """

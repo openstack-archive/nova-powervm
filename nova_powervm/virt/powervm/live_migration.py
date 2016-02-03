@@ -391,7 +391,9 @@ class LiveMigrationSrc(LiveMigration):
             raise exception.MigrationPreCheckError(reason=msg)
 
     def migration_abort(self):
-        """Abort the migration if the operation exceeds the configured timeout.
+        """Abort the migration.
+
+        Invoked if the operation exceeds the configured timeout.
         """
         LOG.debug("Abort migration.", instance=self.instance)
         try:

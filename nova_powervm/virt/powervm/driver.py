@@ -97,8 +97,9 @@ class PowerVMDriver(driver.ComputeDriver):
         super(PowerVMDriver, self).__init__(virtapi)
 
     def init_host(self, host):
-        """Initialize anything that is necessary for the driver to function,
-        including catching up with currently running VM's on the given host.
+        """Initialize anything that is necessary for the driver to function.
+
+        Includes catching up with currently running VM's on the given host.
         """
 
         # Live migrations
@@ -121,8 +122,9 @@ class PowerVMDriver(driver.ComputeDriver):
         LOG.info(_LI("The compute driver has been initialized."))
 
     def cleanup_host(self, host):
-        """Clean up anything that is necessary for the driver gracefully stop,
-        including ending remote sessions. This is optional.
+        """Clean up anything that is necessary for the driver gracefully stop.
+
+        Includes ending remote sessions. This is optional.
         """
         # Stop listening for events
         try:
@@ -162,8 +164,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
     @staticmethod
     def _log_operation(op, instance):
-        """Log entry point of driver operations
-        """
+        """Log entry point of driver operations."""
         LOG.info(_LI('Operation: %(op)s. Virtual machine display name: '
                      '%(display_name)s, name: %(name)s, UUID: %(uuid)s'),
                  {'op': op, 'display_name': instance.display_name,
@@ -233,8 +234,9 @@ class PowerVMDriver(driver.ComputeDriver):
         return {'memory_mb': overhead}
 
     def list_instances(self):
-        """Return the names of all the instances known to the virtualization
-        layer, as a list.
+        """Return the names of all the instances known to the virt host.
+
+        :return: VM Names as a list.
         """
         lpar_list = vm.get_lpar_names(self.adapter)
         return lpar_list
@@ -943,13 +945,11 @@ class PowerVMDriver(driver.ComputeDriver):
         return [self.host_wrapper.mtms.mtms_str]
 
     def legacy_nwinfo(self):
-        """Indicate if the driver requires the legacy network_info format.
-        """
+        """Indicate if the driver requires the legacy network_info format."""
         return False
 
     def get_host_ip_addr(self):
-        """Retrieves the IP address of the dom0
-        """
+        """Retrieves the IP address of the Host."""
         # This code was pulled from the libvirt driver.
         ips = compute_utils.get_machine_ips()
         if CONF.my_ip not in ips:

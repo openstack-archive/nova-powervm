@@ -72,8 +72,9 @@ class ConfigDrivePowerVM(object):
 
     def _create_cfg_dr_iso(self, instance, injected_files, network_info,
                            admin_pass=None):
-        """Creates an ISO file that contains the injected files.  Used for
-        config drive.
+        """Creates an ISO file that contains the injected files.
+
+        Used for config drive.
 
         :param instance: The VM instance from OpenStack.
         :param injected_files: A list of file paths that will be injected into

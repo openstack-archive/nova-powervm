@@ -460,6 +460,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
     def _set_fabric_state(self, fabric, state):
         """Sets the fabric state into the instance's system metadata.
+
         :param fabric: The name of the fabric
         :param state: state of the fabric which needs to be set
 
@@ -600,8 +601,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         return pvm_cfg.NPIV_FABRIC_WWPNS[fabric_name]
 
     def _ports_per_fabric(self):
-        """Returns the number of virtual ports that should be used per fabric.
-        """
+        """Returns the number of virtual ports to be used per fabric."""
         return CONF.powervm.ports_per_fabric
 
     def _get_num_keys(self, port_map):

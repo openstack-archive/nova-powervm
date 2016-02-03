@@ -34,6 +34,7 @@ CONF = cfg.CONF
 
 
 class VirtualInterfaceUnplugException(exception.NovaException):
+
     """Indicates that a VIF unplug failed."""
     # TODO(thorst) symmetrical to the exception in base Nova.  Evaluate
     # moving to Nova core.
@@ -41,6 +42,7 @@ class VirtualInterfaceUnplugException(exception.NovaException):
 
 
 class UnplugVifs(task.Task):
+
     """The task to unplug Virtual Network Interfaces from a VM."""
 
     def __init__(self, adapter, instance, network_info, host_uuid):
@@ -112,6 +114,7 @@ class UnplugVifs(task.Task):
 
 
 class PlugVifs(task.Task):
+
     """The task to plug the Virtual Network Interfaces to a VM."""
 
     def __init__(self, virt_api, adapter, instance, network_info, host_uuid):
@@ -239,6 +242,7 @@ class PlugVifs(task.Task):
 
 
 class PlugMgmtVif(task.Task):
+
     """The task to plug the Management VIF into a VM."""
 
     def __init__(self, adapter, instance, host_uuid):

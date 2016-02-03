@@ -31,6 +31,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ConnectVolume(task.Task):
+
     """The task to connect a volume to an instance."""
 
     def __init__(self, vol_drv):
@@ -76,6 +77,7 @@ class ConnectVolume(task.Task):
 
 
 class DisconnectVolume(task.Task):
+
     """The task to disconnect a volume from an instance."""
 
     def __init__(self, vol_drv):
@@ -121,6 +123,7 @@ class DisconnectVolume(task.Task):
 
 
 class CreateDiskForImg(task.Task):
+
     """The Task to create the disk from an image in the storage."""
 
     def __init__(self, disk_dvr, context, instance, image_meta, disk_size=0,
@@ -171,6 +174,7 @@ class CreateDiskForImg(task.Task):
 
 
 class ConnectDisk(task.Task):
+
     """The task to connect the disk to the instance."""
 
     def __init__(self, disk_dvr, context, instance, stg_ftsk=None):
@@ -211,6 +215,7 @@ class ConnectDisk(task.Task):
 
 
 class InstanceDiskToMgmt(task.Task):
+
     """Connect an instance's disk to the management partition, discover it.
 
     We do these two pieces together because their reversion doesn't happen in
@@ -293,6 +298,7 @@ class InstanceDiskToMgmt(task.Task):
 
 
 class RemoveInstanceDiskFromMgmt(task.Task):
+
     """Unmap and remove an instance's boot disk from the mgmt partition."""
 
     def __init__(self, disk_dvr, instance):
@@ -341,6 +347,7 @@ class RemoveInstanceDiskFromMgmt(task.Task):
 
 
 class CreateAndConnectCfgDrive(task.Task):
+
     """The task to create the configuration drive."""
 
     def __init__(self, adapter, host_uuid, instance, injected_files,
@@ -398,6 +405,7 @@ class CreateAndConnectCfgDrive(task.Task):
 
 
 class DeleteVOpt(task.Task):
+
     """The task to delete the virtual optical."""
 
     def __init__(self, adapter, host_uuid, instance, lpar_uuid,
@@ -428,6 +436,7 @@ class DeleteVOpt(task.Task):
 
 
 class DetachDisk(task.Task):
+
     """The task to detach the disk storage from the instance."""
 
     def __init__(self, disk_dvr, context, instance, stg_ftsk=None,
@@ -465,6 +474,7 @@ class DetachDisk(task.Task):
 
 
 class DeleteDisk(task.Task):
+
     """The task to delete the backing storage."""
 
     def __init__(self, disk_dvr, context, instance):
@@ -490,6 +500,7 @@ class DeleteDisk(task.Task):
 
 
 class SaveBDM(task.Task):
+
     """Task to save an updated block device mapping."""
 
     def __init__(self, bdm, instance):
@@ -510,6 +521,7 @@ class SaveBDM(task.Task):
 
 
 class FindDisk(task.Task):
+
     """The Task to find a disk and provide information to downstream tasks."""
 
     def __init__(self, disk_dvr, context, instance, disk_type):
@@ -543,6 +555,7 @@ class FindDisk(task.Task):
 
 
 class ExtendDisk(task.Task):
+
     """Task to extend a disk."""
 
     def __init__(self, disk_dvr, context, instance, disk_info, size):

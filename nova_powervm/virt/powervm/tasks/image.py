@@ -24,6 +24,7 @@ LOG = logging.getLogger(__name__)
 
 
 class UpdateTaskState(task.Task):
+
     def __init__(self, update_task_state, task_state, expected_state=None):
         """Invoke the update_task_state callback with the desired arguments.
 
@@ -49,7 +50,9 @@ class UpdateTaskState(task.Task):
 
 
 class StreamToGlance(task.Task):
+
     """Task around streaming a block device to glance."""
+
     def __init__(self, context, image_api, image_id, instance):
         """Initialize the flow for streaming a block device to glance.
 

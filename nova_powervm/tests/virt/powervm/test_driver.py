@@ -544,8 +544,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_update_lod_src, mock_get_flv, mock_cfg_drv,
         mock_plug_vifs, mock_plug_mgmt_vif, mock_boot_from_vol,
         mock_crt_img, mock_save):
-        """Validates the PowerVM spawn to create an IBMi server.
-        """
+        """Validates the PowerVM spawn to create an IBMi server."""
         # Set up the mocks to the tasks.
         mock_get_flv.return_value = self.inst_ibmi.get_flavor()
         mock_cfg_drv.return_value = False
@@ -604,6 +603,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_plug_mgmt_vif, mock_boot_from_vol, mock_crt_disk_img,
         mock_conn_vol, mock_crt_cfg_drv):
         """Validates the 'typical' spawn flow for IBMi
+
         Perform an UT using an image with local disk, attaching networks
         and powering on.
         """
