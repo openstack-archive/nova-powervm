@@ -54,7 +54,7 @@ class TestLPM(test.TestCase):
         with mock.patch.object(
             self.lpmsrc, '_check_migration_ready', return_value=None):
 
-            # Test the bad path first, then patch in values to make suceed
+            # Test the bad path first, then patch in values to make succeed
             self.lpmsrc.dest_data = {'dest_proc_compat': 'a,b,c'}
             mock_wrap = mock.Mock(id=123)
             mock_get_wrap.return_value = mock_wrap

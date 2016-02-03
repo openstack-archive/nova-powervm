@@ -99,7 +99,7 @@ class LiveMigrationDest(LiveMigration):
 
         src_stats = src_compute_info['stats']
         dst_stats = dst_compute_info['stats']
-        # Check the lmb sizes for compatability
+        # Check the lmb sizes for compatibility
         if (src_stats['memory_region_size'] !=
                 dst_stats['memory_region_size']):
             msg = (_("Cannot migrate instance '%(name)s' because the "
@@ -248,7 +248,7 @@ class LiveMigrationSrc(LiveMigration):
         self.src_data['migrate_data'] = mig_data
         LOG.debug('Src Migration data: %s' % self.src_data)
 
-        # Check proc compatability modes
+        # Check proc compatibility modes
         if (lpar_w.proc_compat_mode and lpar_w.proc_compat_mode not in
                 self.dest_data['dest_proc_compat'].split(',')):
             msg = (_("Cannot migrate %(name)s because its "
