@@ -16,9 +16,13 @@
 
 import abc
 import logging
+import netifaces
 import six
 
 from nova import exception
+from nova.network import linux_net
+from nova import utils
+from oslo_config import cfg
 from oslo_utils import importutils
 from pypowervm.tasks import cna as pvm_cna
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -28,6 +32,7 @@ from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
+from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -35,7 +40,10 @@ LOG = logging.getLogger(__name__)
 SECURE_RMC_VSWITCH = 'MGMTSWITCH'
 SECURE_RMC_VLAN = 4094
 
-VIF_MAPPING = {'pvm_sea': 'nova_powervm.virt.powervm.vif.PvmSeaVifDriver'}
+VIF_MAPPING = {'pvm_sea': 'nova_powervm.virt.powervm.vif.PvmSeaVifDriver',
+               'ovs': 'nova_powervm.virt.powervm.vif.PvmOvsVifDriver'}
+
+CONF = cfg.CONF
 
 
 class VirtualInterfaceUnplugException(exception.NovaException):
@@ -56,8 +64,8 @@ def _build_vif_driver(adapter, host_uuid, instance, vif):
     """
     if vif.get('type') is None:
         raise exception.VirtualInterfacePlugException(
-            _("vif_type parameter must be present "
-              "for this vif_driver implementation"))
+            _("vif_type parameter must be present for this vif_driver "
+              "implementation"))
 
     # Check the type to the implementations
     if VIF_MAPPING.get(vif['type']):
@@ -171,30 +179,31 @@ class PvmVifDriver(object):
             cna_w_list = vm.get_cnas(self.adapter, self.instance,
                                      self.host_uuid)
 
-        for cna_w in cna_w_list:
-            # If the MAC address matched, attempt the delete.
-            if vm.norm_mac(cna_w.mac) == vif['address']:
-                LOG.info(_LI('Deleting VIF with mac %(mac)s for instance '
-                             '%(inst)s.'),
-                         {'mac': vif['address'], 'inst': self.instance.name})
-                try:
-                    cna_w.delete()
-                except Exception as e:
-                    LOG.error(_LE('Unable to unplug VIF with mac %(mac)s '
-                                  'for instance %(inst)s.'),
-                              {'mac': vif['address'],
-                               'inst': self.instance.name})
-                    LOG.exception(e)
-                    raise VirtualInterfaceUnplugException()
-
-                # Break from the loop as we had a successful unplug.
-                # This prevents from going to 'else' loop.
-                break
-        else:
+        cna_w = self._find_cna_for_vif(cna_w_list, vif)
+        if not cna_w:
             LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
                             'instance %(inst)s.  The VIF was not found on '
                             'the instance.'),
                         {'mac': vif['address'], 'inst': self.instance.name})
+            return
+
+        LOG.info(_LI('Deleting VIF with mac %(mac)s for instance %(inst)s.'),
+                 {'mac': vif['address'], 'inst': self.instance.name})
+        try:
+            cna_w.delete()
+        except Exception as e:
+            LOG.error(_LE('Unable to unplug VIF with mac %(mac)s for instance '
+                          '%(inst)s.'), {'mac': vif['address'],
+                                         'inst': self.instance.name})
+            LOG.exception(e)
+            raise VirtualInterfaceUnplugException()
+
+    def _find_cna_for_vif(self, cna_w_list, vif):
+        for cna_w in cna_w_list:
+            # If the MAC address matched, attempt the delete.
+            if vm.norm_mac(cna_w.mac) == vif['address']:
+                return cna_w
+        return None
 
 
 class PvmSeaVifDriver(PvmVifDriver):
@@ -206,3 +215,72 @@ class PvmSeaVifDriver(PvmVifDriver):
         vlan = vif['network']['meta'].get('vlan', 1)
         return pvm_cna.crt_cna(self.adapter, self.host_uuid, lpar_uuid, vlan,
                                mac_addr=vif['address'])
+
+
+class PvmOvsVifDriver(PvmVifDriver):
+    """The Open vSwitch VIF driver for PowerVM."""
+
+    def plug(self, vif):
+        # Create the trunk and client adapter.
+        lpar_uuid = vm.get_pvm_uuid(self.instance)
+        mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
+        cna_w, trunk_wraps = pvm_cna.crt_p2p_cna(
+            self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
+            CONF.powervm.pvm_vswitch_for_ovs, crt_vswitch=True,
+            mac_addr=vif['address'])
+
+        # There will only be one trunk wrap, as we have created with just the
+        # mgmt lpar.  Next step is to set the device up and connect to the OVS
+        dev = self.get_trunk_dev_name(trunk_wraps[0])
+        utils.execute('ip', 'link', 'set', dev, 'up', run_as_root=True)
+        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev,
+                                      self.get_ovs_interfaceid(vif),
+                                      vif['address'], self.instance.uuid)
+
+    def get_ovs_interfaceid(self, vif):
+        return vif.get('ovs_interfaceid') or vif['id']
+
+    def get_trunk_dev_name(self, trunk_w):
+        # The mac address from the API is of format: 01234567890A
+        # We need it in format: 01:23:45:67:89:0a
+        # That means we need to add colons and lower case it
+        mac_addr = ":".join(trunk_w.mac[i:i + 2]
+                            for i in range(0, len(trunk_w.mac), 2)).lower()
+
+        # Use netifaces to find the appropriate matching interface name
+        # TODO(thorst) I don't like this logic.  Seems gross.
+        ifaces = netifaces.interfaces()
+        for iface in ifaces:
+            link_addrs = netifaces.ifaddresses(iface)[netifaces.AF_LINK]
+            for link_addr in link_addrs:
+                if link_addr.get('addr') == mac_addr:
+                    return iface
+
+        raise exception.VirtualInterfacePlugException(
+            _("Unable to find appropriate Trunk Device for mac "
+              "%(mac_addr)s.") % {'mac_addr': mac_addr})
+
+    def unplug(self, vif, cna_w_list=None):
+        # Need to find the adapters if they were not provided
+        if not cna_w_list:
+            cna_w_list = vm.get_cnas(self.adapter, self.instance,
+                                     self.host_uuid)
+
+        # Find the CNA for this vif.
+        cna_w = self._find_cna_for_vif(cna_w_list, vif)
+        if not cna_w:
+            LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
+                            'instance %(inst)s.  The VIF was not found on '
+                            'the instance.'),
+                        {'mac': vif['address'], 'inst': self.instance.name})
+            return
+
+        # Find and delete the trunk adapters
+        trunks = pvm_cna.find_trunks(self.adapter, cna_w)
+        for trunk in trunks:
+            dev = self.get_trunk_dev_name(trunk)
+            linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
+            trunk.delete()
+
+        # Now delete the client CNA
+        super(PvmOvsVifDriver, self).unplug(vif, cna_w_list=cna_w_list)

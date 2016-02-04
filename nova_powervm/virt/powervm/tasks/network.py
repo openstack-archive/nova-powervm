@@ -57,7 +57,7 @@ class UnplugVifs(task.Task):
         """
         self.adapter = adapter
         self.instance = instance
-        self.network_infos = network_infos
+        self.network_infos = network_infos or []
         self.host_uuid = host_uuid
 
         super(UnplugVifs, self).__init__(name='unplug_vifs',

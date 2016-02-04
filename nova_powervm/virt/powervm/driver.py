@@ -459,7 +459,7 @@ class PowerVMDriver(driver.ComputeDriver):
         return False
 
     def _destroy(self, context, instance, block_device_info=None,
-                 destroy_disks=True, shutdown=True):
+                 network_info=None, destroy_disks=True, shutdown=True):
 
         """Internal destroy method used by multiple operations.
 
@@ -472,6 +472,8 @@ class PowerVMDriver(driver.ComputeDriver):
                                   case, the storage mappings have already been
                                   removed from the original VM, so no work to
                                   do.
+        :param network_info: The network information associated with the
+                             instance
         :param destroy_disks: Indicates if disks should be destroyed
         :param shutdown: Indicate whether to shutdown the VM first
         """
@@ -494,6 +496,12 @@ class PowerVMDriver(driver.ComputeDriver):
             xag = self._get_inst_xag(instance, bdms)
             stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
                                                xag=xag)
+
+            # Call the unplug VIFs task.  While CNAs get removed from the LPAR
+            # directly on the destroy, this clears up the I/O Host side.
+            flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
+            flow.add(tf_net.UnplugVifs(self.adapter, instance, network_info,
+                                       self.host_uuid))
 
             # Add the disconnect/deletion of the vOpt to the transaction
             # manager.
@@ -599,8 +607,10 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Run the destroy
         self._log_operation('destroy', instance)
-        self._destroy(context, instance, block_device_info=block_device_info,
-                      destroy_disks=destroy_disks, shutdown=True)
+        self._destroy(
+            context, instance, block_device_info=block_device_info,
+            network_info=network_info, destroy_disks=destroy_disks,
+            shutdown=True)
 
     def attach_volume(self, context, connection_info, instance, mountpoint,
                       disk_bus=None, device_type=None, encryption=None):

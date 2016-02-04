@@ -53,6 +53,11 @@ powervm_opts = [
                default='localdisk',
                help='The disk driver to use for PowerVM disks. '
                'Valid options are: localdisk, ssp'),
+    cfg.StrOpt('pvm_vswitch_for_ovs',
+               default='OpenStackOVS',
+               help="Name of the PowerVM virtual switch to be used when "
+                    "mapping Open vSwitch ports to PowerVM virtual Ethernet "
+                    "devices")
 ]
 
 localdisk_opts = [

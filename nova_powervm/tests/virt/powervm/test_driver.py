@@ -743,6 +743,7 @@ class TestPowerVMDriver(test.TestCase):
                 'context', 'instance', 'bdms', flow, 'stg_ftsk')
         self.assertEqual(2, flow.add.call_count)
 
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
@@ -755,19 +756,22 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy_internal(
         self, mock_get_flv, mock_pvmuuid, mock_val_vopt, mock_dlt_vopt,
-        mock_pwroff, mock_dlt, mock_boot_from_vol):
+        mock_pwroff, mock_dlt, mock_boot_from_vol, mock_unplug_vifs):
         """Validates the basic PowerVM destroy."""
         # BDMs
         mock_bdms = self._fake_bdms()
         mock_boot_from_vol.return_value = False
         # Invoke the method.
-        self.drv.destroy('context', self.inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, [mock.Mock],
                          block_device_info=mock_bdms)
 
         # Power off was called
         mock_pwroff.assert_called_with(self.drv.adapter, self.inst,
                                        self.drv.host_uuid,
                                        force_immediate=True)
+
+        # Unplug should have been called
+        self.assertTrue(mock_unplug_vifs.called)
 
         # Validate that the vopt delete was called
         self.assertTrue(mock_dlt_vopt.called)
@@ -811,7 +815,7 @@ class TestPowerVMDriver(test.TestCase):
         self.drv.disk_dvr.disconnect_image_disk.reset_mock()
 
         # Invoke the method.
-        self.drv.destroy('context', self.inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, None,
                          block_device_info=mock_bdms)
 
         # Validate root device in bdm was checked.
@@ -828,7 +832,7 @@ class TestPowerVMDriver(test.TestCase):
         self.drv.disk_dvr.disconnect_image_disk.reset_mock()
 
         # Invoke the method.
-        self.drv.destroy('context', self.inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, None,
                          block_device_info=mock_bdms, destroy_disks=False)
 
         mock_pwroff.assert_called_with(self.drv.adapter, self.inst,
@@ -842,7 +846,7 @@ class TestPowerVMDriver(test.TestCase):
             instance_id=self.inst.name)
 
         # Invoke the method.
-        self.drv.destroy('context', self.inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, None,
                          block_device_info=mock_bdms)
         assert_not_called()
 
@@ -853,8 +857,9 @@ class TestPowerVMDriver(test.TestCase):
             'b16fb039d63b/LogicalPartition/1B5FB633-16D1-4E10-A14'
             '5-E6FB905161A3?group=None')
         mock_pvmuuid.side_effect = pvm_exc.HttpError(mock_resp)
+
         # Invoke the method.
-        self.drv.destroy('context', self.inst, mock.Mock(),
+        self.drv.destroy('context', self.inst, [],
                          block_device_info=mock_bdms)
         assert_not_called()
 
@@ -867,7 +872,7 @@ class TestPowerVMDriver(test.TestCase):
         # Invoke the method.
         self.assertRaises(exc.InstanceTerminationFailure,
                           self.drv.destroy, 'context', self.inst,
-                          mock.Mock(), block_device_info=mock_bdms)
+                          [], block_device_info=mock_bdms)
         assert_not_called()
 
         # Test generic exception
@@ -875,7 +880,7 @@ class TestPowerVMDriver(test.TestCase):
         # Invoke the method.
         self.assertRaises(exc.InstanceTerminationFailure,
                           self.drv.destroy, 'context', self.inst,
-                          mock.Mock(), block_device_info=mock_bdms)
+                          [], block_device_info=mock_bdms)
         assert_not_called()
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
@@ -887,11 +892,11 @@ class TestPowerVMDriver(test.TestCase):
 
         with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
             # Invoke the method.
-            self.drv.destroy('context', self.inst, mock.Mock(),
+            self.drv.destroy('context', self.inst, [],
                              block_device_info=mock_bdms)
         mock_dst_int.assert_called_with(
             'context', self.inst, block_device_info=mock_bdms,
-            destroy_disks=True, shutdown=True)
+            destroy_disks=True, shutdown=True, network_info=[])
         self.san_lpar_name.assert_not_called()
 
         # Test delete during migrate / resize
@@ -899,7 +904,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_getqp.return_value = 'resize_' + self.inst.name
         with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
             # Invoke the method.
-            self.drv.destroy('context', self.inst, mock.Mock(),
+            self.drv.destroy('context', self.inst, [],
                              block_device_info=mock_bdms)
         # We shouldn't delete our resize_ instances
         mock_dst_int.assert_not_called()
@@ -910,12 +915,12 @@ class TestPowerVMDriver(test.TestCase):
         mock_getqp.return_value = 'migrate_' + self.inst.name
         with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
             # Invoke the method.
-            self.drv.destroy('context', self.inst, mock.Mock(),
+            self.drv.destroy('context', self.inst, [],
                              block_device_info=mock_bdms)
         # If it is a migrated instance, it should be deleted.
         mock_dst_int.assert_called_with(
             'context', self.inst, block_device_info=mock_bdms,
-            destroy_disks=True, shutdown=True)
+            destroy_disks=True, shutdown=True, network_info=[])
 
     def test_attach_volume(self):
         """Validates the basic PowerVM attach volume."""
@@ -965,6 +970,7 @@ class TestPowerVMDriver(test.TestCase):
         # Verify the disconnect volume was not invoked
         self.assertEqual(0, self.vol_drv.disconnect_volume.call_count)
 
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -974,7 +980,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy_rollback(
         self, mock_get_flv, mock_val_vopt, mock_dlt_vopt, mock_pwroff,
-        mock_dlt):
+        mock_dlt, mock_unplug_vifs):
         """Validates the basic PowerVM destroy rollback mechanism works."""
         # Set up the mocks to the tasks.
         mock_get_flv.return_value = self.inst.get_flavor()
@@ -992,11 +998,12 @@ class TestPowerVMDriver(test.TestCase):
 
         # Invoke the method.
         self.assertRaises(exc.InstanceTerminationFailure, self.drv.destroy,
-                          'context', self.inst, mock.Mock(),
+                          'context', self.inst, [],
                           block_device_info=mock_bdms)
 
         # Validate that the vopt delete was called
         self.assertTrue(mock_dlt_vopt.called)
+        self.assertTrue(mock_unplug_vifs.called)
 
         # Validate that the volume detach was called
         self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
