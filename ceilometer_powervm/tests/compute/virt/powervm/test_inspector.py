@@ -19,7 +19,6 @@ import mock
 
 from ceilometer.compute.virt import inspector as virt_inspector
 from oslotest import base
-from pypowervm.tasks.monitor import lpar as pvm_lpar_stat
 from pypowervm.tests import test_fixtures as api_fx
 
 from ceilometer_powervm.compute.virt.powervm import inspector as p_inspect
@@ -157,10 +156,9 @@ class TestPowerVMInspector(base.BaseTestCase):
     @staticmethod
     def _mock_vnic_metric(rec_bytes, tx_bytes, rec_pkts, tx_pkts, phys_loc):
         """Helper method to create a specific mock network metric."""
-        return pvm_lpar_stat.LparCNA(mock.Mock(
-            received_bytes=rec_bytes, sent_bytes=tx_bytes,
-            received_packets=rec_pkts, sent_packets=tx_pkts,
-            physical_location=phys_loc))
+        return mock.Mock(received_bytes=rec_bytes, sent_bytes=tx_bytes,
+                         received_packets=rec_pkts, sent_packets=tx_pkts,
+                         physical_location=phys_loc)
 
     def _build_cur_mock_vnic_metrics(self):
         """Helper method to create mock network metrics."""
@@ -294,7 +292,7 @@ class TestPowerVMInspector(base.BaseTestCase):
                       read_bytes=read_bytes, write_bytes=write_bytes)
         # Have to do this method as name is a special field.
         m.configure_mock(name=name)
-        return pvm_lpar_stat.LparVirtStorageAdpt(m)
+        return m
 
     def _build_cur_mock_stor_metrics(self):
         """Helper method to create mock storage metrics."""
