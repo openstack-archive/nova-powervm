@@ -20,7 +20,7 @@ CONF = cfg.CONF
 # Pull in the imports that nova-powervm uses so they are validated
 CONF.import_opt('host', 'nova.netconf')
 CONF.import_opt('my_ip', 'nova.netconf')
-CONF.import_opt('vncserver_proxyclient_address', 'nova.vnc', group='vnc')
+CONF.import_opt('vncserver_proxyclient_address', 'nova.conf.vnc', group='vnc')
 CONF.import_opt('vif_plugging_is_fatal', 'nova.virt.driver')
 CONF.import_opt('vif_plugging_timeout', 'nova.virt.driver')
 
