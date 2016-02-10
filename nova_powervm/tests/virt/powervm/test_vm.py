@@ -16,13 +16,13 @@
 #
 
 import logging
-
 import mock
 
 from nova.compute import power_state
 from nova import exception
 from nova import objects
 from nova import test
+from nova.virt import event
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
 from pypowervm.tests import test_fixtures as pvm_fx
@@ -194,6 +194,34 @@ class TestVM(test.TestCase):
                             LPAR_HTTPRESP_FILE)
 
         self.resp = lpar_http.response
+
+    def test_translate_event(self):
+        # (expected event, pvm state, power_state)
+        tests = [
+            (event.EVENT_LIFECYCLE_STARTED, "running", power_state.SHUTDOWN),
+            (None, "running", power_state.RUNNING)
+        ]
+        for t in tests:
+            self.assertEqual(t[0], vm.translate_event(t[1], t[2]))
+
+    @mock.patch.object(objects.Instance, 'get_by_uuid')
+    def test_get_instance(self, mock_get_uuid):
+        mock_get_uuid.return_value = '1111'
+        self.assertEqual('1111', vm.get_instance('ctx', 'ABC'))
+
+        mock_get_uuid.side_effect = [
+            exception.InstanceNotFound({'instance_id': 'fake_instance'}),
+            '222'
+        ]
+        self.assertEqual('222', vm.get_instance('ctx', 'ABC'))
+
+    def test_uuid_set_high_bit(self):
+        self.assertEqual(
+            vm._uuid_set_high_bit('65e7a5f0-ceb2-427d-a6d1-e47f0eb38708'),
+            'e5e7a5f0-ceb2-427d-a6d1-e47f0eb38708')
+        self.assertEqual(
+            vm._uuid_set_high_bit('f6f79d3f-eef1-4009-bfd4-172ab7e6fff4'),
+            'f6f79d3f-eef1-4009-bfd4-172ab7e6fff4')
 
     def test_instance_info(self):
 

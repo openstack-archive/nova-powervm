@@ -21,6 +21,8 @@ import six
 
 from nova.compute import power_state
 from nova import exception
+from nova import objects
+from nova.virt import event
 from nova.virt import hardware
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
@@ -47,26 +49,46 @@ LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 POWERVM_TO_NOVA_STATE = {
-    "migrating running": power_state.RUNNING,
-    "running": power_state.RUNNING,
-    "starting": power_state.RUNNING,
+    pvm_bp.LPARState.MIGRATING_RUNNING: power_state.RUNNING,
+    pvm_bp.LPARState.RUNNING: power_state.RUNNING,
+    pvm_bp.LPARState.STARTING: power_state.RUNNING,
 
-    "migrating not active": power_state.SHUTDOWN,
-    "not activated": power_state.SHUTDOWN,
+    pvm_bp.LPARState.MIGRATING_NOT_ACTIVE: power_state.SHUTDOWN,
+    pvm_bp.LPARState.NOT_ACTIVATED: power_state.SHUTDOWN,
 
-    "hardware discovery": power_state.NOSTATE,
-    "not available": power_state.NOSTATE,
+    pvm_bp.LPARState.HARDWARE_DISCOVERY: power_state.NOSTATE,
+    pvm_bp.LPARState.NOT_AVAILBLE: power_state.NOSTATE,
     # map open firmware state to active since it can be shut down
-    "open firmware": power_state.RUNNING,
-    "resuming": power_state.NOSTATE,
-    "shutting down": power_state.NOSTATE,
-    "suspending": power_state.NOSTATE,
-    "unknown": power_state.NOSTATE,
+    pvm_bp.LPARState.OPEN_FIRMWARE: power_state.RUNNING,
+    pvm_bp.LPARState.RESUMING: power_state.NOSTATE,
+    pvm_bp.LPARState.SHUTTING_DOWN: power_state.NOSTATE,
+    pvm_bp.LPARState.SUSPENDING: power_state.NOSTATE,
+    pvm_bp.LPARState.UNKNOWN: power_state.NOSTATE,
 
-    "suspended": power_state.SUSPENDED,
+    pvm_bp.LPARState.SUSPENDED: power_state.SUSPENDED,
 
-    "error": power_state.CRASHED
+    pvm_bp.LPARState.ERROR: power_state.CRASHED
 }
+
+# Groupings of PowerVM events used when considering if a state transition
+# has taken place.
+RUNNING_EVENTS = [
+    pvm_bp.LPARState.MIGRATING_RUNNING,
+    pvm_bp.LPARState.RUNNING,
+    pvm_bp.LPARState.STARTING,
+    pvm_bp.LPARState.OPEN_FIRMWARE,
+]
+STOPPED_EVENTS = [
+    pvm_bp.LPARState.NOT_ACTIVATED,
+    pvm_bp.LPARState.ERROR,
+    pvm_bp.LPARState.UNKNOWN,
+]
+SUSPENDED_EVENTS = [
+    pvm_bp.LPARState.SUSPENDING,
+]
+RESUMING_EVENTS = [
+    pvm_bp.LPARState.RESUMING,
+]
 
 POWERVM_STARTABLE_STATE = (pvm_bp.LPARState.NOT_ACTIVATED)
 POWERVM_STOPABLE_STATE = (pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
@@ -77,6 +99,31 @@ POWERVM_STOPABLE_STATE = (pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
 # TODO(thorst) The name of the secure RMC vswitch will change.
 SECURE_RMC_VSWITCH = 'MGMTSWITCH'
 SECURE_RMC_VLAN = 4094
+
+
+def translate_event(pvm_state, pwr_state):
+    """Translate the PowerVM state and see if it has changed.
+
+    Compare the state from PowerVM to the state from OpenStack and see if
+    a life cycle event should be sent to up to OpenStack.
+
+    :param pvm_state: VM state from PowerVM
+    :param pwr_state: Instance power state from OpenStack
+    :returns: life cycle event to send.
+    """
+    trans = None
+    if pvm_state in RUNNING_EVENTS and pwr_state != power_state.RUNNING:
+        trans = event.EVENT_LIFECYCLE_STARTED
+    elif pvm_state in STOPPED_EVENTS and pwr_state != power_state.SHUTDOWN:
+        trans = event.EVENT_LIFECYCLE_STOPPED
+    elif (pvm_state in SUSPENDED_EVENTS and
+          pwr_state != power_state.SUSPENDED):
+        trans = event.EVENT_LIFECYCLE_SUSPENDED
+    elif pvm_state in RESUMING_EVENTS and pwr_state != power_state.RUNNING:
+        trans = event.EVENT_LIFECYCLE_RESUMED
+
+    LOG.debug('Transistion to %s' % trans)
+    return trans
 
 
 def _translate_vm_state(pvm_state):
@@ -605,6 +652,45 @@ def get_pvm_uuid(instance):
     :return: pvm_uuid.
     """
     return pvm_uuid.convert_uuid_to_pvm(instance.uuid).upper()
+
+
+def _uuid_set_high_bit(pvm_uuid):
+    """Turns on the high bit of a uuid
+
+    PowerVM uuids always set the byte 0, bit 0 to 0.
+    So to convert it to an OpenStack uuid we may have to set the high bit.
+
+    :param uuid: A PowerVM compliant uuid
+    :returns: A standard format uuid string
+    """
+    return "%x%s" % (int(pvm_uuid[0], 16) | 8, pvm_uuid[1:])
+
+
+def get_instance(context, pvm_uuid):
+    """Get an instance, if there is one, that corresponds to the PVM UUID
+
+    Not finding the instance can be a pretty normal case when handling events.
+    Don't log exceptions for those cases.
+
+    :param pvm_uuid: PowerVM UUID
+    :return: OpenStack instance or None
+    """
+    uuid = pvm_uuid.lower()
+
+    def get_inst():
+        try:
+            return objects.Instance.get_by_uuid(context, uuid)
+        except exception.InstanceNotFound:
+            return objects.Instance.get_by_uuid(context,
+                                                _uuid_set_high_bit(uuid))
+
+    try:
+        return get_inst()
+    except exception.InstanceNotFound:
+        pass
+    except Exception as e:
+        LOG.debug('PowerVM UUID not found. %s', e)
+    return None
 
 
 def get_cnas(adapter, instance, host_uuid):

@@ -91,6 +91,7 @@ class PowerVMComputeDriver(fixtures.Fixture):
         # Pretend it just returned one host
         ms_http.feed.entries = [ms_http.feed.entries[0]]
         self.drv.adapter.read.return_value = ms_http
+        self.drv.session = self.drv.adapter.session
         self.drv.init_host('FakeHost')
 
     def setUp(self):
