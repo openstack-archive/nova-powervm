@@ -85,7 +85,7 @@ class TestVMBuilder(test.TestCase):
 
         # Test dedicated procs
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
-        test_attrs = dict(lpar_attrs, **{'dedicated_proc': 'true'})
+        test_attrs = dict(lpar_attrs, dedicated_proc='true')
 
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
@@ -99,9 +99,9 @@ class TestVMBuilder(test.TestCase):
                               'powervm:min_vcpu': '1',
                               'powervm:max_vcpu': '3'}
         test_attrs = dict(lpar_attrs,
-                          **{'dedicated_proc': 'true',
-                             'sharing_mode': 'sre idle procs active',
-                             'min_vcpu': '1', 'max_vcpu': '3'})
+                          dedicated_proc='true',
+                          sharing_mode='sre idle procs active',
+                          min_vcpu='1', max_vcpu='3')
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
@@ -109,7 +109,7 @@ class TestVMBuilder(test.TestCase):
 
         # Test shared proc sharing mode
         flavor.extra_specs = {'powervm:uncapped': 'true'}
-        test_attrs = dict(lpar_attrs, **{'sharing_mode': 'uncapped'})
+        test_attrs = dict(lpar_attrs, sharing_mode='uncapped')
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
@@ -117,7 +117,7 @@ class TestVMBuilder(test.TestCase):
 
         # Test availability priority
         flavor.extra_specs = {'powervm:availability_priority': '150'}
-        test_attrs = dict(lpar_attrs, **{'avail_priority': '150'})
+        test_attrs = dict(lpar_attrs, avail_priority='150')
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
@@ -125,7 +125,7 @@ class TestVMBuilder(test.TestCase):
 
         # Test processor compatibility
         flavor.extra_specs = {'powervm:processor_compatibility': 'POWER8'}
-        test_attrs = dict(lpar_attrs, **{'processor_compatibility': 'POWER8'})
+        test_attrs = dict(lpar_attrs, processor_compatibility='POWER8')
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
@@ -134,7 +134,7 @@ class TestVMBuilder(test.TestCase):
         flavor.extra_specs = {'powervm:processor_compatibility': 'POWER6+'}
         test_attrs = dict(
             lpar_attrs,
-            **{'processor_compatibility': pvm_bp.LPARCompat.POWER6_PLUS})
+            processor_compatibility=pvm_bp.LPARCompat.POWER6_PLUS)
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
@@ -143,8 +143,8 @@ class TestVMBuilder(test.TestCase):
         flavor.extra_specs = {'powervm:processor_compatibility':
                               'POWER6+_Enhanced'}
         test_attrs = dict(
-            lpar_attrs, **{'processor_compatibility':
-                           pvm_bp.LPARCompat.POWER6_PLUS_ENHANCED})
+            lpar_attrs,
+            processor_compatibility=pvm_bp.LPARCompat.POWER6_PLUS_ENHANCED)
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
@@ -153,8 +153,8 @@ class TestVMBuilder(test.TestCase):
         # Test min, max proc units
         flavor.extra_specs = {'powervm:min_proc_units': '0.5',
                               'powervm:max_proc_units': '2.0'}
-        test_attrs = dict(lpar_attrs, **{'min_proc_units': '0.5',
-                                         'max_proc_units': '2.0'})
+        test_attrs = dict(lpar_attrs, min_proc_units='0.5',
+                          max_proc_units='2.0')
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
@@ -163,10 +163,15 @@ class TestVMBuilder(test.TestCase):
         # Test min, max mem
         flavor.extra_specs = {'powervm:min_mem': '1024',
                               'powervm:max_mem': '4096'}
-        test_attrs = dict(lpar_attrs, **{'min_mem': '1024', 'max_mem': '4096'})
+        test_attrs = dict(lpar_attrs, min_mem='1024', max_mem='4096')
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
+
+        flavor.extra_specs = {'powervm:srr_capability': 'True'}
+        test_attrs = dict(lpar_attrs, srr_capability='True')
+        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
+                         test_attrs)
 
     @mock.patch('pypowervm.wrappers.shared_proc_pool.SharedProcPool.search')
     def test_spp_pool_id(self, mock_search):
@@ -347,6 +352,16 @@ class TestVM(test.TestCase):
         vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
         self.assertTrue(self.apt.create.called)
         self.assertTrue(mock_vld_all.called)
+
+        # Test srr
+        self.apt.reset_mock()
+        mock_vld_all.reset_mock()
+        flavor.extra_specs = {'powervm:srr_capability': 'true'}
+        self.apt.create.return_value = lparw.entry
+        vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
+        self.assertTrue(self.apt.create.called)
+        self.assertTrue(mock_vld_all.called)
+        self.assertTrue(lparw.srr_enabled)
 
         # Test to verify the LPAR Creation with invalid name specification
         mock_bld.side_effect = lpar_bld.LPARBuilderException("Invalid Name")

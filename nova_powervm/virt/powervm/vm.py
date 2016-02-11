@@ -222,6 +222,7 @@ class VMBuilder(object):
     _PVM_UNCAPPED = 'powervm:uncapped'
     _PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
     _PVM_SHAR_PROC_POOL = 'powervm:shared_proc_pool_name'
+    _PVM_SRR_CAPABILITY = 'powervm:srr_capability'
 
     # Map of PowerVM extra specs to the lpar builder attributes.
     # '' is used for attributes that are not implemented yet.
@@ -242,7 +243,7 @@ class VMBuilder(object):
         _PVM_DED_SHAR_MODE: None,
         _PVM_PROC_COMPAT: None,
         _PVM_SHAR_PROC_POOL: None,
-        'powervm:srr_capability': '',
+        _PVM_SRR_CAPABILITY: lpar_bldr.SRR_CAPABLE,
     }
 
     _DED_SHARING_MODES_MAP = {
@@ -372,7 +373,9 @@ class VMBuilder(object):
             # Handle variants of the supported values
             attrs[lpar_bldr.PROC_COMPAT] = re.sub(
                 r'\+', '_Plus', flavor.extra_specs[key])
-        # TODO(IBM): Handle other attributes
+        elif key == self._PVM_SRR_CAPABILITY:
+            srr = flavor.extra_specs[key]
+            attrs[lpar_bldr.SRR_CAPABLE] = srr
         else:
             # There was no mapping or we didn't handle it.
             exc = exception.InvalidAttribute(attr=key)
