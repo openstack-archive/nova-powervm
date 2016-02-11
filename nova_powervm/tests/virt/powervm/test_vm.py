@@ -15,6 +15,9 @@
 #    under the License.
 #
 
+from __future__ import absolute_import
+
+import fixtures
 import logging
 import mock
 
@@ -59,6 +62,10 @@ class TestVMBuilder(test.TestCase):
         self.host_w = mock.MagicMock()
         self.lpar_b = vm.VMBuilder(self.host_w, self.adpt)
 
+        self.san_lpar_name = self.useFixture(fixtures.MockPatch(
+            'pypowervm.util.sanitize_partition_name_for_api')).mock
+        self.san_lpar_name.side_effect = lambda name: name
+
     def test_conf_values(self):
         # Test driver CONF values are passed to the standardizer
         self.flags(uncapped_proc_weight=75, proc_units_factor=.25,
@@ -82,6 +89,8 @@ class TestVMBuilder(test.TestCase):
 
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
         # Test dedicated procs, min/max vcpu and sharing mode
         flavor.extra_specs = {'powervm:dedicated_proc': 'true',
@@ -95,24 +104,32 @@ class TestVMBuilder(test.TestCase):
                              'min_vcpu': '1', 'max_vcpu': '3'})
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
         # Test shared proc sharing mode
         flavor.extra_specs = {'powervm:uncapped': 'true'}
         test_attrs = dict(lpar_attrs, **{'sharing_mode': 'uncapped'})
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
         # Test availability priority
         flavor.extra_specs = {'powervm:availability_priority': '150'}
         test_attrs = dict(lpar_attrs, **{'avail_priority': '150'})
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
         # Test processor compatibility
         flavor.extra_specs = {'powervm:processor_compatibility': 'POWER8'}
         test_attrs = dict(lpar_attrs, **{'processor_compatibility': 'POWER8'})
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
         flavor.extra_specs = {'powervm:processor_compatibility': 'POWER6+'}
         test_attrs = dict(
@@ -120,6 +137,8 @@ class TestVMBuilder(test.TestCase):
             **{'processor_compatibility': pvm_bp.LPARCompat.POWER6_PLUS})
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
         flavor.extra_specs = {'powervm:processor_compatibility':
                               'POWER6+_Enhanced'}
@@ -128,6 +147,8 @@ class TestVMBuilder(test.TestCase):
                            pvm_bp.LPARCompat.POWER6_PLUS_ENHANCED})
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
         # Test min, max proc units
         flavor.extra_specs = {'powervm:min_proc_units': '0.5',
@@ -136,6 +157,8 @@ class TestVMBuilder(test.TestCase):
                                          'max_proc_units': '2.0'})
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
         # Test min, max mem
         flavor.extra_specs = {'powervm:min_mem': '1024',
@@ -143,6 +166,7 @@ class TestVMBuilder(test.TestCase):
         test_attrs = dict(lpar_attrs, **{'min_mem': '1024', 'max_mem': '4096'})
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
 
     @mock.patch('pypowervm.wrappers.shared_proc_pool.SharedProcPool.search')
     def test_spp_pool_id(self, mock_search):
@@ -187,6 +211,10 @@ class TestVM(test.TestCase):
         self.apt = self.useFixture(pvm_fx.AdapterFx(
             traits=pvm_fx.LocalPVMTraits)).adpt
         self.apt.helpers = [pvm_log.log_helper]
+
+        self.san_lpar_name = self.useFixture(fixtures.MockPatch(
+            'pypowervm.util.sanitize_partition_name_for_api')).mock
+        self.san_lpar_name.side_effect = lambda name: name
 
         lpar_http = pvmhttp.load_pvm_resp(LPAR_HTTPRESP_FILE, adapter=self.apt)
         self.assertNotEqual(lpar_http, None,
@@ -341,6 +369,7 @@ class TestVM(test.TestCase):
         entry.update.assert_called_once_with()
         self.assertEqual(name, entry.name)
         self.assertEqual('NewEntry', new_entry)
+        self.san_lpar_name.assert_called_with(name)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     def test_rename(self, mock_get_inst):
@@ -353,6 +382,8 @@ class TestVM(test.TestCase):
         self.assertEqual('new_name', entry.name)
         entry.update.assert_called_once_with()
         self.assertEqual('NewEntry', new_entry)
+        self.san_lpar_name.assert_called_with('new_name')
+        self.san_lpar_name.reset_mock()
 
         # Test optional entry parameter
         entry.reset_mock()
@@ -363,6 +394,7 @@ class TestVM(test.TestCase):
         self.assertEqual('new_name', entry.name)
         entry.update.assert_called_once_with()
         self.assertEqual('NewEntry', new_entry)
+        self.san_lpar_name.assert_called_with('new_name')
 
     def test_add_IBMi_attrs(self):
         inst = mock.Mock()

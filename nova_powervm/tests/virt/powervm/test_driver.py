@@ -15,6 +15,9 @@
 #    under the License.
 #
 
+from __future__ import absolute_import
+
+import fixtures
 import logging
 import mock
 from oslo_serialization import jsonutils
@@ -84,33 +87,31 @@ class TestPowerVMDriver(test.TestCase):
         self.vol_fix = self.useFixture(fx.VolumeAdapter())
         self.vol_drv = self.vol_fix.drv
 
-        self.crt_lpar_p = mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
-        self.crt_lpar = self.crt_lpar_p.start()
-        self.addCleanup(self.crt_lpar_p.stop)
+        self.crt_lpar = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.vm.crt_lpar')).mock
 
-        self.get_inst_wrap_p = mock.patch('nova_powervm.virt.powervm.vm.'
-                                          'get_instance_wrapper')
-        self.get_inst_wrap = self.get_inst_wrap_p.start()
-        self.addCleanup(self.get_inst_wrap_p.stop)
+        self.get_inst_wrap = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.vm.get_instance_wrapper')).mock
 
         wrap = pvm_lpar.LPAR.wrap(pvmhttp.load_pvm_resp(
             LPAR_HTTPRESP_FILE).response)[0]
         self.crt_lpar.return_value = wrap
         self.get_inst_wrap.return_value = wrap
 
-        self.build_tx_feed_p = mock.patch('nova_powervm.virt.powervm.vios.'
-                                          'build_tx_feed_task')
-        self.build_tx_feed = self.build_tx_feed_p.start()
-        self.addCleanup(self.build_tx_feed_p.stop)
+        self.build_tx_feed = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.vios.build_tx_feed_task')).mock
+
         self.useFixture(pvm_fx.FeedTaskFx([pvm_vios.VIOS.wrap(
             pvmhttp.load_pvm_resp(VIOS_HTTPRESP_FILE).response)]))
         self.stg_ftsk = pvm_tx.FeedTask('fake', pvm_vios.VIOS.getter(self.apt))
         self.build_tx_feed.return_value = self.stg_ftsk
 
-        scrub_stg_p = mock.patch('pypowervm.tasks.storage.'
-                                 'add_lpar_storage_scrub_tasks')
-        self.scrub_stg = scrub_stg_p.start()
-        self.addCleanup(scrub_stg_p.stop)
+        self.scrub_stg = self.useFixture(fixtures.MockPatch(
+            'pypowervm.tasks.storage.add_lpar_storage_scrub_tasks')).mock
+
+        self.san_lpar_name = self.useFixture(fixtures.MockPatch(
+            'pypowervm.util.sanitize_partition_name_for_api')).mock
+        self.san_lpar_name.side_effect = lambda name: name
 
         # Create an instance to test with
         self.inst = objects.Instance(**powervm.TEST_INST_SPAWNING)
@@ -912,19 +913,22 @@ class TestPowerVMDriver(test.TestCase):
         mock_dst_int.assert_called_with(
             'context', self.inst, block_device_info=mock_bdms,
             destroy_disks=True, shutdown=True)
+        self.san_lpar_name.assert_not_called()
 
         # Test delete during migrate / resize
         self.inst.task_state = task_states.RESIZE_REVERTING
-        mock_getqp.return_value = ('resize_' + self.inst.name)[:31]
+        mock_getqp.return_value = 'resize_' + self.inst.name
         with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
             # Invoke the method.
             self.drv.destroy('context', self.inst, mock.Mock(),
                              block_device_info=mock_bdms)
         # We shouldn't delete our resize_ instances
         mock_dst_int.assert_not_called()
+        self.san_lpar_name.assert_called_with('resize_' + self.inst.name)
+        self.san_lpar_name.reset_mock()
 
         # Now test migrating...
-        mock_getqp.return_value = ('migrate_' + self.inst.name)[:31]
+        mock_getqp.return_value = 'migrate_' + self.inst.name
         with mock.patch.object(self.drv, '_destroy') as mock_dst_int:
             # Invoke the method.
             self.drv.destroy('context', self.inst, mock.Mock(),
@@ -1044,23 +1048,25 @@ class TestPowerVMDriver(test.TestCase):
 
         # Boot disk resize
         boot_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=12)
-        # Tasks expected to be added for resize to the same host
+        # Tasks expected to be added for migrate
         expected = [
             'pwr_off_lpar',
             'extend_disk_boot',
             'disconnect_vol_*',
             'disconnect_vol_*',
             'fake',
-            'rename_lpar_resize_instance-00000001',
+            'rename_lpar_migrate_instance-00000001',
         ]
+        dest_host = host + '1'
         with fx.DriverTaskFlow() as taskflow_fix:
             self.drv.migrate_disk_and_power_off(
-                'context', self.inst, host, boot_flav, 'network_info',
+                'context', self.inst, dest_host, boot_flav, 'network_info',
                 mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
             # Check the size set in the resize task
             extend_task = taskflow_fix.tasks_added[1]
             self.assertEqual(extend_task.size, 12)
+        self.san_lpar_name.assert_called_with('migrate_' + self.inst.name)
 
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_finish_migration(self, mock_get_flv):
@@ -1098,6 +1104,7 @@ class TestPowerVMDriver(test.TestCase):
                 'context', mig, self.inst, disk_info, 'network_info',
                 powervm.IMAGE1, 'resize_instance', block_device_info=mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
+        self.san_lpar_name.assert_not_called()
 
         # Tasks expected to be added for resize to the same host
         expected = [
@@ -1115,6 +1122,8 @@ class TestPowerVMDriver(test.TestCase):
                 'context', mig_same_host, self.inst, disk_info, 'network_info',
                 powervm.IMAGE1, 'resize_instance', block_device_info=mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
+        self.san_lpar_name.assert_called_with('resize_' + self.inst.name)
+        self.san_lpar_name.reset_mock()
 
         # Tasks expected to be added for resize to the same host, no BDMS,
         # and no power_on
@@ -1126,6 +1135,7 @@ class TestPowerVMDriver(test.TestCase):
                 'context', mig_same_host, self.inst, disk_info, 'network_info',
                 powervm.IMAGE1, 'resize_instance', power_on=False)
             taskflow_fix.assert_tasks_added(self, expected)
+        self.san_lpar_name.assert_called_with('resize_' + self.inst.name)
 
     @mock.patch('nova_powervm.virt.powervm.driver.vm')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')

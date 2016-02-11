@@ -30,6 +30,7 @@ from pypowervm.tasks import cna
 from pypowervm.tasks import ibmi
 from pypowervm.tasks import power
 from pypowervm.tasks import vterm
+from pypowervm import util as pvm_util
 from pypowervm.utils import lpar_builder as lpar_bldr
 from pypowervm.utils import uuid as pvm_uuid
 from pypowervm.utils import validation as vldn
@@ -295,7 +296,8 @@ class VMBuilder(object):
         # The attrs are what is sent to pypowervm to convert the lpar.
         attrs = {}
 
-        attrs[lpar_bldr.NAME] = instance.name
+        attrs[lpar_bldr.NAME] = pvm_util.sanitize_partition_name_for_api(
+            instance.name)
         # The uuid is only actually set on a create of an LPAR
         attrs[lpar_bldr.UUID] = pvm_uuid.convert_uuid_to_pvm(instance.uuid)
         attrs[lpar_bldr.MEM] = flavor.memory_mb
@@ -561,7 +563,7 @@ def update(adapter, host_wrapper, instance, flavor, entry=None, name=None):
 
     # Set the new name if the instance name is not desired.
     if name:
-        entry.name = name
+        entry.name = pvm_util.sanitize_partition_name_for_api(name)
     # Write out the new specs, return the updated version
     return entry.update()
 
@@ -581,7 +583,7 @@ def rename(adapter, host_uuid, instance, name, entry=None):
     if not entry:
         entry = get_instance_wrapper(adapter, instance, host_uuid)
 
-    entry.name = name
+    entry.name = pvm_util.sanitize_partition_name_for_api(name)
     return entry.update()
 
 

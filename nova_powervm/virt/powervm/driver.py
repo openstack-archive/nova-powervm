@@ -580,7 +580,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param migrate_data: implementation specific params
         """
         if instance.task_state == task_states.RESIZE_REVERTING:
-            LOG.info(_LI('Destroy called for migrated instance.'),
+            LOG.info(_LI('Destroy called for migrated/resized instance.'),
                      instance=instance)
             # This destroy is part of resize or migrate.  It's called to
             # revert the resize/migration on the destination host.
@@ -1074,9 +1074,18 @@ class PowerVMDriver(driver.ComputeDriver):
 
         return disk_info
 
-    def _gen_resize_name(self, instance, same_host=False):
+    @staticmethod
+    def _gen_resize_name(instance, same_host=False):
+        """Generate a temporary name for the source VM being resized/migrated.
+
+        :param instance: nova.objects.instance.Instance being migrated/resized.
+        :param same_host: Boolean indicating whether this resize is being
+                          performed for the sake of a resize (True) or a
+                          migration (False).
+        :return: A new name which can be assigned to the source VM.
+        """
         prefix = 'resize_' if same_host else 'migrate_'
-        return (prefix + instance.name)[:31]
+        return pvm_util.sanitize_partition_name_for_api(prefix + instance.name)
 
     def finish_migration(self, context, migration, instance, disk_info,
                          network_info, image_meta, resize_instance,
