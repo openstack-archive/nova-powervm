@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -43,13 +43,13 @@ class TestNetwork(test.TestCase):
         self.mock_lpar_wrap = mock.MagicMock()
         self.mock_lpar_wrap.can_modify_io.return_value = True, None
 
+    @mock.patch('nova_powervm.virt.powervm.vif.unplug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_unplug_vifs(self, mock_vm_get):
+    def test_unplug_vifs(self, mock_vm_get, mock_unplug):
         """Tests that a delete of the vif can be done."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
-        # Mock up the CNA response.  One should already exist, the other
-        # should not.
+        # Mock up the CNA responses.
         cnas = [cna('AABBCCDDEEFF'), cna('AABBCCDDEE11'), cna('AABBCCDDEE22')]
         mock_vm_get.return_value = cnas
 
@@ -60,15 +60,24 @@ class TestNetwork(test.TestCase):
             {'address': 'aa:bb:cc:dd:ee:33'}
         ]
 
+        # Mock out the vif driver
+        def validate_unplug(adapter, host_uuid, instance, vif,
+                            cna_w_list=None):
+            self.assertEqual(adapter, self.apt)
+            self.assertEqual('host_uuid', host_uuid)
+            self.assertEqual(instance, inst)
+            self.assertIn(vif, net_info)
+            self.assertEqual(cna_w_list, cnas)
+
+        mock_unplug.side_effect = validate_unplug
+
         # Run method
         p_vifs = tf_net.UnplugVifs(self.apt, inst, net_info, 'host_uuid')
         p_vifs.execute(self.mock_lpar_wrap)
 
-        # The delete should have only been called once.  The second CNA didn't
-        # have a matching mac...so it should be skipped.
-        self.assertEqual(1, cnas[0].delete.call_count)
-        self.assertEqual(0, cnas[1].delete.call_count)
-        self.assertEqual(1, cnas[2].delete.call_count)
+        # Make sure the unplug was invoked, so that we know that the validation
+        # code was called
+        self.assertEqual(3, mock_unplug.call_count)
 
     def test_unplug_vifs_invalid_state(self):
         """Tests that the delete raises an exception if bad VM state."""
@@ -82,9 +91,9 @@ class TestNetwork(test.TestCase):
         self.assertRaises(tf_net.VirtualInterfaceUnplugException,
                           p_vifs.execute, self.mock_lpar_wrap)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_rmc(self, mock_vm_get, mock_vm_crt):
+    def test_plug_vifs_rmc(self, mock_vm_get, mock_plug):
         """Tests that a crt vif can be done with secure RMC."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
@@ -105,11 +114,11 @@ class TestNetwork(test.TestCase):
         p_vifs.execute(self.mock_lpar_wrap)
 
         # The create should have only been called once.
-        self.assertEqual(2, mock_vm_crt.call_count)
+        self.assertEqual(2, mock_plug.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_rmc_no_create(self, mock_vm_get, mock_vm_crt):
+    def test_plug_vifs_rmc_no_create(self, mock_vm_get, mock_plug):
         """Verifies if no creates are needed, none are done."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
@@ -129,16 +138,16 @@ class TestNetwork(test.TestCase):
 
         # The create should not have been called.  The response should have
         # been empty.
-        self.assertEqual(0, mock_vm_crt.call_count)
+        self.assertEqual(0, mock_plug.call_count)
         self.assertEqual([], resp)
 
         # State check shouldn't have even been invoked as no creates were
         # required
         self.assertEqual(0, self.mock_lpar_wrap.can_modify_io.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_invalid_state(self, mock_vm_get, mock_vm_crt):
+    def test_plug_vifs_invalid_state(self, mock_vm_get, mock_plug):
         """Tests that a crt_vif fails when the LPAR state is bad."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
@@ -156,11 +165,11 @@ class TestNetwork(test.TestCase):
                           p_vifs.execute, self.mock_lpar_wrap)
 
         # The create should not have been invoked
-        self.assertEqual(0, mock_vm_crt.call_count)
+        self.assertEqual(0, mock_plug.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_timeout(self, mock_vm_get, mock_vm_crt):
+    def test_plug_vifs_timeout(self, mock_vm_get, mock_plug):
         """Tests that crt vif failure via loss of neutron callback."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
@@ -171,7 +180,7 @@ class TestNetwork(test.TestCase):
         net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
 
         # Ensure that an exception is raised by a timeout.
-        mock_vm_crt.side_effect = eventlet.timeout.Timeout()
+        mock_plug.side_effect = eventlet.timeout.Timeout()
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
@@ -180,13 +189,14 @@ class TestNetwork(test.TestCase):
                           p_vifs.execute, self.mock_lpar_wrap)
 
         # The create should have only been called once.
-        self.assertEqual(1, mock_vm_crt.call_count)
+        self.assertEqual(1, mock_plug.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_diff_host(self, mock_vm_get, mock_vm_crt):
+    def test_plug_vifs_diff_host(self, mock_vm_get, mock_plug):
         """Tests that crt vif handles bad inst.host value."""
         inst = powervm.TEST_INST1
+
         # Set this up as a different host from the inst.host
         self.flags(host='host2')
 
@@ -203,20 +213,21 @@ class TestNetwork(test.TestCase):
             p_vifs.execute(self.mock_lpar_wrap)
 
         # The create should have only been called once.
-        self.assertEqual(1, mock_vm_crt.call_count)
+        self.assertEqual(1, mock_plug.call_count)
         # Should have called save to save the new host and then changed it back
         self.assertEqual(2, mock_inst_save.call_count)
         self.assertEqual('host1', inst.host)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_diff_host_except(self, mock_vm_get, mock_vm_crt):
+    def test_plug_vifs_diff_host_except(self, mock_vm_get, mock_plug):
         """Tests that crt vif handles bad inst.host value.
 
         This test ensures that if we get a timeout exception we still reset
         the inst.host value back to the original value
         """
         inst = powervm.TEST_INST1
+
         # Set this up as a different host from the inst.host
         self.flags(host='host2')
 
@@ -227,7 +238,7 @@ class TestNetwork(test.TestCase):
         net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
 
         # Ensure that an exception is raised by a timeout.
-        mock_vm_crt.side_effect = eventlet.timeout.Timeout()
+        mock_plug.side_effect = eventlet.timeout.Timeout()
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
@@ -237,17 +248,17 @@ class TestNetwork(test.TestCase):
                               p_vifs.execute, self.mock_lpar_wrap)
 
         # The create should have only been called once.
-        self.assertEqual(1, mock_vm_crt.call_count)
+        self.assertEqual(1, mock_plug.call_count)
         # Should have called save to save the new host and then changed it back
         self.assertEqual(2, mock_inst_save.call_count)
         self.assertEqual('host1', inst.host)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_secure_rmc_vif')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_secure_rmc_vswitch')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
+    @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_mgmt_vif(self, mock_vm_get, mock_vm_crt,
-                           mock_get_rmc_vswitch, mock_crt_rmc_vif):
+    def test_plug_mgmt_vif(self, mock_vm_get, mock_plug,
+                           mock_get_rmc_vswitch, mock_plug_rmc_vif):
         """Tests that a mgmt vif can be created."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
@@ -261,7 +272,7 @@ class TestNetwork(test.TestCase):
         p_vifs.execute([])
 
         # The create should have only been called once.
-        self.assertEqual(1, mock_crt_rmc_vif.call_count)
+        self.assertEqual(1, mock_plug_rmc_vif.call_count)
 
     @mock.patch('nova.utils.is_neutron')
     def test_get_vif_events(self, mock_is_neutron):

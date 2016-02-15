@@ -1,4 +1,4 @@
-# Copyright 2014, 2015, 2016 IBM Corp.
+# Copyright 2014, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -13,7 +13,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-#
 
 from __future__ import absolute_import
 
@@ -32,7 +31,6 @@ from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
-from pypowervm.wrappers import network as pvm_net
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.virt.powervm import vm
@@ -449,30 +447,6 @@ class TestVM(test.TestCase):
         self.assertRaises(exception.InstancePowerOffFailure,
                           vm.power_off, None, None, 'host_uuid',
                           mock.Mock(state=pvm_bp.LPARState.RUNNING))
-
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.tasks.cna.crt_cna')
-    def test_crt_vif(self, mock_crt_cna, mock_pvm_uuid):
-        """Tests that a VIF can be created."""
-
-        # Set up the mocks
-        fake_vif = {'network': {'meta': {'vlan': 5}},
-                    'address': 'aabbccddeeff'}
-
-        def validate_of_crt(*kargs, **kwargs):
-            self.assertEqual('fake_host', kargs[1])
-            self.assertEqual(5, kargs[3])
-            self.assertEqual('aabbccddeeff', kwargs['mac_addr'])
-            return pvm_net.CNA.bld(self.apt, 5, 'fake_host')
-        mock_crt_cna.side_effect = validate_of_crt
-
-        # Invoke
-        resp = vm.crt_vif(self.apt, mock.MagicMock(), 'fake_host', fake_vif)
-
-        # Validate (along with validate method above)
-        self.assertEqual(1, mock_crt_cna.call_count)
-        self.assertIsNotNone(resp)
-        self.assertIsInstance(resp, pvm_net.CNA)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
