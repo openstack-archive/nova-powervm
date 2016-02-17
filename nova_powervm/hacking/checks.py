@@ -25,6 +25,21 @@ def no_log_warn(logical_line, filename):
         yield(0, 'P301 Use LOG.warning() rather than LOG.warn()')
 
 
+def no_os_popen(logical_line):
+    """Disallow 'os.popen('
+
+    Deprecated library function os.popen() Replace it using subprocess
+    https://bugs.launchpad.net/tempest/+bug/1529836
+
+    P302
+    """
+
+    if 'os.popen(' in logical_line:
+        yield(0, 'P302 Deprecated library function os.popen(). '
+                 'Replace it using subprocess module. ')
+
+
 def factory(register):
     register(no_log_warn)
+    register(no_os_popen)
     checks.factory(register)
