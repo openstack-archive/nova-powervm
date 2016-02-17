@@ -14,10 +14,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
+import nova.conf
 
 from nova_powervm.conf import powervm
 
-CONF = cfg.CONF
+CONF = nova.conf.CONF
+
+# Pull in the imports that nova-powervm uses so they are validated
+CONF.import_opt('host', 'nova.netconf')
+CONF.import_opt('my_ip', 'nova.netconf')
+CONF.import_opt('vif_plugging_is_fatal', 'nova.virt.driver')
+CONF.import_opt('vif_plugging_timeout', 'nova.virt.driver')
 
 powervm.register_opts(CONF)
