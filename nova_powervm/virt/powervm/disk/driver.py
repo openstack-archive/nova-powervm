@@ -264,11 +264,11 @@ class DiskAdapter(object):
             else pvm_const.MaxLen.FILENAME_DEFAULT)
 
     @staticmethod
-    def _get_image_name(image_meta):
+    def _get_image_name(image_meta, max_len=pvm_const.MaxLen.FILENAME_DEFAULT):
         """Generate a name for a virtual storage copy of an image."""
         return pvm_util.sanitize_file_name_for_api(
             image_meta.name, prefix=DiskType.IMAGE + '_',
-            suffix='_' + image_meta.checksum)
+            suffix='_' + image_meta.checksum, max_len=max_len)
 
     @staticmethod
     def _disk_gb_to_bytes(size_gb, floor=None):

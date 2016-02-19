@@ -14,9 +14,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import random
-
 import oslo_log.log as logging
+import random
+import time
+import uuid
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_drv
@@ -27,9 +28,11 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
+import pypowervm.const as pvm_const
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 import pypowervm.util as pvm_u
+import pypowervm.utils.transaction as pvm_tx
 import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
 import pypowervm.wrappers.virtual_io_server as pvm_vios
@@ -224,12 +227,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                  dict(image_type=image_type, image_id=image_meta.id,
                       instance_uuid=instance.uuid))
 
-        # TODO(IBM): There's an optimization to be had here if we can create
-        # both the image LU and the boot LU in the same ssp.update() call.
-        # This will require some nontrivial refactoring, though, as the LUs are
-        # created down inside of upload_new_lu and crt_lu_linked_clone.
-
-        image_lu = self._get_or_upload_image_lu(context, image_meta)
+        image_lu = self._get_or_upload_image_lu(context, instance, image_meta)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
         LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)
@@ -239,38 +237,135 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         return boot_lu
 
-    def _find_lu(self, lu_name, lu_type):
-        """Find a specified lu by name and type."""
-        for lu in self._ssp.logical_units:
-            if lu.lu_type == lu_type and lu.name == lu_name:
-                return lu
+    def _find_lu(self, lu_name, lu_type, whole_name=True, find_all=False,
+                 ssp=None):
+        """Find a specified lu by name and type.
 
-    def _get_or_upload_image_lu(self, context, image_meta):
+        :param lu_name: The name of the LU to find.
+        :param lu_type: The type of the LU to find.
+        :param whole_name: (Optional) If True (the default), the lu_name must
+                           match exactly.  If False, match any name containing
+                           lu_name as a substring.
+        :param find_all: (Optional) If False (the default), the first matching
+                         LU is returned, or None if none were found.  If True,
+                         the return is always a list, containing zero or more
+                         matching LUs.
+        :param ssp: (Optional) Already-retrieved SSP wrapper to search for the
+                    LU.  If None (the default), the SSP will be fetched anew.
+        :return: If find_all=False, the wrapper of the first matching LU, or
+                 None if not found.  If find_all=True, a list of zero or more
+                 matching LU wrappers.
+        """
+        if ssp is None:
+            ssp = self._ssp
+        matches = []
+        for lu in ssp.logical_units:
+            if lu.lu_type != lu_type:
+                continue
+            if lu_name not in lu.name:
+                continue
+            if not whole_name or lu.name == lu_name:
+                matches.append(lu)
+        if find_all:
+            return matches
+        return matches[0] if matches else None
+
+    def _get_or_upload_image_lu(self, context, instance, image_meta):
         """Ensures our SSP has an LU containing the specified image.
 
         If an LU of type IMAGE corresponding to the input image metadata
         already exists in our SSP, return it.  Otherwise, create it, prime it
         with the image contents from glance, and return it.
 
-        :param context: nova context used to retrieve image from glance
+        :param context: nova context used to retrieve image from glance.
+        :param instance: The instance for which the LU is being uploaded.
         :param nova.objects.ImageMeta image_meta:
             The metadata of the image of the instance.
         :return: A pypowervm LU ElementWrapper representing the image.
         """
-        # Key off of the name to see whether we already have the image
-        luname = self._get_image_name(image_meta)
-        lu = self._find_lu(luname, pvm_stg.LUType.IMAGE)
-        if lu:
-            LOG.info(_LI('SSP: Using already-uploaded image LU %s.'), luname)
-            return lu
+        @pvm_tx.entry_transaction
+        def _rename_lu(sspw, lu2r, new_name):
+            """Rename a Logical Unit.
 
-        # We don't have it yet.  Create it and upload the glance image to it.
-        # Make the image LU only as big as the image.
-        stream = self._get_image_upload(context, image_meta)
-        LOG.info(_LI('SSP: Uploading new image LU %s.'), luname)
-        lu, f_wrap = tsk_stg.upload_new_lu(
-            self._any_vios_uuid(), self._ssp, stream, luname, image_meta.size)
-        return lu
+            :param sspw: The SSP wrapper housing the LU to be renamed.
+            :param lu2r: LU wrapper representing the LU to be renamed.
+            :param new_name: New name (string) for the LU.
+            :return: The ssp, updated with the renamed LU.
+            """
+            lu = self._find_lu(lu2r.name, lu2r.lu_type, ssp=sspw)
+            lu.name = new_name
+            return sspw.update()
+
+        # Temporary (upload-in-progress) LU name prefixed with 'partxxxxxxxx'
+        prefix = 'part%s' % uuid.uuid4().hex[:8]
+        luname = self._get_image_name(
+            image_meta,
+            max_len=pvm_const.MaxLen.FILENAME_DEFAULT - len(prefix))
+        tmp_luname = prefix + luname
+        imgtyp = pvm_stg.LUType.IMAGE
+        lu_gb = pvm_u.convert_bytes_to_gb(image_meta.size, dp=2)
+        while True:
+            # Refresh the SSP data
+            ssp = self._ssp
+            # Does the LU already exist in its final, uploaded form?
+            lu = self._find_lu(luname, imgtyp, ssp=ssp)
+            if lu:
+                LOG.info(_LI('Using already-uploaded image LU %s.'), luname)
+                return lu
+
+            # It's not there.  Is someone already uploading it?
+            lu = self._find_lu(luname, imgtyp, whole_name=False, ssp=ssp)
+            if lu:
+                LOG.debug('Waiting for in-progress upload %s to complete.',
+                          lu.name, instance=instance)
+                time.sleep(3)
+                continue
+
+            # No upload in progress (at least as of when we grabbed the SSP).
+            # Create the LU with our temporary name.
+            ssp, tmplu = tsk_stg.crt_lu(ssp, tmp_luname, lu_gb, typ=imgtyp)
+
+            # Now things get funky.  If another process (possibly on another
+            # host) hit the above line at the same time, there could be
+            # multiple temporary LUs out there.  We all use the next chunk to
+            # decide which one of us gets to do the upload.
+            lus = self._find_lu(luname, imgtyp, whole_name=False,
+                                find_all=True, ssp=ssp)
+            if len(lus) > 1:
+                # The "first" (by alpha sort) wins.
+                lus.sort(key=lambda lu: lu.name)
+                winner = lus[0].name
+                if winner != tmp_luname:
+                    # We lose.  Delete our LU and let the winner proceed
+                    LOG.info(_LI('Abdicating our upload (%(our_lu)s) in favor '
+                                 'of %(winner_lu)s.'), {'our_lu': tmp_luname,
+                                                        'winner_lu': winner})
+                    # Remove just our LU - let other losers take care of theirs
+                    tsk_stg.rm_ssp_storage(ssp, [tmplu])
+                    LOG.info(
+                        _LI('Waiting for in-progress upload %s to complete.'),
+                        winner)
+                    time.sleep(3)
+                    continue
+
+            # Okay, we won.  Do the actual upload (to the temporary name).
+            stream = self._get_image_upload(context, image_meta)
+            LOG.info(_LI('Uploading to image LU %s.'), tmp_luname)
+            try:
+                tsk_stg.upload_lu(
+                    self._any_vios_uuid(), tmplu, stream, image_meta.size)
+
+                # Now signal completion and make the LU usable by giving it its
+                # "real" name.
+                ssp = _rename_lu(ssp, tmplu, luname)
+                # Finally, re-find the LU we just renamed and return it.
+                return self._find_lu(luname, imgtyp, ssp=ssp)
+            except Exception as exc:
+                LOG.exception(_LE('Removing LU %(luname)s due to exception: '
+                                  '%(exc)s.'),
+                              {'luname': tmplu.name, 'exc': exc})
+                tsk_stg.rm_ssp_storage(ssp, [tmplu])
+                raise exc
 
     def get_disk_ref(self, instance, disk_type):
         """Returns a reference to the disk for the instance."""
