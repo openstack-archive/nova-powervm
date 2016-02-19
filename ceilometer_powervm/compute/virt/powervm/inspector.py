@@ -67,7 +67,7 @@ class PowerVMInspector(virt_inspector.Inspector):
         return pvm_uuid.convert_uuid_to_pvm(instance.id).upper()
 
     def _get_host_uuid(self, adpt):
-        """Returns the Host systems UUID for pypowervm.
+        """Returns the Host system's UUID for pypowervm.
 
         The pypowervm API needs a UUID of the server that it is managing.  This
         method returns the UUID of that host.
@@ -149,7 +149,7 @@ class PowerVMInspector(virt_inspector.Inspector):
             # of its metrics with it.  The issue with this is it could have
             # CPU cycles for months of run time.  So we can't really determine
             # the CPU utilization within the last X seconds...because to THIS
-            # host its new (only in the cur_metric).  So we error out, the
+            # host it's new (only in the cur_metric).  So we error out, the
             # inspector will use a debug message in the log.
             LOG.warning(_LW("Unable to derive CPU Utilization for VM %s. "
                             "It is either a new VM or was recently migrated. "
