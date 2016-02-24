@@ -35,12 +35,9 @@ from nova.virt import driver as virt_driver
 from nova.virt import fake
 import pypowervm.adapter as pvm_adp
 import pypowervm.exceptions as pvm_exc
-import pypowervm.tests.test_fixtures as pvm_fx
-from pypowervm.tests.test_utils import pvmhttp
 import pypowervm.utils.transaction as pvm_tx
 import pypowervm.wrappers.base_partition as pvm_bp
 import pypowervm.wrappers.logical_partition as pvm_lpar
-import pypowervm.wrappers.managed_system as pvm_ms
 import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt import powervm
@@ -50,11 +47,6 @@ from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import vm
 
-MS_HTTPRESP_FILE = "managedsystem.txt"
-MS_NAME = 'HV4'
-LPAR_HTTPRESP_FILE = "lpar.txt"
-VIOS_HTTPRESP_FILE = "fake_vios_ssp_npiv.txt"
-
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
@@ -62,18 +54,6 @@ logging.basicConfig()
 class TestPowerVMDriver(test.TestCase):
     def setUp(self):
         super(TestPowerVMDriver, self).setUp()
-
-        ms_http = pvmhttp.load_pvm_resp(MS_HTTPRESP_FILE)
-        self.assertIsNotNone(ms_http, "Could not load %s " % MS_HTTPRESP_FILE)
-
-        entries = ms_http.response.feed.findentries(pvm_ms._SYSTEM_NAME,
-                                                    MS_NAME)
-
-        self.assertNotEqual(entries, None,
-                            "Could not find %s in %s" %
-                            (MS_NAME, MS_HTTPRESP_FILE))
-
-        self.wrapper = pvm_ms.System.wrap(entries[0])
 
         self.flags(disk_driver='localdisk', group='powervm')
         self.flags(host='host1', my_ip='127.0.0.1')
@@ -93,16 +73,9 @@ class TestPowerVMDriver(test.TestCase):
         self.get_inst_wrap = self.useFixture(fixtures.MockPatch(
             'nova_powervm.virt.powervm.vm.get_instance_wrapper')).mock
 
-        wrap = pvm_lpar.LPAR.wrap(pvmhttp.load_pvm_resp(
-            LPAR_HTTPRESP_FILE).response)[0]
-        self.crt_lpar.return_value = wrap
-        self.get_inst_wrap.return_value = wrap
-
         self.build_tx_feed = self.useFixture(fixtures.MockPatch(
             'nova_powervm.virt.powervm.vios.build_tx_feed_task')).mock
 
-        self.useFixture(pvm_fx.FeedTaskFx([pvm_vios.VIOS.wrap(
-            pvmhttp.load_pvm_resp(VIOS_HTTPRESP_FILE).response)]))
         self.stg_ftsk = pvm_tx.FeedTask('fake', pvm_vios.VIOS.getter(self.apt))
         self.build_tx_feed.return_value = self.stg_ftsk
 
@@ -251,7 +224,8 @@ class TestPowerVMDriver(test.TestCase):
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
-        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
+        self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
+                                          lpars_exist=True)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -284,7 +258,8 @@ class TestPowerVMDriver(test.TestCase):
         # Power on was called
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
-        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
+        self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
+                                          lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -337,7 +312,8 @@ class TestPowerVMDriver(test.TestCase):
         # Make sure the save was invoked
         self.assertEqual(2, mock_save.call_count)
 
-        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
+        self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
+                                          lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -394,7 +370,8 @@ class TestPowerVMDriver(test.TestCase):
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
-        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
+        self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
+                                          lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
@@ -444,7 +421,8 @@ class TestPowerVMDriver(test.TestCase):
         # Make sure the BDM save was invoked twice.
         self.assertEqual(2, mock_save.call_count)
 
-        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
+        self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
+                                          lpars_exist=True)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
                 'CreateAndConnectCfgDrive.execute')
@@ -487,7 +465,8 @@ class TestPowerVMDriver(test.TestCase):
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
-        self.scrub_stg.assert_called_with([9], self.stg_ftsk, lpars_exist=True)
+        self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
+                                          lpars_exist=True)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
@@ -1182,12 +1161,12 @@ class TestPowerVMDriver(test.TestCase):
         mock_log.info.assert_called_with(entry, msg_dict)
 
     def test_host_resources(self):
-        # Set the return value of None so we use the cached value in the drv
-        self.apt.read.return_value = None
-        self.drv.host_wrapper = self.wrapper
-
-        stats = self.drv.get_available_resource('nodename')
-        self.assertIsNotNone(stats)
+        # Mock methods not currently under test
+        with mock.patch.object(self.apt, 'read') as mock_read:
+            mock_read.return_value = None
+            # Run the actual test
+            stats = self.drv.get_available_resource('nodename')
+            self.assertIsNotNone(stats)
 
         # Check for the presence of fields added to host stats
         fields = ('local_gb', 'local_gb_used')
@@ -1196,14 +1175,14 @@ class TestPowerVMDriver(test.TestCase):
             value = stats.get(fld, None)
             self.assertIsNotNone(value)
 
-    @mock.patch('pypowervm.wrappers.logical_partition.LPAR.can_modify_io')
     @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch')
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     def test_plug_vifs(
-        self, mock_vm_get, mock_plug_vif, mock_get_rmc_vswitch,
-        mock_plug_rmc_vif, mock_can_modify_io):
+        self, mock_wrap, mock_vm_get, mock_plug_vif, mock_get_rmc_vswitch,
+        mock_plug_rmc_vif):
         # Mock up the CNA response
         cnas = [mock.MagicMock(), mock.MagicMock()]
         cnas[0].mac = 'AABBCCDDEEFF'
@@ -1212,7 +1191,10 @@ class TestPowerVMDriver(test.TestCase):
         cnas[1].vswitch_uri = 'fake_mgmt_uri'
         mock_vm_get.return_value = cnas
 
-        mock_can_modify_io.return_value = True, None
+        mock_lpar_wrapper = mock.MagicMock()
+        mock_lpar_wrapper.can_modify_io = mock.MagicMock(
+            return_value=(True, None))
+        mock_wrap.return_value = mock_lpar_wrapper
 
         # Mock up the network info.  They get sanitized to upper case.
         net_info = [
