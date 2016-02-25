@@ -576,7 +576,7 @@ class TestSSPDiskAdapter(test.TestCase):
         # named boot_my_instance_name.
         vios1 = pvm_vios.VIOS.wrap(pvmhttp.load_pvm_resp(
             'fake_vios_ssp_npiv.txt', adapter=self.apt).get_response())
-        vios1.scsi_mappings[3].backing_storage._name('boot_my_instance_name')
+        vios1.scsi_mappings[3].backing_storage.name = 'boot_my_instance_name'
         resp1 = self._bld_resp(entry_or_list=vios1.entry)
         vios2 = copy.deepcopy(vios1)
         # Change name and UUID so we can tell the difference:
