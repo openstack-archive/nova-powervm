@@ -17,6 +17,7 @@
 import mock
 
 from nova.compute import task_states
+from oslo_serialization import jsonutils
 from pypowervm import const as pvm_const
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
@@ -460,8 +461,11 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         mig_data = {}
         self.vol_drv.pre_live_migration_on_source(mig_data)
 
-        self.assertEqual([1, 2], mig_data.get('npiv_fabric_slots_A'))
-        self.assertEqual([3], mig_data.get('npiv_fabric_slots_B'))
+        self.assertEqual('[1, 2]', mig_data.get('src_npiv_fabric_slots_A'))
+        self.assertEqual('[3]', mig_data.get('src_npiv_fabric_slots_B'))
+        # Ensure only string data is placed in the dict.
+        for key in mig_data:
+            self.assertEqual(str, type(mig_data[key]))
 
     @mock.patch('pypowervm.tasks.vfc_mapper.'
                 'build_migration_mappings_for_fabric')
@@ -471,23 +475,25 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
             self, mock_fabric_names, mock_build_mig_map):
         mock_fabric_names.return_value = ['A', 'B']
 
-        src_mig_data = {'npiv_fabric_slots_A': [1, 2],
-                        'npiv_fabric_slots_B': [3]}
-        dest_mig_data = {}
+        mig_data = {'src_npiv_fabric_slots_A': jsonutils.dumps([1, 2]),
+                    'src_npiv_fabric_slots_B': jsonutils.dumps([3])}
 
         mock_build_mig_map.side_effect = [['a'], ['b']]
         self.vol_drv.stg_ftsk = mock.MagicMock()
 
         # Execute the test
-        self.vol_drv.pre_live_migration_on_destination(
-            src_mig_data, dest_mig_data)
+        self.vol_drv.pre_live_migration_on_destination(mig_data)
 
-        self.assertEqual(['a'], dest_mig_data.get('npiv_fabric_mapping_A'))
-        self.assertEqual(['b'], dest_mig_data.get('npiv_fabric_mapping_B'))
+        self.assertEqual('["a"]', mig_data.get('dest_npiv_fabric_mapping_A'))
+        self.assertEqual('["b"]', mig_data.get('dest_npiv_fabric_mapping_B'))
+        # Ensure only string data is placed in the dict.
+        for key in mig_data:
+            self.assertEqual(str, type(mig_data[key]))
 
         # Order of the mappings is not important.
-        self.assertEqual({'b', 'a'},
-                         set(dest_mig_data.get('vfc_lpm_mappings')))
+        self.assertEqual(
+            {'b', 'a'},
+            set(jsonutils.loads(mig_data.get('vfc_lpm_mappings'))))
 
         # Verify that on migration, the WWPNs are reversed.
         self.assertEqual(2, self.vol_drv.stg_ftsk.feed.reverse.call_count)

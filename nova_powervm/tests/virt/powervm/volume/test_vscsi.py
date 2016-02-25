@@ -105,7 +105,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
 
         # Run the method
-        self.vol_drv.pre_live_migration_on_destination({}, {})
+        self.vol_drv.pre_live_migration_on_destination({})
 
         # Test exception path
         mock_discover.return_value = (
@@ -113,8 +113,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
         # Run the method
         self.assertRaises(p_exc.VolumePreMigrationFailed,
-                          self.vol_drv.pre_live_migration_on_destination, {},
-                          {})
+                          self.vol_drv.pre_live_migration_on_destination, {})
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
@@ -136,9 +135,9 @@ class TestVSCSIAdapter(BaseVSCSITest):
     def test_post_live_migr_source(self):
 
         # Bad path.  volume id not found
-        bad_data = {'pre_live_migration_result': {'vscsi-BAD': 'udid1'}}
+        bad_data = {'vscsi-BAD': 'udid1'}
         # good path.
-        good_data = {'pre_live_migration_result': {'vscsi-id': 'udid1'}}
+        good_data = {'vscsi-id': 'udid1'}
 
         with mock.patch.object(self.vol_drv, '_cleanup_volume') as mock_cln:
             self.vol_drv.post_live_migration_at_source(bad_data)

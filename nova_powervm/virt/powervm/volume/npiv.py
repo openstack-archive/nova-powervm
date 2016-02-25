@@ -19,6 +19,7 @@ from oslo_log import log as logging
 from taskflow import task
 
 from nova.compute import task_states
+from oslo_serialization import jsonutils
 from pypowervm import const as pvm_const
 from pypowervm.tasks import vfc_mapper as pvm_vfcm
 
@@ -116,10 +117,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 client_slots.append(vfc_map.client_adapter.lpar_slot_num)
 
             # Set the client slots into the fabric data to pass to the
-            # destination.
-            mig_data['npiv_fabric_slots_%s' % fabric] = client_slots
+            # destination. Only strings can be stored.
+            mig_data['src_npiv_fabric_slots_%s' % fabric] = (
+                jsonutils.dumps(client_slots))
 
-    def pre_live_migration_on_destination(self, src_mig_data, dest_mig_data):
+    def pre_live_migration_on_destination(self, mig_data):
         """Perform pre live migration steps for the volume on the target host.
 
         This method performs any pre live migration that is needed.
@@ -132,11 +134,10 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         method.  The data from the pre_live call will be passed in via the
         mig_data.  This method should put its output into the dest_mig_data.
 
-        :param src_mig_data: The migration data from the source server.
-        :param dest_mig_data: The migration data for the destination server.
-                              If the volume connector needs to provide
-                              information to the live_migration command, it
-                              should be added to this dictionary.
+        :param mig_data: Dict of migration data for the destination server.
+                         If the volume connector needs to provide
+                         information to the live_migration command, it
+                         should be added to this dictionary.
         """
         vios_wraps = self.stg_ftsk.feed
 
@@ -145,20 +146,22 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # the source system what 'vfc mappings' to pass in on the live
         # migration command.
         for fabric in self._fabric_names():
-            slots = src_mig_data['npiv_fabric_slots_%s' % fabric]
+            slots = jsonutils.loads(
+                mig_data['src_npiv_fabric_slots_%s' % fabric])
             fabric_mapping = pvm_vfcm.build_migration_mappings_for_fabric(
                 vios_wraps, self._fabric_ports(fabric), slots)
-            dest_mig_data['npiv_fabric_mapping_%s' % fabric] = fabric_mapping
+            mig_data['dest_npiv_fabric_mapping_%s' % fabric] = (
+                jsonutils.dumps(fabric_mapping))
             # Reverse the vios wrapper so that the other fabric will get the
             # on the second vios.
             vios_wraps.reverse()
 
         # Collate all of the individual fabric mappings into a single element.
         full_map = []
-        for key, value in dest_mig_data.items():
-            if key.startswith('npiv_fabric_mapping_'):
-                full_map.extend(value)
-        dest_mig_data['vfc_lpm_mappings'] = full_map
+        for key, value in mig_data.items():
+            if key.startswith('dest_npiv_fabric_mapping_'):
+                full_map.extend(jsonutils.loads(value))
+        mig_data['vfc_lpm_mappings'] = jsonutils.dumps(full_map)
 
     def post_live_migration_at_destination(self, mig_vol_stor):
         """Perform post live migration steps for the volume on the target host.
@@ -178,6 +181,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # manager.  Given that, we need to update the order of the WWPNs.
         # The first WWPN is the one that is logged into the fabric and this
         # will now indicate that our WWPN is logged in.
+        LOG.debug('Post live migrate volume store: %s' % mig_vol_stor,
+                  instance=self.instance)
         for fabric in self._fabric_names():
             # We check the mig_vol_stor to see if this fabric has already been
             # flipped.  If so, we can continue.
@@ -192,7 +197,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 # Flip the WPWNs
                 c_wwpns = port_map[1].split()
                 c_wwpns.reverse()
-
+                LOG.debug('Flipping WWPNs, ports: %s wwpns: %s' %
+                          (port_map, c_wwpns), instance=self.instance)
                 # Get the new physical WWPN.
                 vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(vios_wraps,
                                                            c_wwpns)[1]

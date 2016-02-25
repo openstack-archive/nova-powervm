@@ -17,15 +17,16 @@
 
 import abc
 from nova import exception
+from oslo_log import log as logging
+from oslo_serialization import jsonutils
 from pypowervm.tasks import management_console as mgmt_task
 from pypowervm.tasks import migration as mig
 from pypowervm.tasks import storage as stor_task
 from pypowervm.tasks import vterm
-
-from oslo_log import log as logging
 import six
 
 from nova_powervm import conf as cfg
+from nova_powervm.objects import migrate_data as mig_obj
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
@@ -64,17 +65,17 @@ def _verify_migration_capacity(host_w, instance):
 @six.add_metaclass(abc.ABCMeta)
 class LiveMigration(object):
 
-    def __init__(self, drvr, instance, src_data, dest_data):
+    def __init__(self, drvr, instance, mig_data):
         self.drvr = drvr
         self.instance = instance
-        self.src_data = src_data  # migration data from src host
-        self.dest_data = dest_data  # migration data from dest host
+        self.mig_data = mig_data
 
 
 class LiveMigrationDest(LiveMigration):
 
     def __init__(self, drvr, instance):
-        super(LiveMigrationDest, self).__init__(drvr, instance, {}, {})
+        super(LiveMigrationDest, self).__init__(
+            drvr, instance, mig_obj.PowerVMLiveMigrateData())
 
     @staticmethod
     def _get_dest_user_id():
@@ -91,7 +92,7 @@ class LiveMigrationDest(LiveMigration):
         :param context: security context
         :param src_compute_info: Info about the sending machine
         :param dst_compute_info: Info about the receiving machine
-        :returns: a dict containing migration info
+        :returns: a PowerVMLiveMigrateData object
         """
 
         # Refresh the host wrapper since we're pulling values that may change
@@ -114,19 +115,18 @@ class LiveMigrationDest(LiveMigration):
 
         _verify_migration_capacity(self.drvr.host_wrapper, self.instance)
 
-        self.dest_data['dest_host_migr_data'] = (self.drvr.host_wrapper.
-                                                 migration_data)
-        self.dest_data['dest_ip'] = CONF.my_ip
-        self.dest_data['dest_user_id'] = self._get_dest_user_id()
-        self.dest_data['dest_sys_name'] = self.drvr.host_wrapper.system_name
-        self.dest_data['dest_proc_compat'] = (
+        self.mig_data.host_mig_data = self.drvr.host_wrapper.migration_data
+        self.mig_data.dest_ip = CONF.my_ip
+        self.mig_data.dest_user_id = self._get_dest_user_id()
+        self.mig_data.dest_sys_name = self.drvr.host_wrapper.system_name
+        self.mig_data.dest_proc_compat = (
             ','.join(self.drvr.host_wrapper.proc_compat_modes))
 
         LOG.debug('src_compute_info: %s' % src_compute_info)
         LOG.debug('dst_compute_info: %s' % dst_compute_info)
-        LOG.debug('Migration data: %s' % self.dest_data)
+        LOG.debug('Migration data: %s' % self.mig_data)
 
-        return self.dest_data
+        return self.mig_data
 
     def pre_live_migration(self, context, block_device_info, network_info,
                            disk_info, migrate_data, vol_drvs):
@@ -137,27 +137,24 @@ class LiveMigrationDest(LiveMigration):
         :param block_device_info: instance block device information
         :param network_info: instance network information
         :param disk_info: instance disk information
-        :param migrate_data: implementation specific data dict
+        :param migrate_data: a PowerVMLiveMigrateData object
         :param vol_drvs: volume drivers for the attached volumes
         """
         LOG.debug('Running pre live migration on destination.',
                   instance=self.instance)
         LOG.debug('Migration data: %s' % migrate_data)
 
-        # Set the ssh auth key if needed.
-        src_mig_data = migrate_data.get('migrate_data', {})
-        pub_key = src_mig_data.get('public_key')
-        if pub_key is not None:
-            mgmt_task.add_authorized_key(self.drvr.adapter, pub_key)
+        # Set the ssh auth key.
+        mgmt_task.add_authorized_key(self.drvr.adapter,
+                                     migrate_data.public_key)
 
         # For each volume, make sure it's ready to migrate
-        dest_mig_data = {}
         for vol_drv in vol_drvs:
             LOG.info(_LI('Performing pre migration for volume %(volume)s'),
                      dict(volume=vol_drv.volume_id))
             try:
-                vol_drv.pre_live_migration_on_destination(src_mig_data,
-                                                          dest_mig_data)
+                vol_drv.pre_live_migration_on_destination(
+                    migrate_data.vol_data)
             except Exception as e:
                 LOG.exception(e)
                 # It failed.
@@ -171,8 +168,8 @@ class LiveMigrationDest(LiveMigration):
         stor_task.ComprehensiveScrub(self.drvr.adapter).execute()
 
         # Save the migration data, we'll use it if the LPM fails
-        self.pre_live_data = dest_mig_data
-        return dest_mig_data
+        self.pre_live_vol_data = migrate_data.vol_data
+        return migrate_data
 
     def post_live_migration_at_destination(self, network_info, vol_drvs):
         """Do post migration cleanup on destination host.
@@ -209,7 +206,7 @@ class LiveMigrationDest(LiveMigration):
         LOG.info(_LI('Performing detach for volume %(volume)s'),
                  dict(volume=vol_drv.volume_id))
         try:
-            vol_drv.cleanup_volume_at_destination(self.pre_live_data)
+            vol_drv.cleanup_volume_at_destination(self.pre_live_vol_data)
         except Exception as e:
             LOG.exception(e)
             # Log the exception but no need to raise one because
@@ -217,9 +214,6 @@ class LiveMigrationDest(LiveMigration):
 
 
 class LiveMigrationSrc(LiveMigration):
-
-    def __init__(self, drvr, instance, dest_data):
-        super(LiveMigrationSrc, self).__init__(drvr, instance, {}, dest_data)
 
     def check_source(self, context, block_device_info, vol_drvs):
         """Check the source host
@@ -234,23 +228,18 @@ class LiveMigrationSrc(LiveMigration):
         :param context: security context
         :param block_device_info: result of _get_instance_block_device_info
         :param vol_drvs: volume drivers for the attached volumes
-        :returns: a dict containing migration info
+        :returns: a PowerVMLiveMigrateData object
         """
 
         lpar_w = vm.get_instance_wrapper(
             self.drvr.adapter, self.instance, self.drvr.host_uuid)
         self.lpar_w = lpar_w
 
-        LOG.debug('Dest Migration data: %s' % self.dest_data)
-
-        # Only 'migrate_data' is sent to the destination on prelive call.
-        mig_data = {'public_key': mgmt_task.get_public_key(self.drvr.adapter)}
-        self.src_data['migrate_data'] = mig_data
-        LOG.debug('Src Migration data: %s' % self.src_data)
+        LOG.debug('Dest Migration data: %s' % self.mig_data)
 
         # Check proc compatibility modes
         if (lpar_w.proc_compat_mode and lpar_w.proc_compat_mode not in
-                self.dest_data['dest_proc_compat'].split(',')):
+                self.mig_data.dest_proc_compat.split(',')):
             msg = (_("Cannot migrate %(name)s because its "
                      "processor compatibility mode %(mode)s "
                      "is not in the list of modes \"%(modes)s\" "
@@ -258,7 +247,7 @@ class LiveMigrationSrc(LiveMigration):
                    dict(name=self.instance.name,
                         mode=lpar_w.proc_compat_mode,
                         modes=', '.join(
-                            self.dest_data['dest_proc_compat'].split(','))))
+                            self.mig_data.dest_proc_compat.split(','))))
 
             raise exception.MigrationPreCheckError(reason=msg)
 
@@ -275,10 +264,15 @@ class LiveMigrationSrc(LiveMigration):
         # Check the number of migrations for capacity
         _verify_migration_capacity(self.drvr.host_wrapper, self.instance)
 
-        # Get the 'source' pre-migration data for the volume drivers.  Should
-        # automatically update the mig_data dictionary as needed.
+        self.mig_data.public_key = mgmt_task.get_public_key(self.drvr.adapter)
+
+        # Get the 'source' pre-migration data for the volume drivers.
+        vol_data = {}
         for vol_drv in vol_drvs:
-            vol_drv.pre_live_migration_on_source(mig_data)
+            vol_drv.pre_live_migration_on_source(vol_data)
+        self.mig_data.vol_data = vol_data
+
+        LOG.debug('Src Migration data: %s' % self.mig_data)
 
         # Create a FeedTask to scrub any orphaned mappings/storage associated
         # with this LPAR.  (Don't run it yet - we want to do the VOpt removal
@@ -295,28 +289,34 @@ class LiveMigrationSrc(LiveMigration):
         # Ensure the vterm is non-active
         vterm.close_vterm(self.drvr.adapter, lpar_w.uuid)
 
-        return self.src_data
+        return self.mig_data
 
     def live_migration(self, context, migrate_data):
         """Start the live migration.
 
         :param context: security context
-        :param migrate_data: migration data from src and dest host.
+        :param migrate_data: a PowerVMLiveMigrateData object
         """
         LOG.debug("Starting migration.", instance=self.instance)
         LOG.debug("Migrate data: %s" % migrate_data)
 
+        # The passed in mig data has more info (dest data added), so replace
+        self.mig_data = migrate_data
         # Get the vFC and vSCSI live migration mappings
-        dest_pre_lm_data = migrate_data.get('pre_live_migration_result', {})
-        vfc_mappings = dest_pre_lm_data.get('vfc_lpm_mappings')
-        vscsi_mappings = dest_pre_lm_data.get('vscsi_lpm_mappings')
+        vol_data = migrate_data.vol_data
+        vfc_mappings = vol_data.get('vfc_lpm_mappings')
+        if vfc_mappings is not None:
+            vfc_mappings = jsonutils.loads(vfc_mappings)
+        vscsi_mappings = vol_data.get('vscsi_lpm_mappings')
+        if vscsi_mappings is not None:
+            vscsi_mappings = jsonutils.loads(vscsi_mappings)
 
         try:
             # Migrate the LPAR!
-            mig.migrate_lpar(self.lpar_w, self.dest_data['dest_sys_name'],
+            mig.migrate_lpar(self.lpar_w, self.mig_data.dest_sys_name,
                              validate_only=False,
-                             tgt_mgmt_svr=self.dest_data['dest_ip'],
-                             tgt_mgmt_usr=self.dest_data.get('dest_user_id'),
+                             tgt_mgmt_svr=self.mig_data.dest_ip,
+                             tgt_mgmt_usr=self.mig_data.dest_user_id,
                              virtual_fc_mappings=vfc_mappings,
                              virtual_scsi_mappings=vscsi_mappings)
 
@@ -332,14 +332,14 @@ class LiveMigrationSrc(LiveMigration):
         This method is focused on storage.
 
         :param vol_drvs: volume drivers for the attached volume
-        :param migrate_data: migration data
+        :param migrate_data: a PowerVMLiveMigrateData object
         """
         # For each volume, make sure the source is cleaned
         for vol_drv in vol_drvs:
             LOG.info(_LI('Performing post migration for volume %(volume)s'),
                      dict(volume=vol_drv.volume_id))
             try:
-                vol_drv.post_live_migration_at_source(migrate_data)
+                vol_drv.post_live_migration_at_source(migrate_data.vol_data)
             except Exception as e:
                 LOG.exception(e)
                 # Log the exception but no need to raise one because
@@ -382,8 +382,8 @@ class LiveMigrationSrc(LiveMigration):
         :param lpar_w: LogicalPartition wrapper
         :param host_w: ManagedSystem wrapper
         """
-        ready, msg = lpar_w.can_lpm(host_w, migr_data=(
-            self.dest_data.get('dest_host_migr_data')))
+        ready, msg = lpar_w.can_lpm(host_w,
+                                    migr_data=self.mig_data.host_mig_data)
         if not ready:
             msg = (_("Live migration of instance '%(name)s' failed because it "
                      "is not ready. Reason: %(reason)s") %

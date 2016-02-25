@@ -79,7 +79,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # SCSI mapping is for the connections between VIOS and client VM
         return [pvm_const.XAG.VIO_SMAP]
 
-    def pre_live_migration_on_destination(self, src_mig_data, dest_mig_data):
+    def pre_live_migration_on_destination(self, mig_data):
         """Perform pre live migration steps for the volume on the target host.
 
         This method performs any pre live migration that is needed.
@@ -92,11 +92,10 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         method.  The data from the pre_live call will be passed in via the
         mig_data.  This method should put its output into the dest_mig_data.
 
-        :param src_mig_data: The migration data from the source server.
-        :param dest_mig_data: The migration data for the destination server.
-                              If the volume connector needs to provide
-                              information to the live_migration command, it
-                              should be added to this dictionary.
+        :param mig_data: Dict of migration data for the destination server.
+                         If the volume connector needs to provide
+                         information to the live_migration command, it
+                         should be added to this dictionary.
         """
         volume_id = self.volume_id
         found = False
@@ -119,7 +118,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                            instance_name=self.instance.name)
             raise p_exc.VolumePreMigrationFailed(**ex_args)
 
-        dest_mig_data['vscsi-' + volume_id] = udid
+        mig_data['vscsi-' + volume_id] = udid
 
     def _cleanup_volume(self, udid):
         """Cleanup the hdisk associated with this udid."""
@@ -155,14 +154,13 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         This method can be used to handle any steps that need to taken on
         the source host after the VM is on the destination.
 
-        :param migrate_data: migration data
+        :param migrate_data: volume migration data
         """
         # Get the udid of the volume to remove the hdisk for.  We can't
         # use the connection information because LPM 'refreshes' it, which
         # wipes out our data, so we use the data from the destination host
         # to avoid having to discover the hdisk to get the udid.
-        udid = migrate_data['pre_live_migration_result'].get(
-            'vscsi-' + self.volume_id)
+        udid = migrate_data.get('vscsi-' + self.volume_id)
         self._cleanup_volume(udid)
 
     def cleanup_volume_at_destination(self, migrate_data):

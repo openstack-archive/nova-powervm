@@ -15,12 +15,16 @@
 #    under the License.
 #
 
+from __future__ import absolute_import
+
+import fixtures
 import mock
 
 from nova import exception
 from nova import objects
 from nova import test
 
+from nova_powervm.objects import migrate_data as mig_obj
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import live_migration as lpm
@@ -36,8 +40,24 @@ class TestLPM(test.TestCase):
         self.apt = self.drv.adapter
 
         self.inst = objects.Instance(**powervm.TEST_INSTANCE)
-        self.lpmsrc = lpm.LiveMigrationSrc(self.drv, self.inst, {})
+
+        self.mig_data = mig_obj.PowerVMLiveMigrateData()
+        self.mig_data.host_mig_data = {}
+        self.mig_data.dest_ip = '1'
+        self.mig_data.dest_user_id = 'neo'
+        self.mig_data.dest_sys_name = 'a'
+        self.mig_data.public_key = 'PublicKey'
+        self.mig_data.dest_proc_compat = 'a,b,c'
+        self.mig_data.vol_data = {}
+
+        self.lpmsrc = lpm.LiveMigrationSrc(self.drv, self.inst, self.mig_data)
         self.lpmdst = lpm.LiveMigrationDest(self.drv, self.inst)
+
+        self.add_key = self.useFixture(fixtures.MockPatch(
+            'pypowervm.tasks.management_console.add_authorized_key')).mock
+        self.get_key = self.useFixture(fixtures.MockPatch(
+            'pypowervm.tasks.management_console.get_public_key')).mock
+        self.get_key.return_value = 'PublicKey'
 
     @mock.patch('pypowervm.tasks.storage.ScrubOrphanStorageForLpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM')
@@ -55,7 +75,6 @@ class TestLPM(test.TestCase):
             self.lpmsrc, '_check_migration_ready', return_value=None):
 
             # Test the bad path first, then patch in values to make succeed
-            self.lpmsrc.dest_data = {'dest_proc_compat': 'a,b,c'}
             mock_wrap = mock.Mock(id=123)
             mock_get_wrap.return_value = mock_wrap
 
@@ -89,7 +108,7 @@ class TestLPM(test.TestCase):
             # And ensure the scrubber was executed
             mock_scrub.return_value.execute.assert_called_once_with()
             mock_vol_drv.pre_live_migration_on_source.assert_called_once_with(
-                {'public_key': None})
+                {})
 
             # Ensure migration counts are validated
             migr_data['active_migrations_in_progress'] = 4
@@ -133,40 +152,34 @@ class TestLPM(test.TestCase):
 
     @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
     def test_pre_live_mig(self, mock_scrub):
-        mock_vol_drv = mock.MagicMock()
+        vol_drv = mock.MagicMock()
         resp = self.lpmdst.pre_live_migration(
             'context', 'block_device_info', 'network_info', 'disk_info',
-            {}, [mock_vol_drv])
+            self.mig_data, [vol_drv])
 
         # Make sure we get something back, and that the volume driver was
         # invoked.
         self.assertIsNotNone(resp)
-        mock_vol_drv.pre_live_migration_on_destination.assert_called_once_with(
-            {}, {})
+        vol_drv.pre_live_migration_on_destination.assert_called_once_with(
+            self.mig_data.vol_data)
         self.assertEqual(1, mock_scrub.call_count)
-        # Ensure we save the data for later use.
-        self.assertIsNotNone(getattr(self.lpmdst, 'pre_live_data', None))
+        self.add_key.assert_called_once_with(self.apt, 'PublicKey')
 
-    @mock.patch('pypowervm.tasks.management_console.add_authorized_key')
-    def test_pre_live_mig2(self, mock_add_key):
-        vol_drv = mock.Mock()
+        vol_drv.reset_mock()
         raising_vol_drv = mock.Mock()
         raising_vol_drv.pre_live_migration_on_destination.side_effect = (
             Exception('foo'))
         self.assertRaises(
             exception.MigrationPreCheckError, self.lpmdst.pre_live_migration,
             'context', 'block_device_info', 'network_info', 'disk_info',
-            {'migrate_data': {'public_key': 'abc123'}},
-            [vol_drv, raising_vol_drv])
-        mock_add_key.assert_called_once_with(self.apt, 'abc123')
-        vol_drv.pre_live_migration_on_destination.assert_called_once_with(
-            {'public_key': 'abc123'}, {})
+            self.mig_data, [vol_drv, raising_vol_drv])
+        vol_drv.pre_live_migration_on_destination.assert_called_once_with({})
         (raising_vol_drv.pre_live_migration_on_destination.
-         assert_called_once_with({'public_key': 'abc123'}, {}))
+            assert_called_once_with({}))
 
     def test_src_cleanup(self):
         vol_drv = mock.Mock()
-        self.lpmdst.pre_live_data = {}
+        self.lpmdst.pre_live_vol_data = {}
         self.lpmdst.cleanup_volume(vol_drv)
         # Ensure the volume driver was called to clean up the volume.
         vol_drv.cleanup_volume_at_destination.assert_called_once_with({})
@@ -175,15 +188,13 @@ class TestLPM(test.TestCase):
     def test_live_migration(self, mock_migr):
 
         self.lpmsrc.lpar_w = mock.Mock()
-        self.lpmsrc.dest_data = dict(
-            dest_sys_name='a', dest_ip='1', dest_user_id='neo')
-        self.lpmsrc.live_migration('context', {})
+        self.lpmsrc.live_migration('context', self.mig_data)
         mock_migr.called_once_with('context')
 
         # Test that we raise errors received during migration
         mock_migr.side_effect = ValueError()
         self.assertRaises(ValueError, self.lpmsrc.live_migration, 'context',
-                          {})
+                          self.mig_data)
         mock_migr.called_once_with('context')
 
     def test_post_live_mig_src(self):
@@ -221,7 +232,7 @@ class TestLPM(test.TestCase):
         lpar_w, host_w = mock.Mock(), mock.Mock()
         lpar_w.can_lpm.return_value = (True, None)
         self.lpmsrc._check_migration_ready(lpar_w, host_w)
-        lpar_w.can_lpm.assert_called_once_with(host_w, migr_data=None)
+        lpar_w.can_lpm.assert_called_once_with(host_w, migr_data={})
 
         lpar_w.can_lpm.return_value = (False, 'This is the reason message.')
         self.assertRaises(exception.MigrationPreCheckError,

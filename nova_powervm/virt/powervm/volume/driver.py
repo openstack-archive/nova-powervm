@@ -108,7 +108,7 @@ class PowerVMVolumeAdapter(object):
         """List of pypowervm XAGs needed to support this adapter."""
         raise NotImplementedError()
 
-    def pre_live_migration_on_destination(self, src_mig_data, dest_mig_data):
+    def pre_live_migration_on_destination(self, mig_data):
         """Perform pre live migration steps for the volume on the target host.
 
         This method performs any pre live migration that is needed.
@@ -121,11 +121,10 @@ class PowerVMVolumeAdapter(object):
         method.  The data from the pre_live call will be passed in via the
         mig_data.  This method should put its output into the dest_mig_data.
 
-        :param src_mig_data: The migration data from the source server.
-        :param dest_mig_data: The migration data for the destination server.
-                              If the volume connector needs to provide
-                              information to the live_migration command, it
-                              should be added to this dictionary.
+        :param mig_data: Dict of migration data for the destination server.
+                         If the volume connector needs to provide
+                         information to the live_migration command, it
+                         should be added to this dictionary.
         """
         raise NotImplementedError()
 
@@ -156,7 +155,7 @@ class PowerVMVolumeAdapter(object):
         This method can be used to handle any steps that need to taken on
         the source host after the VM is on the destination.
 
-        :param migrate_data: migration data
+        :param migrate_data: volume migration data
         """
         pass
 

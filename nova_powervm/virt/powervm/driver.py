@@ -621,7 +621,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param block_device_info: Information about block devices that should
                                   be detached from the instance.
         :param destroy_disks: Indicates if disks should be destroyed
-        :param migrate_data: implementation specific params
+        :param migrate_data: a LiveMigrateData object
         """
         if instance.task_state == task_states.RESIZE_REVERTING:
             LOG.info(_LI('Destroy called for migrated/resized instance.'),
@@ -1395,7 +1395,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param block_device_info: instance block device information
         :param network_info: instance network information
         :param disk_info: instance disk information
-        :param migrate_data: implementation specific data dict.
+        :param migrate_data: a LiveMigrateData object
         """
         LOG.info(_LI("Pre live migration processing."),
                  instance=instance)
@@ -1426,7 +1426,7 @@ class PowerVMDriver(driver.ComputeDriver):
             recovery method when any exception occurs.
             expected nova.compute.manager._rollback_live_migration.
         :param block_migration: if true, migrate VM disk.
-        :param migrate_data: implementation specific params.
+        :param migrate_data: a LiveMigrateData object
 
         """
         self._log_operation('live_migration', instance)
@@ -1471,7 +1471,7 @@ class PowerVMDriver(driver.ComputeDriver):
             recovery method when any exception occurs.
             expected nova.compute.manager._rollback_live_migration.
         :param block_migration: if true, migrate VM disk.
-        :param migrate_data: implementation specific params.
+        :param migrate_data: a LiveMigrateData object
         :param mig: live_migration object
         :param ex: exception reason
 
@@ -1500,7 +1500,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param block_device_info: instance block device information
         :param destroy_disks:
             if true, destroy disks at destination during cleanup
-        :param migrate_data: implementation specific params
+        :param migrate_data: a LiveMigrateData object
 
         """
         del self.live_migrations[instance.uuid]
@@ -1545,7 +1545,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param context: security context
         :instance: instance object that was migrated
         :block_device_info: instance block device information
-        :param migrate_data: if not None, it is a dict which has data
+        :param migrate_data: a LiveMigrateData object
         """
         # Build the volume drivers
         vol_drvs = self._build_vol_drivers(context, instance,
