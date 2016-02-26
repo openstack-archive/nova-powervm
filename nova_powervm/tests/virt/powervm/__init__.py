@@ -63,7 +63,7 @@ TEST_MIGRATION = {
 TEST_MIGRATION_SAME_HOST = dict(TEST_MIGRATION, dest_compute='host1')
 
 IMAGE1 = {
-    'id': 1,
+    'id': '3e865d14-8c1e-4615-b73f-f78eaecabfbd',
     'name': 'image1',
     'size': 300,
     'container_format': 'bare',
