@@ -57,7 +57,21 @@ powervm_opts = [
                default='OpenStackOVS',
                help="Name of the PowerVM virtual switch to be used when "
                     "mapping Open vSwitch ports to PowerVM virtual Ethernet "
-                    "devices")
+                    "devices"),
+    cfg.BoolOpt('use_rmc_mgmt_vif',
+                default=True,
+                help="If enabled, tells the PowerVM Driver to create an RMC "
+                     "network interface on the deploy of a VM.  This is an "
+                     "adapter that can only talk to the NovaLink partition "
+                     "and enables DLPAR actions."),
+    cfg.BoolOpt('use_rmc_ipv6_scheme',
+                default=True,
+                help="Only used if use_rmc_mgmt_vif is True and config drive "
+                     "is being used.  If set, the system will configure the "
+                     "RMC network interface with an IPv6 link local address. "
+                     "This is generally set to True, but users may wish to "
+                     "turn this off if their operating system has "
+                     "compatibility issues.")
 ]
 
 localdisk_opts = [

@@ -130,7 +130,7 @@ class ConfigDrivePowerVM(object):
         """
         # If there is a management client network adapter, then we should
         # convert that to a VIF and add it to the network info
-        if mgmt_cna is not None:
+        if mgmt_cna is not None and CONF.powervm.use_rmc_ipv6_scheme:
             network_info = copy.deepcopy(network_info)
             network_info.append(self._mgmt_cna_to_vif(mgmt_cna))
 
