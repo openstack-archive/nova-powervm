@@ -36,6 +36,7 @@ from taskflow import engines as tf_eng
 from taskflow.patterns import linear_flow as tf_lf
 
 from pypowervm import adapter as pvm_apt
+from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.helpers import vios_busy as vio_hlp
@@ -45,7 +46,6 @@ from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm import util as pvm_util
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
-from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
@@ -1651,11 +1651,11 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         # All operations for deploy/destroy require scsi by default.  This is
         # either vopt, local/SSP disks, etc...
-        xags = {pvm_vios.VIOS.xags.SCSI_MAPPING}
+        xags = {pvm_const.XAG.VIO_SMAP}
         if not bdms:
             LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',
                       {'inst': instance.name,
-                       'xags': ','.join([x.name for x in xags])})
+                       'xags': ','.join(xags)})
             return list(xags)
 
         # If we have any volumes, add the volumes required mapping XAGs.
@@ -1665,7 +1665,7 @@ class PowerVMDriver(driver.ComputeDriver):
         xags.update(set(vol_cls.min_xags()))
         LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',
                   {'inst': instance.name,
-                   'xags': ','.join([x.name for x in xags])})
+                   'xags': ','.join(xags)})
         return list(xags)
 
     def _get_inst_vol_adpt(self, context, instance, conn_info=None,

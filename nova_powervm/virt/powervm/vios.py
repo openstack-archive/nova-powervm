@@ -16,6 +16,7 @@
 
 from oslo_log import log as logging
 
+from pypowervm import const as pvm_const
 from pypowervm.utils import transaction as pvm_tx
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -66,7 +67,7 @@ def get_physical_wwpns(adapter, ms_uuid):
     """Returns the active WWPNs of the FC ports across all VIOSes on system."""
     resp = adapter.read(pvm_ms.System.schema_type, root_id=ms_uuid,
                         child_type=pvm_vios.VIOS.schema_type,
-                        xag=[pvm_vios.VIOS.xags.STORAGE])
+                        xag=[pvm_const.XAG.VIO_STOR])
     vios_feed = pvm_vios.VIOS.wrap(resp)
     wwpn_list = []
     for vios in vios_feed:
@@ -75,9 +76,9 @@ def get_physical_wwpns(adapter, ms_uuid):
 
 
 def build_tx_feed_task(adapter, host_uuid, name='vio_feed_mgr',
-                       xag=[pvm_vios.VIOS.xags.STORAGE,
-                            pvm_vios.VIOS.xags.SCSI_MAPPING,
-                            pvm_vios.VIOS.xags.FC_MAPPING]):
+                       xag=[pvm_const.XAG.VIO_STOR,
+                            pvm_const.XAG.VIO_SMAP,
+                            pvm_const.XAG.VIO_FMAP]):
     """Builds the pypowervm transaction FeedTask.
 
     The transaction FeedTask enables users to collect a set of

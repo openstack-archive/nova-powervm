@@ -28,6 +28,7 @@ from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
+from pypowervm import const as pvm_const
 from pypowervm.tasks import hdisk
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.utils import transaction as tx
@@ -76,7 +77,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
     def min_xags(cls):
         """List of pypowervm XAGs needed to support this adapter."""
         # SCSI mapping is for the connections between VIOS and client VM
-        return [pvm_vios.VIOS.xags.SCSI_MAPPING]
+        return [pvm_const.XAG.VIO_SMAP]
 
     def pre_live_migration_on_destination(self, src_mig_data, dest_mig_data):
         """Perform pre live migration steps for the volume on the target host.
@@ -103,7 +104,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # See the connect_volume for why this is a direct call instead of
         # using the tx_mgr.feed
         vios_feed = self.adapter.read(pvm_vios.VIOS.schema_type,
-                                      xag=[pvm_vios.VIOS.xags.STORAGE])
+                                      xag=[pvm_const.XAG.VIO_STOR])
         vios_wraps = pvm_vios.VIOS.wrap(vios_feed)
 
         # Iterate through host vios list to find valid hdisks.
@@ -142,7 +143,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # Create a feed task to get the vios, find the hdisk and remove it.
         rmv_hdisk_ftsk = tx.FeedTask(
             'find_hdisk_to_remove', pvm_vios.VIOS.getter(
-                self.adapter, xag=[pvm_vios.VIOS.xags.STORAGE]))
+                self.adapter, xag=[pvm_const.XAG.VIO_STOR]))
         # Find vios hdisks for this udid to remove.
         rmv_hdisk_ftsk.add_functor_subtask(
             find_hdisk_to_remove, flag_update=False)
@@ -253,7 +254,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # the stg_ftsk from potentially having to run it multiple times.
         connect_ftsk = tx.FeedTask(
             'connect_volume_to_vio', pvm_vios.VIOS.getter(
-                self.adapter, xag=[pvm_vios.VIOS.xags.STORAGE]))
+                self.adapter, xag=[pvm_const.XAG.VIO_STOR]))
         # Find valid hdisks and map to VM.
         connect_ftsk.add_functor_subtask(
             connect_volume_to_vio, provides='vio_modified', flag_update=False)
@@ -375,7 +376,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             # See logic in _connect_volume for why this new FeedTask is here.
             discon_ftsk = tx.FeedTask(
                 'discon_volume_from_vio', pvm_vios.VIOS.getter(
-                    self.adapter, xag=[pvm_vios.VIOS.xags.STORAGE]))
+                    self.adapter, xag=[pvm_const.XAG.VIO_STOR]))
             # Find hdisks to disconnect
             discon_ftsk.add_functor_subtask(
                 discon_vol_for_vio, provides='vio_modified', flag_update=False)

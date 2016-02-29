@@ -19,6 +19,7 @@ import mock
 import copy
 from nova import exception as nova_exc
 from nova import test
+from pypowervm import const as pvm_const
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
@@ -311,7 +312,7 @@ class TestLocalDisk(test.TestCase):
             self.assertEqual(num, self.apt.read.call_count)
             self.apt.read.assert_has_calls(
                 [mock.call(pvm_vios.VIOS.schema_type, root_id='vios_uuid',
-                           xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                           xag=[pvm_const.XAG.VIO_SMAP])
                  for i in range(num)])
         local = self.get_ls(self.apt)
         inst, lpar_wrap, vios1, vios2 = self._bld_mocks_for_instance_disk()

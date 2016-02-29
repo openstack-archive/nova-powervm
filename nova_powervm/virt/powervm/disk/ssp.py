@@ -27,12 +27,12 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
+import pypowervm.const as pvm_const
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 import pypowervm.util as pvm_u
 import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
-import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 
 LOG = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         if stg_ftsk is None:
             stg_ftsk = vios.build_tx_feed_task(
                 self.adapter, self.host_uuid, name='ssp',
-                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                xag=[pvm_const.XAG.VIO_SMAP])
 
         lpar_uuid = vm.get_pvm_uuid(instance)
         match_func = tsk_map.gen_match_func(pvm_stg.LU, prefixes=disk_type)
@@ -297,7 +297,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         if stg_ftsk is None:
             stg_ftsk = vios.build_tx_feed_task(
                 self.adapter, self.host_uuid, name='ssp',
-                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                xag=[pvm_const.XAG.VIO_SMAP])
 
         # Create the LU structure
         lu = pvm_stg.LU.bld_ref(self.adapter, disk_info.name, disk_info.udid)

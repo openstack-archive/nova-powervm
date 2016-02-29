@@ -596,7 +596,7 @@ class TestSSPDiskAdapter(test.TestCase):
             self.assertEqual(num, self.apt.read.call_count)
             self.apt.read.assert_has_calls(
                 [mock.call(pvm_vios.VIOS.schema_type, root_id=mock.ANY,
-                           xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                           xag=[const.XAG.VIO_SMAP])
                  for i in range(num)])
         ssp_stor = self._get_ssp_stor()
         inst, lpar_wrap, rsp1, rsp2, rsp3 = self._bld_mocks_for_instance_disk()

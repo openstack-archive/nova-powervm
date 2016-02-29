@@ -21,6 +21,7 @@ from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.volume import vscsi
 
+from pypowervm import const as pvm_const
 from pypowervm.tasks import hdisk
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
@@ -409,7 +410,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
     def test_min_xags(self):
         xags = self.vol_drv.min_xags()
         self.assertEqual(1, len(xags))
-        self.assertIn(pvm_vios.VIOS.xags.SCSI_MAPPING, xags)
+        self.assertIn(pvm_const.XAG.VIO_SMAP, xags)
 
     def test_set_udid(self):
 
