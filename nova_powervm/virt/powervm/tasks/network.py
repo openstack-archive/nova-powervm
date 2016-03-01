@@ -241,6 +241,15 @@ class PlugMgmtVif(task.Task):
             name='plug_mgmt_vif', provides='mgmt_cna', requires=['vm_cnas'])
 
     def execute(self, vm_cnas):
+        # If configured to not use RMC mgmt vifs, then return None.  Need to
+        # return None because the Config Drive step (which may be used...may
+        # not be) required the mgmt vif.
+        if not CONF.powervm.use_rmc_mgmt_vif:
+            LOG.debug('No management VIF created for instance %s as the conf '
+                      'option use_rmc_mgmt_vif is set to False',
+                      self.instance.name)
+            return None
+
         LOG.info(_LI('Plugging the Management Network Interface to instance '
                      '%s'), self.instance.name, instance=self.instance)
         # Determine if we need to create the secure RMC VIF.  This should only
