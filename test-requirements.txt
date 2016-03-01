@@ -12,4 +12,4 @@ os-testr>=0.4.1 # Apache-2.0
 testrepository>=0.0.18  # Apache-2.0/BSD
 testscenarios>=0.4  # Apache-2.0/BSD
 testtools>=1.4.0  # MIT
-mock>=1.2;python_version<'3.3'  # BSD
+mock>=1.2  # BSD
