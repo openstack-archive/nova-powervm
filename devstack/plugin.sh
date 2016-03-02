@@ -99,13 +99,13 @@ if is_service_enabled pvm-ceilometer-acompute; then
         configure_ceilometer_powervm
 
     elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
-        # Initialize and start the PowerVM SEA agent
+        # Initialize and start the ceilometer compute agent for PowerVM
         echo_summary "Starting ceilometer-powervm"
         start_ceilometer_powervm
     fi
 
     if [[ "$1" == "unstack" ]]; then
-        # Shut down PowerVM SEA agent
+        # Shut down the ceilometer compute agent for PowerVM
         echo_summary "Stopping ceilometer-powervm"
         stop_ceilometer_powervm
     fi
