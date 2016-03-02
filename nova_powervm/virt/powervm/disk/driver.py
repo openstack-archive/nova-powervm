@@ -157,7 +157,7 @@ class DiskAdapter(object):
         for vios_uuid in self.vios_uuids:
             vios_wrap = pvm_vios.VIOS.wrap(self.adapter.read(
                 pvm_vios.VIOS.schema_type, root_id=vios_uuid,
-                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING]))
+                xag=[pvm_const.XAG.VIO_SMAP]))
             for scsi_map in tsk_map.find_maps(
                     vios_wrap.scsi_mappings, client_lpar_id=lpar_wrap.id,
                     match_func=match_func):
@@ -186,7 +186,7 @@ class DiskAdapter(object):
             # point, and the second mapping would be harmless anyway. The
             # alternative would be always checking all VIOSes for existing
             # mappings, which increases the response time of the common case by
-            # an entire GET of VIOS+SCSI_MAPPING.
+            # an entire GET of VIOS+VIO_SMAP.
             LOG.debug("Mapping boot disk %(disk_name)s of instance "
                       "%(instance_name)s to the management partition from "
                       "Virtual I/O Server %(vios_name)s.", msg_args)

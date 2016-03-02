@@ -18,6 +18,7 @@
 from oslo_log import log as logging
 
 from nova import exception as nova_exc
+from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
@@ -124,7 +125,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         if stg_ftsk is None:
             stg_ftsk = vios.build_tx_feed_task(
                 self.adapter, self.host_uuid, name='localdisk',
-                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                xag=[pvm_const.XAG.VIO_SMAP])
 
         # Build the match function
         match_func = tsk_map.gen_match_func(pvm_stg.VDisk, prefixes=disk_type)
@@ -222,7 +223,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         if stg_ftsk is None:
             stg_ftsk = vios.build_tx_feed_task(
                 self.adapter, self.host_uuid, name='localdisk',
-                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                xag=[pvm_const.XAG.VIO_SMAP])
 
         def add_func(vios_w):
             LOG.info(_LI("Adding logical volume disk connection between VM "

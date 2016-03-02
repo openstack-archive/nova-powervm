@@ -168,7 +168,7 @@ class ConfigDrivePowerVM(object):
         if stg_ftsk is None:
             wtsk = pvm_tx.WrapperTask('media_attach', pvm_vios.VIOS.getter(
                 self.adapter, entry_uuid=self.vios_uuid,
-                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING]))
+                xag=[pvm_const.XAG.VIO_SMAP]))
         else:
             wtsk = stg_ftsk.wrapper_tasks[self.vios_uuid]
 
@@ -343,7 +343,7 @@ class ConfigDrivePowerVM(object):
             built_stg_ftsk = True
             vio_resp = self.adapter.read(
                 pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
-                xag=[pvm_vios.VIOS.xags.SCSI_MAPPING])
+                xag=[pvm_const.XAG.VIO_SMAP])
             vio_w = pvm_vios.VIOS.wrap(vio_resp)
             stg_ftsk = pvm_tx.FeedTask('media_detach', [vio_w])
         else:

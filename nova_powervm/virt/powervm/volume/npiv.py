@@ -19,8 +19,8 @@ from oslo_log import log as logging
 from taskflow import task
 
 from nova.compute import task_states
+from pypowervm import const as pvm_const
 from pypowervm.tasks import vfc_mapper as pvm_vfcm
-from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm import conf as cfg
 from nova_powervm.conf import powervm as pvm_cfg
@@ -59,7 +59,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """List of pypowervm XAGs needed to support this adapter."""
         # Storage are so physical FC ports are available
         # FC mapping is for the connections between VIOS and client VM
-        return [pvm_vios.VIOS.xags.FC_MAPPING, pvm_vios.VIOS.xags.STORAGE]
+        return [pvm_const.XAG.VIO_FMAP, pvm_const.XAG.VIO_STOR]
 
     def _connect_volume(self):
         """Connects the volume."""

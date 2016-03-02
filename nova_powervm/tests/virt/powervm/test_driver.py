@@ -34,6 +34,7 @@ from nova.virt import block_device as nova_virt_bdm
 from nova.virt import driver as virt_driver
 from nova.virt import fake
 import pypowervm.adapter as pvm_adp
+import pypowervm.const as pvm_const
 import pypowervm.exceptions as pvm_exc
 import pypowervm.utils.transaction as pvm_tx
 import pypowervm.wrappers.base_partition as pvm_bp
@@ -688,8 +689,8 @@ class TestPowerVMDriver(test.TestCase):
     def test_is_booted_from_volume(self, mock_get_mapping, mock_get_root_bdm):
         block_device_info = self._fake_bdms()
         ret = self.drv._is_booted_from_volume(block_device_info)
-        mock_get_root_bdm.\
-            assert_called_once_with(mock_get_mapping.return_value)
+        mock_get_root_bdm.assert_called_once_with(
+            mock_get_mapping.return_value)
         self.assertTrue(ret)
         self.assertEqual(1, mock_get_mapping.call_count)
 
@@ -706,24 +707,24 @@ class TestPowerVMDriver(test.TestCase):
     def test_get_inst_xag(self):
         # No volumes - should be just the SCSI mapping
         xag = self.drv._get_inst_xag(mock.Mock(), None)
-        self.assertEqual([pvm_vios.VIOS.xags.SCSI_MAPPING], xag)
+        self.assertEqual([pvm_const.XAG.VIO_SMAP], xag)
 
         # The vSCSI Volume attach - only needs the SCSI mapping.
         self.flags(fc_attach_strategy='vscsi', group='powervm')
         xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
-        self.assertEqual([pvm_vios.VIOS.xags.SCSI_MAPPING], xag)
+        self.assertEqual([pvm_const.XAG.VIO_SMAP], xag)
 
         # The NPIV volume attach - requires SCSI, Storage and FC Mapping
         self.flags(fc_attach_strategy='npiv', group='powervm')
         xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
-        self.assertEqual(set([pvm_vios.VIOS.xags.STORAGE,
-                              pvm_vios.VIOS.xags.SCSI_MAPPING,
-                              pvm_vios.VIOS.xags.FC_MAPPING]), set(xag))
+        self.assertEqual(set([pvm_const.XAG.VIO_STOR,
+                              pvm_const.XAG.VIO_SMAP,
+                              pvm_const.XAG.VIO_FMAP]), set(xag))
 
         # The vSCSI Volume attach - Ensure case insensitive.
         self.flags(fc_attach_strategy='VSCSI', group='powervm')
         xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
-        self.assertEqual([pvm_vios.VIOS.xags.SCSI_MAPPING], xag)
+        self.assertEqual([pvm_const.XAG.VIO_SMAP], xag)
 
     def test_add_vol_conn_task(self):
         bdm, vol_drv = mock.MagicMock(), mock.MagicMock()

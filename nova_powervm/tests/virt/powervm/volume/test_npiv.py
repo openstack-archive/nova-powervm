@@ -17,6 +17,7 @@
 import mock
 
 from nova.compute import task_states
+from pypowervm import const as pvm_const
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -225,8 +226,8 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
     def test_min_xags(self):
         xags = self.vol_drv.min_xags()
         self.assertEqual(2, len(xags))
-        self.assertIn(pvm_vios.VIOS.xags.STORAGE, xags)
-        self.assertIn(pvm_vios.VIOS.xags.FC_MAPPING, xags)
+        self.assertIn(pvm_const.XAG.VIO_STOR, xags)
+        self.assertIn(pvm_const.XAG.VIO_FMAP, xags)
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_get_fabric_meta')
