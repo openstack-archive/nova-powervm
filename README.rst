@@ -155,6 +155,31 @@ It is the goal of the project to only require minimal additional attributes.
 The deployer may specify additional attributes to fit their configuration.
 
 
+Live Migration
+--------------
+
+In the Mitaka release, the Nova project moved to using conductor-based objects
+for the live migration flow.  These objects exist in
+nova/objects/migrate_data.py.
+
+While the PowerVM driver supports live migration, it can not register its own
+live migration object due to being out of tree.  The team is working with the
+nova core team to bring the PowerVM driver in tree.  However until that time,
+the use of live migration with the PowerVM driver requires starting a
+PowerVM-specific conductor.
+
+This conductor does not limit the OpenStack cloud to only supporting PowerVM.
+Rather, it simply allows an existing cloud to include PowerVM support within
+it.
+
+To use the conductor, install the nova-powervm project on the node running the
+nova conductor.  Then start the 'nova-conductor-powervm' process.  This will
+support ALL of the hypervisors, including PowerVM.
+
+To reiterate, this is only needed if you plan to use PowerVM's live migrate
+functionality.
+
+
 Developer Impact
 ----------------
 
