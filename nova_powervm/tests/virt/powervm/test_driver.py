@@ -127,6 +127,40 @@ class TestPowerVMDriver(test.TestCase):
         # The local disk driver has been mocked, so we just compare the name
         self.assertIn('LocalStorage()', str(self.drv.disk_dvr))
 
+    @mock.patch('nova_powervm.virt.powervm.nvram.manager.NvramManager')
+    @mock.patch('oslo_utils.importutils.import_object')
+    @mock.patch('nova.utils.spawn')
+    def test_setup_nvram_store(self, mock_spawn, mock_import, mock_mgr):
+        self.flags(nvram_store='NoNe', group='powervm')
+        self.drv._setup_nvram_store()
+        self.assertFalse(mock_import.called)
+        self.assertFalse(mock_mgr.called)
+        self.assertFalse(mock_spawn.called)
+
+        self.flags(nvram_store='swift', group='powervm')
+        self.drv._setup_nvram_store()
+        self.assertTrue(mock_import.called)
+        self.assertTrue(mock_mgr.called)
+        self.assertTrue(mock_spawn.called)
+
+    @mock.patch.object(vm, 'get_lpars')
+    @mock.patch.object(vm, 'get_instance')
+    def test_nvram_host_startup(self, mock_get_inst, mock_get_lpars):
+
+        mock_lpar_wrapper = mock.Mock()
+        mock_lpar_wrapper.uuid = 'uuid_value'
+        mock_get_lpars.return_value = [mock_lpar_wrapper,
+                                       mock_lpar_wrapper,
+                                       mock_lpar_wrapper]
+        mock_get_inst.side_effect = [powervm.TEST_INST1,
+                                     None,
+                                     powervm.TEST_INST2]
+
+        self.drv.nvram_mgr = mock.Mock()
+        self.drv._nvram_host_startup()
+        self.drv.nvram_mgr.store.assert_has_calls(
+            [mock.call(powervm.TEST_INST1), mock.call(powervm.TEST_INST2)])
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.context.get_admin_context')
     def test_driver_ops(self, mock_get_ctx, mock_getuuid):
@@ -1038,6 +1072,7 @@ class TestPowerVMDriver(test.TestCase):
         # Tasks expected to be added for migrate
         expected = [
             'pwr_off_lpar',
+            'store_nvram',
             'extend_disk_boot',
             'disconnect_vol_*',
             'disconnect_vol_*',
@@ -1051,7 +1086,8 @@ class TestPowerVMDriver(test.TestCase):
                 mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
             # Check the size set in the resize task
-            extend_task = taskflow_fix.tasks_added[1]
+            extend_task = taskflow_fix.tasks_added[
+                expected.index('extend_disk_boot')]
             self.assertEqual(extend_task.size, 12)
         self.san_lpar_name.assert_called_with('migrate_' + self.inst.name)
 
@@ -1162,7 +1198,7 @@ class TestPowerVMDriver(test.TestCase):
         entry = (r'Operation: %(op)s. Virtual machine display '
                  'name: %(display_name)s, name: %(name)s, '
                  'UUID: %(uuid)s')
-        msg_dict = {'uuid': '49629a5c-f4c4-4721-9511-9725786ff2e5',
+        msg_dict = {'uuid': 'b3c04455-a435-499d-ac81-371d2a2d334f',
                     'display_name': u'Fake Instance',
                     'name': 'instance-00000001',
                     'op': 'fake_op'}
@@ -1620,6 +1656,15 @@ class TestNovaEventHandler(test.TestCase):
                 'EventID': '1452692619566',
                 'EventDetail': 'RMCState,PartitionState,Other',
             },
+            {
+                'EventType': 'MODIFY_URI',
+                'EventData': 'http://localhost:12080/rest/api/uom/Managed'
+                             'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
+                             'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
+                             'A73E41EAA938',
+                'EventID': '1452692619566',
+                'EventDetail': 'NVRAM',
+            },
         ]
 
         mock_qprops.return_value = pvm_bp.LPARState.RUNNING
@@ -1627,3 +1672,4 @@ class TestNovaEventHandler(test.TestCase):
 
         self.handler.process(event_data)
         self.assertTrue(self.mock_driver.emit_event.called)
+        self.assertTrue(self.mock_driver.nvram_mgr.store.called)

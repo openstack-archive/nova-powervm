@@ -440,18 +440,19 @@ def get_lpar_names(adapter):
     return [x.name for x in get_lpars(adapter)]
 
 
-def get_instance_wrapper(adapter, instance, host_uuid):
+def get_instance_wrapper(adapter, instance, host_uuid, xag=None):
     """Get the LPAR wrapper for a given Nova instance.
 
     :param adapter: The adapter for the pypowervm API
     :param instance: The nova instance.
-    :param host_uuid: (TEMPORARY) The host UUID
+    :param host_uuid: The host UUID
+    :param xag: The pypowervm XAG to be used on the read request
     :return: The pypowervm logical_partition wrapper.
     """
     pvm_inst_uuid = get_pvm_uuid(instance)
     resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
                         child_type=pvm_lpar.LPAR.schema_type,
-                        child_id=pvm_inst_uuid)
+                        child_id=pvm_inst_uuid, xag=xag)
     return pvm_lpar.LPAR.wrap(resp)
 
 

@@ -150,8 +150,37 @@ npiv_opts = [
                     '\'fabric_<identifier>_port_wwpns\' key.')
 ]
 
+remote_restart_opts = [
+    cfg.StrOpt('nvram_store',
+               choices=['none', 'swift'], ignore_case=True,
+               default='none',
+               help='The NVRAM store to use to hold the PowerVM NVRAM for '
+               'virtual machines.'),
+]
+
+swift_opts = [
+    cfg.StrOpt('swift_container', default='powervm_nvram',
+               help='The Swift container to store the PowerVM NVRAM in. This '
+               'must be configured the same value for all compute hosts.'),
+    cfg.StrOpt('swift_username', default='powervm',
+               help='The Swift user name to use for operations that use '
+               'the Swift store.'),
+    cfg.StrOpt('swift_user_domain_name', default='powervm',
+               help='The Swift domain the user is a member of.'),
+    cfg.StrOpt('swift_password', help='The password for the Swift '
+               'user.'),
+    cfg.StrOpt('swift_project_name', default='powervm',
+               help='The Swift project.'),
+    cfg.StrOpt('swift_project_domain_name', default='powervm',
+               help='The Swift project domain.'),
+    cfg.StrOpt('swift_auth_version', default='3', help='The Keystone API '
+               'version.'),
+    cfg.StrOpt('swift_auth_url', help='The Keystone authorization url. '
+               'Example: "http://keystone-hostname:5000/v3"'),
+]
+
 STATIC_OPTIONS = (powervm_opts + localdisk_opts + ssp_opts + vol_adapter_opts
-                  + npiv_opts)
+                  + npiv_opts + remote_restart_opts + swift_opts)
 
 # Dictionary where the key is the NPIV Fabric Name, and the value is a list of
 # Physical WWPNs that match the key.

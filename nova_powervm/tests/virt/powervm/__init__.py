@@ -47,7 +47,8 @@ TEST_INSTANCE = {
     'power_state': power_state.SHUTDOWN,
 }
 
-TEST_INST_SPAWNING = dict(TEST_INSTANCE, task_state=task_states.SPAWNING)
+TEST_INST_SPAWNING = dict(TEST_INSTANCE, task_state=task_states.SPAWNING,
+                          uuid='b3c04455-a435-499d-ac81-371d2a2d334f')
 
 TEST_INST1 = instance.Instance(**TEST_INSTANCE)
 TEST_INST2 = instance.Instance(**TEST_INST_SPAWNING)
