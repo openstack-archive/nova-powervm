@@ -86,7 +86,7 @@ class NvramManager(object):
                           update.
         """
         if immediate:
-            self._update_instance(instance=instance)
+            self._update_nvram(instance=instance)
         else:
             # Add it to the list to update
             self._add_to_list(instance)
@@ -148,7 +148,7 @@ class NvramManager(object):
         self._update_list.clear()
 
     @lockutils.synchronized(LOCK_NVRAM_STORE)
-    def _update_instance(self, instance=None):
+    def _update_nvram(self, instance=None):
         """Perform an update of NVRAM for instance.
 
         :param instance: The instance to update or if not specified pull the
@@ -183,7 +183,7 @@ class NvramManager(object):
             # Get the data from the adapter.
             entry = vm.get_instance_wrapper(self._adapter, instance,
                                             self._host_uuid,
-                                            xag=pvm_const.XAG.NVRAM)
+                                            xag=[pvm_const.XAG.NVRAM])
             data = entry.nvram
             LOG.debug('NVRAM for instance: %s', data, instance=instance)
         except pvm_exc.HttpError as e:
@@ -204,5 +204,5 @@ class NvramManager(object):
                 LOG.debug('NVRAM store manager update thread is ending.')
                 return
 
-            self._update_instance()
+            self._update_nvram()
             time.sleep(0)

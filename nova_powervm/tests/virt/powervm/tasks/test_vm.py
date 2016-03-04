@@ -27,6 +27,32 @@ class TestVMTasks(test.TestCase):
         self.apt = mock.Mock()
         self.instance = mock.Mock()
 
+    @mock.patch('pypowervm.tasks.storage.add_lpar_storage_scrub_tasks')
+    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
+    def test_create(self, mock_vm_crt, mock_stg):
+        nvram_mgr = mock.Mock()
+        nvram_mgr.fetch.return_value = 'data'
+        lpar_entry = mock.Mock()
+
+        crt = tf_vm.Create(self.apt, 'host_wrapper', self.instance,
+                           'flavor', 'stg_ftsk', nvram_mgr=nvram_mgr)
+        mock_vm_crt.return_value = lpar_entry
+        crt_entry = crt.execute()
+
+        mock_vm_crt.assert_called_once_with(self.apt, 'host_wrapper',
+                                            self.instance, 'flavor',
+                                            nvram='data')
+        self.assertEqual(lpar_entry, crt_entry)
+        nvram_mgr.fetch.assert_called_once_with(self.instance)
+
+        # No exception is raised if the nvram could not be fetched
+        mock_vm_crt.reset_mock()
+        nvram_mgr.fetch.side_effect = ValueError('Not Available')
+        crt.execute()
+        mock_vm_crt.assert_called_once_with(self.apt, 'host_wrapper',
+                                            self.instance, 'flavor',
+                                            nvram=None)
+
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     def test_resize(self, mock_vm_update):
 
@@ -55,3 +81,22 @@ class TestVMTasks(test.TestCase):
         store_nvram.execute()
         nvram_mgr.store.assert_called_once_with(self.instance,
                                                 immediate=True)
+
+        # No exception is raised if the NVRAM could not be stored.
+        nvram_mgr.reset_mock()
+        nvram_mgr.store.side_effect = ValueError('Not Available')
+        store_nvram.execute()
+        nvram_mgr.store.assert_called_once_with(self.instance,
+                                                immediate=True)
+
+    def test_delete_nvram(self):
+        nvram_mgr = mock.Mock()
+        delete_nvram = tf_vm.DeleteNvram(nvram_mgr, self.instance)
+        delete_nvram.execute()
+        nvram_mgr.remove.assert_called_once_with(self.instance)
+
+        # No exception is raised if the NVRAM could not be stored.
+        nvram_mgr.reset_mock()
+        nvram_mgr.remove.side_effect = ValueError('Not Available')
+        delete_nvram.execute()
+        nvram_mgr.remove.assert_called_once_with(self.instance)
