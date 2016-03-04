@@ -32,7 +32,6 @@ import pypowervm.const as pvm_const
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 import pypowervm.util as pvm_u
-import pypowervm.utils.transaction as pvm_tx
 import pypowervm.wrappers.cluster as pvm_clust
 import pypowervm.wrappers.storage as pvm_stg
 
@@ -282,89 +281,102 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             The metadata of the image of the instance.
         :return: A pypowervm LU ElementWrapper representing the image.
         """
-        @pvm_tx.entry_transaction
-        def _rename_lu(sspw, lu2r, new_name):
-            """Rename a Logical Unit.
-
-            :param sspw: The SSP wrapper housing the LU to be renamed.
-            :param lu2r: LU wrapper representing the LU to be renamed.
-            :param new_name: New name (string) for the LU.
-            :return: The ssp, updated with the renamed LU.
-            """
-            lu = self._find_lu(lu2r.name, lu2r.lu_type, ssp=sspw)
-            lu.name = new_name
-            return sspw.update()
-
-        # Temporary (upload-in-progress) LU name prefixed with 'partxxxxxxxx'
+        sleep_s = 3
+        # Marker (upload-in-progress) LU name prefixed with 'partxxxxxxxx'
         prefix = 'part%s' % uuid.uuid4().hex[:8]
         luname = self._get_image_name(
             image_meta,
             max_len=pvm_const.MaxLen.FILENAME_DEFAULT - len(prefix))
-        tmp_luname = prefix + luname
+        mkr_luname = prefix + luname
         imgtyp = pvm_stg.LUType.IMAGE
-        lu_gb = pvm_u.convert_bytes_to_gb(image_meta.size, dp=2)
+        first = True
         while True:
             # Refresh the SSP data
             ssp = self._ssp
-            # Does the LU already exist in its final, uploaded form?
-            lu = self._find_lu(luname, imgtyp, ssp=ssp)
-            if lu:
+            # Look for all LUs containing the right name.
+            lus = self._find_lu(luname, imgtyp, whole_name=False,
+                                find_all=True, ssp=ssp)
+            # Does the LU already exist in its final, uploaded form?  If so,
+            # then only that LU will exist, with an exact name match.
+            if len(lus) == 1 and lus[0].name == luname:
                 LOG.info(_LI('Using already-uploaded image LU %s.'), luname)
-                return lu
+                return lus[0]
 
-            # It's not there.  Is someone already uploading it?
-            lu = self._find_lu(luname, imgtyp, whole_name=False, ssp=ssp)
-            if lu:
-                LOG.debug('Waiting for in-progress upload %s to complete.',
-                          lu.name, instance=instance)
-                time.sleep(3)
+            # Is there an upload in progress?
+            mkr_lus = [lu for lu in lus
+                       if lu.name != luname and lu.name.endswith(luname)]
+            if mkr_lus:
+                # Use info the first time; debug thereafter to avoid flooding
+                # the log.
+                if first:
+                    first = False
+                    LOG.info(_LI('Waiting for in-progress upload(s) to '
+                                 'complete.  Marker LU(s): %s'),
+                             str([lu.name for lu in mkr_lus]),
+                             instance=instance)
+                else:
+                    LOG.debug('Waiting for in-progress upload(s) to complete. '
+                              'Marker LU(s): %s',
+                              str([lu.name for lu in mkr_lus]),
+                              instance=instance)
+                time.sleep(sleep_s)
                 continue
 
             # No upload in progress (at least as of when we grabbed the SSP).
-            # Create the LU with our temporary name.
-            ssp, tmplu = tsk_stg.crt_lu(ssp, tmp_luname, lu_gb, typ=imgtyp)
+            LOG.info(_LI('Creating marker LU %s'), mkr_luname)
+            ssp, mkrlu = tsk_stg.crt_lu(ssp, mkr_luname, 0.001, typ=imgtyp)
 
             # Now things get funky.  If another process (possibly on another
             # host) hit the above line at the same time, there could be
-            # multiple temporary LUs out there.  We all use the next chunk to
+            # multiple marker LUs out there.  We all use the next chunk to
             # decide which one of us gets to do the upload.
             lus = self._find_lu(luname, imgtyp, whole_name=False,
                                 find_all=True, ssp=ssp)
+            # First of all, if someone else already started the upload, we bail
+            if any([lu for lu in lus if lu.name == luname]):
+                LOG.info(_LI('Abdicating in favor of in-progress upload.'))
+                tsk_stg.rm_ssp_storage(ssp, [mkrlu])
+                time.sleep(sleep_s)
+                continue
+
+            # The lus list should be all markers at this point.  If there's
+            # more than one (ours), then the first (by alpha sort) wins.
             if len(lus) > 1:
-                # The "first" (by alpha sort) wins.
-                lus.sort(key=lambda lu: lu.name)
+                lus.sort(key=lambda l: l.name)
                 winner = lus[0].name
-                if winner != tmp_luname:
+                if winner != mkr_luname:
                     # We lose.  Delete our LU and let the winner proceed
-                    LOG.info(_LI('Abdicating our upload (%(our_lu)s) in favor '
-                                 'of %(winner_lu)s.'), {'our_lu': tmp_luname,
-                                                        'winner_lu': winner})
+                    LOG.info(_LI('Abdicating upload in favor of marker %s.'),
+                             winner)
                     # Remove just our LU - let other losers take care of theirs
-                    tsk_stg.rm_ssp_storage(ssp, [tmplu])
-                    LOG.info(
-                        _LI('Waiting for in-progress upload %s to complete.'),
-                        winner)
-                    time.sleep(3)
+                    tsk_stg.rm_ssp_storage(ssp, [mkrlu])
+                    time.sleep(sleep_s)
                     continue
 
-            # Okay, we won.  Do the actual upload (to the temporary name).
-            stream = self._get_image_upload(context, image_meta)
-            LOG.info(_LI('Uploading to image LU %s.'), tmp_luname)
+            # Okay, we won.  Do the actual upload.
+            strm = self._get_image_upload(context, image_meta)
+            LOG.info(_LI('Uploading to image LU %(lu)s (marker %(mkr)s).'),
+                     {'lu': luname, 'mkr': mkr_luname})
             try:
-                tsk_stg.upload_lu(
-                    self._any_vios_uuid(), tmplu, stream, image_meta.size)
+                lu, f_wrap = tsk_stg.upload_new_lu(
+                    self._any_vios_uuid(), ssp, strm, luname, image_meta.size)
 
-                # Now signal completion and make the LU usable by giving it its
-                # "real" name.
-                ssp = _rename_lu(ssp, tmplu, luname)
-                # Finally, re-find the LU we just renamed and return it.
-                return self._find_lu(luname, imgtyp, ssp=ssp)
             except Exception as exc:
-                LOG.exception(_LE('Removing LU %(luname)s due to exception: '
-                                  '%(exc)s.'),
-                              {'luname': tmplu.name, 'exc': exc})
-                tsk_stg.rm_ssp_storage(ssp, [tmplu])
+                LOG.exception(exc)
+                # It's possible the LU creation succeeded, but the upload
+                # failed.  If so, we need to remove the LU so it doesn't block
+                # others attempting to use the same one.
+                lu = self._find_lu(luname, imgtyp)
+                if lu:
+                    LOG.exception(_LE('Removing failed LU %s.'), luname)
+                    ssp = tsk_stg.rm_ssp_storage(ssp, [lu])
                 raise exc
+            finally:
+                # Signal completion (or clean up) by removing the marker LU.
+                tsk_stg.rm_ssp_storage(ssp, [mkrlu])
+
+            # Return the uploaded LU.
+            return lu
 
     def get_disk_ref(self, instance, disk_type):
         """Returns a reference to the disk for the instance."""

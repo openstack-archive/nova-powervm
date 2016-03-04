@@ -301,7 +301,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
     @mock.patch('pypowervm.tasks.storage.crt_lu_linked_clone')
     @mock.patch('pypowervm.tasks.storage.crt_lu')
-    @mock.patch('pypowervm.tasks.storage.upload_lu')
+    @mock.patch('pypowervm.tasks.storage.upload_new_lu')
     @mock.patch('nova_powervm.virt.powervm.disk.driver.IterableToFileAdapter')
     @mock.patch('uuid.uuid4')
     @mock.patch('nova.image.API')
@@ -316,22 +316,26 @@ class TestSSPDiskAdapter(test.TestCase):
         exp_luname = ('image_' + powervm.TEST_IMAGE1.name + '_' +
                       powervm.TEST_IMAGE1.checksum)
         tmp_luname = 'part1234abcd' + exp_luname
-        img_lu = pvm_stg.LU.bld(None, tmp_luname, 123,
+        mkr_lu = pvm_stg.LU.bld(None, tmp_luname, 123,
+                                typ=pvm_stg.LUType.IMAGE)
+        img_lu = pvm_stg.LU.bld(None, exp_luname, 123,
                                 typ=pvm_stg.LUType.IMAGE)
 
-        def crt_lu(ssp1, luname, lu_gb, typ=None):
+        def crt_mkr_lu(ssp1, luname, lu_gb, typ=None):
             self.assertEqual(ssp_stor._ssp_wrap, ssp1)
             self.assertEqual(tmp_luname, luname)
             self.assertEqual(pvm_stg.LUType.IMAGE, typ)
-            ssp1.logical_units.append(img_lu)
-            return ssp_stor._ssp_wrap, img_lu
+            ssp1.logical_units.append(mkr_lu)
+            return ssp_stor._ssp_wrap, mkr_lu
 
-        def verify_upload_lu(vios_uuid, lu1, stream, f_size):
+        def verify_upload_lu(vios_uuid, ssp1, stream, luname, b_size):
+            self.assertEqual(ssp_stor._ssp_wrap, ssp1)
             self.assertIn(vios_uuid, ssp_stor.vios_uuids)
             # 'image' + '_' + s/-/_/g(image.name), per _get_image_name
-            self.assertEqual('part1234abcdimage_' + powervm.TEST_IMAGE1.name +
-                             '_' + powervm.TEST_IMAGE1.checksum, lu1.name)
-            self.assertEqual(powervm.TEST_IMAGE1.size, f_size)
+            self.assertEqual('image_' + powervm.TEST_IMAGE1.name + '_' +
+                             powervm.TEST_IMAGE1.checksum, luname)
+            self.assertEqual(powervm.TEST_IMAGE1.size, b_size)
+            ssp1.logical_units.append(img_lu)
             return img_lu, None
 
         def verify_create_lu_linked_clone(ssp1, clust1, imglu, lu_name, sz_gb):
@@ -340,7 +344,7 @@ class TestSSPDiskAdapter(test.TestCase):
             self.assertEqual(img_lu, imglu)
             return ssp1, 'new_lu'
 
-        mock_crt_lu.side_effect = crt_lu
+        mock_crt_lu.side_effect = crt_mkr_lu
         mock_upload_lu.side_effect = verify_upload_lu
         mock_crt_lnk_cln.side_effect = verify_create_lu_linked_clone
         lu = ssp_stor.create_disk_from_image(None, self.instance,
@@ -348,65 +352,83 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertEqual('new_lu', lu)
 
     @mock.patch('pypowervm.tasks.storage.crt_lu')
-    @mock.patch('pypowervm.tasks.storage.upload_lu')
+    @mock.patch('pypowervm.tasks.storage.upload_new_lu')
+    @mock.patch('pypowervm.tasks.storage.rm_ssp_storage')
     @mock.patch('nova_powervm.virt.powervm.disk.driver.IterableToFileAdapter')
     @mock.patch('time.sleep')
     @mock.patch('uuid.uuid4')
     @mock.patch('nova.image.API')
     def test_upload_img_conflict(self, mock_img_api, mock_uuid4, mock_sleep,
-                                 mock_it2fadp, mock_upload_lu, mock_crt_lu):
+                                 mock_it2fadp, mock_rm_lu, mock_upload_lu,
+                                 mock_crt_lu):
         """Multiple simultaneous uploads of the same image."""
         ssp_stor = self._get_ssp_stor()
         sspw = ssp_stor._ssp_wrap
-        mock_update = self.sspfx.mock_ssp_update
-        mock_update.return_value = ssp_stor._ssp_wrap
         mock_uuid4.return_value = uuid.UUID(
             '1234abcd-1234-1234-1234-abcdbcdecdef')
         exp_luname = ('image_' + powervm.TEST_IMAGE1.name + '_' +
                       powervm.TEST_IMAGE1.checksum)
         my_tmp_luname = 'part1234abcd' + exp_luname
-        my_img_lu = pvm_stg.LU.bld(None, my_tmp_luname, 123,
+        my_mkr_lu = pvm_stg.LU.bld(None, my_tmp_luname, 123,
                                    typ=pvm_stg.LUType.IMAGE)
-        my_img_lu._udid('my_img_lu_udid')
+        my_mkr_lu._udid('my_mkr_lu_udid')
         conflict_luname_win = 'part0123abcd' + exp_luname
         conflict_luname_lose = 'part5678cdef' + exp_luname
-        conflict_img_lu = pvm_stg.LU.bld(None, conflict_luname_lose,
+        conflict_mkr_lu = pvm_stg.LU.bld(None, conflict_luname_lose,
                                          123, typ=pvm_stg.LUType.IMAGE)
-        conflict_img_lu._udid('conflict_img_lu_udid')
+        conflict_mkr_lu._udid('conflict_img_lu_udid')
+        img_lu = pvm_stg.LU.bld(None, exp_luname, 123,
+                                typ=pvm_stg.LUType.IMAGE)
+        img_lu._udid('real_img_lu_udid')
         # Always expect to finish with exactly one more LU than we started with
         exp_num_lus = len(sspw.logical_units) + 1
 
         def crt_lu2(ssp1, luname, lu_gb, typ=None):
             """Both image LUs added to the SSP at the same time."""
-            ssp1.logical_units.append(my_img_lu)
-            ssp1.logical_units.append(conflict_img_lu)
+            ssp1.logical_units.append(my_mkr_lu)
+            ssp1.logical_units.append(conflict_mkr_lu)
             # The conflict happened "elsewhere" - return mine
-            return ssp1, my_img_lu
+            return ssp1, my_mkr_lu
         mock_crt_lu.side_effect = crt_lu2
+
+        def rm_ssp_storage(ssp1, lus):
+            for lu in lus:
+                ssp1.logical_units.remove(lu)
+            return ssp1
+        mock_rm_lu.side_effect = rm_ssp_storage
 
         def mock_sleep_conflict_finishes(sec):
             # Pretend the conflicting LU finishes while we sleep
-            conflict_img_lu.name = exp_luname
+            sspw.logical_units.remove(conflict_mkr_lu)
+            if img_lu not in sspw.logical_units:
+                sspw.logical_units.append(img_lu)
         mock_sleep.side_effect = mock_sleep_conflict_finishes
 
-        mock_upload_lu.return_value = my_img_lu, None
+        def upload_new_lu(vios_uuid, ssp1, stream, luname, b_size):
+            self.assertEqual(img_lu.name, luname)
+            sspw.logical_units.append(img_lu)
+            return img_lu, None
+        mock_upload_lu.side_effect = upload_new_lu
 
-        # ==> First test case: another upload is in progress when we get there.
-        sspw.logical_units.append(conflict_img_lu)
+        def upload_new_lu_raise(vios_uuid, ssp1, stream, luname, b_size):
+            self.assertEqual(img_lu.name, luname)
+            sspw.logical_units.append(img_lu)
+            raise IOError('Create succeeded, but upload failed')
+
+        # ==> Test case 1: another upload is about to start when we get there.
+        sspw.logical_units.append(conflict_mkr_lu)
 
         retlu = ssp_stor._get_or_upload_image_lu(None, self.instance,
                                                  powervm.TEST_IMAGE1)
 
         # I "waited" for the other guy to complete
         self.assertEqual(1, mock_sleep.call_count)
-        # I did not create, remove, upload, or rename
+        # I did not create, upload, or remove
         self.assertFalse(mock_crt_lu.called)
         self.assertFalse(mock_upload_lu.called)
-        self.assertFalse(mock_update.called)
-        # The already-in-progress LU was returned
-        self.assertEqual(conflict_img_lu, retlu)
-        # ...having been renamed appropriately
-        self.assertEqual(exp_luname, retlu.name)
+        self.assertFalse(mock_rm_lu.called)
+        # The real LU was returned
+        self.assertEqual(img_lu, retlu)
         # Right number of LUs
         self.assertEqual(exp_num_lus, len(sspw.logical_units))
 
@@ -414,8 +436,30 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_sleep.reset_mock()
         sspw.logical_units.remove(retlu)
 
-        # ==> Second test case: we both bid at the same time; and I lose.
-        conflict_img_lu.name = conflict_luname_win
+        # ==> Test case 2: another upload is in progress when we get there.
+        sspw.logical_units.append(conflict_mkr_lu)
+        sspw.logical_units.append(img_lu)
+
+        retlu = ssp_stor._get_or_upload_image_lu(None, self.instance,
+                                                 powervm.TEST_IMAGE1)
+
+        # I "waited" for the other guy to complete
+        self.assertEqual(1, mock_sleep.call_count)
+        # I did not create, upload, or remove
+        self.assertFalse(mock_crt_lu.called)
+        self.assertFalse(mock_upload_lu.called)
+        self.assertFalse(mock_rm_lu.called)
+        # The real LU was returned
+        self.assertEqual(img_lu, retlu)
+        # Right number of LUs
+        self.assertEqual(exp_num_lus, len(sspw.logical_units))
+
+        # Clean up
+        mock_sleep.reset_mock()
+        sspw.logical_units.remove(retlu)
+
+        # ==> Test case 3: we both bid at the same time; and I lose.
+        conflict_mkr_lu._name(conflict_luname_win)
 
         retlu = ssp_stor._get_or_upload_image_lu(None, self.instance,
                                                  powervm.TEST_IMAGE1)
@@ -424,55 +468,50 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertEqual(1, mock_crt_lu.call_count)
         # I "slept", waiting for the other guy to finish
         self.assertEqual(1, mock_sleep.call_count)
-        # I didn't upload or rename
+        # I didn't upload
         self.assertFalse(mock_upload_lu.called)
-        # I did remove myself from the SSP
-        self.assertEqual(1, mock_update.call_count)
-        # The other guy won and was returned
-        self.assertEqual(conflict_img_lu, retlu)
-        # ...having been renamed appropriately
-        self.assertEqual(exp_luname, retlu.name)
+        # I did remove my marker from the SSP
+        mock_rm_lu.assert_called_with(mock.ANY, [my_mkr_lu])
+        # The real LU was returned
+        self.assertEqual(img_lu, retlu)
         # Right number of LUs
         self.assertEqual(exp_num_lus, len(sspw.logical_units))
 
         # Clean up
         mock_crt_lu.reset_mock()
         mock_sleep.reset_mock()
-        mock_update.reset_mock()
+        mock_rm_lu.reset_mock()
         sspw.logical_units.remove(retlu)
 
-        # ==> Third test case: we both bid at the same time; and I win.
-        conflict_img_lu.name = conflict_luname_lose
+        # ==> Test case 4: we both bid at the same time; and I win.
+        conflict_mkr_lu._name(conflict_luname_lose)
 
         retlu = ssp_stor._get_or_upload_image_lu(None, self.instance,
                                                  powervm.TEST_IMAGE1)
 
         # I tried creating mine because his wasn't there at the start
         self.assertEqual(1, mock_crt_lu.call_count)
-        # Since I won, I did the upload and the rename (but not the remove)
+        # Since I won, I did the upload
         self.assertEqual(1, mock_upload_lu.call_count)
-        self.assertEqual(1, mock_update.call_count)
+        # I removed my marker from the SSP
+        mock_rm_lu.assert_called_with(mock.ANY, [my_mkr_lu])
         # I never slept
         self.assertFalse(mock_sleep.called)
-        # My LU was returned
-        self.assertEqual(my_img_lu, retlu)
-        # And my LU was renamed appropriately
-        self.assertEqual(exp_luname, retlu.name)
-        # IRL, the other guy will have removed his LU at some point.  Here, we
-        # can expect it to remain, so there's one "extra".
+        # The real LU was returned
+        self.assertEqual(img_lu, retlu)
+        # IRL, the other guy will have removed his marker LU at some point.
+        # Here, we can expect it to remain, so there's one "extra".
         self.assertEqual(exp_num_lus + 1, len(sspw.logical_units))
 
         # Clean up
         mock_crt_lu.reset_mock()
         mock_upload_lu.reset_mock()
-        mock_update.reset_mock()
+        mock_rm_lu.reset_mock()
         sspw.logical_units.remove(retlu)
-        sspw.logical_units.remove(conflict_img_lu)
+        sspw.logical_units.remove(conflict_mkr_lu)
 
-        # ==> Fourth test case: Same again, but upload raises.
-        # Un-rename my LU
-        my_img_lu.name = my_tmp_luname
-        mock_upload_lu.side_effect = IOError('upload failed')
+        # ==> Test case 5: Same, but upload raises *before* creating the LU.
+        mock_upload_lu.side_effect = IOError('Upload failed in crt_lu')
 
         self.assertRaises(IOError, ssp_stor._get_or_upload_image_lu, None,
                           self.instance, powervm.TEST_IMAGE1)
@@ -483,8 +522,34 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertEqual(1, mock_upload_lu.call_count)
         # I never slept
         self.assertFalse(mock_sleep.called)
-        # Rename wasn't called - but remove was (in the 'except')
-        self.assertEqual(1, mock_update.call_count)
+        # I removed my marker only - the real LU wasn't there.
+        mock_rm_lu.assert_called_once_with(mock.ANY, [my_mkr_lu])
+        # ...thus leaving the SSP as it was (plus the other guy's extra, which
+        # would actually be removed normally).
+        self.assertEqual(exp_num_lus, len(sspw.logical_units))
+
+        # Clean up
+        mock_crt_lu.reset_mock()
+        mock_upload_lu.reset_mock()
+        mock_rm_lu.reset_mock()
+        sspw.logical_units.remove(conflict_mkr_lu)
+
+        # ==> Test case 6: Same, but upload raises *after* creating the LU.
+        mock_upload_lu.side_effect = upload_new_lu_raise
+
+        self.assertRaises(IOError, ssp_stor._get_or_upload_image_lu, None,
+                          self.instance, powervm.TEST_IMAGE1)
+
+        # I tried creating mine because his wasn't there at the start
+        self.assertEqual(1, mock_crt_lu.call_count)
+        # Since I won, I tried the upload
+        self.assertEqual(1, mock_upload_lu.call_count)
+        # I never slept
+        self.assertFalse(mock_sleep.called)
+        # I removed both the real LU and my marker
+        mock_rm_lu.assert_has_calls([
+            mock.call(mock.ANY, [img_lu]),
+            mock.call(mock.ANY, [my_mkr_lu])])
         # ...thus leaving the SSP as it was (plus the other guy's extra, which
         # would actually be removed normally).
         self.assertEqual(exp_num_lus, len(sspw.logical_units))
@@ -731,7 +796,7 @@ class TestSSPDiskAdapter(test.TestCase):
         # named boot_my_instance_name.
         vios1 = pvm_vios.VIOS.wrap(pvmhttp.load_pvm_resp(
             'fake_vios_ssp_npiv.txt', adapter=self.apt).get_response())
-        vios1.scsi_mappings[3].backing_storage.name = 'boot_my_instance_name'
+        vios1.scsi_mappings[3].backing_storage._name('boot_my_instance_name')
         resp1 = self._bld_resp(entry_or_list=vios1.entry)
         vios2 = copy.deepcopy(vios1)
         # Change name and UUID so we can tell the difference:
