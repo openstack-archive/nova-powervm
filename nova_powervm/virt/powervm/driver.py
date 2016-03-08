@@ -17,6 +17,7 @@
 from nova import block_device
 from nova.compute import task_states
 from nova.compute import utils as compute_utils
+from nova.compute import vm_states
 from nova.console import type as console_type
 from nova import context as ctx
 from nova import exception
@@ -87,6 +88,9 @@ NVRAM_NS = 'nova_powervm.virt.powervm.nvram.'
 NVRAM_APIS = {
     'swift': 'swift.SwiftNvramStore',
 }
+
+KEEP_NVRAM_STATES = {vm_states.SHELVED, }
+FETCH_NVRAM_STATES = {vm_states.SHELVED, vm_states.SHELVED_OFFLOADED}
 
 
 class PowerVMDriver(driver.ComputeDriver):
@@ -368,9 +372,15 @@ class PowerVMDriver(driver.ComputeDriver):
         stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
                                            xag=xag)
 
-        # Create the LPAR
+        recreate = (instance.task_state == task_states.REBUILD_SPAWNING and
+                    'id' not in image_meta)
+
+        # Create the LPAR, check if NVRAM restore is needed.
+        nvram_mgr = (self.nvram_mgr if self.nvram_mgr and
+                     (recreate or instance.vm_state in FETCH_NVRAM_STATES)
+                     else None)
         flow_spawn.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
-                                    flavor, stg_ftsk))
+                                    flavor, stg_ftsk, nvram_mgr=nvram_mgr))
 
         # Create a flow for the IO
         flow_spawn.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
@@ -381,9 +391,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # Only add the image disk if this is from Glance.
         if not self._is_booted_from_volume(block_device_info):
 
-            # If a rebuild, just hookup the existing disk on shared storage.
-            if (instance.task_state == task_states.REBUILD_SPAWNING and
-                    'id' not in image_meta):
+            # If a recreate, just hookup the existing disk on shared storage.
+            if recreate:
                 flow_spawn.add(tf_stg.FindDisk(
                     self.disk_dvr, context, instance, disk_dvr.DiskType.BOOT))
             else:
@@ -571,10 +580,17 @@ class PowerVMDriver(driver.ComputeDriver):
             if destroy_disk_task:
                 flow.add(destroy_disk_task)
 
-            # Last step is to delete the LPAR from the system.
+            # Last step is to delete the LPAR from the system and delete
+            # the NVRAM from the store.
             # Note: If moving to a Graph Flow, will need to change to depend on
             # the prior step.
             flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
+
+            if destroy_disks and instance.vm_state not in KEEP_NVRAM_STATES:
+                # If the disks are being destroyed and not one of the
+                # operations that we should keep the NVRAM around for, then
+                # it's probably safe to delete the NVRAM from the store.
+                flow.add(tf_vm.DeleteNvram(self.nvram_mgr, instance))
 
             # Build the engine & run!
             tf_eng.run(flow)
@@ -1209,7 +1225,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Create the LPAR
             flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
-                                  flav_obj, stg_ftsk))
+                                  flav_obj, stg_ftsk,
+                                  nvram_mgr=self.nvram_mgr))
 
             # Create a flow for the network IO
             flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,

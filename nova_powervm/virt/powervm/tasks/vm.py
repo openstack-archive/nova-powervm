@@ -14,13 +14,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import log as logging
 from pypowervm.tasks import power
 from pypowervm.tasks import storage as pvm_stg
-
-from oslo_log import log as logging
+import six
 from taskflow import task
 from taskflow.types import failure as task_fail
 
+from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vm
 
@@ -54,7 +55,8 @@ class Create(task.Task):
 
     """The task for creating a VM."""
 
-    def __init__(self, adapter, host_wrapper, instance, flavor, stg_ftsk):
+    def __init__(self, adapter, host_wrapper, instance, flavor, stg_ftsk,
+                 nvram_mgr=None):
         """Creates the Task for creating a VM.
 
         The revert method is not implemented because the compute manager
@@ -73,6 +75,8 @@ class Create(task.Task):
         :param instance: The nova instance.
         :param flavor: The nova flavor.
         :param stg_ftsk: A FeedTask managing storage I/O operations.
+        :param nvram_mgr: The NVRAM manager to fetch the NVRAM from. If None,
+                          the NVRAM will not be fetched.
         """
         super(Create, self).__init__(name='crt_lpar',
                                      provides='lpar_wrap')
@@ -81,11 +85,28 @@ class Create(task.Task):
         self.instance = instance
         self.flavor = flavor
         self.stg_ftsk = stg_ftsk
+        self.nvram_mgr = nvram_mgr
 
     def execute(self):
         LOG.info(_LI('Creating instance: %s'), self.instance.name)
+
+        data = None
+        if self.nvram_mgr is not None:
+            LOG.info(_LI('Fetching NVRAM for instance %s.'),
+                     self.instance.name, instance=self.instance)
+            try:
+                data = self.nvram_mgr.fetch(self.instance)
+                LOG.debug('NVRAM data is: %s', data, instance=self.instance)
+            except Exception as e:
+                # Fetching NVRAM exception should not cause a failure
+                LOG.exception(_LE('Unable to fetch NVRAM for instance '
+                                  '%(name)s. Exception: %(reason)s'),
+                              {'name': self.instance.name,
+                               'reason': six.text_type(e)},
+                              instance=self.instance)
+
         wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
-                           self.flavor)
+                           self.flavor, nvram=data)
         pvm_stg.add_lpar_storage_scrub_tasks([wrap.id], self.stg_ftsk,
                                              lpars_exist=True)
         return wrap
@@ -241,8 +262,47 @@ class StoreNvram(task.Task):
         self.immediate = immediate
 
     def execute(self):
-        if self.nvram_mgr is not None:
+        if self.nvram_mgr is None:
+            return
+
+        try:
             self.nvram_mgr.store(self.instance, immediate=self.immediate)
+        except Exception as e:
+            LOG.exception(_LE('Unable to store NVRAM for instance '
+                              '%(name)s. Exception: %(reason)s'),
+                          {'name': self.instance.name,
+                           'reason': six.text_type(e)},
+                          instance=self.instance)
+
+
+class DeleteNvram(task.Task):
+
+    """Delete the NVRAM for an instance from the store."""
+
+    def __init__(self, nvram_mgr, instance):
+        """Creates a task to delete the NVRAM of an instance.
+
+        :param nvram_mgr: The NVRAM manager.
+        :param instance: The nova instance.
+        """
+        super(DeleteNvram, self).__init__(name='delete_nvram')
+        self.nvram_mgr = nvram_mgr
+        self.instance = instance
+
+    def execute(self):
+        if self.nvram_mgr is None:
+            return
+
+        LOG.info(_LI('Deleting NVRAM for instance: %s'),
+                 self.instance.name, instance=self.instance)
+        try:
+            self.nvram_mgr.remove(self.instance)
+        except Exception as e:
+            LOG.exception(_LE('Unable to delete NVRAM for instance '
+                              '%(name)s. Exception: %(reason)s'),
+                          {'name': self.instance.name,
+                           'reason': six.text_type(e)},
+                          instance=self.instance)
 
 
 class Delete(task.Task):

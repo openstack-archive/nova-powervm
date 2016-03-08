@@ -253,7 +253,8 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_plug_mgmt_vif.called)
         self.assertTrue(mock_crt_disk_img.called)
         self.crt_lpar.assert_called_with(
-            self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor())
+            self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor(),
+            nvram=None)
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
         # Assert that tasks that are not supposed to be called are not called
@@ -285,7 +286,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         self.inst, self.inst.get_flavor())
+                                         self.inst, self.inst.get_flavor(),
+                                         nvram=None)
         # Config drive was called
         self.assertTrue(mock_val_vopt.called)
         self.assertTrue(mock_cfg_vopt.called)
@@ -336,7 +338,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         self.inst, self.inst.get_flavor())
+                                         self.inst, self.inst.get_flavor(),
+                                         nvram=None)
         # Power on was called
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
@@ -397,7 +400,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         self.inst, self.inst.get_flavor())
+                                         self.inst, self.inst.get_flavor(),
+                                         nvram=None)
         # Power on was called
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
@@ -445,7 +449,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         self.inst, self.inst.get_flavor())
+                                         self.inst, self.inst.get_flavor(),
+                                         nvram=None)
         # Power on was called
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
@@ -481,6 +486,8 @@ class TestPowerVMDriver(test.TestCase):
         Uses a basic disk image, attaching networks and powering on.
         """
         # Set up the mocks to the tasks.
+        self.drv.nvram_mgr = mock.Mock()
+        self.drv.nvram_mgr.fetch.return_value = 'nvram data'
         mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = False
@@ -494,7 +501,8 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_plug_mgmt_vif.called)
         self.assertTrue(mock_find_disk.called)
         self.crt_lpar.assert_called_with(
-            self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor())
+            self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor(),
+            nvram='nvram data')
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
         # Assert that tasks that are not supposed to be called are not called
@@ -530,7 +538,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         self.inst, self.inst.get_flavor())
+                                         self.inst, self.inst.get_flavor(),
+                                         nvram=None)
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
         # Power on was called
@@ -580,7 +589,8 @@ class TestPowerVMDriver(test.TestCase):
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
                                          self.inst_ibmi,
-                                         self.inst_ibmi.get_flavor())
+                                         self.inst_ibmi.get_flavor(),
+                                         nvram=None)
 
         self.assertTrue(mock_boot_conn_type.called)
         self.assertTrue(mock_update_lod_src.called)
@@ -637,7 +647,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_crt_disk_img.called)
         self.crt_lpar.assert_called_with(
             self.apt, self.drv.host_wrapper, self.inst_ibmi,
-            self.inst_ibmi.get_flavor())
+            self.inst_ibmi.get_flavor(), nvram=None)
         self.assertTrue(mock_update_lod_src.called)
         self.assertTrue(mock_pwron.called)
         self.assertFalse(mock_pwron.call_args[1]['synchronous'])
@@ -672,7 +682,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         self.inst, self.inst.get_flavor())
+                                         self.inst, self.inst.get_flavor(),
+                                         nvram=None)
 
         # Since the create disks method failed, the delete disks should not
         # have been called
@@ -708,7 +719,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
-                                         self.inst, self.inst.get_flavor())
+                                         self.inst, self.inst.get_flavor(),
+                                         nvram=None)
         self.assertEqual(1, self.vol_drv.connect_volume.call_count)
 
         # Power on should not be called.  Shouldn't get that far in flow.
@@ -793,6 +805,8 @@ class TestPowerVMDriver(test.TestCase):
         self, mock_get_flv, mock_pvmuuid, mock_val_vopt, mock_dlt_vopt,
         mock_pwroff, mock_dlt, mock_boot_from_vol, mock_unplug_vifs):
         """Validates the basic PowerVM destroy."""
+        # NVRAM Manager
+        self.drv.nvram_mgr = mock.Mock()
         # BDMs
         mock_bdms = self._fake_bdms()
         mock_boot_from_vol.return_value = False
@@ -822,6 +836,9 @@ class TestPowerVMDriver(test.TestCase):
         # Validate disk driver detach and delete disk methods were called.
         self.assertTrue(self.drv.disk_dvr.delete_disks.called)
         self.assertTrue(self.drv.disk_dvr.disconnect_image_disk.called)
+
+        # NVRAM was deleted
+        self.drv.nvram_mgr.remove.assert_called_once_with(self.inst)
 
         def reset_mocks():
             # Reset the mocks

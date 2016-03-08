@@ -522,13 +522,14 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
     return jsonutils.loads(resp.body)
 
 
-def crt_lpar(adapter, host_wrapper, instance, flavor):
+def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None):
     """Create an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
     :param host_wrapper: The host wrapper
     :param instance: The nova instance.
     :param flavor: The nova flavor.
+    :param nvram: The NVRAM to set on the LPAR.
     :return: The LPAR response from the API.
     """
     try:
@@ -536,6 +537,8 @@ def crt_lpar(adapter, host_wrapper, instance, flavor):
                                                                flavor)
         pending_lpar_w = lpar_b.build()
         vldn.LPARWrapperValidator(pending_lpar_w, host_wrapper).validate_all()
+        if nvram is not None:
+            pending_lpar_w.nvram = nvram
         lpar_w = pending_lpar_w.create(parent_type=pvm_ms.System,
                                        parent_uuid=host_wrapper.uuid)
         return lpar_w

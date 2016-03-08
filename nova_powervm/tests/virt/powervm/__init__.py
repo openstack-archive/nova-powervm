@@ -15,6 +15,7 @@
 
 from nova.compute import power_state
 from nova.compute import task_states
+from nova.compute import vm_states
 from nova.objects import flavor
 from nova.objects import image_meta
 from nova.objects import instance
@@ -44,6 +45,7 @@ TEST_INSTANCE = {
     'host': 'host1',
     'flavor': TEST_FLAVOR,
     'task_state': None,
+    'vm_state': vm_states.ACTIVE,
     'power_state': power_state.SHUTDOWN,
 }
 
