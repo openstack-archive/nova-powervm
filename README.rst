@@ -40,6 +40,23 @@ This driver makes the following use cases available for PowerVM:
 * VNC console to instances deployed.
 
 
+Usage
+=====
+
+To use the driver, install the nova-powervm project on your NovaLink-based
+PowerVM system.  The nova-powervm project has a minimal set of configuration.
+See the configuration options section of the dev-ref for more information.
+
+It is recommended that operators also make use of the networking-powervm
+proect.  The project ensures that the network bridge supports the VLAN-based
+networks required for the workloads.
+
+There is also a ceilometer-powervm project that can be included.
+
+Future work will be done to include PowerVM into the various OpenStack
+deployment models.
+
+
 Overview of Architecture
 ========================
 
@@ -76,49 +93,50 @@ project.
 Data Model Impact
 -----------------
 
-No data model impacts are anticipated as part of this work.
+* The evacuate API is supported as part of the PowerVM driver.  It optionally
+  allows for the NVRAM data to be stored to a Swift database.  However this
+  does not impact the data model itself.  It simply provides a location to
+  optionally store the VM's NVRAM metadata in the event of a rebuild,
+  evacuate, shelve, migration or resize.
 
 
 REST API Impact
 ---------------
 
-The intent of this work item is to enable PowerVM to fit within the broader
-OpenStack ecosystem, without requiring changes to the REST API.
-
-As such, no REST API impacts are anticipated.
+No REST API impacts.
 
 
 Security Impact
 ---------------
 
-No new security impacts are anticipated.
+No known security impacts.
 
 
 Notifications Impact
 --------------------
 
-No new notifications are anticipated.
+No new notifications.  The driver does expect that the Neutron agent will
+return an event when the VIF plug has occurred, assuming that Neutron is
+the network service.
 
 
 Other End User Impact
 ---------------------
 
-The administrator will notice new logging messages in the nova compute logs.
+The administrator may notice new logging messages in the nova compute logs.
 
 
 Performance Impact
 ------------------
 
-It is a goal of the driver to deploy systems with similar speed and agility
-as the libvirt driver within OpenStack.
+The driver has a similar deployment speed and agility as other hypervisors.
+It has been tested with up to 10 concurrent deploys with several hundred VMs
+on a given server.
 
 Most operations are comparable in speed.  Deployment, attach/detach volumes,
 lifecycle, etc... are quick.
 
-The driver is written to support concurrent operations.  It has been tested
-performing 10 concurrent deploys to a given compute node.
-
-Due to the nature of the project, performance impacts are limited to the
+Due to the nature of the project, any performance impacts are limited to the
 Compute Driver.  The API processes for instance are not impacted.
 
 
@@ -136,9 +154,6 @@ of PowerVM specific items that will be needed.
 It is the goal of the project to only require minimal additional attributes.
 The deployer may specify additional attributes to fit their configuration.
 
-There is no impact to customers upgrading their cloud stack as this is a
-genesis driver and does not have database impacts.
-
 
 Developer Impact
 ----------------
@@ -148,13 +163,13 @@ The driver is within the /nova_powervm/virt/powervm/ package and extends the
 nova.virt.driver.ComputeDriver class.
 
 The code interacts with PowerVM through the pypowervm library.  This python
-binding is a wrapper to the PowerVM REST API.  All hypervisor operations will
-interact with the PowerVM REST API via this binding.  The driver will be
+binding is a wrapper to the PowerVM REST API.  All hypervisor operations
+interact with the PowerVM REST API via this binding.  The driver is
 maintained to support future revisions of the PowerVM REST API as needed.
 
 For ephemeral disk support, either a Virtual I/O Server hosted local disk or a
 Shared Storage Pool (a PowerVM clustered file system) is supported.  For
-volume attachments, the driver supports Cinder based attachments via
+volume attachments, the driver supports Cinder-based attachments via
 protocols supported by the hypervisor (e.g. Fibre Channel).
 
 For networking, the networking-powervm project provides a Neutron ML2 Agent.
@@ -175,8 +190,8 @@ Community Impact
 ----------------
 
 The intent of this project is to bring another driver to OpenStack that
-aligns with the ideals and vision of the community.  The eventual impact is
-ideally to promote this to core Nova.
+aligns with the ideals and vision of the community.  The intention is to
+promote this to core Nova.
 
 
 Alternatives
@@ -192,13 +207,14 @@ Implementation
 Assignee(s)
 -----------
 
-Primary assignee:
+Primary assignees:
+   adreznec
+   efried
    kyleh
+   thorst
 
 Other contributors:
-   thorst
-   ijuwang
-   efried
+   multiple
 
 
 Dependencies
@@ -222,14 +238,22 @@ Tempest Tests
 Since the tempest tests should be implementation agnostic, the existing
 tempest tests should be able to run against the PowerVM driver without issue.
 
+Tempest tests that require function that the platform does not yet support
+(e.g. iSCSI or Floating IPs) will not pass.  These should be ommitted from
+the Tempest test suite.
+
+A `sample Tempest test configuration` for the PowerVM driver has been provided.
+
 Thorough unit tests exist within the project to validate specific functions
 within this implementation.
+
+.. _sample Tempest test configuration: https://github.com/powervm/powervm-ci/tree/master/tempest
 
 
 Functional Tests
 ----------------
 
-A third party functional test environment will be created.  It monitors
+A third party functional test environment has been created.  It monitors
 for incoming nova change sets.  Once it detects a new change set, it will
 execute the existing lifecycle API tests.  A non-gating vote (+1 or -1) will
 be provided with information provided (logs) based on the result.
