@@ -43,11 +43,12 @@ class SwiftNvramStore(api.NvramStore):
         # Build the swift service options
         self.options = self._init_swift()
 
-    def _init_swift(self):
+    @staticmethod
+    def _init_swift():
         """Initialize all the options needed to communicate with Swift."""
 
         for opt in powervm.swift_opts:
-            if getattr(CONF.powervm, opt.name) is None:
+            if opt.required and getattr(CONF.powervm, opt.name) is None:
                 raise api.NVRAMConfigOptionNotSet(option=opt.name)
 
         options = {
@@ -58,6 +59,7 @@ class SwiftNvramStore(api.NvramStore):
             'os_project_name': CONF.powervm.swift_project_name,
             'os_project_domain_name': CONF.powervm.swift_project_domain_name,
             'os_auth_url': CONF.powervm.swift_auth_url,
+            'os_cacert': CONF.powervm.swift_cacert,
         }
 
         return options

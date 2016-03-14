@@ -164,3 +164,12 @@ class TestSwiftStore(test.TestCase):
             mock_run.return_value[0]['success'] = False
             self.assertRaises(api.NVRAMDeleteException,
                               self.swift_store.delete, powervm.TEST_INST1)
+
+    def test_optional_options(self):
+        """Test optional config values."""
+        # Not in the sparse one from setUp()
+        self.assertIsNone(self.swift_store.options['os_cacert'])
+        # Create a new one with the optional values set
+        self.flags(swift_cacert='/path/to/ca.pem', group='powervm')
+        swift_store = swift.SwiftNvramStore()
+        self.assertEqual('/path/to/ca.pem', swift_store.options['os_cacert'])

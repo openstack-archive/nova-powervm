@@ -167,8 +167,8 @@ swift_opts = [
                'the Swift store.'),
     cfg.StrOpt('swift_user_domain_name', default='powervm',
                help='The Swift domain the user is a member of.'),
-    cfg.StrOpt('swift_password', help='The password for the Swift '
-               'user.'),
+    cfg.StrOpt('swift_password', secret=True,
+               help='The password for the Swift user.'),
     cfg.StrOpt('swift_project_name', default='powervm',
                help='The Swift project.'),
     cfg.StrOpt('swift_project_domain_name', default='powervm',
@@ -177,6 +177,8 @@ swift_opts = [
                'version.'),
     cfg.StrOpt('swift_auth_url', help='The Keystone authorization url. '
                'Example: "http://keystone-hostname:5000/v3"'),
+    cfg.StrOpt('swift_cacert', required=False, help='Path to CA certificate '
+               'file.  Example: /etc/swiftclient/myca.pem')
 ]
 
 STATIC_OPTIONS = (powervm_opts + localdisk_opts + ssp_opts + vol_adapter_opts
