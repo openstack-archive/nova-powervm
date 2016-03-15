@@ -160,7 +160,7 @@ class TestVifOvsDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
                 'get_trunk_dev_name')
     @mock.patch('pypowervm.tasks.cna.crt_p2p_cna')
-    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
+    @mock.patch('pypowervm.tasks.partition.get_this_partition')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_plug(self, mock_pvm_uuid, mock_mgmt_lpar, mock_p2p_cna,
                   mock_trunk_dev_name, mock_crt_ovs_vif_port, mock_exec):

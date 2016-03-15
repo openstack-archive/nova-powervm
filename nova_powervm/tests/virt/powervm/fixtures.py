@@ -84,7 +84,7 @@ class PowerVMComputeDriver(fixtures.Fixture):
 
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._get_adapter')
-    @mock.patch('nova_powervm.virt.powervm.mgmt.get_mgmt_partition')
+    @mock.patch('pypowervm.tasks.partition.get_this_partition')
     def _init_host(self, *args):
         ms_http = pvmhttp.load_pvm_resp(
             MS_HTTPRESP_FILE, adapter=mock.Mock()).get_response()

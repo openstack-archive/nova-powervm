@@ -25,6 +25,7 @@ from nova import utils
 from oslo_config import cfg
 from oslo_utils import importutils
 from pypowervm.tasks import cna as pvm_cna
+from pypowervm.tasks import partition as pvm_par
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
 
@@ -32,7 +33,6 @@ from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
-from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -223,7 +223,7 @@ class PvmOvsVifDriver(PvmVifDriver):
     def plug(self, vif):
         # Create the trunk and client adapter.
         lpar_uuid = vm.get_pvm_uuid(self.instance)
-        mgmt_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
+        mgmt_uuid = pvm_par.get_this_partition(self.adapter).uuid
         cna_w, trunk_wraps = pvm_cna.crt_p2p_cna(
             self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
             CONF.powervm.pvm_vswitch_for_ovs, crt_vswitch=True,

@@ -27,7 +27,6 @@ from nova import exception
 from nova import utils
 import os
 from os import path
-from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from nova_powervm.virt.powervm import exception as npvmex
 
@@ -44,17 +43,6 @@ def _tee_as_root(fpath, payload):
     :param payload: The string to pipe to the file.
     """
     utils.execute('tee', '-a', fpath, process_input=payload, run_as_root=True)
-
-
-def get_mgmt_partition(adapter):
-    """Get the LPAR wrapper for this host's management partition.
-
-    :param adapter: The adapter for the pypowervm API.
-    """
-    wraps = pvm_lpar.LPAR.search(adapter, is_mgmt_partition=True)
-    if len(wraps) != 1:
-        raise npvmex.ManagementPartitionNotFoundException(count=len(wraps))
-    return wraps[0]
 
 
 def discover_vscsi_disk(mapping, scan_timeout=10):
