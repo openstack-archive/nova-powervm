@@ -40,12 +40,6 @@ class NoMediaRepoVolumeGroupFound(AbstractMediaException):
                 "media repository.")
 
 
-class ManagementPartitionNotFoundException(nex.NovaException):
-    """Couldn't find exactly one management partition on the system."""
-    msg_fmt = _("Expected to find exactly one management partition; found "
-                "%(count)d.")
-
-
 class NoDiskDiscoveryException(nex.NovaException):
     """Failed to discover any disk."""
     msg_fmt = _("Having scanned SCSI bus %(bus)x on the management partition, "

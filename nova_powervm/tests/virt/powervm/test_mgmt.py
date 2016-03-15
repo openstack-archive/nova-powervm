@@ -20,7 +20,6 @@ from nova import exception
 from nova import test
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
-from pypowervm.wrappers import logical_partition as pvm_lpar
 
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import mgmt
@@ -38,12 +37,6 @@ class TestMgmt(test.TestCase):
                             "Could not load %s " % LPAR_HTTPRESP_FILE)
 
         self.resp = lpar_http.response
-
-    def test_get_mgmt_partition(self):
-        self.apt.read.return_value = self.resp
-        mp_wrap = mgmt.get_mgmt_partition(self.apt)
-        self.assertIsInstance(mp_wrap, pvm_lpar.LPAR)
-        self.assertTrue(mp_wrap.is_mgmt_partition)
 
     @mock.patch('glob.glob')
     @mock.patch('nova.utils.execute')

@@ -42,6 +42,7 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks import memory as pvm_mem
+from pypowervm.tasks import partition as pvm_par
 from pypowervm.tasks import power as pvm_pwr
 from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm import util as pvm_util
@@ -57,7 +58,6 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import image as img
 from nova_powervm.virt.powervm import live_migration as lpm
-from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm.nvram import manager as nvram_mgr
 from nova_powervm.virt.powervm.tasks import image as tf_img
 from nova_powervm.virt.powervm.tasks import network as tf_net
@@ -120,8 +120,8 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_adapter()
         # First need to resolve the managed host UUID
         self._get_host_uuid()
-        # Get the management partition
-        self.mp_uuid = mgmt.get_mgmt_partition(self.adapter).uuid
+        # Get the management partition's UUID
+        self.mp_uuid = pvm_par.get_this_partition(self.adapter).uuid
 
         # Initialize the disk adapter.  Sets self.disk_dvr
         self._get_disk_adapter()
