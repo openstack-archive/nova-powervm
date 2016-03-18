@@ -31,7 +31,9 @@ pvm_opts = [
                default='rootvg',
                help='The volume group on the system that should be used '
                     'to store the config drive metadata that will be attached '
-                    'to VMs.'),
+                    'to VMs.  If not specified and no media repository '
+                    'exists, rootvg will be used.  This option is ignored if '
+                    'a media repository already exists.'),
     cfg.IntOpt('vopt_media_rep_size',
                default=1,
                help='The size of the media repository (in GB) for the '

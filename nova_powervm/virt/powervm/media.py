@@ -31,7 +31,6 @@ from pypowervm.tasks import storage as tsk_stg
 from pypowervm import util as pvm_util
 from pypowervm.utils import transaction as pvm_tx
 from pypowervm.wrappers import base_partition as pvm_bp
-from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -251,33 +250,39 @@ class ConfigDrivePowerVM(object):
             vio_uuid = ConfigDrivePowerVM._cur_vios_uuid
             vg_uuid = ConfigDrivePowerVM._cur_vg_uuid
             try:
-                vg_resp = self.adapter.read(pvm_vios.VIOS.schema_type,
-                                            vio_uuid, pvm_stg.VG.schema_type,
-                                            vg_uuid)
-                if vg_resp is not None:
+                vg_wrap = pvm_stg.VG.wrap(
+                    self.adapter.read(pvm_vios.VIOS.schema_type, vio_uuid,
+                                      pvm_stg.VG.schema_type, vg_uuid))
+                if vg_wrap is not None and len(vg_wrap.vmedia_repos) != 0:
                     return
-            except Exception:
-                pass
+            except Exception as exc:
+                LOG.exception(exc)
 
             LOG.info(_LI("An error occurred querying the virtual optical "
                          "media repository.  Attempting to re-establish "
                          "connection with a virtual optical media repository"))
 
-        # If we're hitting this, either it's our first time booting up, or the
-        # previously used Volume Group went offline (ex. VIOS went down for
-        # maintenance).
+        # If we're hitting this:
+        # a) It's our first time booting up;
+        # b) The previously-used Volume Group went offline (e.g. VIOS went down
+        #    for maintenance); OR
+        # c) The previously-used media repository disappeared.
         #
         # Since it doesn't matter which VIOS we use for the media repo, we
         # should query all Virtual I/O Servers and see if an appropriate
         # media repository exists.
-        vios_resp = self.adapter.read(pvm_ms.System.schema_type,
-                                      root_id=self.host_uuid,
-                                      child_type=pvm_vios.VIOS.schema_type)
-        vio_wraps = pvm_vios.VIOS.wrap(vios_resp)
+        vio_wraps = pvm_vios.VIOS.wrap(self.adapter.read(
+            pvm_vios.VIOS.schema_type))
 
-        # First loop through the VIOSes to see if any have the right VG
+        # First loop through the VIOSes and their VGs to see if a media repos
+        # already exists.
         found_vg = None
         found_vios = None
+
+        # And in case we don't find the media repos, keep track of the VG on
+        # which we should create it.
+        conf_vg = None
+        conf_vios = None
 
         for vio_wrap in vio_wraps:
             # If the RMC state is not active, skip over to ensure we don't
@@ -286,36 +291,51 @@ class ConfigDrivePowerVM(object):
                 continue
 
             try:
-                vg_resp = self.adapter.read(pvm_vios.VIOS.schema_type,
+                vg_wrap = self.adapter.read(pvm_vios.VIOS.schema_type,
                                             root_id=vio_wrap.uuid,
                                             child_type=pvm_stg.VG.schema_type)
-                vg_wraps = pvm_stg.VG.wrap(vg_resp)
+                vg_wraps = pvm_stg.VG.wrap(vg_wrap)
                 for vg_wrap in vg_wraps:
-                    if vg_wrap.name == CONF.powervm.vopt_media_volume_group:
+                    if len(vg_wrap.vmedia_repos) != 0:
                         found_vg = vg_wrap
                         found_vios = vio_wrap
                         break
+                    # In case no media repos exists, save a pointer to the
+                    # CONFigured vopt_media_volume_group if we find it.
+                    if (conf_vg is None and vg_wrap.name ==
+                            CONF.powervm.vopt_media_volume_group):
+                        conf_vg = vg_wrap
+                        conf_vios = vio_wrap
+
             except Exception:
                 LOG.warn(_LW('Unable to read volume groups for Virtual '
                              'I/O Server %s'), vio_wrap.name)
 
-        # If we didn't find a volume group...raise the exception.  It should
-        # default to being the rootvg, which all VIOSes will have.  Otherwise,
-        # this is user specified, and if it was not found is a proper
-        # exception path.
-        if found_vg is None:
+            # If we found it, don't keep looking
+            if found_vg:
+                break
+
+        # If we didn't find a media repos OR an appropriate volume group, raise
+        # the exception.  Since vopt_media_volume_group defaults to rootvg,
+        # which is always present, this should only happen if:
+        # a) No media repos exists on any VIOS we can see; AND
+        # b) The user specified a non-rootvg vopt_media_volume_group; AND
+        # c) The specified volume group did not exist on any VIOS.
+        if found_vg is None and conf_vg is None:
             raise npvmex.NoMediaRepoVolumeGroupFound(
                 vol_grp=CONF.powervm.vopt_media_volume_group)
 
-        # Ensure that there is a virtual optical media repository within it.
-        if len(found_vg.vmedia_repos) == 0:
+        # If no media repos was found, create it.
+        if found_vg is None:
+            found_vg = conf_vg
+            found_vios = conf_vios
             vopt_repo = pvm_stg.VMediaRepos.bld(
                 self.adapter, 'vopt', str(CONF.powervm.vopt_media_rep_size))
             found_vg.vmedia_repos = [vopt_repo]
             found_vg = found_vg.update()
 
-        # At this point, we know that we've successfully set up the volume
-        # group.  Save to the static class variables.
+        # At this point, we know that we've successfully found or created the
+        # volume group.  Save to the static class variables.
         ConfigDrivePowerVM._cur_vg_uuid = found_vg.uuid
         ConfigDrivePowerVM._cur_vios_uuid = found_vios.uuid
         ConfigDrivePowerVM._cur_vios_name = found_vios.name
