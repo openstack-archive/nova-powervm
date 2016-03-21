@@ -991,6 +991,11 @@ class PowerVMDriver(driver.ComputeDriver):
         engine = tf_eng.load(flow)
         try:
             engine.run()
+        except exception.InstanceNotFound as ei:
+            LOG.exception(ei)
+            LOG.warning(_LW('VM was not found during unplug operation '
+                            'as it is already possibly deleted'),
+                        instance=instance)
         except Exception as e:
             LOG.exception(e)
             raise exception.InterfaceDetachFailed(instance_uuid=instance.uuid)

@@ -383,6 +383,15 @@ class TestVM(test.TestCase):
         self.assertRaises(exception.InvalidAttribute, vm.crt_lpar,
                           self.apt, host_wrapper, instance, flavor)
 
+    @mock.patch('pypowervm.wrappers.logical_partition.LPAR.get')
+    def test_get_instance_wrapper(self, mock_get):
+        resp = mock.Mock(status=404)
+        mock_get.side_effect = pvm_exc.Error('message', response=resp)
+        instance = objects.Instance(**powervm.TEST_INSTANCE)
+        # vm.get_instance_wrapper(self.apt, instance, 'lpar_uuid')
+        self.assertRaises(exception.InstanceNotFound, vm.get_instance_wrapper,
+                          self.apt, instance, 'lpar_uuid')
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder')
     def test_update(self, mock_vmb, mock_get_inst):
