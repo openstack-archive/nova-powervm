@@ -375,9 +375,11 @@ class TestVM(test.TestCase):
         resp = mock.Mock(status=202, method='fake', path='/dev/',
                          reason='Failure')
         mock_bld.side_effect = pvm_exc.HttpError(resp)
-        self.assertRaises(nvex.PowerVMAPIFailed, vm.crt_lpar,
-                          self.apt, host_wrapper, instance, flavor)
-
+        try:
+            vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
+        except nvex.PowerVMAPIFailed as e:
+            self.assertEqual(e.kwargs['inst_name'], instance.name)
+            self.assertEqual(e.kwargs['reason'], mock_bld.side_effect)
         flavor.extra_specs = {'powervm:BADATTR': 'true'}
         host_wrapper = mock.Mock()
         self.assertRaises(exception.InvalidAttribute, vm.crt_lpar,
