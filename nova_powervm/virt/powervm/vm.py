@@ -549,8 +549,7 @@ def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None):
     except pvm_exc.HttpError as he:
         # Raise the API exception
         LOG.exception(he)
-        values = dict(inst_name=instance.name, reason=he)
-        raise nvex.PowerVMAPIFailed(values)
+        raise nvex.PowerVMAPIFailed(inst_name=instance.name, reason=he)
 
 
 def update(adapter, host_wrapper, instance, flavor, entry=None, name=None):
