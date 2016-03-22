@@ -122,6 +122,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_host_uuid()
         # Get the management partition's UUID
         self.mp_uuid = pvm_par.get_this_partition(self.adapter).uuid
+        LOG.debug("Driver found compute partition UUID of: %s" % self.mp_uuid)
 
         # Initialize the disk adapter.  Sets self.disk_dvr
         self._get_disk_adapter()
