@@ -1561,6 +1561,15 @@ class TestPowerVMDriver(test.TestCase):
         overhead = self.drv.estimate_instance_overhead(inst_info)
         self.assertEqual({'memory_mb': '2048'}, overhead)
 
+        # Make sure the cache works
+        mock_calc_over.reset_mock()
+        overhead = self.drv.estimate_instance_overhead(inst_info)
+        self.assertEqual({'memory_mb': '2048'}, overhead)
+        mock_calc_over.assert_not_called()
+
+        # Reset the cache every time from now on
+        self.drv._inst_overhead_cache = {}
+
         # Flavor having extra_specs
         inst_info.extra_specs = {'powervm:max_mem': 4096}
         overhead = self.drv.estimate_instance_overhead(inst_info)
@@ -1568,14 +1577,20 @@ class TestPowerVMDriver(test.TestCase):
                                           {'max_mem': 4096})
         self.assertEqual({'memory_mb': '2048'}, overhead)
 
+        self.drv._inst_overhead_cache = {}
+
         # Test when instance passed is dict
         inst_info = obj_base.obj_to_primitive(inst_info)
         overhead = self.drv.estimate_instance_overhead(inst_info)
         self.assertEqual({'memory_mb': '2048'}, overhead)
 
+        self.drv._inst_overhead_cache = {}
+
         # When instance_info is None
         overhead = self.drv.estimate_instance_overhead(None)
         self.assertEqual({'memory_mb': 0}, overhead)
+
+        self.drv._inst_overhead_cache = {}
 
         # Test when instance Object is passed
         overhead = self.drv.estimate_instance_overhead(self.inst)
