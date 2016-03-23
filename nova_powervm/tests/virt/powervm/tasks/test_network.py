@@ -209,13 +209,10 @@ class TestNetwork(test.TestCase):
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid')
-        with mock.patch.object(inst, 'save') as mock_inst_save:
-            p_vifs.execute(self.mock_lpar_wrap)
+        p_vifs.execute(self.mock_lpar_wrap)
 
         # The create should have only been called once.
         self.assertEqual(1, mock_plug.call_count)
-        # Should have called save to save the new host and then changed it back
-        self.assertEqual(2, mock_inst_save.call_count)
         self.assertEqual('host1', inst.host)
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
@@ -243,14 +240,11 @@ class TestNetwork(test.TestCase):
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid')
-        with mock.patch.object(inst, 'save') as mock_inst_save:
-            self.assertRaises(exception.VirtualInterfaceCreateException,
-                              p_vifs.execute, self.mock_lpar_wrap)
+        self.assertRaises(exception.VirtualInterfaceCreateException,
+                          p_vifs.execute, self.mock_lpar_wrap)
 
         # The create should have only been called once.
         self.assertEqual(1, mock_plug.call_count)
-        # Should have called save to save the new host and then changed it back
-        self.assertEqual(2, mock_inst_save.call_count)
         self.assertEqual('host1', inst.host)
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
