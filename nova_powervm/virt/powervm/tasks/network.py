@@ -26,7 +26,6 @@ from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
 
@@ -145,22 +144,6 @@ class PlugVifs(task.Task):
                       instance=self.instance)
             raise exception.VirtualInterfaceCreateException()
 
-        # TODO(KYLEH): We're setting up to wait for an instance event.  The
-        # event needs to come back to our compute manager so we need to ensure
-        # the instance.host is set to our host.  We shouldn't need to do this
-        # but in the evacuate/recreate case it may reflect the old host.
-        # See: https://bugs.launchpad.net/nova/+bug/1535918
-        undo_host_change = False
-        if self.instance.host != CONF.host:
-            LOG.warning(_LW('Instance was not assigned to this host. '
-                            'It was assigned to: %s'), self.instance.host,
-                        instance=self.instance)
-            # Update the instance...
-            old_host = self.instance.host
-            self.instance.host = CONF.host
-            self.instance.save()
-            undo_host_change = True
-
         # For the VIFs, run the creates (and wait for the events back)
         try:
             with self.virt_api.wait_for_instance_event(
@@ -180,12 +163,6 @@ class PlugVifs(task.Task):
                           '%(sys)s'), {'sys': self.instance.name},
                       instance=self.instance)
             raise exception.VirtualInterfaceCreateException()
-        finally:
-            if undo_host_change:
-                LOG.info(_LI('Undoing temporary host assignment to instance.'),
-                         instance=self.instance)
-                self.instance.host = old_host
-                self.instance.save()
 
         # Return the list of created VIFs.
         return cna_w_list
