@@ -134,6 +134,11 @@ class PowerVMDriver(driver.ComputeDriver):
         self.host_cpu_stats = pvm_host.HostCPUStats(self.adapter,
                                                     self.host_uuid)
 
+        # Cache for instance overhead.
+        # Key: max_mem (int MB)
+        # Value: overhead (int MB)
+        self._inst_overhead_cache = {}
+
         LOG.info(_LI("The compute driver has been initialized."))
 
     def cleanup_host(self, host):
@@ -255,9 +260,9 @@ class PowerVMDriver(driver.ComputeDriver):
         elif isinstance(instance_info, dict):
             instance_info = objects.Flavor(**instance_info)
 
+        max_mem = 0
+        overhead = 0
         try:
-            max_mem = 0
-            overhead = 0
             cur_mem = instance_info.memory_mb
             if hasattr(instance_info, 'extra_specs'):
                 if 'powervm:max_mem' in instance_info.extra_specs.keys():
@@ -265,14 +270,18 @@ class PowerVMDriver(driver.ComputeDriver):
                                                         max_mem)
                     max_mem = int(mem)
 
-            mem_data = {'max_mem': max(cur_mem, max_mem)}
+            max_mem = max(cur_mem, max_mem)
+            if max_mem in self._inst_overhead_cache:
+                overhead = self._inst_overhead_cache[max_mem]
+            else:
+                overhead, avail = pvm_mem.calculate_memory_overhead_on_host(
+                    self.adapter, self.host_uuid, {'max_mem': max_mem})
+                self._inst_overhead_cache[max_mem] = overhead
 
-            overhead, avail_mem = pvm_mem.calculate_memory_overhead_on_host(
-                self.adapter, self.host_uuid, mem_data)
         except Exception as e:
             LOG.exception(e)
-
-        return {'memory_mb': overhead}
+        finally:
+            return {'memory_mb': overhead}
 
     def list_instances(self):
         """Return the names of all the instances known to the virt host.
