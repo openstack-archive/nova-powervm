@@ -48,7 +48,7 @@ PowerVM system.  The nova-powervm project has a minimal set of configuration.
 See the configuration options section of the dev-ref for more information.
 
 It is recommended that operators also make use of the networking-powervm
-proect.  The project ensures that the network bridge supports the VLAN-based
+project.  The project ensures that the network bridge supports the VLAN-based
 networks required for the workloads.
 
 There is also a ceilometer-powervm project that can be included.
@@ -129,7 +129,7 @@ The administrator may notice new logging messages in the nova compute logs.
 Performance Impact
 ------------------
 
-The driver has a similar deployment speed and agility as other hypervisors.
+The driver has a similar deployment speed and agility to other hypervisors.
 It has been tested with up to 10 concurrent deploys with several hundred VMs
 on a given server.
 
