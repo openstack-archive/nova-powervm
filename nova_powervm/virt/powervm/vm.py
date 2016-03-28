@@ -243,7 +243,7 @@ class VMBuilder(object):
         _PVM_DED_SHAR_MODE: None,
         _PVM_PROC_COMPAT: None,
         _PVM_SHAR_PROC_POOL: None,
-        _PVM_SRR_CAPABILITY: lpar_bldr.SRR_CAPABLE,
+        _PVM_SRR_CAPABILITY: None,
     }
 
     _DED_SHARING_MODES_MAP = {
@@ -298,6 +298,8 @@ class VMBuilder(object):
         attrs[lpar_bldr.UUID] = pvm_uuid.convert_uuid_to_pvm(instance.uuid)
         attrs[lpar_bldr.MEM] = flavor.memory_mb
         attrs[lpar_bldr.VCPU] = flavor.vcpus
+        # Set the srr capability to True by default
+        attrs[lpar_bldr.SRR_CAPABLE] = True
 
         # Loop through the extra specs and process powervm keys
         for key in flavor.extra_specs.keys():
@@ -374,8 +376,8 @@ class VMBuilder(object):
             attrs[lpar_bldr.PROC_COMPAT] = re.sub(
                 r'\+', '_Plus', flavor.extra_specs[key])
         elif key == self._PVM_SRR_CAPABILITY:
-            srr = flavor.extra_specs[key]
-            attrs[lpar_bldr.SRR_CAPABLE] = srr
+            srr_cap = self._flavor_bool(flavor.extra_specs[key], key)
+            attrs[lpar_bldr.SRR_CAPABLE] = srr_cap
         else:
             # There was no mapping or we didn't handle it.
             exc = exception.InvalidAttribute(attr=key)
