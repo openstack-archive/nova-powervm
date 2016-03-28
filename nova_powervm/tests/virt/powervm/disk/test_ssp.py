@@ -354,13 +354,12 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.storage.crt_lu')
     @mock.patch('pypowervm.tasks.storage.upload_new_lu')
     @mock.patch('pypowervm.tasks.storage.rm_ssp_storage')
-    @mock.patch('nova_powervm.virt.powervm.disk.driver.IterableToFileAdapter')
     @mock.patch('time.sleep')
     @mock.patch('uuid.uuid4')
-    @mock.patch('nova.image.API')
-    def test_upload_img_conflict(self, mock_img_api, mock_uuid4, mock_sleep,
-                                 mock_it2fadp, mock_rm_lu, mock_upload_lu,
-                                 mock_crt_lu):
+    @mock.patch('nova_powervm.virt.powervm.disk.driver.DiskAdapter.'
+                '_get_image_upload')
+    def test_upload_img_conflict(self, mock_img_upl, mock_uuid4, mock_sleep,
+                                 mock_rm_lu, mock_upload_lu, mock_crt_lu):
         """Multiple simultaneous uploads of the same image."""
         ssp_stor = self._get_ssp_stor()
         sspw = ssp_stor._ssp_wrap
@@ -550,6 +549,31 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_rm_lu.assert_has_calls([
             mock.call(mock.ANY, [img_lu]),
             mock.call(mock.ANY, [my_mkr_lu])])
+        # ...thus leaving the SSP as it was (plus the other guy's extra, which
+        # would actually be removed normally).
+        self.assertEqual(exp_num_lus, len(sspw.logical_units))
+
+        # Clean up
+        mock_crt_lu.reset_mock()
+        mock_upload_lu.reset_mock()
+        mock_rm_lu.reset_mock()
+        sspw.logical_units.remove(conflict_mkr_lu)
+
+        # ==> Test case 7: Same, but something goes wrong before we even get to
+        # the upload.
+        mock_img_upl.side_effect = KeyboardInterrupt('Problem before upload.')
+
+        self.assertRaises(KeyboardInterrupt, ssp_stor._get_or_upload_image_lu,
+                          None, self.instance, powervm.TEST_IMAGE1)
+
+        # I tried creating mine because his wasn't there at the start
+        self.assertEqual(1, mock_crt_lu.call_count)
+        # I didn't get to the upload
+        mock_upload_lu.assert_not_called()
+        # I never slept
+        self.assertFalse(mock_sleep.called)
+        # I removed my marker only - the real LU wasn't there yet.
+        mock_rm_lu.assert_called_once_with(mock.ANY, [my_mkr_lu])
         # ...thus leaving the SSP as it was (plus the other guy's extra, which
         # would actually be removed normally).
         self.assertEqual(exp_num_lus, len(sspw.logical_units))
