@@ -326,38 +326,38 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             LOG.info(_LI('Creating marker LU %s'), mkr_luname)
             ssp, mkrlu = tsk_stg.crt_lu(ssp, mkr_luname, 0.001, typ=imgtyp)
 
-            # Now things get funky.  If another process (possibly on another
-            # host) hit the above line at the same time, there could be
-            # multiple marker LUs out there.  We all use the next chunk to
-            # decide which one of us gets to do the upload.
-            lus = self._find_lu(luname, imgtyp, whole_name=False,
-                                find_all=True, ssp=ssp)
-            # First of all, if someone else already started the upload, we bail
-            if any([lu for lu in lus if lu.name == luname]):
-                LOG.info(_LI('Abdicating in favor of in-progress upload.'))
-                tsk_stg.rm_ssp_storage(ssp, [mkrlu])
-                time.sleep(sleep_s)
-                continue
-
-            # The lus list should be all markers at this point.  If there's
-            # more than one (ours), then the first (by alpha sort) wins.
-            if len(lus) > 1:
-                lus.sort(key=lambda l: l.name)
-                winner = lus[0].name
-                if winner != mkr_luname:
-                    # We lose.  Delete our LU and let the winner proceed
-                    LOG.info(_LI('Abdicating upload in favor of marker %s.'),
-                             winner)
-                    # Remove just our LU - let other losers take care of theirs
-                    tsk_stg.rm_ssp_storage(ssp, [mkrlu])
+            # If anything fails beyond this point, we must remove the marker LU
+            try:
+                # Now things get funky. If another process (possibly on another
+                # host) hit the above line at the same time, there could be
+                # multiple marker LUs out there.  We all use the next chunk to
+                # decide which one of us gets to do the upload.
+                lus = self._find_lu(luname, imgtyp, whole_name=False,
+                                    find_all=True, ssp=ssp)
+                # First, if someone else already started the upload, we bail
+                if any([lu for lu in lus if lu.name == luname]):
+                    LOG.info(_LI('Abdicating in favor of in-progress upload.'))
                     time.sleep(sleep_s)
                     continue
 
-            # Okay, we won.  Do the actual upload.
-            strm = self._get_image_upload(context, image_meta)
-            LOG.info(_LI('Uploading to image LU %(lu)s (marker %(mkr)s).'),
-                     {'lu': luname, 'mkr': mkr_luname})
-            try:
+                # The lus list should be all markers at this point.  If there's
+                # more than one (ours), then the first (by alpha sort) wins.
+                if len(lus) > 1:
+                    lus.sort(key=lambda l: l.name)
+                    winner = lus[0].name
+                    if winner != mkr_luname:
+                        # We lose.  Delete our LU and let the winner proceed
+                        LOG.info(_LI('Abdicating upload in favor of marker '
+                                     '%s.'), winner)
+                        # Remove just our LU - other losers take care of theirs
+                        time.sleep(sleep_s)
+                        continue
+
+                # Okay, we won.  Do the actual upload.
+                strm = self._get_image_upload(context, image_meta)
+                LOG.info(_LI('Uploading to image LU %(lu)s (marker %(mkr)s).'),
+                         {'lu': luname, 'mkr': mkr_luname})
+
                 lu, f_wrap = tsk_stg.upload_new_lu(
                     self._any_vios_uuid(), ssp, strm, luname, image_meta.size)
 
