@@ -1293,15 +1293,26 @@ class TestPowerVMDriver(test.TestCase):
         self.assertRaises(exc.VirtualInterfacePlugException,
                           self.drv.plug_vifs, self.inst, {})
 
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get.execute')
     def test_unplug_vif_failures(self, mock_vm):
         # Test instance not found handling
-        mock_vm.execute.side_effect = exc.InstanceNotFound(
+        mock_vm.side_effect = exc.InstanceNotFound(
             instance_id=self.inst)
 
         # Run method
-        self.assertRaises(exc.InterfaceDetachFailed,
-                          self.drv.unplug_vifs, self.inst, {})
+        self.drv.unplug_vifs(self.inst, {})
+        self.assertEqual(1, mock_vm.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    def test_unplug_vif_failures_httperror(self, mock_wrap):
+        # Test instance not found handling
+        mock_wrap.side_effect = exc.InstanceNotFound(
+            instance_id=self.inst.name)
+
+        # Backing API: Instance does not exist
+        # Nova Response: No exceptions should be raised.
+        self.drv.unplug_vifs(self.inst, {})
+        self.assertEqual(1, mock_wrap.call_count)
 
     def test_extract_bdm(self):
         """Tests the _extract_bdm method."""

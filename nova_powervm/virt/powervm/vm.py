@@ -453,10 +453,16 @@ def get_instance_wrapper(adapter, instance, host_uuid, xag=None):
     :return: The pypowervm logical_partition wrapper.
     """
     pvm_inst_uuid = get_pvm_uuid(instance)
-    resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
-                        child_type=pvm_lpar.LPAR.schema_type,
-                        child_id=pvm_inst_uuid, xag=xag)
-    return pvm_lpar.LPAR.wrap(resp)
+    try:
+        return pvm_lpar.LPAR.get(adapter, uuid=pvm_inst_uuid, xag=xag)
+    except pvm_exc.Error as he:
+        if he.response is not None and he.response.status == 404:
+            LOG.exception(he)
+            # Raise InstanceNotFound exception
+            raise exception.InstanceNotFound(instance_id=pvm_inst_uuid)
+        else:
+            LOG.exception(he)
+            raise
 
 
 def instance_exists(adapter, instance, host_uuid, log_errors=False):
