@@ -78,10 +78,11 @@ class TestVMBuilder(test.TestCase):
         """Perform tests against _format_flavor."""
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
+        # LP 1561128, simplified remote restart is enabled by default
         lpar_attrs = {'memory': 2048,
                       'name': 'instance-00000001',
                       'uuid': '49629a5c-f4c4-4721-9511-9725786ff2e5',
-                      'vcpu': 1}
+                      'vcpu': 1, 'srr_capability': True}
 
         # Test dedicated procs
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
@@ -95,7 +96,7 @@ class TestVMBuilder(test.TestCase):
         # Test dedicated procs, min/max vcpu and sharing mode
         flavor.extra_specs = {'powervm:dedicated_proc': 'true',
                               'powervm:dedicated_sharing_mode':
-                                  'share_idle_procs_active',
+                              'share_idle_procs_active',
                               'powervm:min_vcpu': '1',
                               'powervm:max_vcpu': '3'}
         test_attrs = dict(lpar_attrs,
@@ -167,9 +168,11 @@ class TestVMBuilder(test.TestCase):
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
 
-        flavor.extra_specs = {'powervm:srr_capability': 'True'}
-        test_attrs = dict(lpar_attrs, srr_capability='True')
+        # Test remote restart set to false
+        flavor.extra_specs = {'powervm:srr_capability': 'false'}
+        test_attrs = dict(lpar_attrs, srr_capability=False)
         self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
                          test_attrs)
 
