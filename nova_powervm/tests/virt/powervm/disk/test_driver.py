@@ -15,8 +15,8 @@
 #    under the License.
 
 import mock
-
 from nova import test
+from pypowervm import const as pvm_const
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -51,3 +51,23 @@ class TestDiskAdapter(test.TestCase):
     def test_validate(self):
         # Ensure the base method returns error message
         self.assertIsNotNone(self.st_adpt.validate(None))
+
+    @mock.patch("pypowervm.util.sanitize_file_name_for_api")
+    def test_get_disk_name(self, mock_san):
+        inst = mock.Mock()
+        inst.configure_mock(name='a_name_that_is_longer_than_eight',
+                            uuid='01234567-abcd-abcd-abcd-123412341234')
+
+        # Long
+        self.assertEqual(mock_san.return_value,
+                         self.st_adpt._get_disk_name('type', inst))
+        mock_san.assert_called_with(inst.name, prefix='type_',
+                                    max_len=pvm_const.MaxLen.FILENAME_DEFAULT)
+
+        mock_san.reset_mock()
+
+        # Short
+        self.assertEqual(mock_san.return_value,
+                         self.st_adpt._get_disk_name('type', inst, short=True))
+        mock_san.assert_called_with('a_name_t_0123', prefix='t_',
+                                    max_len=pvm_const.MaxLen.VDISK_NAME)
