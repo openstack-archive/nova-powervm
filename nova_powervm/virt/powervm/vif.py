@@ -232,10 +232,14 @@ class PvmOvsVifDriver(PvmVifDriver):
         # There will only be one trunk wrap, as we have created with just the
         # mgmt lpar.  Next step is to set the device up and connect to the OVS
         dev = self.get_trunk_dev_name(trunk_wraps[0])
-        utils.execute('ip', 'link', 'set', dev, 'up', run_as_root=True)
-        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev,
-                                      self.get_ovs_interfaceid(vif),
-                                      vif['address'], self.instance.uuid)
+        try:
+            utils.execute('ip', 'link', 'set', dev, 'up', run_as_root=True)
+            linux_net.create_ovs_vif_port(vif['network']['bridge'], dev,
+                                          self.get_ovs_interfaceid(vif),
+                                          vif['address'], self.instance.uuid)
+        except Exception as e:
+            LOG.exception(e)
+            self.unplug(vif, [cna_w], trunk_wraps)
 
     def get_ovs_interfaceid(self, vif):
         return vif.get('ovs_interfaceid') or vif['id']
@@ -260,7 +264,7 @@ class PvmOvsVifDriver(PvmVifDriver):
             _("Unable to find appropriate Trunk Device for mac "
               "%(mac_addr)s.") % {'mac_addr': mac_addr})
 
-    def unplug(self, vif, cna_w_list=None):
+    def unplug(self, vif, cna_w_list=None, trunks=None):
         # Need to find the adapters if they were not provided
         if not cna_w_list:
             cna_w_list = vm.get_cnas(self.adapter, self.instance,
@@ -276,7 +280,8 @@ class PvmOvsVifDriver(PvmVifDriver):
             return
 
         # Find and delete the trunk adapters
-        trunks = pvm_cna.find_trunks(self.adapter, cna_w)
+        if not trunks:
+            trunks = pvm_cna.find_trunks(self.adapter, cna_w)
         for trunk in trunks:
             dev = self.get_trunk_dev_name(trunk)
             linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
