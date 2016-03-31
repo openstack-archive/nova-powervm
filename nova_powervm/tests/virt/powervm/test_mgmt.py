@@ -15,6 +15,7 @@
 #    under the License.
 
 import mock
+import retrying
 
 from nova import exception
 from nova import test
@@ -59,28 +60,49 @@ class TestMgmt(test.TestCase):
                                      process_input='- - -', run_as_root=True)
         mock_realpath.assert_called_with(devlink)
 
-    @mock.patch('time.sleep')
+    @mock.patch('retrying.retry')
     @mock.patch('glob.glob')
     @mock.patch('nova.utils.execute')
     def test_discover_vscsi_disk_not_one_result(self, mock_exec, mock_glob,
-                                                mock_sleep):
+                                                mock_retry):
         """Zero or more than one disk is found by discover_vscsi_disk."""
+        def validate_retry(kwargs):
+            self.assertIn('retry_on_result', kwargs)
+            self.assertEqual(250, kwargs['wait_fixed'])
+            self.assertEqual(300000, kwargs['stop_max_delay'])
+
+        def raiser(unused):
+            raise retrying.RetryError(mock.Mock(attempt_number=123))
+
+        def retry_passthrough(**kwargs):
+            validate_retry(kwargs)
+
+            def wrapped(_poll_for_dev):
+                return _poll_for_dev
+            return wrapped
+
+        def retry_timeout(**kwargs):
+            validate_retry(kwargs)
+
+            def wrapped(_poll_for_dev):
+                return raiser
+            return wrapped
+
         udid = ('275b5d5f88fa5611e48be9000098be9400'
                 '13fb2aa55a2d7b8d150cb1b7b6bc04d6')
         mapping = mock.Mock()
         mapping.client_adapter.lpar_slot_num = 5
         mapping.backing_storage.udid = udid
         # No disks found
+        mock_retry.side_effect = retry_timeout
         mock_glob.side_effect = lambda path: []
         self.assertRaises(npvmex.NoDiskDiscoveryException,
                           mgmt.discover_vscsi_disk, mapping)
-        self.assertTrue(mock_sleep.call_count)
         # Multiple disks found
-        mock_sleep.reset_mock()
+        mock_retry.side_effect = retry_passthrough
         mock_glob.side_effect = [['path'], ['/dev/sde', '/dev/sdf']]
         self.assertRaises(npvmex.UniqueDiskDiscoveryException,
                           mgmt.discover_vscsi_disk, mapping)
-        self.assertEqual(0, mock_sleep.call_count)
 
     @mock.patch('time.sleep')
     @mock.patch('os.path.realpath')

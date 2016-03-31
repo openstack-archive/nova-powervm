@@ -27,11 +27,10 @@ from nova import exception
 from nova import utils
 import os
 from os import path
-
-from nova_powervm.virt.powervm import exception as npvmex
-
 from oslo_log import log as logging
 import retrying
+
+from nova_powervm.virt.powervm import exception as npvmex
 
 LOG = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ def _tee_as_root(fpath, payload):
     utils.execute('tee', '-a', fpath, process_input=payload, run_as_root=True)
 
 
-def discover_vscsi_disk(mapping, scan_timeout=10):
+def discover_vscsi_disk(mapping, scan_timeout=300):
     """Bring a mapped device into the management partition and find its name.
 
     Based on a VSCSIMapping, scan the appropriate virtual SCSI host bus,
