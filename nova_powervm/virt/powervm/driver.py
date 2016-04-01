@@ -623,6 +623,7 @@ class PowerVMDriver(driver.ComputeDriver):
                             instance=instance)
                 return
             else:
+                LOG.exception(e)
                 # Convert to a Nova exception
                 raise exception.InstanceTerminationFailure(
                     reason=six.text_type(e))
