@@ -43,3 +43,14 @@ class NoopNvramStore(api.NvramStore):
         :param instance: instance object
         """
         pass
+
+
+class ExpNvramStore(NoopNvramStore):
+
+    def fetch(self, instance):
+        """Fetch the NVRAM from the storage service.
+
+        :param instance: instance object
+        :returns: the NVRAM data base64 encoded string
+        """
+        raise Exception('Error')
