@@ -144,6 +144,14 @@ class TestVifSeaDriver(test.TestCase):
         self.assertEqual(0, cnas[1].delete.call_count)
         self.assertEqual(1, cnas[2].delete.call_count)
 
+    def test_post_live_migrate_at_destination(self):
+        # Make sure the no-op works properly
+        self.drv.post_live_migrate_at_destination(mock.Mock())
+
+    def test_post_live_migrate_at_source(self):
+        # Make sure the no-op works properly
+        self.drv.post_live_migrate_at_source(mock.Mock())
+
 
 class TestVifOvsDriver(test.TestCase):
 
@@ -272,3 +280,11 @@ class TestVifOvsDriver(test.TestCase):
 
         # Validate the OVS port delete call was made
         mock_del_ovs_port.assert_called_with('br-int', 'fake_dev')
+
+    def test_post_live_migrate_at_destination(self):
+        # TODO(thorst) Implement as logic is added
+        self.drv.post_live_migrate_at_destination(mock.Mock())
+
+    def test_post_live_migrate_at_source(self):
+        # TODO(thorst) Implement as logic is added
+        self.drv.post_live_migrate_at_source(mock.Mock())

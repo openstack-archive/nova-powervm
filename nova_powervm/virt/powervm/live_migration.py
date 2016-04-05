@@ -31,6 +31,7 @@ from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import media
+from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -171,15 +172,21 @@ class LiveMigrationDest(LiveMigration):
         self.pre_live_vol_data = migrate_data.vol_data
         return migrate_data
 
-    def post_live_migration_at_destination(self, network_info, vol_drvs):
+    def post_live_migration_at_destination(self, network_infos, vol_drvs):
         """Do post migration cleanup on destination host.
 
-        :param network_info: instance network information
+        :param network_infos: instance network information
         :param vol_drvs: volume drivers for the attached volumes
         """
         # The LPAR should be on this host now.
         LOG.debug("Post live migration at destination.",
                   instance=self.instance)
+
+        # Run the post live migration steps at the destination
+        for network_info in network_infos:
+            vif.post_live_migrate_at_destination(
+                self.drvr.adapter, self.drvr.host_uuid, self.instance,
+                network_info)
 
         # An unbounded dictionary that each volume adapter can use to persist
         # data from one call to the next.
@@ -347,14 +354,18 @@ class LiveMigrationSrc(LiveMigration):
                 # results in the VM being on the new host but the instance
                 # data reflecting it on the old host.
 
-    def post_live_migration_at_source(self, network_info):
+    def post_live_migration_at_source(self, network_infos):
         """Do post migration cleanup on source host.
 
         This method is network focused.
 
-        :param network_info: instance network information
+        :param network_infos: instance network information
         """
         LOG.debug("Post live migration at source.", instance=self.instance)
+        for network_info in network_infos:
+            vif.post_live_migrate_at_source(
+                self.drvr.adapter, self.drvr.host_uuid, self.instance,
+                network_info)
 
     def rollback_live_migration(self, context):
         """Roll back a failed migration.

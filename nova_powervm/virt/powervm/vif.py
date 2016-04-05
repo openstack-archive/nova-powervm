@@ -106,6 +106,32 @@ def unplug(adapter, host_uuid, instance, vif, cna_w_list=None):
     vif_drv.unplug(vif, cna_w_list=cna_w_list)
 
 
+def post_live_migrate_at_destination(adapter, host_uuid, instance, vif):
+    """Performs live migrate cleanup on the destination host.
+
+    :param adapter: The pypowervm adapter.
+    :param host_uuid: The host UUID for the PowerVM API.
+    :param instance: The nova instance object.
+    :param vif: The virtual interface that was migrated.  This may be called
+                network_info in other portions of the code.
+    """
+    vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
+    vif_drv.post_live_migrate_at_destination(vif)
+
+
+def post_live_migrate_at_source(adapter, host_uuid, instance, vif):
+    """Performs live migrate cleanup on the source host.
+
+    :param adapter: The pypowervm adapter.
+    :param host_uuid: The host UUID for the PowerVM API.
+    :param instance: The nova instance object.
+    :param vif: The virtual interface that was migrated.  This may be called
+                network_info in other portions of the code.
+    """
+    vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
+    vif_drv.post_live_migrate_at_source(vif)
+
+
 def get_secure_rmc_vswitch(adapter, host_uuid):
     """Returns the vSwitch that is used for secure RMC.
 
@@ -205,6 +231,24 @@ class PvmVifDriver(object):
                 return cna_w
         return None
 
+    def post_live_migrate_at_destination(self, vif):
+        """Performs live migrate cleanup on the destination host.
+
+        This is optional, child classes do not need to implement this.
+
+        :param vif: The virtual interface that was migrated.
+        """
+        pass
+
+    def post_live_migrate_at_source(self, vif):
+        """Performs live migrate cleanup on the source host.
+
+        This is optional, child classes do not need to implement this.
+
+        :param vif: The virtual interface that was migrated.
+        """
+        pass
+
 
 class PvmSeaVifDriver(PvmVifDriver):
     """The PowerVM Shared Ethernet Adapter VIF Driver."""
@@ -289,3 +333,29 @@ class PvmOvsVifDriver(PvmVifDriver):
 
         # Now delete the client CNA
         super(PvmOvsVifDriver, self).unplug(vif, cna_w_list=cna_w_list)
+
+    def post_live_migrate_at_destination(self, vif):
+        """Performs live migrate cleanup on the destination host.
+
+        This is optional, child classes do not need to implement this.
+
+        :param vif: The virtual interface that was migrated.
+        """
+        # TODO(thorst) This needs to do two steps:
+        # 1) Identify the migrated VEA.  Find a new VLAN for it, update PVID
+        # and assign trunk.
+        # 2) Re-enable the client VEA
+        pass
+
+    def post_live_migrate_at_source(self, vif):
+        """Performs live migrate cleanup on the source host.
+
+        This is optional, child classes do not need to implement this.
+
+        :param vif: The virtual interface that was migrated.
+        """
+        # TODO(thorst) This needs to find the original trunk adapter and
+        # clean it out.  Can probably just blast all trunks that do not have
+        # a corresponding client VEA on the PHYP virtual switch, identified
+        # by the spvm_vswitch_for_ovs conf property.
+        pass
