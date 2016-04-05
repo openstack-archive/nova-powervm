@@ -16,8 +16,6 @@
 
 import oslo_log.log as logging
 import random
-import time
-import uuid
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_drv
@@ -29,6 +27,7 @@ from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
 import pypowervm.const as pvm_const
+from pypowervm.tasks import cluster_ssp as tsk_cs
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 import pypowervm.util as pvm_u
@@ -225,7 +224,10 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                  dict(image_type=image_type, image_id=image_meta.id,
                       instance_uuid=instance.uuid))
 
-        image_lu = self._get_or_upload_image_lu(context, instance, image_meta)
+        ssp, image_lu = tsk_cs.get_or_upload_image_lu(
+            self._ssp, self._get_image_name(image_meta), self._any_vios_uuid(),
+            lambda: self._get_image_upload(context, image_meta),
+            image_meta.size)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
         LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)
@@ -235,148 +237,11 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         return boot_lu
 
-    def _find_lu(self, lu_name, lu_type, whole_name=True, find_all=False,
-                 ssp=None):
-        """Find a specified lu by name and type.
-
-        :param lu_name: The name of the LU to find.
-        :param lu_type: The type of the LU to find.
-        :param whole_name: (Optional) If True (the default), the lu_name must
-                           match exactly.  If False, match any name containing
-                           lu_name as a substring.
-        :param find_all: (Optional) If False (the default), the first matching
-                         LU is returned, or None if none were found.  If True,
-                         the return is always a list, containing zero or more
-                         matching LUs.
-        :param ssp: (Optional) Already-retrieved SSP wrapper to search for the
-                    LU.  If None (the default), the SSP will be fetched anew.
-        :return: If find_all=False, the wrapper of the first matching LU, or
-                 None if not found.  If find_all=True, a list of zero or more
-                 matching LU wrappers.
-        """
-        if ssp is None:
-            ssp = self._ssp
-        matches = []
-        for lu in ssp.logical_units:
-            if lu.lu_type != lu_type:
-                continue
-            if lu_name not in lu.name:
-                continue
-            if not whole_name or lu.name == lu_name:
-                matches.append(lu)
-        if find_all:
-            return matches
-        return matches[0] if matches else None
-
-    def _get_or_upload_image_lu(self, context, instance, image_meta):
-        """Ensures our SSP has an LU containing the specified image.
-
-        If an LU of type IMAGE corresponding to the input image metadata
-        already exists in our SSP, return it.  Otherwise, create it, prime it
-        with the image contents from glance, and return it.
-
-        :param context: nova context used to retrieve image from glance.
-        :param instance: The instance for which the LU is being uploaded.
-        :param nova.objects.ImageMeta image_meta:
-            The metadata of the image of the instance.
-        :return: A pypowervm LU ElementWrapper representing the image.
-        """
-        sleep_s = 3
-        # Marker (upload-in-progress) LU name prefixed with 'partxxxxxxxx'
-        prefix = 'part%s' % uuid.uuid4().hex[:8]
-        luname = self._get_image_name(
-            image_meta,
-            max_len=pvm_const.MaxLen.FILENAME_DEFAULT - len(prefix))
-        mkr_luname = prefix + luname
-        imgtyp = pvm_stg.LUType.IMAGE
-        first = True
-        while True:
-            # Refresh the SSP data
-            ssp = self._ssp
-            # Look for all LUs containing the right name.
-            lus = self._find_lu(luname, imgtyp, whole_name=False,
-                                find_all=True, ssp=ssp)
-            # Does the LU already exist in its final, uploaded form?  If so,
-            # then only that LU will exist, with an exact name match.
-            if len(lus) == 1 and lus[0].name == luname:
-                LOG.info(_LI('Using already-uploaded image LU %s.'), luname)
-                return lus[0]
-
-            # Is there an upload in progress?
-            mkr_lus = [lu for lu in lus
-                       if lu.name != luname and lu.name.endswith(luname)]
-            if mkr_lus:
-                # Use info the first time; debug thereafter to avoid flooding
-                # the log.
-                if first:
-                    first = False
-                    LOG.info(_LI('Waiting for in-progress upload(s) to '
-                                 'complete.  Marker LU(s): %s'),
-                             str([lu.name for lu in mkr_lus]),
-                             instance=instance)
-                else:
-                    LOG.debug('Waiting for in-progress upload(s) to complete. '
-                              'Marker LU(s): %s',
-                              str([lu.name for lu in mkr_lus]),
-                              instance=instance)
-                time.sleep(sleep_s)
-                continue
-
-            # No upload in progress (at least as of when we grabbed the SSP).
-            LOG.info(_LI('Creating marker LU %s'), mkr_luname)
-            ssp, mkrlu = tsk_stg.crt_lu(ssp, mkr_luname, 0.001, typ=imgtyp)
-
-            # If anything fails beyond this point, we must remove the marker LU
-            try:
-                # Now things get funky. If another process (possibly on another
-                # host) hit the above line at the same time, there could be
-                # multiple marker LUs out there.  We all use the next chunk to
-                # decide which one of us gets to do the upload.
-                lus = self._find_lu(luname, imgtyp, whole_name=False,
-                                    find_all=True, ssp=ssp)
-                # First, if someone else already started the upload, we bail
-                if any([lu for lu in lus if lu.name == luname]):
-                    LOG.info(_LI('Abdicating in favor of in-progress upload.'))
-                    time.sleep(sleep_s)
-                    continue
-
-                # The lus list should be all markers at this point.  If there's
-                # more than one (ours), then the first (by alpha sort) wins.
-                if len(lus) > 1:
-                    lus.sort(key=lambda l: l.name)
-                    winner = lus[0].name
-                    if winner != mkr_luname:
-                        # We lose.  Delete our LU and let the winner proceed
-                        LOG.info(_LI('Abdicating upload in favor of marker '
-                                     '%s.'), winner)
-                        # Remove just our LU - other losers take care of theirs
-                        time.sleep(sleep_s)
-                        continue
-
-                # Okay, we won.  Do the actual upload.
-                strm = self._get_image_upload(context, image_meta)
-                LOG.info(_LI('Uploading to image LU %(lu)s (marker %(mkr)s).'),
-                         {'lu': luname, 'mkr': mkr_luname})
-
-                lu, f_wrap = tsk_stg.upload_new_lu(
-                    self._any_vios_uuid(), ssp, strm, luname, image_meta.size)
-
-            except Exception as exc:
-                LOG.exception(exc)
-                # It's possible the LU creation succeeded, but the upload
-                # failed.  If so, we need to remove the LU so it doesn't block
-                # others attempting to use the same one.
-                lu = self._find_lu(luname, imgtyp)
-                if lu:
-                    LOG.exception(_LE('Removing failed LU %s.'), luname)
-                    ssp = tsk_stg.rm_ssp_storage(ssp, [lu])
-                raise exc
-            finally:
-                # Signal completion (or clean up) by removing the marker LU.
-                tsk_stg.rm_ssp_storage(ssp, [mkrlu])
-
-            # Return the uploaded LU.
-            return lu
+    def _find_lu(self, lu_name, lu_type):
+        """Find a specified lu by name and type."""
+        for lu in self._ssp.logical_units:
+            if lu.lu_type == lu_type and lu.name == lu_name:
+                return lu
 
     def get_disk_ref(self, instance, disk_type):
         """Returns a reference to the disk for the instance."""
