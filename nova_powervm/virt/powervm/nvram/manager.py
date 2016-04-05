@@ -20,10 +20,12 @@ from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
+import six
 import time
 
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LW
+from nova_powervm.virt.powervm.nvram import api
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -99,16 +101,15 @@ class NvramManager(object):
         """Fetch the NVRAM for an instance.
 
         :param instance: The instance to fetch the NVRAM for.
-        :returns: The NVRAM data for the instance or None if the data could not
-                  be fetched.
+        :returns: The NVRAM data for the instance.
         """
         try:
             return self._api.fetch(instance)
         except Exception as e:
-            # Fetch exceptions should not end the operation.
             LOG.exception(_LE('Could not update NVRAM: %s'), e,
                           instance=instance)
-        return None
+            raise api.NVRAMDownloadException(instance=instance.name,
+                                             reason=six.text_type(e))
 
     @lockutils.synchronized(LOCK_NVRAM_STORE)
     def remove(self, instance):

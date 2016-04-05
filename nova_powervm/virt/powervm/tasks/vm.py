@@ -94,16 +94,8 @@ class Create(task.Task):
         if self.nvram_mgr is not None:
             LOG.info(_LI('Fetching NVRAM for instance %s.'),
                      self.instance.name, instance=self.instance)
-            try:
-                data = self.nvram_mgr.fetch(self.instance)
-                LOG.debug('NVRAM data is: %s', data, instance=self.instance)
-            except Exception as e:
-                # Fetching NVRAM exception should not cause a failure
-                LOG.exception(_LE('Unable to fetch NVRAM for instance '
-                                  '%(name)s. Exception: %(reason)s'),
-                              {'name': self.instance.name,
-                               'reason': six.text_type(e)},
-                              instance=self.instance)
+            data = self.nvram_mgr.fetch(self.instance)
+            LOG.debug('NVRAM data is: %s', data, instance=self.instance)
 
         wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
                            self.flavor, nvram=data)
