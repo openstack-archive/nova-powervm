@@ -16,11 +16,11 @@
 
 import abc
 import logging
-import netifaces
 import six
 
 from nova import exception
 from nova.network import linux_net
+from nova.network import model as network_model
 from nova import utils
 from oslo_concurrency import lockutils
 from oslo_config import cfg
@@ -42,7 +42,8 @@ SECURE_RMC_VSWITCH = 'MGMTSWITCH'
 SECURE_RMC_VLAN = 4094
 
 VIF_MAPPING = {'pvm_sea': 'nova_powervm.virt.powervm.vif.PvmSeaVifDriver',
-               'ovs': 'nova_powervm.virt.powervm.vif.PvmOvsVifDriver'}
+               'ovs': 'nova_powervm.virt.powervm.vif.PvmOvsVifDriver',
+               'bridge': 'nova_powervm.virt.powervm.vif.PvmLBVifDriver'}
 
 CONF = cfg.CONF
 
@@ -259,6 +260,14 @@ class PvmVifDriver(object):
         return cna_w
 
     def _find_cna_for_vif(self, cna_w_list, vif):
+        """Finds the PowerVM CNA for a given Nova VIF.
+
+        :param cna_w_list: The list of Client Network Adapter wrappers from
+                           pypowervm.
+        :param vif: The Nova Virtual Interface (virtual network interface).
+        :return: The CNA that corresponds to the VIF.  None if one is not
+                 part of the cna_w_list.
+        """
         for cna_w in cna_w_list:
             # If the MAC address matched, attempt the delete.
             if vm.norm_mac(cna_w.mac) == vif['address']:
@@ -288,6 +297,13 @@ class PvmSeaVifDriver(PvmVifDriver):
     """The PowerVM Shared Ethernet Adapter VIF Driver."""
 
     def plug(self, vif, slot_num):
+        """Plugs a virtual interface (network) into a VM.
+
+        This method simply creates the client network adapter into the VM.
+
+        :param vif: The virtual interface to plug into the instance.
+        :param slot_num: Which slot number to plug the VIF into.  May be None.
+        """
         lpar_uuid = vm.get_pvm_uuid(self.instance)
 
         # CNA's require a VLAN.  If the network doesn't provide, default to 1
@@ -298,53 +314,161 @@ class PvmSeaVifDriver(PvmVifDriver):
         return cna_w
 
 
-class PvmOvsVifDriver(PvmVifDriver):
-    """The Open vSwitch VIF driver for PowerVM."""
+@six.add_metaclass(abc.ABCMeta)
+class PvmLioVifDriver(PvmVifDriver):
+    """An abstract VIF driver that uses Linux I/O to host."""
+
+    def get_trunk_dev_name(self, vif):
+        """Returns the device name for the trunk adapter.
+
+        A given VIF in the Linux I/O model will have a trunk adapter and a
+        client adapter.  This will return the trunk adapter's name as it
+        will appear on the management VM.
+
+        :param vif: The nova network interface
+        :return: The device name.
+        """
+        if 'devname' in vif:
+            return vif['devname']
+        return ("nic" + vif['id'])[:network_model.NIC_NAME_LEN]
 
     def plug(self, vif, slot_num):
+        """Plugs a virtual interface (network) into a VM.
+
+        Creates a 'peer to peer' connection between the Management partition
+        hosting the Linux I/O and the client VM.  There will be one trunk
+        adapter for a given client adapter.
+
+        The device will be 'up' on the mgmt partition.
+
+        :param vif: The virtual interface to plug into the instance.
+        :param slot_num: Which slot number to plug the VIF into.  May be None.
+        """
         # Create the trunk and client adapter.
         lpar_uuid = vm.get_pvm_uuid(self.instance)
         mgmt_uuid = pvm_par.get_this_partition(self.adapter).uuid
-
+        dev_name = self.get_trunk_dev_name(vif)
         cna_w, trunk_wraps = pvm_cna.crt_p2p_cna(
             self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
             CONF.powervm.pvm_vswitch_for_ovs, crt_vswitch=True,
-            mac_addr=vif['address'], slot_num=slot_num)
+            mac_addr=vif['address'], dev_name=dev_name, slot_num=slot_num)
+
+        utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
+
+        return cna_w
+
+
+class PvmLBVifDriver(PvmLioVifDriver):
+    """The Linux Bridge VIF driver for PowerVM."""
+
+    def plug(self, vif, slot_num):
+        """Plugs a virtual interface (network) into a VM.
+
+        Extends the base Lio implementation.  Will make sure that the bridge
+        supports the trunk adapter.
+
+        :param vif: The virtual interface to plug into the instance.
+        :param slot_num: Which slot number to plug the VIF into.  May be None.
+        """
+        cna_w = super(PvmLBVifDriver, self).plug(vif, slot_num)
+
+        # Similar to libvirt's vif.py plug_bridge.  Need to attach the
+        # interface to the bridge.
+        linux_net.LinuxBridgeInterfaceDriver.ensure_bridge(
+            vif['network']['bridge'], self.get_trunk_dev_name(vif))
+
+        return cna_w
+
+    def unplug(self, vif, cna_w_list=None):
+        """Unplugs a virtual interface (network) from a VM.
+
+        Extends the base implementation, but before invoking it will remove
+        itself from the bridge it is connected to and delete the corresponding
+        trunk device on the mgmt partition.
+
+        :param vif: The virtual interface to plug into the instance.
+        :param cna_w_list: (Optional, Default: None) The list of Client Network
+                           Adapters from pypowervm.  Providing this input
+                           allows for an improvement in operation speed.
+        :return cna_w: The deleted Client Network Adapter.
+        """
+        # Need to find the adapters if they were not provided
+        if not cna_w_list:
+            cna_w_list = vm.get_cnas(self.adapter, self.instance,
+                                     self.host_uuid)
+
+        # Find the CNA for this vif.
+        cna_w = self._find_cna_for_vif(cna_w_list, vif)
+        if not cna_w:
+            LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
+                            'instance %(inst)s.  The VIF was not found on '
+                            'the instance.'),
+                        {'mac': vif['address'], 'inst': self.instance.name})
+            return None
+
+        # Find and delete the trunk adapters
+        trunks = pvm_cna.find_trunks(self.adapter, cna_w)
+
+        for trunk in trunks:
+            dev_name = self.get_trunk_dev_name(vif)
+            utils.execute('ip', 'link', 'set', dev_name, 'down',
+                          run_as_root=True)
+            utils.execute('brctl', 'delif', vif['network']['bridge'],
+                          dev_name, run_as_root=True)
+            trunk.delete()
+
+        # Now delete the client CNA
+        return super(PvmLBVifDriver, self).unplug(vif, cna_w_list=cna_w_list)
+
+
+class PvmOvsVifDriver(PvmLioVifDriver):
+    """The Open vSwitch VIF driver for PowerVM."""
+
+    def plug(self, vif, slot_num):
+        """Plugs a virtual interface (network) into a VM.
+
+        Extends the Lio implementation.  Will make sure that the trunk device
+        has the appropriate metadata (ex. port id) set on it so that the
+        Open vSwitch agent picks it up properly.
+
+        :param vif: The virtual interface to plug into the instance.
+        :param slot_num: Which slot number to plug the VIF into.  May be None.
+        """
+        cna_w = super(PvmOvsVifDriver, self).plug(vif, slot_num)
 
         # There will only be one trunk wrap, as we have created with just the
         # mgmt lpar.  Next step is to set the device up and connect to the OVS
-        dev = self.get_trunk_dev_name(trunk_wraps[0])
-        utils.execute('ip', 'link', 'set', dev, 'up', run_as_root=True)
-        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev,
+        dev_name = self.get_trunk_dev_name(vif)
+        utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
+        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev_name,
                                       self.get_ovs_interfaceid(vif),
                                       vif['address'], self.instance.uuid)
 
         return cna_w
 
     def get_ovs_interfaceid(self, vif):
+        """Returns the interface id to set for a given VIF.
+
+        When a VIF is plugged for an Open vSwitch, it needs to have the
+        interface ID set in the OVS metadata.  This returns what the
+        appropriate interface id is.
+
+        :param vif: The Nova network interface.
+        """
         return vif.get('ovs_interfaceid') or vif['id']
 
-    def get_trunk_dev_name(self, trunk_w):
-        # The mac address from the API is of format: 01234567890A
-        # We need it in format: 01:23:45:67:89:0a
-        # That means we need to add colons and lower case it
-        mac_addr = ":".join(trunk_w.mac[i:i + 2]
-                            for i in range(0, len(trunk_w.mac), 2)).lower()
-
-        # Use netifaces to find the appropriate matching interface name
-        # TODO(thorst) I don't like this logic.  Seems gross.
-        ifaces = netifaces.interfaces()
-        for iface in ifaces:
-            link_addrs = netifaces.ifaddresses(iface)[netifaces.AF_LINK]
-            for link_addr in link_addrs:
-                if link_addr.get('addr') == mac_addr:
-                    return iface
-
-        raise exception.VirtualInterfacePlugException(
-            _("Unable to find appropriate Trunk Device for mac "
-              "%(mac_addr)s.") % {'mac_addr': mac_addr})
-
     def unplug(self, vif, cna_w_list=None):
+        """Unplugs a virtual interface (network) from a VM.
+
+        Extends the base implementation, but before calling it will remove
+        the adapter from the Open vSwitch and delete the trunk.
+
+        :param vif: The virtual interface to plug into the instance.
+        :param cna_w_list: (Optional, Default: None) The list of Client Network
+                           Adapters from pypowervm.  Providing this input
+                           allows for an improvement in operation speed.
+        :return cna_w: The deleted Client Network Adapter.
+        """
         # Need to find the adapters if they were not provided
         if not cna_w_list:
             cna_w_list = vm.get_cnas(self.adapter, self.instance,
