@@ -197,11 +197,18 @@ class TestLPM(test.TestCase):
                           self.mig_data)
         mock_migr.called_once_with('context')
 
-    def test_post_live_mig_src(self):
-        self.lpmsrc.post_live_migration_at_source('network_info')
+    @mock.patch('nova_powervm.virt.powervm.vif.post_live_migrate_at_source')
+    def test_post_live_mig_src(self, mock_post_migrate_vif):
+        network_infos = [mock.Mock(), mock.Mock()]
+        self.lpmsrc.post_live_migration_at_source(network_infos)
+        self.assertEqual(2, mock_post_migrate_vif.call_count)
 
-    def test_post_live_mig_dest(self):
-        self.lpmdst.post_live_migration_at_destination('network_info', [])
+    @mock.patch('nova_powervm.virt.powervm.vif.'
+                'post_live_migrate_at_destination')
+    def test_post_live_mig_dest(self, mock_post_migrate_vif):
+        network_infos = [mock.Mock(), mock.Mock()]
+        self.lpmdst.post_live_migration_at_destination(network_infos, [])
+        self.assertEqual(2, mock_post_migrate_vif.call_count)
 
     @mock.patch('pypowervm.tasks.migration.migrate_recover')
     def test_rollback(self, mock_migr):
