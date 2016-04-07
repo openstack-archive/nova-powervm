@@ -194,38 +194,6 @@ class TestVifOvsDriver(test.TestCase):
         mock_exec.assert_called_once_with('ip', 'link', 'set', 'device', 'up',
                                           run_as_root=True)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.unplug')
-    @mock.patch('nova.utils.execute')
-    @mock.patch('nova.network.linux_net.create_ovs_vif_port')
-    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
-                'get_trunk_dev_name')
-    @mock.patch('pypowervm.tasks.cna.crt_p2p_cna')
-    @mock.patch('pypowervm.tasks.partition.get_this_partition')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    def test_plug_exception(self, mock_pvm_uuid, mock_mgmt_lpar,
-                            mock_p2p_cna, mock_trunk_dev_name,
-                            mock_crt_ovs_vif_port, mock_exec,
-                            mock_self_unplug):
-        # Mock the data
-        mock_pvm_uuid.return_value = 'lpar_uuid'
-        mock_mgmt_lpar.return_value = mock.Mock(uuid='mgmt_uuid')
-        mock_trunk_dev_name.return_value = 'device'
-
-        cna_w, trunk_wraps = mock.MagicMock(), [mock.MagicMock()]
-        mock_p2p_cna.return_value = cna_w, trunk_wraps
-        mock_exec.side_effect = Exception('Failed')
-
-        # Run the plug
-        vif = {'network': {'bridge': 'br0'}, 'address': 'aa:bb:cc:dd:ee:ff',
-               'id': 'vif_id'}
-
-        self.drv.plug(vif)
-        mock_exec.side_effect = None
-        mock_crt_ovs_vif_port.side_effect = Exception('Failed')
-        self.drv.plug(vif)
-        # Validate the calls
-        self.assertEqual(2, mock_self_unplug.call_count)
-
     @mock.patch('netifaces.ifaddresses')
     @mock.patch('netifaces.interfaces')
     def test_get_trunk_dev_name(self, mock_interfaces, mock_ifaddresses):

@@ -26,6 +26,7 @@ from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
 
@@ -192,6 +193,28 @@ class PlugVifs(task.Task):
                     if not network_info.get('active', True)]
         else:
             return []
+
+    def revert(self, lpar_wrap, result, flow_failures):
+        if not self.network_infos:
+            return
+
+        # The parameters have to match the execute method, plus the response +
+        # failures even if only a subset are used.
+        LOG.warning(_LW('VIF creation being rolled back for instance '
+                        '%(inst)s'), {'inst': self.instance.name},
+                    instance=self.instance)
+
+        # Get the current adapters on the system
+        cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
+        for network_info in self.network_infos:
+            try:
+                vif.unplug(self.adapter, self.host_uuid, self.instance,
+                           network_info, cna_w_list=cna_w_list)
+            except Exception as e:
+                LOG.exception(e)
+                LOG.warning(_LW("An exception occurred during an unplug "
+                                "in the vif rollback.  Ignoring."),
+                            instance=self.instance)
 
 
 class PlugMgmtVif(task.Task):

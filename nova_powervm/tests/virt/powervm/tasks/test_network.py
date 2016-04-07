@@ -247,6 +247,44 @@ class TestNetwork(test.TestCase):
         self.assertEqual(1, mock_plug.call_count)
         self.assertEqual('host1', inst.host)
 
+    @mock.patch('nova_powervm.virt.powervm.vif.unplug')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_plug_vifs_revert(self, mock_vm_get, mock_unplug):
+        """Tests that the revert flow works properly."""
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Make a fake CNA list.  No real data needed, as the thing it calls
+        # into is mocked.
+        cna_list = []
+        mock_vm_get.return_value = cna_list
+
+        # Mock up the network info.  Three roll backs.
+        net_info = [
+            {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:22'},
+            {'address': 'aa:bb:cc:dd:ee:33'}
+        ]
+
+        # Make sure we test raising an exception
+        mock_unplug.side_effect = [None, exception.NovaException(), None]
+
+        # Run method
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
+                                 'host_uuid')
+        p_vifs.revert(self.mock_lpar_wrap, mock.Mock(), mock.Mock())
+
+        # The unplug should be called three times.  The exception shouldn't
+        # stop the other calls.
+        self.assertEqual(3, mock_unplug.call_count)
+
+        # Make sure each call is invoked correctly.
+        c1 = mock.call(self.apt, 'host_uuid', inst, net_info[0],
+                       cna_w_list=cna_list)
+        c2 = mock.call(self.apt, 'host_uuid', inst, net_info[1],
+                       cna_w_list=cna_list)
+        c3 = mock.call(self.apt, 'host_uuid', inst, net_info[2],
+                       cna_w_list=cna_list)
+        mock_unplug.assert_has_calls([c1, c2, c3])
+
     @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch')
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
