@@ -32,7 +32,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
-from nova_powervm.virt.powervm.disk import ssp
+from nova_powervm.virt.powervm.disk import ssp as ssp_dvr
 from nova_powervm.virt.powervm import exception as npvmex
 
 
@@ -60,6 +60,8 @@ class SSPFixture(fixtures.Fixture):
             'pypowervm.wrappers.storage.SSP.refresh')
         self.mock_ssp_update = self.mockpatch(
             'pypowervm.wrappers.storage.SSP.update')
+        self.mock_get_tier = self.mockpatch(
+            'pypowervm.tasks.storage.default_tier_for_ssp')
 
 
 class TestSSPDiskAdapter(test.TestCase):
@@ -104,11 +106,14 @@ class TestSSPDiskAdapter(test.TestCase):
         self.mock_ssp_refresh = self.sspfx.mock_ssp_refresh
         self.mock_ssp_refresh.return_value = pvm_stg.SSP.wrap(self.ssp_resp)
 
+        # For _tier
+        self.mock_get_tier = self.sspfx.mock_get_tier
+
         # By default, assume the config supplied a Cluster name
         self.flags(cluster_name='clust1', group='powervm')
 
     def _get_ssp_stor(self):
-        ssp_stor = ssp.SSPDiskAdapter(
+        ssp_stor = ssp_dvr.SSPDiskAdapter(
             {'adapter': self.apt,
              'host_uuid': '67dca605-3923-34da-bd8f-26a378fc817f',
              'mp_uuid': 'mp_uuid'})
@@ -137,6 +142,16 @@ class TestSSPDiskAdapter(test.TestCase):
             else:
                 resp.entry = entry_or_list
         return resp
+
+    def test_tier_cache(self):
+        # default_tier_for_ssp not yet invoked
+        self.mock_get_tier.assert_not_called()
+        ssp = self._get_ssp_stor()
+        # default_tier_for_ssp invoked by constructor
+        self.mock_get_tier.assert_called_once_with(ssp._ssp_wrap)
+        self.assertEqual(self.mock_get_tier.return_value, ssp._tier)
+        # default_tier_for_ssp not called again.
+        self.assertEqual(1, self.mock_get_tier.call_count)
 
     def test_capabilities(self):
         ssp_stor = self._get_ssp_stor()
@@ -291,7 +306,8 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_capacity(self):
         ssp_stor = self._get_ssp_stor()
-        self.assertEqual(49.88, ssp_stor.capacity)
+        self.mock_get_tier.return_value.refresh.return_value.capacity = 10
+        self.assertEqual(10.0, ssp_stor.capacity)
 
     def test_capacity_used(self):
         ssp_stor = self._get_ssp_stor()
@@ -316,19 +332,19 @@ class TestSSPDiskAdapter(test.TestCase):
         boot_lu = mock.Mock()
 
         ssp = self._get_ssp_stor()
-        mock_goru.return_value = ssp._ssp_wrap, image_lu
+        mock_goru.return_value = image_lu
         mock_crt_lulc.return_value = ssp._ssp_wrap, boot_lu
 
         # Default image_type
         self.assertEqual(boot_lu, ssp.create_disk_from_image(
             context, instance, img_meta, disk_size_gb))
         mock_goru.assert_called_once_with(
-            ssp._ssp_wrap, mock_gin.return_value, mock_vuuid.return_value,
-            mock.ANY, img_meta.size)
+            self.mock_get_tier.return_value, mock_gin.return_value,
+            mock_vuuid.return_value, mock.ANY, img_meta.size)
         mock_gdn.assert_called_once_with(disk_dvr.DiskType.BOOT, instance)
         mock_crt_lulc.assert_called_once_with(
-            ssp._ssp_wrap, ssp._cluster, image_lu, mock_gdn.return_value,
-            disk_size_gb)
+            self.mock_get_tier.return_value, ssp._cluster, image_lu,
+            mock_gdn.return_value, disk_size_gb)
 
         # Reset
         mock_goru.reset_mock()
@@ -339,12 +355,12 @@ class TestSSPDiskAdapter(test.TestCase):
         self.assertEqual(boot_lu, ssp.create_disk_from_image(
             context, instance, img_meta, disk_size_gb, image_type=image_type))
         mock_goru.assert_called_once_with(
-            ssp._ssp_wrap, mock_gin.return_value, mock_vuuid.return_value,
-            mock.ANY, img_meta.size)
+            self.mock_get_tier.return_value, mock_gin.return_value,
+            mock_vuuid.return_value, mock.ANY, img_meta.size)
         mock_gdn.assert_called_once_with(image_type, instance)
         mock_crt_lulc.assert_called_once_with(
-            ssp._ssp_wrap, ssp._cluster, image_lu, mock_gdn.return_value,
-            disk_size_gb)
+            self.mock_get_tier.return_value, ssp._cluster, image_lu,
+            mock_gdn.return_value, disk_size_gb)
 
     def test_get_image_name(self):
         """Generate image name from ImageMeta."""
@@ -364,29 +380,24 @@ class TestSSPDiskAdapter(test.TestCase):
             'image_Template_zw82enbix_PowerVM_CI_18y2385y91'
             '_b518a8ba2b152b5607aceb5703fac072')
 
-    def test_find_lu(self):
-        # Bad path, lu not found, None returned
+    @mock.patch('pypowervm.wrappers.storage.LUEnt.search')
+    @mock.patch('nova_powervm.virt.powervm.disk.driver.DiskAdapter.'
+                '_get_disk_name')
+    def test_get_disk_ref(self, mock_dsk_nm, mock_srch):
         ssp = self._get_ssp_stor()
-        lu = ssp._find_lu('not_found_name', pvm_stg.LUType.DISK)
-        self.assertIsNone(lu)
-
-        # Good path, found correct name and type
-        lu_name = 'neolu1'
-        lu = ssp._find_lu(lu_name, pvm_stg.LUType.DISK)
-        self.assertIsNotNone(lu)
-        self.assertEqual(lu_name, lu.name)
-        self.assertEqual(pvm_stg.LUType.DISK, lu.lu_type)
-
-    def test_get_disk_ref(self):
-        ssp = self._get_ssp_stor()
-        with mock.patch.object(ssp, '_find_lu', return_value='foundit'):
-            lu = ssp.get_disk_ref(self.instance, disk_dvr.DiskType.BOOT)
-        self.assertEqual('foundit', lu)
+        self.assertEqual(mock_srch.return_value, ssp.get_disk_ref(
+            self.instance, disk_dvr.DiskType.BOOT))
+        mock_dsk_nm.assert_called_with(disk_dvr.DiskType.BOOT, self.instance)
+        mock_srch.assert_called_with(
+            ssp.adapter, parent_type=pvm_stg.Tier,
+            parent_uuid=self.mock_get_tier.return_value.uuid,
+            name=mock_dsk_nm.return_value, lu_type=pvm_stg.LUType.DISK,
+            one_result=True)
 
         # Assert handles not finding it.
-        with mock.patch.object(ssp, '_find_lu', return_value=None):
-            lu = ssp.get_disk_ref(self.instance, disk_dvr.DiskType.BOOT)
-        self.assertIsNone(lu)
+        mock_srch.return_value = None
+        self.assertIsNone(
+            ssp.get_disk_ref(self.instance, disk_dvr.DiskType.BOOT))
 
     @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
                 'vios_uuids')

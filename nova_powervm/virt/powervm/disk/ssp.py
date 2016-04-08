@@ -66,15 +66,19 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         # _ssp @property method will fetch and cache the SSP.
         self.ssp_name = self._ssp.name
+        self.tier_name = self._tier.name
 
         LOG.info(_LI("SSP Storage driver initialized. "
-                     "Cluster '%(clust_name)s'; SSP '%(ssp_name)s'"),
-                 {'clust_name': self.clust_name, 'ssp_name': self.ssp_name})
+                     "Cluster '%(clust_name)s'; SSP '%(ssp_name)s'; "
+                     "Tier '%(tier_name)s"),
+                 {'clust_name': self.clust_name, 'ssp_name': self.ssp_name,
+                  'tier_name': self.tier_name})
 
     @property
     def capacity(self):
         """Capacity of the storage in gigabytes."""
-        return float(self._ssp.capacity)
+        # Retrieving the Tier is faster (because don't have to refresh LUs.)
+        return float(self._tier.refresh().capacity)
 
     @property
     def capacity_used(self):
@@ -224,31 +228,27 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                  dict(image_type=image_type, image_id=image_meta.id,
                       instance_uuid=instance.uuid))
 
-        ssp, image_lu = tsk_cs.get_or_upload_image_lu(
-            self._ssp, self._get_image_name(image_meta), self._any_vios_uuid(),
+        image_lu = tsk_cs.get_or_upload_image_lu(
+            self._tier, self._get_image_name(image_meta),
+            self._any_vios_uuid(),
             lambda: self._get_image_upload(context, image_meta),
             image_meta.size)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
         LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)
 
-        ssp, boot_lu = tsk_stg.crt_lu_linked_clone(
-            self._ssp, self._cluster, image_lu, boot_lu_name, disk_size_gb)
+        tier, boot_lu = tsk_stg.crt_lu_linked_clone(
+            self._tier, self._cluster, image_lu, boot_lu_name, disk_size_gb)
 
         return boot_lu
 
-    def _find_lu(self, lu_name, lu_type):
-        """Find a specified lu by name and type."""
-        for lu in self._ssp.logical_units:
-            if lu.lu_type == lu_type and lu.name == lu_name:
-                return lu
-
     def get_disk_ref(self, instance, disk_type):
         """Returns a reference to the disk for the instance."""
-
         lu_name = self._get_disk_name(disk_type, instance)
-        lu = self._find_lu(lu_name, pvm_stg.LUType.DISK)
-        return lu
+        return pvm_stg.LUEnt.search(
+            self.adapter, parent_type=pvm_stg.Tier,
+            parent_uuid=self._tier.uuid, name=lu_name,
+            lu_type=pvm_stg.LUType.DISK, one_result=True)
 
     def connect_disk(self, context, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.
@@ -421,6 +421,22 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         else:
             self._ssp_wrap = self._ssp_wrap.refresh()
         return self._ssp_wrap
+
+    @property
+    def _tier(self):
+        """(Cache and) return the Tier corresponding to the SSP.
+
+        This must be invoked after _ssp has primed _ssp_wrap.
+
+        If a value is already cached, it is NOT refreshed before it is
+        returned.  The caller may refresh it via the refresh() method.
+
+        :return: Tier EntryWrapper representing the default Tier on the
+                 configured Shared Storage Pool.
+        """
+        if getattr(self, '_tier_wrap', None) is None:
+            self._tier_wrap = tsk_stg.default_tier_for_ssp(self._ssp_wrap)
+        return self._tier_wrap
 
     @property
     def vios_uuids(self):
