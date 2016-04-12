@@ -354,7 +354,7 @@ class TestVM(test.TestCase):
         self.apt.create.return_value = lparw.entry
         vm.crt_lpar(self.apt, host_wrapper, instance, flavor, nvram='data')
         self.apt.create.assert_called_once_with(
-            lparw, 'ManagedSystem', child_type='LogicalPartition',
+            lparw, host_wrapper.schema_type, child_type='LogicalPartition',
             root_id=host_wrapper.uuid, service='uom', timeout=-1)
         self.assertEqual(lparw.nvram, 'data')
         self.assertTrue(mock_vld_all.called)

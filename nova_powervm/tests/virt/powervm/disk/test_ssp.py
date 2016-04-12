@@ -389,8 +389,7 @@ class TestSSPDiskAdapter(test.TestCase):
             self.instance, disk_dvr.DiskType.BOOT))
         mock_dsk_nm.assert_called_with(disk_dvr.DiskType.BOOT, self.instance)
         mock_srch.assert_called_with(
-            ssp.adapter, parent_type=pvm_stg.Tier,
-            parent_uuid=self.mock_get_tier.return_value.uuid,
+            ssp.adapter, parent=self.mock_get_tier.return_value,
             name=mock_dsk_nm.return_value, lu_type=pvm_stg.LUType.DISK,
             one_result=True)
 

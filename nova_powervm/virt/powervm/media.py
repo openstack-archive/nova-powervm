@@ -291,9 +291,7 @@ class ConfigDrivePowerVM(object):
                 continue
 
             try:
-                vg_wraps = pvm_stg.VG.get(self.adapter,
-                                          parent_type=pvm_vios.VIOS,
-                                          parent_uuid=vio_wrap.uuid)
+                vg_wraps = pvm_stg.VG.get(self.adapter, parent=vio_wrap)
                 for vg_wrap in vg_wraps:
                     if len(vg_wrap.vmedia_repos) != 0:
                         found_vg = vg_wrap

@@ -246,8 +246,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """Returns a reference to the disk for the instance."""
         lu_name = self._get_disk_name(disk_type, instance)
         return pvm_stg.LUEnt.search(
-            self.adapter, parent_type=pvm_stg.Tier,
-            parent_uuid=self._tier.uuid, name=lu_name,
+            self.adapter, parent=self._tier, name=lu_name,
             lu_type=pvm_stg.LUType.DISK, one_result=True)
 
     def connect_disk(self, context, instance, disk_info, stg_ftsk=None):

@@ -35,7 +35,6 @@ from pypowervm.utils import uuid as pvm_uuid
 from pypowervm.utils import validation as vldn
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
-from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
 from pypowervm.wrappers import shared_proc_pool as pvm_spp
 
@@ -397,9 +396,7 @@ class VMBuilder(object):
 
         # Search for the pool with this name
         pool_wraps = pvm_spp.SharedProcPool.search(
-            self.adapter, name=pool_name,
-            parent_type=pvm_ms.System.schema_type,
-            parent_uuid=self.host_w.uuid)
+            self.adapter, name=pool_name, parent=self.host_w)
 
         # Check to make sure there is a pool with the name, and only one pool.
         if len(pool_wraps) > 1:
@@ -547,8 +544,7 @@ def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None):
         vldn.LPARWrapperValidator(pending_lpar_w, host_wrapper).validate_all()
         if nvram is not None:
             pending_lpar_w.nvram = nvram
-        lpar_w = pending_lpar_w.create(parent_type=pvm_ms.System,
-                                       parent_uuid=host_wrapper.uuid)
+        lpar_w = pending_lpar_w.create(parent=host_wrapper)
         return lpar_w
     except lpar_bldr.LPARBuilderException as e:
         # Raise the BuildAbortException since LPAR failed to build
