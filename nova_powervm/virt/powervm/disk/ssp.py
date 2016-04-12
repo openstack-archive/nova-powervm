@@ -201,7 +201,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                               ElementWrappers) that are to be deleted.  Derived
                               from the return value from disconnect_image_disk.
         """
-        tsk_stg.rm_ssp_storage(self._ssp, storage_elems)
+        tsk_stg.rm_tier_storage(storage_elems, tier=self._tier)
 
     def create_disk_from_image(self, context, instance, image_meta,
                                disk_size_gb,
