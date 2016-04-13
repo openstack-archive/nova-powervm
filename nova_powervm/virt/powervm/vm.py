@@ -53,19 +53,23 @@ POWERVM_TO_NOVA_STATE = {
     pvm_bp.LPARState.MIGRATING_RUNNING: power_state.RUNNING,
     pvm_bp.LPARState.RUNNING: power_state.RUNNING,
     pvm_bp.LPARState.STARTING: power_state.RUNNING,
+    # map open firmware state to active since it can be shut down
+    pvm_bp.LPARState.OPEN_FIRMWARE: power_state.RUNNING,
+    # It is running until it is off.
+    pvm_bp.LPARState.SHUTTING_DOWN: power_state.RUNNING,
+    # It is running until the suspend completes
+    pvm_bp.LPARState.SUSPENDING: power_state.RUNNING,
 
     pvm_bp.LPARState.MIGRATING_NOT_ACTIVE: power_state.SHUTDOWN,
     pvm_bp.LPARState.NOT_ACTIVATED: power_state.SHUTDOWN,
 
+    pvm_bp.LPARState.UNKNOWN: power_state.NOSTATE,
     pvm_bp.LPARState.HARDWARE_DISCOVERY: power_state.NOSTATE,
     pvm_bp.LPARState.NOT_AVAILBLE: power_state.NOSTATE,
-    # map open firmware state to active since it can be shut down
-    pvm_bp.LPARState.OPEN_FIRMWARE: power_state.RUNNING,
-    pvm_bp.LPARState.RESUMING: power_state.NOSTATE,
-    pvm_bp.LPARState.SHUTTING_DOWN: power_state.NOSTATE,
-    pvm_bp.LPARState.SUSPENDING: power_state.NOSTATE,
-    pvm_bp.LPARState.UNKNOWN: power_state.NOSTATE,
 
+    # While resuming, we should be considered suspended still.  Only once
+    # resumed will we be active (which is represented by the RUNNING state)
+    pvm_bp.LPARState.RESUMING: power_state.SUSPENDED,
     pvm_bp.LPARState.SUSPENDED: power_state.SUSPENDED,
 
     pvm_bp.LPARState.ERROR: power_state.CRASHED

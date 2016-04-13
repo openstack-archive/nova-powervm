@@ -259,12 +259,41 @@ class TestVM(test.TestCase):
             vm._uuid_set_high_bit('f6f79d3f-eef1-4009-bfd4-172ab7e6fff4'),
             'f6f79d3f-eef1-4009-bfd4-172ab7e6fff4')
 
+    def test_translate_vm_state(self):
+        self.assertEqual(power_state.RUNNING,
+                         vm._translate_vm_state('running'))
+        self.assertEqual(power_state.RUNNING,
+                         vm._translate_vm_state('migrating running'))
+        self.assertEqual(power_state.RUNNING,
+                         vm._translate_vm_state('starting'))
+        self.assertEqual(power_state.RUNNING,
+                         vm._translate_vm_state('open firmware'))
+        self.assertEqual(power_state.RUNNING,
+                         vm._translate_vm_state('shutting down'))
+        self.assertEqual(power_state.RUNNING,
+                         vm._translate_vm_state('suspending'))
+
+        self.assertEqual(power_state.SHUTDOWN,
+                         vm._translate_vm_state('migrating not active'))
+        self.assertEqual(power_state.SHUTDOWN,
+                         vm._translate_vm_state('not activated'))
+
+        self.assertEqual(power_state.NOSTATE,
+                         vm._translate_vm_state('unknown'))
+        self.assertEqual(power_state.NOSTATE,
+                         vm._translate_vm_state('hardware discovery'))
+        self.assertEqual(power_state.NOSTATE,
+                         vm._translate_vm_state('not available'))
+
+        self.assertEqual(power_state.SUSPENDED,
+                         vm._translate_vm_state('resuming'))
+        self.assertEqual(power_state.SUSPENDED,
+                         vm._translate_vm_state('suspended'))
+
+        self.assertEqual(power_state.CRASHED,
+                         vm._translate_vm_state('error'))
+
     def test_instance_info(self):
-
-        # Test at least one state translation
-        self.assertEqual(vm._translate_vm_state('running'),
-                         power_state.RUNNING)
-
         inst_info = vm.InstanceInfo(self.apt, 'inst_name', '1234')
         # Test the static properties
         self.assertEqual(inst_info.id, '1234')
