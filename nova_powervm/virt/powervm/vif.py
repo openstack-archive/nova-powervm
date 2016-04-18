@@ -22,6 +22,7 @@ import six
 from nova import exception
 from nova.network import linux_net
 from nova import utils
+from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_utils import importutils
 from pypowervm.tasks import cna as pvm_cna
@@ -342,6 +343,7 @@ class PvmOvsVifDriver(PvmVifDriver):
         # 2) Re-enable the client VEA
         pass
 
+    @lockutils.synchronized("post_migration_pvm_ovs")
     def post_live_migrate_at_source(self, vif):
         """Performs live migrate cleanup on the source host.
 
@@ -349,8 +351,10 @@ class PvmOvsVifDriver(PvmVifDriver):
 
         :param vif: The virtual interface that was migrated.
         """
-        # TODO(thorst) This needs to find the original trunk adapter and
-        # clean it out.  Can probably just blast all trunks that do not have
-        # a corresponding client VEA on the PHYP virtual switch, identified
-        # by the spvm_vswitch_for_ovs conf property.
-        pass
+        # Deletes orphaned trunks
+        orphaned_trunks = pvm_cna.find_orphaned_trunks(
+            self.adapter, CONF.powervm.pvm_vswitch_for_ovs)
+        for orphan in orphaned_trunks:
+            dev = self.get_trunk_dev_name(orphan)
+            linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
+            orphan.delete()
