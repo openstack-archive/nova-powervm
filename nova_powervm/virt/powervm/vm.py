@@ -31,6 +31,7 @@ from pypowervm.tasks import power
 from pypowervm.tasks import vterm
 from pypowervm import util as pvm_util
 from pypowervm.utils import lpar_builder as lpar_bldr
+from pypowervm.utils import transaction as pvm_trans
 from pypowervm.utils import uuid as pvm_uuid
 from pypowervm.utils import validation as vldn
 from pypowervm.wrappers import base_partition as pvm_bp
@@ -604,12 +605,17 @@ def rename(adapter, host_uuid, instance, name, entry=None):
         be fetched.
     :returns: The updated LPAR wrapper.
     """
-
     if not entry:
         entry = get_instance_wrapper(adapter, instance, host_uuid)
 
-    entry.name = pvm_util.sanitize_partition_name_for_api(name)
-    return entry.update()
+    hyp_name = pvm_util.sanitize_partition_name_for_api(name)
+
+    @pvm_trans.entry_transaction
+    def _rename(entry):
+        entry.name = hyp_name
+        return entry.update()
+
+    return _rename(entry)
 
 
 def dlt_lpar(adapter, lpar_uuid):
