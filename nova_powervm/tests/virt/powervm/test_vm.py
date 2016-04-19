@@ -444,9 +444,12 @@ class TestVM(test.TestCase):
         self.assertEqual('NewEntry', new_entry)
         self.san_lpar_name.assert_called_with(name)
 
+    @mock.patch('pypowervm.utils.transaction.entry_transaction')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
-    def test_rename(self, mock_get_inst):
+    def test_rename(self, mock_get_inst, mock_entry_transaction):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
+
+        mock_entry_transaction.side_effect = lambda x: x
 
         entry = mock.Mock()
         entry.update.return_value = 'NewEntry'
@@ -454,6 +457,7 @@ class TestVM(test.TestCase):
                               entry=entry)
         self.assertEqual('new_name', entry.name)
         entry.update.assert_called_once_with()
+        mock_entry_transaction.assert_called_once_with(mock.ANY)
         self.assertEqual('NewEntry', new_entry)
         self.san_lpar_name.assert_called_with('new_name')
         self.san_lpar_name.reset_mock()
