@@ -649,15 +649,22 @@ def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
         entry = get_instance_wrapper(adapter, instance, host_uuid)
 
     # Get the current state and see if we can stop the VM
+    LOG.debug("Powering off request for instance %(inst)s which is in "
+              "state %(state)s", {'inst': instance.name, 'state': entry.state})
     if entry.state in POWERVM_STOPABLE_STATE:
         # Now stop the lpar
         try:
+            LOG.debug("Power off executing for instance %(inst)s.",
+                      {'inst': instance.name})
             power.power_off(entry, host_uuid, force_immediate=force_immediate,
                             add_parms=add_parms)
         except Exception as e:
             LOG.exception(e)
             raise exception.InstancePowerOffFailure(reason=six.text_type(e))
         return True
+    else:
+        LOG.debug("Power off not required for instance %(inst)s.",
+                  {'inst': instance.name})
 
     return False
 
