@@ -43,10 +43,12 @@ class PowerVMInspector(virt_inspector.Inspector):
     def __init__(self):
         super(PowerVMInspector, self).__init__()
 
-        # Build the adapter to the PowerVM API.
+        # Build the adapter.  May need to attempt the connection multiple times
+        # in case the REST server is starting.
+        session = pvm_adpt.Session(conn_tries=300)
         self.adpt = pvm_adpt.Adapter(
-            pvm_adpt.Session(), helpers=[log_hlp.log_helper,
-                                         vio_hlp.vios_busy_retry_helper])
+            session, helpers=[log_hlp.log_helper,
+                              vio_hlp.vios_busy_retry_helper])
 
         # Get the host system UUID
         host_uuid = self._get_host_uuid(self.adpt)

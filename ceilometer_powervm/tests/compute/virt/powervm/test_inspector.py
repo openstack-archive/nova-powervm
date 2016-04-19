@@ -19,10 +19,43 @@ import mock
 
 from ceilometer.compute.virt import inspector as virt_inspector
 from oslotest import base
+from pypowervm.helpers import log_helper as log_hlp
+from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tests import test_fixtures as api_fx
 
 from ceilometer_powervm.compute.virt.powervm import inspector as p_inspect
 from ceilometer_powervm.tests.compute.virt.powervm import pvm_fixtures
+
+
+class TestPowerVMInspectorInit(base.BaseTestCase):
+    """Tests the initialization of the VM Inspector."""
+
+    @mock.patch('pypowervm.tasks.monitor.util.LparMetricCache')
+    @mock.patch('pypowervm.tasks.monitor.util.ensure_ltm_monitors')
+    @mock.patch('ceilometer_powervm.compute.virt.powervm.inspector.'
+                'PowerVMInspector._get_host_uuid')
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('pypowervm.adapter.Session')
+    def test_init(self, mock_session, mock_adapter, mock_get_host_uuid,
+                  mock_ensure_ltm, mock_cache):
+        # Mock up data
+        mock_get_host_uuid.return_value = 'host_uuid'
+
+        # Invoke
+        inspector = p_inspect.PowerVMInspector()
+
+        # Validate
+        mock_session.assert_called_once_with(conn_tries=300)
+        mock_adapter.assert_called_once_with(
+            mock_session.return_value,
+            helpers=[log_hlp.log_helper, vio_hlp.vios_busy_retry_helper])
+
+        mock_get_host_uuid.assert_called_once_with(mock_adapter.return_value)
+        mock_ensure_ltm.assert_called_once_with(mock_adapter.return_value,
+                                                'host_uuid')
+        mock_cache.assert_called_once_with(mock_adapter.return_value,
+                                           'host_uuid')
+        self.assertEqual(mock_cache.return_value, inspector.vm_metrics)
 
 
 class TestPowerVMInspector(base.BaseTestCase):
