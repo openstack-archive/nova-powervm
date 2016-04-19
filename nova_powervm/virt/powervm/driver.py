@@ -155,7 +155,9 @@ class PowerVMDriver(driver.ComputeDriver):
         LOG.info(_LI("The compute driver has been shutdown."))
 
     def _get_adapter(self):
-        self.session = pvm_apt.Session()
+        # Build the adapter.  May need to attempt the connection multiple times
+        # in case the REST server is starting.
+        self.session = pvm_apt.Session(conn_tries=300)
         self.adapter = pvm_apt.Adapter(
             self.session, helpers=[log_hlp.log_helper,
                                    vio_hlp.vios_busy_retry_helper])
