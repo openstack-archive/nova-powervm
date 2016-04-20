@@ -120,7 +120,12 @@ class NvramManager(object):
         # Remove any pending updates
         self._pop_from_list(uuid=instance.uuid)
         # Remove it from the store
-        self._api.delete(instance)
+        try:
+            self._api.delete(instance)
+        except Exception as e:
+            # Delete exceptions should not end the operation
+            LOG.warning(_LW('Could not delete NVRAM: %s'), e,
+                        instance=instance)
 
     @lockutils.synchronized(LOCK_NVRAM_UPDT_LIST)
     def _add_to_list(self, instance):
