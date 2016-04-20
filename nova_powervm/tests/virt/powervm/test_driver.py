@@ -33,13 +33,15 @@ from nova.tests.unit import fake_instance
 from nova.virt import block_device as nova_virt_bdm
 from nova.virt import driver as virt_driver
 from nova.virt import fake
-import pypowervm.adapter as pvm_adp
-import pypowervm.const as pvm_const
-import pypowervm.exceptions as pvm_exc
-import pypowervm.utils.transaction as pvm_tx
-import pypowervm.wrappers.base_partition as pvm_bp
-import pypowervm.wrappers.logical_partition as pvm_lpar
-import pypowervm.wrappers.virtual_io_server as pvm_vios
+from pypowervm import adapter as pvm_adp
+from pypowervm import const as pvm_const
+from pypowervm import exceptions as pvm_exc
+from pypowervm.helpers import log_helper as log_hlp
+from pypowervm.helpers import vios_busy as vio_hlp
+from pypowervm.utils import transaction as pvm_tx
+from pypowervm.wrappers import base_partition as pvm_bp
+from pypowervm.wrappers import logical_partition as pvm_lpar
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -50,6 +52,39 @@ from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
+
+
+class TestPowerVMDriverInit(test.TestCase):
+    """A test class specifically for the driver setup.
+
+    Handles testing the configuration of the agent with the backing REST API.
+    """
+
+    def setUp(self):
+        super(TestPowerVMDriverInit, self).setUp()
+
+        self.flags(disk_driver='localdisk', group='powervm')
+        self.flags(host='host1', my_ip='127.0.0.1')
+
+    @mock.patch('nova_powervm.virt.powervm.driver.NovaEventHandler')
+    @mock.patch('pypowervm.adapter.Adapter')
+    @mock.patch('pypowervm.adapter.Session')
+    def test_get_adapter(self, mock_session, mock_adapter, mock_evt_handler):
+        # Set up the mocks.
+        mock_evt_listener = (mock_session.return_value.get_event_listener.
+                             return_value)
+        mock_evt_handler.return_value = 'evt_hdlr'
+
+        # Setup and invoke
+        drv = driver.PowerVMDriver(fake.FakeVirtAPI())
+        drv._get_adapter()
+
+        # Assert the appropriate calls
+        mock_session.assert_called_once_with(conn_tries=300)
+        mock_adapter.assert_called_once_with(
+            mock_session.return_value,
+            helpers=[log_hlp.log_helper, vio_hlp.vios_busy_retry_helper])
+        mock_evt_listener.subscribe.assert_called_once_with('evt_hdlr')
 
 
 class TestPowerVMDriver(test.TestCase):
