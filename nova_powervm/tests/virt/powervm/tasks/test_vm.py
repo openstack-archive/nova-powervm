@@ -45,14 +45,6 @@ class TestVMTasks(test.TestCase):
         self.assertEqual(lpar_entry, crt_entry)
         nvram_mgr.fetch.assert_called_once_with(self.instance)
 
-        # No exception is raised if the nvram could not be fetched
-        mock_vm_crt.reset_mock()
-        nvram_mgr.fetch.side_effect = ValueError('Not Available')
-        crt.execute()
-        mock_vm_crt.assert_called_once_with(self.apt, 'host_wrapper',
-                                            self.instance, 'flavor',
-                                            nvram=None)
-
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     def test_resize(self, mock_vm_update):
 

@@ -21,6 +21,7 @@ import time
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm.nvram import fake_api
+from nova_powervm.virt.powervm.nvram import api
 from nova_powervm.virt.powervm.nvram import manager
 from nova_powervm.virt.powervm import vm
 
@@ -29,6 +30,7 @@ class TestNvramManager(test.TestCase):
     def setUp(self):
         super(TestNvramManager, self).setUp()
         self.fake_store = fake_api.NoopNvramStore()
+        self.fake_exp_store = fake_api.ExpNvramStore()
         self.mock_store = self.useFixture(
             fixtures.MockPatchObject(self.fake_store, 'store')).mock
         self.mock_fetch = self.useFixture(
@@ -54,3 +56,9 @@ class TestNvramManager(test.TestCase):
             [mock.call(powervm.TEST_INST1, mock.ANY),
              mock.call(powervm.TEST_INST2, mock.ANY)])
         self.mock_fetch.assert_called_with(powervm.TEST_INST2)
+
+        # Test when fetch returns an exception
+        mgr_exp = manager.NvramManager(self.fake_exp_store,
+                                       mock.Mock(), mock.Mock())
+        self.assertRaises(api.NVRAMDownloadException,
+                          mgr_exp.fetch, powervm.TEST_INST2)
