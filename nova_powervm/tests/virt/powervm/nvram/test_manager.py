@@ -35,6 +35,8 @@ class TestNvramManager(test.TestCase):
             fixtures.MockPatchObject(self.fake_store, 'store')).mock
         self.mock_fetch = self.useFixture(
             fixtures.MockPatchObject(self.fake_store, 'fetch')).mock
+        self.mock_remove = self.useFixture(
+            fixtures.MockPatchObject(self.fake_store, 'delete')).mock
 
     @mock.patch.object(vm, 'get_instance_wrapper')
     def test_manager(self, mock_get_inst):
@@ -44,6 +46,8 @@ class TestNvramManager(test.TestCase):
         mgr.store(powervm.TEST_INST2)
 
         mgr.fetch(powervm.TEST_INST2)
+
+        mgr.remove(powervm.TEST_INST2)
 
         # Simulate a quick repeated stores of the same LPAR by poking the Q.
         mgr._queue.put(powervm.TEST_INST1)
@@ -56,9 +60,14 @@ class TestNvramManager(test.TestCase):
             [mock.call(powervm.TEST_INST1, mock.ANY),
              mock.call(powervm.TEST_INST2, mock.ANY)])
         self.mock_fetch.assert_called_with(powervm.TEST_INST2)
+        self.mock_remove.assert_called_with(powervm.TEST_INST2)
 
         # Test when fetch returns an exception
         mgr_exp = manager.NvramManager(self.fake_exp_store,
                                        mock.Mock(), mock.Mock())
         self.assertRaises(api.NVRAMDownloadException,
                           mgr_exp.fetch, powervm.TEST_INST2)
+
+        # Test exception being logged but not raised during remove
+        mgr_exp.remove(powervm.TEST_INST2)
+        self.mock_remove.assert_called_with(powervm.TEST_INST2)

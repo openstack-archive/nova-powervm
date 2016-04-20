@@ -53,4 +53,15 @@ class ExpNvramStore(NoopNvramStore):
         :param instance: instance object
         :returns: the NVRAM data base64 encoded string
         """
+        # Raise exception. This is to ensure fetch causes a failure
+        # when an exception is raised
+        raise Exception('Error')
+
+    def delete(self, instance):
+        """Delete the NVRAM from the storage service.
+
+        :param instance: instance object
+        """
+        # Raise excpetion. This is to ensure delete does not fail
+        # despite an exception being raised
         raise Exception('Error')
