@@ -489,23 +489,27 @@ class TestVM(test.TestCase):
 
     @mock.patch('pypowervm.tasks.power.power_off')
     def test_power_off(self, mock_power_off):
+        instance = objects.Instance(**powervm.TEST_INSTANCE)
+
         self.assertFalse(vm.power_off(
-            None, None, 'host_uuid',
+            None, instance, 'host_uuid',
             mock.Mock(state=pvm_bp.LPARState.NOT_ACTIVATED)))
         self.assertFalse(mock_power_off.called)
 
-        stop_states = [pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
-                       pvm_bp.LPARState.OPEN_FIRMWARE, pvm_bp.LPARState.ERROR,
-                       pvm_bp.LPARState.RESUMING]
+        stop_states = [
+            pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
+            pvm_bp.LPARState.OPEN_FIRMWARE, pvm_bp.LPARState.SHUTTING_DOWN,
+            pvm_bp.LPARState.ERROR, pvm_bp.LPARState.RESUMING,
+            pvm_bp.LPARState.SUSPENDING]
         for stop_state in stop_states:
             entry = mock.Mock(state=stop_state)
             mock_power_off.reset_mock()
-            self.assertTrue(vm.power_off(None, None, 'host_uuid', entry))
+            self.assertTrue(vm.power_off(None, instance, 'host_uuid', entry))
             mock_power_off.assert_called_once_with(entry, 'host_uuid',
                                                    force_immediate=False,
                                                    add_parms=None)
             mock_power_off.reset_mock()
-            self.assertTrue(vm.power_off(None, None, 'host_uuid', entry,
+            self.assertTrue(vm.power_off(None, instance, 'host_uuid', entry,
                                          force_immediate=True))
             mock_power_off.assert_called_once_with(entry, 'host_uuid',
                                                    force_immediate=True,
@@ -514,13 +518,14 @@ class TestVM(test.TestCase):
     @mock.patch('pypowervm.tasks.power.power_off')
     def test_power_off_negative(self, mock_power_off):
         """Negative tests."""
+        instance = objects.Instance(**powervm.TEST_INSTANCE)
 
         # Raise the expected pypowervm exception
         mock_power_off.side_effect = pvm_exc.VMPowerOffFailure(
             reason='Something bad.', lpar_nm='TheLPAR')
         # We should get a valid Nova exception that the compute manager expects
         self.assertRaises(exception.InstancePowerOffFailure,
-                          vm.power_off, None, None, 'host_uuid',
+                          vm.power_off, None, instance, 'host_uuid',
                           mock.Mock(state=pvm_bp.LPARState.RUNNING))
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
