@@ -496,9 +496,11 @@ class TestVM(test.TestCase):
             mock.Mock(state=pvm_bp.LPARState.NOT_ACTIVATED)))
         self.assertFalse(mock_power_off.called)
 
-        stop_states = [pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
-                       pvm_bp.LPARState.OPEN_FIRMWARE, pvm_bp.LPARState.ERROR,
-                       pvm_bp.LPARState.RESUMING]
+        stop_states = [
+            pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
+            pvm_bp.LPARState.OPEN_FIRMWARE, pvm_bp.LPARState.SHUTTING_DOWN,
+            pvm_bp.LPARState.ERROR, pvm_bp.LPARState.RESUMING,
+            pvm_bp.LPARState.SUSPENDING]
         for stop_state in stop_states:
             entry = mock.Mock(state=stop_state)
             mock_power_off.reset_mock()

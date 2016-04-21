@@ -94,10 +94,12 @@ RESUMING_EVENTS = [
     pvm_bp.LPARState.RESUMING,
 ]
 
-POWERVM_STARTABLE_STATE = (pvm_bp.LPARState.NOT_ACTIVATED)
-POWERVM_STOPABLE_STATE = (pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
-                          pvm_bp.LPARState.OPEN_FIRMWARE,
-                          pvm_bp.LPARState.ERROR, pvm_bp.LPARState.RESUMING)
+POWERVM_STARTABLE_STATE = (pvm_bp.LPARState.NOT_ACTIVATED, )
+POWERVM_STOPABLE_STATE = (
+    pvm_bp.LPARState.RUNNING, pvm_bp.LPARState.STARTING,
+    pvm_bp.LPARState.OPEN_FIRMWARE, pvm_bp.LPARState.SHUTTING_DOWN,
+    pvm_bp.LPARState.ERROR, pvm_bp.LPARState.RESUMING,
+    pvm_bp.LPARState.SUSPENDING)
 
 
 def translate_event(pvm_state, pwr_state):
@@ -650,7 +652,9 @@ def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
 
     # Get the current state and see if we can stop the VM
     LOG.debug("Powering off request for instance %(inst)s which is in "
-              "state %(state)s", {'inst': instance.name, 'state': entry.state})
+              "state %(state)s.  Force Immediate Flag: %(force)s.",
+              {'inst': instance.name, 'state': entry.state,
+               'force': force_immediate})
     if entry.state in POWERVM_STOPABLE_STATE:
         # Now stop the lpar
         try:
