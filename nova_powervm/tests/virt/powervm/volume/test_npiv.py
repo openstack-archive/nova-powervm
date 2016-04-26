@@ -248,7 +248,8 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Set state to REBUILD_SPAWNING and that should return this is as
         # an intial wwpn
         self.vol_drv.instance.task_state = task_states.REBUILD_SPAWNING
-        self.assertTrue(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
+        self.assertTrue(self.vol_drv._is_initial_wwpn(npiv.FS_INST_MAPPED,
+                                                      'a'))
 
         # Set a good task state, but fails due to the WWPNs already being
         # hosted
@@ -353,6 +354,27 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
                          self.vol_drv.instance.system_metadata[meta_key])
         self.assertEqual(1, mock_derive.call_count)
         self.assertTrue(self.vol_drv.instance.save.called)
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.build_wwpn_pair')
+    @mock.patch('pypowervm.tasks.vfc_mapper.derive_npiv_map')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_meta')
+    def test_wwpns_on_rebuild(self, mock_fabric_meta, mock_derive,
+                              mock_build):
+        # Mock Data
+        mock_derive.return_value = [('21000024FF649104', 'AA BB'),
+                                    ('21000024FF649105', 'CC DD')]
+        self.vol_drv.instance.host = CONF.host
+        self.vol_drv.instance.task_state = task_states.REBUILD_SPAWNING
+        self.vol_drv.instance.system_metadata = {
+            self.vol_drv._sys_meta_fabric_key('A'): 'phys1,a,b,phys2,c,d',
+            self.vol_drv._sys_fabric_state_key('A'): npiv.FS_INST_MAPPED}
+
+        # Invoke and Verify
+        self.assertListEqual(['AA', 'CC'], self.vol_drv.wwpns())
+        # call again
+        self.assertListEqual(['AA', 'CC'], self.vol_drv.wwpns())
+        self.assertEqual(1, mock_fabric_meta.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_get_fabric_state')
