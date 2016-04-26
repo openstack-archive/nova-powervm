@@ -241,7 +241,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         # For RR we generate new wwpns so that the vm on the source loses
         # access to the disk if it comes back up again.
-        if self.instance.task_state == task_states.REBUILD_SPAWNING:
+        if (self.instance.task_state == task_states.REBUILD_SPAWNING and
+                fc_state != FS_UNMAPPED):
             return True
 
         # Easy fabric state check.  If its a state other than unmapped, it
@@ -383,7 +384,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 self._set_fabric_meta(fabric, port_maps)
                 self._set_fabric_state(fabric, FS_UNMAPPED)
                 self.instance.save()
-            elif self._is_migration_wwpn(fc_state):
+            elif self._is_migration_wwpn(fc_state) and not (
+                    self.instance.task_state
+                    in [task_states.REBUILDING, task_states.REBUILD_SPAWNING]):
                 # The migration process requires the 'second' wwpn from the
                 # fabric to be used.
                 port_maps = self._configure_wwpns_for_migration(fabric)
