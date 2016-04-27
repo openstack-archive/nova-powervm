@@ -112,9 +112,18 @@ class HostCPUStats(pcm_util.MetricCache):
         :param host_uuid: The UUID of the host CEC to maintain a metrics
                           cache for.
         """
-        # A dictionary to store the number of cycles spent.  This is defined
-        # in the _update_internal_metric method.
-        self.cur_data, self.prev_data = None, None
+        # This represents the current state of cycles spent on the system.
+        # These are used to figure out usage statistics.  As such, they are
+        # tied to the start of the nova compute process.
+        #
+        # - idle: Total idle cycles on the compute host.
+        # - kernel: How many cycles the hypervisor has consumed.  Not a direct
+        #           analogy to KVM
+        # - user: The amount of time spent by the VM's themselves.
+        # - iowait: Not used in PowerVM, but needed for nova.
+        # - frequency: The CPU frequency
+        self.tot_data = {'idle': 0, 'kernel': 0, 'user': 0, 'iowait': 0,
+                         'frequency': 0}
 
         # Invoke the parent to seed the metrics.  Don't include VIO - will
         # result in quicker calls.
@@ -136,7 +145,7 @@ class HostCPUStats(pcm_util.MetricCache):
         # Return the dictionary format of the cycles as derived by the
         # _update_internal_metric method.  If there is no data yet, None would
         # be the result.
-        return self.cur_data
+        return self.tot_data
 
     def _update_internal_metric(self):
         """Uses the latest stats from the cache, and parses to Nova format.
@@ -147,53 +156,53 @@ class HostCPUStats(pcm_util.MetricCache):
         # If there is no 'new' data (perhaps sampling is not turned on) then
         # return no data.
         if self.cur_phyp is None:
-            self.cur_data = None
             return
 
-        # Move the current data to the previous.  The previous data is used
-        # for some internal calculations.  Blank out the current data just
-        # in case of error.  Don't want to persist two copies of same.
-        self.prev_data, self.cur_data = self.cur_data, None
+        # Compute the cycles spent in FW since last collection.
+        fw_cycles_delta = self._get_fw_cycles_delta()
 
-        # Now we need the firmware cycles.
-        fw_cycles = self.cur_phyp.sample.system_firmware.utilized_proc_cycles
+        # Compute the cycles the system spent since last run.
+        tot_cycles_delta = self._get_total_cycles_delta()
 
-        # Compute the max cycles.
-        tot_cycles = self._get_total_cycles()
-
-        # Get the total user cycles.
-        user_cycles = self._gather_user_cycles()
+        # Get the user cycles since last run
+        user_cycles_delta = self._gather_user_cycles_delta()
 
         # Make sure that the total cycles is higher than the user/fw cycles.
         # Should not happen, but just in case there is any precision loss from
         # CPU data back to system.
-        if user_cycles + fw_cycles > tot_cycles:
-            LOG.warning(_LW("Host CPU Metrics determined that the total "
-                            "cycles reported was less than the used cycles.  "
-                            "This indicates an issue with the PCM data.  "
-                            "Please investigate the results."))
-            tot_cycles = user_cycles + fw_cycles
+        if user_cycles_delta + fw_cycles_delta > tot_cycles_delta:
+            LOG.warning(_LW(
+                "Host CPU Metrics determined that the total cycles reported "
+                "was less than the used cycles.  This indicates an issue with "
+                "the PCM data.  Please investigate the results.\n"
+                "Total Delta Cycles: %(tot_cycles)d\n"
+                "User Delta Cycles: %(user_cycles)d\n"
+                "Firmware Delta Cycles: %(fw_cycles)d"),
+                {'tot_cycles': tot_cycles_delta, 'fw_cycles': fw_cycles_delta,
+                 'user_cycles': user_cycles_delta})
+            tot_cycles_delta = user_cycles_delta + fw_cycles_delta
 
         # Idle is the subtraction of all.
-        idle_cycles = tot_cycles - user_cycles - fw_cycles
+        idle_delta_cycles = (tot_cycles_delta - user_cycles_delta -
+                             fw_cycles_delta)
 
-        # Get the processor frequency.
-        freq = self._get_cpu_freq()
+        # The only moving cycles are idle, kernel and user.
+        self.tot_data['idle'] += idle_delta_cycles
+        self.tot_data['kernel'] += fw_cycles_delta
+        self.tot_data['user'] += user_cycles_delta
 
-        # Now save these cycles to the internal data structure.
-        self.cur_data = {'idle': idle_cycles, 'kernel': fw_cycles,
-                         'user': user_cycles, 'iowait': 0, 'frequency': freq}
+        # Frequency doesn't accumulate like the others.  So this stays static.
+        self.tot_data['frequency'] = self._get_cpu_freq()
 
-    def _gather_user_cycles(self):
-        """The estimated total user cycles.
+    def _gather_user_cycles_delta(self):
+        """The estimated user cycles of all VMs/VIOSes since last run.
 
         The sample data includes information about how much CPU has been used
         by workloads and the Virtual I/O Servers.  There is not one global
         counter that can be used to obtain the CPU spent cycles.
 
         This method will calculate the delta of workload (and I/O Server)
-        cycles between the previous sample and the current sample, and then
-        add it to the previous 'user cycles'.
+        cycles between the previous sample and the current sample.
 
         There are edge cases for this however.  If a VM is deleted or migrated
         its cycles will no longer be taken into account.  The algorithm takes
@@ -220,11 +229,7 @@ class HostCPUStats(pcm_util.MetricCache):
         vios_delta_cycles = self._delta_proc_cycles(vios_cur_samples,
                                                     vios_prev_samples)
 
-        # The used cycles is the total of used cycles from before along with
-        # the new delta cycles.
-        prev_user_cycles = (0 if self.prev_data is None
-                            else self.prev_data['user'])
-        return prev_user_cycles + vm_delta_cycles + vios_delta_cycles
+        return vm_delta_cycles + vios_delta_cycles
 
     @staticmethod
     def _get_cpu_freq():
@@ -270,11 +275,20 @@ class HostCPUStats(pcm_util.MetricCache):
         # included.
         if prev_sample is None:
             return 0
+        # If the previous sample values are all 0 (happens when VM is just
+        # migrated, phyp creates entry for VM with 0 values), then ignore the
+        # sample.
+        if (prev_sample.processor.util_cap_proc_cycles ==
+                prev_sample.processor.util_uncap_proc_cycles ==
+                prev_sample.processor.donated_proc_cycles == 0):
+            return 0
 
         prev_amount = (prev_sample.processor.util_cap_proc_cycles +
-                       prev_sample.processor.util_uncap_proc_cycles)
+                       prev_sample.processor.util_uncap_proc_cycles -
+                       prev_sample.processor.donated_proc_cycles)
         cur_amount = (cur_sample.processor.util_cap_proc_cycles +
-                      cur_sample.processor.util_uncap_proc_cycles)
+                      cur_sample.processor.util_uncap_proc_cycles -
+                      cur_sample.processor.donated_proc_cycles)
         return cur_amount - prev_amount
 
     @staticmethod
@@ -293,16 +307,30 @@ class HostCPUStats(pcm_util.MetricCache):
                 return prev_sample
         return None
 
-    def _get_total_cycles(self):
-        """Returns the 'total cycles' on the system.
+    def _get_total_cycles_delta(self):
+        """Returns the 'total cycles' on the system since last sample.
 
-        :return: The estimated total cycles spent
+        :return: The total delta cycles since the last run.
         """
         sample = self.cur_phyp.sample
+        cur_cores = sample.processor.configurable_proc_units
+        cur_cycles_per_core = sample.time_based_cycles
 
-        # Gather the estimated cycle count
-        total_procs = sample.processor.configurable_proc_units
-        cycles_per_sec = sample.time_based_cycles
-        est_total_cycles_per_sec = total_procs * cycles_per_sec
+        if self.prev_phyp:
+            prev_cycles_per_core = self.prev_phyp.sample.time_based_cycles
+        else:
+            prev_cycles_per_core = 0
 
-        return est_total_cycles_per_sec
+        # Get the delta cycles between the cores.
+        delta_cycles_per_core = cur_cycles_per_core - prev_cycles_per_core
+
+        # Total cycles since last sample is the 'per cpu' cycles spent
+        # times the number of active cores.
+        return delta_cycles_per_core * cur_cores
+
+    def _get_fw_cycles_delta(self):
+        """Returns the number of cycles spent on firmware since last sample."""
+        cur_fw = self.cur_phyp.sample.system_firmware.utilized_proc_cycles
+        prev_fw = (self.prev_phyp.sample.system_firmware.utilized_proc_cycles
+                   if self.prev_phyp else 0)
+        return cur_fw - prev_fw
