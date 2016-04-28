@@ -10,7 +10,7 @@ INSTALL_PYPOWERVM=$(trueorfalse False INSTALL_PYPOWERVM)
 PVM_ADMIN_GROUP=${PVM_ADMIN_GROUP:-pvm_admin}
 
 # Nova settings
-PVM_DRIVER=nova_powervm.virt.powervm.driver.PowerVMDriver
+PVM_DRIVER=powervm.driver.PowerVMDriver
 INSTANCE_NAME_TEMPLATE=${INSTANCE_NAME_TEMPLATE:-"%(display_name).13s-%(uuid).8s-pvm"}
 COMPUTE_MONITORS=${COMPUTE_MONITORS:-nova.compute.monitors.all_monitors}
 FORCE_CONFIG_DRIVE=${FORCE_CONFIG_DRIVE:-True}
