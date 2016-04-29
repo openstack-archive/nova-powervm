@@ -1079,14 +1079,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         disk_info = {}
 
-        # We may be passed a flavor that is in dict format, but the
-        # downstream code is expecting an object, so convert it.
-        if flavor and not isinstance(flavor, flavor_obj.Flavor):
-            flav_obj = flavor_obj.Flavor.get_by_id(context, flavor['id'])
-        else:
-            flav_obj = flavor
-
-        if flav_obj and flav_obj.root_gb < instance.root_gb:
+        if flavor and flavor.root_gb < instance.root_gb:
             raise exception.InstanceFaultRollback(
                 exception.ResizeError(reason=_('Cannot reduce disk size.')))
 
@@ -1121,10 +1114,10 @@ class PowerVMDriver(driver.ComputeDriver):
             # latest.
             flow.add(tf_vm.StoreNvram(self.nvram_mgr, instance,
                      immediate=True))
-        if flav_obj.root_gb > instance.root_gb:
+        if flavor.root_gb > instance.root_gb:
             # Resize the root disk
             flow.add(tf_stg.ExtendDisk(self.disk_dvr, context, instance,
-                                       dict(type='boot'), flav_obj.root_gb))
+                                       dict(type='boot'), flavor.root_gb))
 
         # Disconnect any volumes that are attached.  They are reattached
         # on the new VM (or existing VM if this is just a resize.)
@@ -1214,10 +1207,6 @@ class PowerVMDriver(driver.ComputeDriver):
                 raise exception.InstanceFaultRollback(
                     exception.ResizeError(reason=reason))
 
-        # Get the new flavor
-        flav_obj = flavor_obj.Flavor.get_by_id(
-            context, migration.new_instance_type_id)
-
         # Extract the block devices.
         bdms = self._extract_bdm(block_device_info)
 
@@ -1237,13 +1226,13 @@ class PowerVMDriver(driver.ComputeDriver):
             # This is just a resize.
             new_name = self._gen_resize_name(instance, same_host=True)
             flow.add(tf_vm.Resize(self.adapter, self.host_wrapper, instance,
-                                  flav_obj, name=new_name))
+                                  instance.flavor, name=new_name))
         else:
             # This is a migration over to another host.  We have a lot of work.
 
             # Create the LPAR
             flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
-                                  flav_obj, stg_ftsk,
+                                  instance.flavor, stg_ftsk,
                                   nvram_mgr=self.nvram_mgr))
 
             # Create a flow for the network IO
@@ -1319,18 +1308,17 @@ class PowerVMDriver(driver.ComputeDriver):
                          otherwise
         """
         self._log_operation('revert resize/migration', instance)
+
         # This method is always run on the source host, so we just need to
         # revert the VM back to it's old sizings, if it was even changed
         # at all.  If it was a migration, then it wasn't changed but it
         # shouldn't hurt to "update" it with the prescribed flavor.  This
         # makes it easy to handle both resize and migrate.
-
-        # Get the flavor from the instance, so we can revert it
-        admin_ctx = ctx.get_admin_context(read_deleted='yes')
-        flav_obj = flavor_obj.Flavor.get_by_id(
-            admin_ctx, instance.instance_type_id)
+        #
+        # The flavor should be the 'old' flavor now.
         vm.power_off(self.adapter, instance, self.host_uuid)
-        vm.update(self.adapter, self.host_wrapper, instance, flav_obj)
+        vm.update(self.adapter, self.host_wrapper, instance,
+                  instance.flavor)
 
         if power_on:
             vm.power_on(self.adapter, instance, self.host_uuid)
