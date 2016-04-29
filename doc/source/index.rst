@@ -38,6 +38,7 @@ Contents:
     :maxdepth: 1
 
     readme
+    support-matrix
 
 Nova-PowerVM Policies
 =====================
