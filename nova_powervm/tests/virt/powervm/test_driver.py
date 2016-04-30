@@ -1213,6 +1213,45 @@ class TestPowerVMDriver(test.TestCase):
             taskflow_fix.assert_tasks_added(self, expected)
         self.san_lpar_name.assert_called_with('resize_' + self.inst.name)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.update')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    def test_finish_revert_migration(self, mock_off, mock_update, mock_on):
+        """Validates that the finish revert migration works."""
+        mock_flavor = mock.Mock()
+        mock_instance = mock.Mock(flavor=mock_flavor)
+
+        # Validate with a default power on
+        self.drv.finish_revert_migration('context', mock_instance, None)
+
+        # Asserts
+        mock_off.assert_called_once_with(
+            self.apt, mock_instance, self.drv.host_uuid)
+        mock_update.assert_called_once_with(
+            self.apt, self.drv.host_wrapper, mock_instance, mock_flavor)
+        mock_on.assert_called_once_with(
+            self.apt, mock_instance, self.drv.host_uuid)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.update')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    def test_finish_revert_migration_no_power_on(self, mock_off, mock_update,
+                                                 mock_on):
+        """Validates that the finish revert migration works, no power_on."""
+        mock_flavor = mock.Mock()
+        mock_instance = mock.Mock(flavor=mock_flavor)
+
+        # Validate with power_on set to false
+        self.drv.finish_revert_migration(
+            'context', mock_instance, None, power_on=False)
+
+        # Asserts
+        mock_off.assert_called_once_with(
+            self.apt, mock_instance, self.drv.host_uuid)
+        mock_update.assert_called_once_with(
+            self.apt, self.drv.host_wrapper, mock_instance, mock_flavor)
+        self.assertFalse(mock_on.called)
+
     @mock.patch('nova_powervm.virt.powervm.vm')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.power')
