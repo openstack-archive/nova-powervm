@@ -124,6 +124,9 @@ class PowerVMDriver(driver.ComputeDriver):
         self.mp_uuid = pvm_par.get_this_partition(self.adapter).uuid
         LOG.debug("Driver found compute partition UUID of: %s" % self.mp_uuid)
 
+        # Make sure the Virtual I/O Server(s) are available.
+        vios.validate_vios_ready(self.adapter, self.host_uuid)
+
         # Initialize the disk adapter.  Sets self.disk_dvr
         self._get_disk_adapter()
         self.image_api = image.API()

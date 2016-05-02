@@ -114,3 +114,12 @@ class VolumePreMigrationFailed(nex.NovaException):
 class PowerVMAPIFailed(nex.NovaException):
     msg_fmt = _("PowerVM API Failed to complete for instance=%(inst_name)s."
                 "%(reason)s")
+
+
+class ViosNotAvailable(nex.NovaException):
+    msg_fmt = _("No Virtual I/O Servers are available.  The driver attempted "
+                "to wait for a VIOS to become active for %(wait_time)d "
+                "seconds.  The compute agent is not able to start if no "
+                "Virtual I/O Servers are available.  Please check the RMC "
+                "connectivity between the PowerVM NovaLink and the Virtual "
+                "I/O Servers and then restart the Nova Compute Agent.")

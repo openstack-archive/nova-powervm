@@ -15,6 +15,7 @@
 #    under the License.
 
 from oslo_log import log as logging
+import retrying
 
 from pypowervm import const as pvm_const
 from pypowervm.utils import transaction as pvm_tx
@@ -22,8 +23,12 @@ from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from nova_powervm import conf as cfg
+from nova_powervm.virt.powervm import exception as nova_pvm_exc
+
 
 LOG = logging.getLogger(__name__)
+CONF = cfg.CONF
 
 # RMC must be either active or busy.  Busy is allowed because that simply
 # means that something is running against the VIOS at the moment...but
@@ -99,3 +104,32 @@ def build_tx_feed_task(adapter, host_uuid, name='vio_feed_mgr',
     """
     return pvm_tx.FeedTask(name,
                            get_active_vioses(adapter, host_uuid, xag=xag))
+
+
+def validate_vios_ready(adapter, host_uuid):
+    """Check whether VIOS rmc is up and running on this host.
+
+    Will query the VIOSes for a period of time and ensure that at least
+    one is active and available on the system before returning.  If no
+    VIOSes are ready by the timeout, it will raise an exception.
+
+    The timeout is defined by the vios_active_wait_timeout conf option.
+
+    :param adapter: The pypowervm adapter for the query.
+    :param host_uuid: The host server's UUID.
+    :raises: A ViosNotAvailable exception if a VIOS is not available by a
+             given timeout.
+    """
+    max_wait_time = CONF.powervm.vios_active_wait_timeout
+
+    @retrying.retry(retry_on_result=lambda result: len(result) == 0,
+                    wait_fixed=5 * 1000,
+                    stop_max_delay=max_wait_time * 1000)
+    def _get_active_vioses():
+        try:
+            return get_active_vioses(adapter, host_uuid)
+        except Exception:
+            return []
+
+    if len(_get_active_vioses()) == 0:
+        raise nova_pvm_exc.ViosNotAvailable(wait_time=max_wait_time)
