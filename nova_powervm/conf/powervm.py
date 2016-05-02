@@ -73,7 +73,11 @@ powervm_opts = [
                      "RMC network interface with an IPv6 link local address. "
                      "This is generally set to True, but users may wish to "
                      "turn this off if their operating system has "
-                     "compatibility issues.")
+                     "compatibility issues."),
+    cfg.IntOpt('vios_active_wait_timeout',
+               default=300,
+               help="Default time in seconds to wait for Virtual I/O Server "
+                    "to be up and running.")
 ]
 
 localdisk_opts = [

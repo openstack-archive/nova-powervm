@@ -90,6 +90,12 @@ class PowerVMComputeDriver(fixtures.Fixture):
             MS_HTTPRESP_FILE, adapter=mock.Mock()).get_response()
         # Pretend it just returned one host
         ms_http.feed.entries = [ms_http.feed.entries[0]]
+
+        # Mock active vios
+        self.get_active_vios = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.vios.get_active_vioses')).mock
+        self.get_active_vios.return_value = ['mock_vios']
+
         self.drv.adapter.read.return_value = ms_http
         self.drv.session = self.drv.adapter.session
         self.drv.init_host('FakeHost')
