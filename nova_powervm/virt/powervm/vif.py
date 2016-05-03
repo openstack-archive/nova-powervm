@@ -27,8 +27,11 @@ from oslo_config import cfg
 from oslo_utils import importutils
 from pypowervm.tasks import cna as pvm_cna
 from pypowervm.tasks import partition as pvm_par
+from pypowervm import util as pvm_util
+from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
@@ -409,12 +412,11 @@ class PvmLBVifDriver(PvmLioVifDriver):
         # Find and delete the trunk adapters
         trunks = pvm_cna.find_trunks(self.adapter, cna_w)
 
+        dev_name = self.get_trunk_dev_name(vif)
+        utils.execute('ip', 'link', 'set', dev_name, 'down', run_as_root=True)
+        utils.execute('brctl', 'delif', vif['network']['bridge'],
+                      dev_name, run_as_root=True)
         for trunk in trunks:
-            dev_name = self.get_trunk_dev_name(vif)
-            utils.execute('ip', 'link', 'set', dev_name, 'down',
-                          run_as_root=True)
-            utils.execute('brctl', 'delif', vif['network']['bridge'],
-                          dev_name, run_as_root=True)
             trunk.delete()
 
         # Now delete the client CNA
@@ -485,9 +487,9 @@ class PvmOvsVifDriver(PvmLioVifDriver):
 
         # Find and delete the trunk adapters
         trunks = pvm_cna.find_trunks(self.adapter, cna_w)
+        dev = self.get_trunk_dev_name(vif)
+        linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
         for trunk in trunks:
-            dev = self.get_trunk_dev_name(trunk)
-            linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
             trunk.delete()
 
         # Now delete the client CNA
@@ -500,11 +502,40 @@ class PvmOvsVifDriver(PvmLioVifDriver):
 
         :param vif: The virtual interface that was migrated.
         """
-        # TODO(thorst) This needs to do two steps:
-        # 1) Identify the migrated VEA.  Find a new VLAN for it, update PVID
-        # and assign trunk.
-        # 2) Re-enable the client VEA
-        pass
+        # 1) Find a free vlan to use
+        # 2) Update the migrated CNA to use the new vlan that was found
+        #    and ensure that the CNA is enabled
+        # 3) Create a trunk adapter on the destination of the migration
+        #    using the same vlan as the CNA
+
+        mgmt_uuid = pvm_par.get_this_partition(self.adapter).uuid
+        dev_name = self.get_trunk_dev_name(vif)
+        mac = pvm_util.sanitize_mac_for_api(vif['address'])
+
+        # Get vlan
+        vswitch_w = pvm_net.VSwitch.search(
+            self.adapter, parent_type=pvm_ms.System.schema_type,
+            one_result=True, parent_uuid=self.host_uuid,
+            name=CONF.powervm.pvm_vswitch_for_ovs)
+        cna = pvm_net.CNA.search(
+            self.adapter, mac=mac, one_result=True, parent_type=pvm_lpar.LPAR,
+            parent_uuid=vm.get_pvm_uuid(self.instance))
+
+        # Assigns a free vlan (which is returned) to the cna_list
+        # also enable the cna
+        cna = pvm_cna.assign_free_vlan(
+            self.adapter, self.host_uuid, vswitch_w, cna)
+        # Create a trunk with the vlan_id
+        trunk_adpt = pvm_net.CNA.bld(
+            self.adapter, cna.pvid, vswitch_w.related_href, trunk_pri=1,
+            dev_name=dev_name)
+        trunk_adpt.create(
+            parent_type=pvm_vios.VIOS, parent_uuid=mgmt_uuid)
+
+        utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
+        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev_name,
+                                      self.get_ovs_interfaceid(vif),
+                                      vif['address'], self.instance.uuid)
 
     @lockutils.synchronized("post_migration_pvm_ovs")
     def post_live_migrate_at_source(self, vif):
@@ -517,7 +548,7 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         # Deletes orphaned trunks
         orphaned_trunks = pvm_cna.find_orphaned_trunks(
             self.adapter, CONF.powervm.pvm_vswitch_for_ovs)
+        dev = self.get_trunk_dev_name(vif)
+        linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
         for orphan in orphaned_trunks:
-            dev = self.get_trunk_dev_name(orphan)
-            linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
             orphan.delete()
