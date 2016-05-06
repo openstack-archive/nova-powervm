@@ -320,8 +320,8 @@ class TestSSPDiskAdapter(test.TestCase):
                 '_any_vios_uuid')
     @mock.patch('nova_powervm.virt.powervm.disk.driver.DiskAdapter.'
                 '_get_disk_name')
-    @mock.patch('pypowervm.tasks.storage.crt_lu_linked_clone')
-    def test_create_disk_from_image(self, mock_crt_lulc, mock_gdn, mock_vuuid,
+    @mock.patch('pypowervm.tasks.storage.crt_lu')
+    def test_create_disk_from_image(self, mock_crt_lu, mock_gdn, mock_vuuid,
                                     mock_gin, mock_goru):
         context = mock.Mock()
         instance = mock.Mock()
@@ -333,7 +333,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         ssp = self._get_ssp_stor()
         mock_goru.return_value = image_lu
-        mock_crt_lulc.return_value = ssp._ssp_wrap, boot_lu
+        mock_crt_lu.return_value = ssp._ssp_wrap, boot_lu
 
         # Default image_type
         self.assertEqual(boot_lu, ssp.create_disk_from_image(
@@ -342,14 +342,13 @@ class TestSSPDiskAdapter(test.TestCase):
             self.mock_get_tier.return_value, mock_gin.return_value,
             mock_vuuid.return_value, mock.ANY, img_meta.size)
         mock_gdn.assert_called_once_with(disk_dvr.DiskType.BOOT, instance)
-        mock_crt_lulc.assert_called_once_with(
-            self.mock_get_tier.return_value, ssp._cluster, image_lu,
-            mock_gdn.return_value, disk_size_gb)
-
+        mock_crt_lu.assert_called_once_with(
+            self.mock_get_tier.return_value, mock_gdn.return_value,
+            disk_size_gb, typ=pvm_stg.LUType.DISK, clone=image_lu)
         # Reset
         mock_goru.reset_mock()
         mock_gdn.reset_mock()
-        mock_crt_lulc.reset_mock()
+        mock_crt_lu.reset_mock()
 
         # Specified image_type
         self.assertEqual(boot_lu, ssp.create_disk_from_image(
@@ -358,9 +357,9 @@ class TestSSPDiskAdapter(test.TestCase):
             self.mock_get_tier.return_value, mock_gin.return_value,
             mock_vuuid.return_value, mock.ANY, img_meta.size)
         mock_gdn.assert_called_once_with(image_type, instance)
-        mock_crt_lulc.assert_called_once_with(
-            self.mock_get_tier.return_value, ssp._cluster, image_lu,
-            mock_gdn.return_value, disk_size_gb)
+        mock_crt_lu.assert_called_once_with(
+            self.mock_get_tier.return_value, mock_gdn.return_value,
+            disk_size_gb, typ=pvm_stg.LUType.DISK, clone=image_lu)
 
     def test_get_image_name(self):
         """Generate image name from ImageMeta."""
