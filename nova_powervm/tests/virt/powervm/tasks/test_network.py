@@ -62,17 +62,19 @@ class TestNetwork(test.TestCase):
 
         # Mock out the vif driver
         def validate_unplug(adapter, host_uuid, instance, vif,
-                            cna_w_list=None):
+                            slot_mgr, cna_w_list=None):
             self.assertEqual(adapter, self.apt)
             self.assertEqual('host_uuid', host_uuid)
             self.assertEqual(instance, inst)
             self.assertIn(vif, net_info)
+            self.assertEqual('slot_mgr', slot_mgr)
             self.assertEqual(cna_w_list, cnas)
 
         mock_unplug.side_effect = validate_unplug
 
         # Run method
-        p_vifs = tf_net.UnplugVifs(self.apt, inst, net_info, 'host_uuid')
+        p_vifs = tf_net.UnplugVifs(self.apt, inst, net_info, 'host_uuid',
+                                   'slot_mgr')
         p_vifs.execute(self.mock_lpar_wrap)
 
         # Make sure the unplug was invoked, so that we know that the validation
@@ -87,7 +89,8 @@ class TestNetwork(test.TestCase):
         self.mock_lpar_wrap.can_modify_io.return_value = False, 'bad'
 
         # Run method
-        p_vifs = tf_net.UnplugVifs(self.apt, inst, mock.Mock(), 'host_uuid')
+        p_vifs = tf_net.UnplugVifs(self.apt, inst, mock.Mock(), 'host_uuid',
+                                   'slot_mgr')
         self.assertRaises(tf_net.VirtualInterfaceUnplugException,
                           p_vifs.execute, self.mock_lpar_wrap)
 
@@ -110,7 +113,7 @@ class TestNetwork(test.TestCase):
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
-                                 'host_uuid')
+                                 'host_uuid', 'slot_mgr')
         p_vifs.execute(self.mock_lpar_wrap)
 
         # The create should have only been called once.
@@ -133,7 +136,7 @@ class TestNetwork(test.TestCase):
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
-                                 'host_uuid')
+                                 'host_uuid', 'slot_mgr')
         resp = p_vifs.execute(self.mock_lpar_wrap)
 
         # The create should not have been called.  The response should have
@@ -160,7 +163,7 @@ class TestNetwork(test.TestCase):
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
-                                 'host_uuid')
+                                 'host_uuid', 'slot_mgr')
         self.assertRaises(exception.VirtualInterfaceCreateException,
                           p_vifs.execute, self.mock_lpar_wrap)
 
@@ -184,7 +187,7 @@ class TestNetwork(test.TestCase):
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
-                                 'host_uuid')
+                                 'host_uuid', 'slot_mgr')
         self.assertRaises(exception.VirtualInterfaceCreateException,
                           p_vifs.execute, self.mock_lpar_wrap)
 
@@ -208,7 +211,7 @@ class TestNetwork(test.TestCase):
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
-                                 'host_uuid')
+                                 'host_uuid', 'slot_mgr')
         p_vifs.execute(self.mock_lpar_wrap)
 
         # The create should have only been called once.
@@ -239,13 +242,51 @@ class TestNetwork(test.TestCase):
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
-                                 'host_uuid')
+                                 'host_uuid', 'slot_mgr')
         self.assertRaises(exception.VirtualInterfaceCreateException,
                           p_vifs.execute, self.mock_lpar_wrap)
 
         # The create should have only been called once.
         self.assertEqual(1, mock_plug.call_count)
         self.assertEqual('host1', inst.host)
+
+    @mock.patch('nova_powervm.virt.powervm.vif.unplug')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_plug_vifs_revert(self, mock_vm_get, mock_unplug):
+        """Tests that the revert flow works properly."""
+        inst = objects.Instance(**powervm.TEST_INSTANCE)
+
+        # Make a fake CNA list.  No real data needed, as the thing it calls
+        # into is mocked.
+        cna_list = []
+        mock_vm_get.return_value = cna_list
+
+        # Mock up the network info.  Three roll backs.
+        net_info = [
+            {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:22'},
+            {'address': 'aa:bb:cc:dd:ee:33'}
+        ]
+
+        # Make sure we test raising an exception
+        mock_unplug.side_effect = [None, exception.NovaException(), None]
+
+        # Run method
+        p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
+                                 'host_uuid', 'slot_mgr')
+        p_vifs.revert(self.mock_lpar_wrap, mock.Mock(), mock.Mock())
+
+        # The unplug should be called three times.  The exception shouldn't
+        # stop the other calls.
+        self.assertEqual(3, mock_unplug.call_count)
+
+        # Make sure each call is invoked correctly.
+        c1 = mock.call(self.apt, 'host_uuid', inst, net_info[0],
+                       cna_w_list=cna_list)
+        c2 = mock.call(self.apt, 'host_uuid', inst, net_info[1],
+                       cna_w_list=cna_list)
+        c3 = mock.call(self.apt, 'host_uuid', inst, net_info[2],
+                       cna_w_list=cna_list)
+        mock_unplug.assert_has_calls([c1, c2, c3])
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch')
@@ -262,7 +303,7 @@ class TestNetwork(test.TestCase):
         mock_get_rmc_vswitch.return_value = vswitch_w
 
         # Run method
-        p_vifs = tf_net.PlugMgmtVif(self.apt, inst, 'host_uuid')
+        p_vifs = tf_net.PlugMgmtVif(self.apt, inst, 'host_uuid', 'slot_mgr')
         p_vifs.execute([])
 
         # The create should have only been called once.
@@ -280,7 +321,7 @@ class TestNetwork(test.TestCase):
 
         # Set up the runner.
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
-                                 'host_uuid')
+                                 'host_uuid', 'slot_mgr')
 
         # Mock that neutron is off.
         mock_is_neutron.return_value = False

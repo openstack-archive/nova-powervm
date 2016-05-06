@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from taskflow import task
@@ -21,6 +22,7 @@ from taskflow import task
 from nova.compute import task_states
 from oslo_serialization import jsonutils
 from pypowervm import const as pvm_const
+from pypowervm.tasks import client_storage as pvm_c_stor
 from pypowervm.tasks import vfc_mapper as pvm_vfcm
 
 from nova_powervm import conf as cfg
@@ -62,14 +64,27 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # FC mapping is for the connections between VIOS and client VM
         return [pvm_const.XAG.VIO_FMAP, pvm_const.XAG.VIO_STOR]
 
-    def _connect_volume(self):
-        """Connects the volume."""
+    @classmethod
+    def vol_type(cls):
+        """The type of volume supported by this type."""
+        return 'npiv'
+
+    def _connect_volume(self, slot_mgr):
+        """Connects the volume.
+
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is attached to the VM
+        """
         # Run the add for each fabric.
         for fabric in self._fabric_names():
-            self._add_maps_for_fabric(fabric)
+            self._add_maps_for_fabric(fabric, slot_mgr)
 
-    def _disconnect_volume(self):
-        """Disconnect the volume."""
+    def _disconnect_volume(self, slot_mgr):
+        """Disconnect the volume.
+
+        :param slot_mgr: A NovaSlotManager.  Used to delete the client slots
+                         used when a volume is detached from the VM
+        """
         # We should only delete the NPIV mappings if we are running through a
         # VM deletion.  VM deletion occurs when the task state is deleting.
         # However, it can also occur during a 'roll-back' of the spawn.
@@ -396,19 +411,22 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # The return object needs to be a list for the volume connector.
         return resp_wwpns
 
-    def _add_maps_for_fabric(self, fabric):
+    def _add_maps_for_fabric(self, fabric, slot_mgr):
         """Adds the vFC storage mappings to the VM for a given fabric.
 
         :param fabric: The fabric to add the mappings to.
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is attached to the VM
         """
         npiv_port_maps = self._get_fabric_meta(fabric)
         vios_wraps = self.stg_ftsk.feed
         volume_id = self.connection_info['data']['volume_id']
 
         # This loop adds the maps from the appropriate VIOS to the client VM
+        slot_ids = copy.deepcopy(slot_mgr.build_map.get_vfc_slots(
+            fabric, len(npiv_port_maps)))
         for npiv_port_map in npiv_port_maps:
             vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
-
             if vios_w is None:
                 LOG.error(_LE("Mappings were not able to find a proper VIOS. "
                               "The port mappings were %s."), npiv_port_maps)
@@ -416,15 +434,40 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     volume_id=volume_id, instance_name=self.instance.name,
                     reason=_("Unable to find a Virtual I/O Server that "
                              "hosts the NPIV port map for the server."))
-
             ls = [LOG.info, _LI("Adding NPIV mapping for instance %(inst)s "
                                 "for Virtual I/O Server %(vios)s."),
                   {'inst': self.instance.name, 'vios': vios_w.name}]
 
             # Add the subtask to add the specific map.
+            slot_num = slot_ids.pop()
             self.stg_ftsk.wrapper_tasks[vios_w.uuid].add_functor_subtask(
                 pvm_vfcm.add_map, self.host_uuid, self.vm_uuid, npiv_port_map,
-                logspec=ls)
+                lpar_slot_num=slot_num, logspec=ls)
+
+        # Store the client slot number for the NPIV mapping (for rebuild
+        # scenarios)
+        def set_vol_meta():
+            vios_wraps = self.stg_ftsk.feed
+            port_maps = self._get_fabric_meta(fabric)
+            for port_map in port_maps:
+                # The port map is [ 'phys_wwpn', 'client_wwpn1 client_wwpn2' ]
+                # We only need one of the two client wwpns.
+                vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, port_map)
+                c_wwpns = port_map[1].split()
+                vfc_mapping = pvm_c_stor.c_wwpn_to_vfc_mapping(vios_w,
+                                                               c_wwpns[0])
+
+                # If there is no mapping, then don't add it.  It means that
+                # the client WWPN is hosted on a different VIOS.
+                if vfc_mapping is None:
+                    continue
+
+                # However, by this point we know that it is hosted on this
+                # VIOS.  So the vfc_mapping will have the client adapter
+                slot_mgr.register_vfc_mapping(vfc_mapping, fabric)
+
+        self.stg_ftsk.add_post_execute(task.FunctorTask(
+            set_vol_meta, name='fab_slot_%s_%s' % (fabric, volume_id)))
 
         # After all the mappings, make sure the fabric state is updated.
         def set_state():

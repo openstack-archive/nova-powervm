@@ -103,25 +103,28 @@ class TestSwiftStore(test.TestCase):
     def test_underscore_store(self):
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
-            self.swift_store._store(powervm.TEST_INST1, 'data')
+            self.swift_store._store(powervm.TEST_INST1.uuid,
+                                    powervm.TEST_INST1.name, 'data')
             mock_run.assert_called_once_with(None, 'upload', 'powervm_nvram',
                                              mock.ANY)
 
             # Test unsuccessful upload
             mock_run.return_value[0]['success'] = False
             self.assertRaises(api.NVRAMUploadException,
-                              self.swift_store._store, powervm.TEST_INST1,
-                              'data')
+                              self.swift_store._store, powervm.TEST_INST1.uuid,
+                              powervm.TEST_INST1.name, 'data')
 
     def test_store(self):
         # Test forcing a update
         with mock.patch.object(self.swift_store, '_store') as mock_store:
             self.swift_store.store(powervm.TEST_INST1, 'data', force=True)
-            mock_store.assert_called_once_with(powervm.TEST_INST1, 'data')
+            mock_store.assert_called_once_with(powervm.TEST_INST1.uuid,
+                                               powervm.TEST_INST1.name,
+                                               'data')
 
         with mock.patch.object(
             self.swift_store, '_store') as mock_store, mock.patch.object(
-            self.swift_store, '_run_operation') as mock_run:
+                self.swift_store, '_run_operation') as mock_run:
 
             data_md5_hash = '8d777f385d3dfec8815d20f7496026dc'
             results = self._build_results(['obj'])
@@ -132,6 +135,13 @@ class TestSwiftStore(test.TestCase):
             mock_run.assert_called_once_with(
                 None, 'stat', options={'long': True},
                 container='powervm_nvram', objects=[powervm.TEST_INST1.uuid])
+
+    def test_store_slot_map(self):
+        # Test forcing a update
+        with mock.patch.object(self.swift_store, '_store') as mock_store:
+            self.swift_store.store_slot_map("test_slot", 'data')
+            mock_store.assert_called_once_with(
+                'test_slot', 'test_slot', 'data')
 
     @mock.patch('os.remove')
     @mock.patch('tempfile.NamedTemporaryFile')
@@ -152,6 +162,20 @@ class TestSwiftStore(test.TestCase):
             self.assertRaises(api.NVRAMDownloadException,
                               self.swift_store.fetch, powervm.TEST_INST1)
 
+    @mock.patch('os.remove')
+    @mock.patch('tempfile.NamedTemporaryFile')
+    def test_fetch_slot_map(self, mock_tmpf, mock_rmv):
+        with mock.patch('nova_powervm.virt.powervm.nvram.swift.open',
+                        mock.mock_open(read_data='data to read')
+                        ) as m_open, mock.patch.object(
+                self.swift_store, '_run_operation') as mock_run:
+            mock_run.return_value = self._build_results(['obj'])
+            mock_tmpf.return_value.__enter__.return_value.name = 'fname'
+
+            data = self.swift_store.fetch_slot_map("test_slot")
+            self.assertEqual('data to read', data)
+            mock_rmv.assert_called_once_with(m_open.return_value.name)
+
     def test_delete(self):
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
@@ -164,6 +188,20 @@ class TestSwiftStore(test.TestCase):
             mock_run.return_value[0]['success'] = False
             self.assertRaises(api.NVRAMDeleteException,
                               self.swift_store.delete, powervm.TEST_INST1)
+
+    def test_delete_slot_map(self):
+        with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
+            mock_run.return_value = self._build_results(['obj'])
+            self.swift_store.delete_slot_map('test_slot')
+            mock_run.assert_called_once_with(None, 'delete',
+                                             container='powervm_nvram',
+                                             objects=['test_slot'])
+
+            # Bad result from the operation
+            mock_run.return_value[0]['success'] = False
+            self.assertRaises(
+                api.NVRAMDeleteException, self.swift_store.delete_slot_map,
+                'test_slot')
 
     def test_optional_options(self):
         """Test optional config values."""

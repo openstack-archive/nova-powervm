@@ -34,22 +34,25 @@ class ConnectVolume(task.Task):
 
     """The task to connect a volume to an instance."""
 
-    def __init__(self, vol_drv):
+    def __init__(self, vol_drv, slot_mgr):
         """Create the task.
 
         :param vol_drv: The volume driver (see volume folder).  Ties the
                         storage to a connection type (ex. vSCSI or NPIV).
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is attached to the VM
         """
         self.vol_drv = vol_drv
         self.vol_id = self.vol_drv.connection_info['data']['volume_id']
+        self.slot_mgr = slot_mgr
 
-        super(ConnectVolume, self).__init__(name='connect_vol_%s' %
-                                            self.vol_id)
+        super(ConnectVolume, self).__init__(
+            name='connect_vol_%s' % self.vol_id)
 
     def execute(self):
         LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
-        self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume(self.slot_mgr)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
@@ -66,7 +69,7 @@ class ConnectVolume(task.Task):
             # the connect scenario, perhaps one of the Virtual I/O Servers
             # was connected.  This attempts to clear anything out to make sure
             # the terminate connection runs smoothly.
-            self.vol_drv.disconnect_volume()
+            self.vol_drv.disconnect_volume(self.slot_mgr)
         except npvmex.VolumeDetachFailed as e:
             # Only log that the volume detach failed.  Should not be blocking
             # due to being in the revert flow.
@@ -80,21 +83,24 @@ class DisconnectVolume(task.Task):
 
     """The task to disconnect a volume from an instance."""
 
-    def __init__(self, vol_drv):
+    def __init__(self, vol_drv, slot_mgr):
         """Create the task.
 
         :param vol_drv: The volume driver (see volume folder).  Ties the
                         storage to a connection type (ex. vSCSI or NPIV).
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is detached from the VM
         """
         self.vol_drv = vol_drv
         self.vol_id = self.vol_drv.connection_info['data']['volume_id']
-        super(DisconnectVolume, self).__init__(name='disconnect_vol_%s' %
-                                               self.vol_id)
+        self.slot_mgr = slot_mgr
+        super(DisconnectVolume, self).__init__(
+            name='disconnect_vol_%s' % self.vol_id)
 
     def execute(self):
         LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
-        self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume(self.slot_mgr)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
@@ -112,7 +118,7 @@ class DisconnectVolume(task.Task):
             # operators to understand the linkage between the VMs and volumes
             # in error scenarios.  This is simply useful for debug purposes
             # if there is an operational error.
-            self.vol_drv.connect_volume()
+            self.vol_drv.connect_volume(self.slot_mgr)
         except npvmex.VolumeAttachFailed as e:
             # Only log that the volume attach failed.  Should not be blocking
             # due to being in the revert flow.  See comment above.

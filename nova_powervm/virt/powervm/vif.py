@@ -79,31 +79,48 @@ def _build_vif_driver(adapter, host_uuid, instance, vif):
         {'vif_type': vif['type'], 'instance': instance.name})
 
 
-def plug(adapter, host_uuid, instance, vif):
+def plug(adapter, host_uuid, instance, vif, slot_mgr):
     """Plugs a virtual interface (network) into a VM.
 
     :param adapter: The pypowervm adapter.
     :param host_uuid: The host UUID for the PowerVM API.
     :param instance: The nova instance object.
     :param vif: The virtual interface to plug into the instance.
+    :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                     slots used when a VIF is attached to the VM.
     """
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
-    vif_drv.plug(vif)
+
+    # Get the slot number to use for the VIF creation.  May be None
+    # indicating usage of the next highest available.
+    slot_num = slot_mgr.build_map.get_vea_slot(vif['address'])
+
+    # Invoke the plug
+    cna_w = vif_drv.plug(vif, slot_num)
+
+    # If the slot number hadn't been provided initially, save it for the
+    # next rebuild
+    if not slot_num:
+        slot_mgr.register_cna(cna_w)
 
 
-def unplug(adapter, host_uuid, instance, vif, cna_w_list=None):
+def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
     """Unplugs a virtual interface (network) from a VM.
 
     :param adapter: The pypowervm adapter.
     :param host_uuid: The host UUID for the PowerVM API.
     :param instance: The nova instance object.
     :param vif: The virtual interface to plug into the instance.
+    :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                     slots used when a VIF is detached from the VM.
     :param cna_w_list: (Optional, Default: None) The list of Client Network
                        Adapters from pypowervm.  Providing this input
                        allows for an improvement in operation speed.
     """
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
-    vif_drv.unplug(vif, cna_w_list=cna_w_list)
+    cna_w = vif_drv.unplug(vif, cna_w_list=cna_w_list)
+    if cna_w:
+        slot_mgr.drop_cna(cna_w)
 
 
 def get_secure_rmc_vswitch(adapter, host_uuid):
@@ -122,17 +139,30 @@ def get_secure_rmc_vswitch(adapter, host_uuid):
     return None
 
 
-def plug_secure_rmc_vif(adapter, instance, host_uuid):
+def plug_secure_rmc_vif(adapter, instance, host_uuid, slot_mgr):
     """Creates the Secure RMC Network Adapter on the VM.
 
     :param adapter: The pypowervm adapter API interface.
     :param instance: The nova instance to create the VIF against.
     :param host_uuid: The host system UUID.
+    :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                     slots used when a VIF is attached to the VM
     :return: The created network adapter wrapper.
     """
+    # Gather the mac and slot number for the mgmt vif
+    mac, slot_num = slot_mgr.build_map.get_mgmt_vea_slot()
+
+    # Create the adapter.
     lpar_uuid = vm.get_pvm_uuid(instance)
-    return pvm_cna.crt_cna(adapter, host_uuid, lpar_uuid, SECURE_RMC_VLAN,
-                           vswitch=SECURE_RMC_VSWITCH, crt_vswitch=True)
+    cna_w = pvm_cna.crt_cna(adapter, host_uuid, lpar_uuid, SECURE_RMC_VLAN,
+                            vswitch=SECURE_RMC_VSWITCH, crt_vswitch=True,
+                            slot_num=slot_num, mac_addr=mac)
+
+    # Save the mgmt vif to the slot map.
+    if not mac:
+        slot_mgr.register_cna(cna_w)
+
+    return cna_w
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -156,10 +186,11 @@ class PvmVifDriver(object):
         self.instance = instance
 
     @abc.abstractmethod
-    def plug(self, vif):
+    def plug(self, vif, slot_num):
         """Plugs a virtual interface (network) into a VM.
 
         :param vif: The virtual interface to plug into the instance.
+        :param slot_num: Which slot number to plug the VIF into.  May be None.
         """
         pass
 
@@ -170,6 +201,7 @@ class PvmVifDriver(object):
         :param cna_w_list: (Optional, Default: None) The list of Client Network
                            Adapters from pypowervm.  Providing this input
                            allows for an improvement in operation speed.
+        :return cna_w: The deleted Client Network Adapter.
         """
         # This is a default implementation that most implementations will
         # require.
@@ -185,7 +217,7 @@ class PvmVifDriver(object):
                             'instance %(inst)s.  The VIF was not found on '
                             'the instance.'),
                         {'mac': vif['address'], 'inst': self.instance.name})
-            return
+            return None
 
         LOG.info(_LI('Deleting VIF with mac %(mac)s for instance %(inst)s.'),
                  {'mac': vif['address'], 'inst': self.instance.name})
@@ -197,6 +229,7 @@ class PvmVifDriver(object):
                                          'inst': self.instance.name})
             LOG.exception(e)
             raise VirtualInterfaceUnplugException()
+        return cna_w
 
     def _find_cna_for_vif(self, cna_w_list, vif):
         for cna_w in cna_w_list:
@@ -209,25 +242,29 @@ class PvmVifDriver(object):
 class PvmSeaVifDriver(PvmVifDriver):
     """The PowerVM Shared Ethernet Adapter VIF Driver."""
 
-    def plug(self, vif):
+    def plug(self, vif, slot_num):
         lpar_uuid = vm.get_pvm_uuid(self.instance)
+
         # CNA's require a VLAN.  If the network doesn't provide, default to 1
         vlan = vif['network']['meta'].get('vlan', 1)
-        return pvm_cna.crt_cna(self.adapter, self.host_uuid, lpar_uuid, vlan,
-                               mac_addr=vif['address'])
+        cna_w = pvm_cna.crt_cna(self.adapter, self.host_uuid, lpar_uuid, vlan,
+                                mac_addr=vif['address'], slot_num=slot_num)
+
+        return cna_w
 
 
 class PvmOvsVifDriver(PvmVifDriver):
     """The Open vSwitch VIF driver for PowerVM."""
 
-    def plug(self, vif):
+    def plug(self, vif, slot_num):
         # Create the trunk and client adapter.
         lpar_uuid = vm.get_pvm_uuid(self.instance)
         mgmt_uuid = pvm_par.get_this_partition(self.adapter).uuid
+
         cna_w, trunk_wraps = pvm_cna.crt_p2p_cna(
             self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
             CONF.powervm.pvm_vswitch_for_ovs, crt_vswitch=True,
-            mac_addr=vif['address'])
+            mac_addr=vif['address'], slot_num=slot_num)
 
         # There will only be one trunk wrap, as we have created with just the
         # mgmt lpar.  Next step is to set the device up and connect to the OVS
@@ -236,6 +273,8 @@ class PvmOvsVifDriver(PvmVifDriver):
         linux_net.create_ovs_vif_port(vif['network']['bridge'], dev,
                                       self.get_ovs_interfaceid(vif),
                                       vif['address'], self.instance.uuid)
+
+        return cna_w
 
     def get_ovs_interfaceid(self, vif):
         return vif.get('ovs_interfaceid') or vif['id']
@@ -273,7 +312,7 @@ class PvmOvsVifDriver(PvmVifDriver):
                             'instance %(inst)s.  The VIF was not found on '
                             'the instance.'),
                         {'mac': vif['address'], 'inst': self.instance.name})
-            return
+            return None
 
         # Find and delete the trunk adapters
         trunks = pvm_cna.find_trunks(self.adapter, cna_w)
@@ -283,4 +322,4 @@ class PvmOvsVifDriver(PvmVifDriver):
             trunk.delete()
 
         # Now delete the client CNA
-        super(PvmOvsVifDriver, self).unplug(vif, cna_w_list=cna_w_list)
+        return super(PvmOvsVifDriver, self).unplug(vif, cna_w_list=cna_w_list)

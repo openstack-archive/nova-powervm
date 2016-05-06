@@ -26,6 +26,7 @@ from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
 
@@ -45,7 +46,8 @@ class UnplugVifs(task.Task):
 
     """The task to unplug Virtual Network Interfaces from a VM."""
 
-    def __init__(self, adapter, instance, network_infos, host_uuid):
+    def __init__(self, adapter, instance, network_infos, host_uuid,
+                 slot_mgr):
         """Create the task.
 
         :param adapter: The pypowervm adapter.
@@ -53,11 +55,14 @@ class UnplugVifs(task.Task):
         :param network_infos: The network information containing the nova
                               VIFs to create.
         :param host_uuid: The host system's PowerVM UUID.
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a VIF is detached from the VM.
         """
         self.adapter = adapter
         self.instance = instance
         self.network_infos = network_infos or []
         self.host_uuid = host_uuid
+        self.slot_mgr = slot_mgr
 
         super(UnplugVifs, self).__init__(name='unplug_vifs',
                                          requires=['lpar_wrap'])
@@ -83,7 +88,7 @@ class UnplugVifs(task.Task):
         # Walk through the VIFs and delete the corresponding CNA on the VM.
         for network_info in self.network_infos:
             vif.unplug(self.adapter, self.host_uuid, self.instance,
-                       network_info, cna_w_list=cna_w_list)
+                       network_info, self.slot_mgr, cna_w_list=cna_w_list)
 
         return cna_w_list
 
@@ -92,7 +97,8 @@ class PlugVifs(task.Task):
 
     """The task to plug the Virtual Network Interfaces to a VM."""
 
-    def __init__(self, virt_api, adapter, instance, network_infos, host_uuid):
+    def __init__(self, virt_api, adapter, instance, network_infos, host_uuid,
+                 slot_mgr):
         """Create the task.
 
         Provides the 'vm_cnas' - the Virtual Machine's Client Network Adapters.
@@ -103,12 +109,15 @@ class PlugVifs(task.Task):
         :param network_infos: The network information containing the nova
                               VIFs to create.
         :param host_uuid: The host system's PowerVM UUID.
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a VIF is attached to the VM.
         """
         self.virt_api = virt_api
         self.adapter = adapter
         self.instance = instance
         self.network_infos = network_infos
         self.host_uuid = host_uuid
+        self.slot_mgr = slot_mgr
 
         super(PlugVifs, self).__init__(name='plug_vifs', provides='vm_cnas',
                                        requires=['lpar_wrap'])
@@ -157,7 +166,7 @@ class PlugVifs(task.Task):
                               'sys': self.instance.name},
                              instance=self.instance)
                     vif.plug(self.adapter, self.host_uuid, self.instance,
-                             network_info)
+                             network_info, self.slot_mgr)
         except eventlet.timeout.Timeout:
             LOG.error(_LE('Error waiting for VIF to be created for instance '
                           '%(sys)s'), {'sys': self.instance.name},
@@ -193,12 +202,34 @@ class PlugVifs(task.Task):
         else:
             return []
 
+    def revert(self, lpar_wrap, result, flow_failures):
+        if not self.network_infos:
+            return
+
+        # The parameters have to match the execute method, plus the response +
+        # failures even if only a subset are used.
+        LOG.warning(_LW('VIF creation being rolled back for instance '
+                        '%(inst)s'), {'inst': self.instance.name},
+                    instance=self.instance)
+
+        # Get the current adapters on the system
+        cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
+        for network_info in self.network_infos:
+            try:
+                vif.unplug(self.adapter, self.host_uuid, self.instance,
+                           network_info, cna_w_list=cna_w_list)
+            except Exception as e:
+                LOG.exception(e)
+                LOG.warning(_LW("An exception occurred during an unplug "
+                                "in the vif rollback.  Ignoring."),
+                            instance=self.instance)
+
 
 class PlugMgmtVif(task.Task):
 
     """The task to plug the Management VIF into a VM."""
 
-    def __init__(self, adapter, instance, host_uuid):
+    def __init__(self, adapter, instance, host_uuid, slot_mgr):
         """Create the task.
 
         Requires the 'vm_cnas'.
@@ -209,10 +240,13 @@ class PlugMgmtVif(task.Task):
         :param adapter: The pypowervm adapter.
         :param instance: The nova instance.
         :param host_uuid: The host system's PowerVM UUID.
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a VIF is attached to the VM
         """
         self.adapter = adapter
         self.instance = instance
         self.host_uuid = host_uuid
+        self.slot_mgr = slot_mgr
 
         super(PlugMgmtVif, self).__init__(
             name='plug_mgmt_vif', provides='mgmt_cna', requires=['vm_cnas'])
@@ -247,5 +281,5 @@ class PlugMgmtVif(task.Task):
                 return None
 
         # Return the created management CNA
-        return vif.plug_secure_rmc_vif(self.adapter, self.instance,
-                                       self.host_uuid)
+        return vif.plug_secure_rmc_vif(
+            self.adapter, self.instance, self.host_uuid, self.slot_mgr)

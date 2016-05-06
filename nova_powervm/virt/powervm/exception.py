@@ -123,3 +123,8 @@ class ViosNotAvailable(nex.NovaException):
                 "Virtual I/O Servers are available.  Please check the RMC "
                 "connectivity between the PowerVM NovaLink and the Virtual "
                 "I/O Servers and then restart the Nova Compute Agent.")
+
+
+class InvalidRebuild(nex.NovaException):
+    msg_fmt = _("Unable to rebuild virtual machine on new host.  Error is "
+                "%(error)s")

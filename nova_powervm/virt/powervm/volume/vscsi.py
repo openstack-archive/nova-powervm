@@ -29,6 +29,7 @@ from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 from pypowervm import const as pvm_const
+from pypowervm.tasks import client_storage as pvm_c_stor
 from pypowervm.tasks import hdisk
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.utils import transaction as tx
@@ -78,6 +79,11 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """List of pypowervm XAGs needed to support this adapter."""
         # SCSI mapping is for the connections between VIOS and client VM
         return [pvm_const.XAG.VIO_SMAP]
+
+    @classmethod
+    def vol_type(cls):
+        """The type of volume supported by this type."""
+        return 'vscsi'
 
     def pre_live_migration_on_destination(self, mig_data):
         """Perform pre live migration steps for the volume on the target host.
@@ -174,6 +180,18 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         udid = migrate_data.get('vscsi-' + self.volume_id)
         self._cleanup_volume(udid)
 
+    def is_volume_on_vios(self, vios_w):
+        """Returns whether or not the volume is on a VIOS.
+
+        :param vios_w: The Virtual I/O Server wrapper.
+        :return: True if the volume driver's volume is on the VIOS.  False
+                 otherwise.
+        :return: The udid of the device.
+        """
+        status, device_name, udid = self._discover_volume_on_vios(
+            vios_w, self.volume_id)
+        return hdisk.good_discovery(status, device_name), udid
+
     def _discover_volume_on_vios(self, vios_w, volume_id):
         """Discovers an hdisk on a single vios for the volume.
 
@@ -210,8 +228,12 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         return status, device_name, udid
 
-    def _connect_volume(self):
-        """Connects the volume."""
+    def _connect_volume(self, slot_mgr):
+        """Connects the volume.
+
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is attached to the VM
+        """
 
         def connect_volume_to_vio(vios_w):
             """Attempts to connect a volume to a given VIO.
@@ -224,11 +246,16 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             status, device_name, udid = self._discover_volume_on_vios(
                 vios_w, self.volume_id)
 
+            # Get the slot to look up.
+            lpar_slot_num = slot_mgr.build_map.get_pv_vscsi_slot(
+                vios_w, udid)
+
             if hdisk.good_discovery(status, device_name):
                 # Found a hdisk on this Virtual I/O Server.  Add the action to
                 # map it to the VM when the stg_ftsk is executed.
                 with lockutils.lock(hash(self)):
-                    self._add_append_mapping(vios_w.uuid, device_name)
+                    self._add_append_mapping(vios_w.uuid, device_name,
+                                             lpar_slot_num=lpar_slot_num)
 
                 # Save the UDID for the disk in the connection info.  It is
                 # used for the detach.
@@ -252,10 +279,13 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # the stg_ftsk from potentially having to run it multiple times.
         connect_ftsk = tx.FeedTask(
             'connect_volume_to_vio', pvm_vios.VIOS.getter(
-                self.adapter, xag=[pvm_const.XAG.VIO_STOR]))
+                self.adapter, xag=[pvm_const.XAG.VIO_STOR,
+                                   pvm_const.XAG.VIO_SMAP]))
+
         # Find valid hdisks and map to VM.
         connect_ftsk.add_functor_subtask(
             connect_volume_to_vio, provides='vio_modified', flag_update=False)
+
         ret = connect_ftsk.execute()
 
         # Check the number of VIOSes
@@ -263,7 +293,22 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         for result in ret['wrapper_task_rets'].values():
             if result['vio_modified']:
                 vioses_modified += 1
+
+        partition_id = vm.get_vm_id(self.adapter, self.vm_uuid)
+
+        # Update the slot information
+        def set_slot_info():
+            vios_wraps = self.stg_ftsk.feed
+            for vios_w in vios_wraps:
+                scsi_map = pvm_c_stor.udid_to_scsi_mapping(
+                    vios_w, self._get_udid(), partition_id)
+                if not scsi_map:
+                    continue
+                slot_mgr.register_vscsi_mapping(scsi_map)
+
         self._validate_vios_on_connection(vioses_modified)
+        self.stg_ftsk.add_post_execute(task.FunctorTask(
+            set_slot_info, name='hdisk_slot_%s' % self._get_udid()))
 
     def _validate_vios_on_connection(self, num_vioses_found):
         """Validates that the correct number of VIOSes were discovered.
@@ -297,8 +342,12 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                    'instance_name': self.instance.name}
         raise p_exc.VolumeAttachFailed(**ex_args)
 
-    def _disconnect_volume(self):
-        """Disconnect the volume."""
+    def _disconnect_volume(self, slot_mgr):
+        """Disconnect the volume.
+
+        :param slot_mgr: A NovaSlotManager.  Used to delete the client slots
+                         used when a volume is detached from the VM
+        """
         def discon_vol_for_vio(vios_w):
             """Removes the volume from a specific Virtual I/O Server.
 
@@ -362,7 +411,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
             with lockutils.lock(hash(self)):
                 self._add_remove_mapping(partition_id, vios_w.uuid,
-                                         device_name)
+                                         device_name, slot_mgr)
 
                 # Add a step to also remove the hdisk
                 self._add_remove_hdisk(vios_w, device_name)
@@ -473,34 +522,44 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         return CONF.host
 
-    def _add_remove_mapping(self, vm_uuid, vios_uuid, device_name):
+    def _add_remove_mapping(self, vm_uuid, vios_uuid, device_name, slot_mgr):
         """Adds a transaction to remove the storage mapping.
 
         :param vm_uuid: The UUID of the VM instance
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param device_name: The The hdisk device name.
+        :param slot_mgr: A NovaSlotManager.  Used to delete the client slots
+                         used when a volume is detached from the VM.
         """
         def rm_func(vios_w):
             LOG.info(_LI("Removing vSCSI mapping from Physical Volume %(dev)s "
                          "to VM %(vm)s") % {'dev': device_name, 'vm': vm_uuid})
-            return tsk_map.remove_maps(
+            removed_maps = tsk_map.remove_maps(
                 vios_w, vm_uuid,
                 tsk_map.gen_match_func(pvm_stor.PV, names=[device_name]))
+            for rm_map in removed_maps:
+                slot_mgr.drop_vscsi_mapping(rm_map)
+            return removed_maps
         self.stg_ftsk.wrapper_tasks[vios_uuid].add_functor_subtask(rm_func)
 
-    def _add_append_mapping(self, vios_uuid, device_name):
+    def _add_append_mapping(self, vios_uuid, device_name, lpar_slot_num=None):
         """This method will update the stg_ftsk to append the mapping to the VIOS
 
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param device_name: The The hdisk device name.
+        :param lpar_slot_num: (Optional, Default:None) If specified, the client
+                              lpar slot number to use on the mapping.  If left
+                              as None, it will use the next available slot
+                              number.
         """
         def add_func(vios_w):
             LOG.info(_LI("Adding vSCSI mapping to Physical Volume %(dev)s "
                          "to VM %(vm)s") % {'dev': device_name,
                                             'vm': self.vm_uuid})
             pv = pvm_stor.PV.bld(self.adapter, device_name)
-            v_map = tsk_map.build_vscsi_mapping(self.host_uuid, vios_w,
-                                                self.vm_uuid, pv)
+            v_map = tsk_map.build_vscsi_mapping(
+                self.host_uuid, vios_w, self.vm_uuid, pv,
+                lpar_slot_num=lpar_slot_num)
             return tsk_map.add_map(vios_w, v_map)
         self.stg_ftsk.wrapper_tasks[vios_uuid].add_functor_subtask(add_func)
 

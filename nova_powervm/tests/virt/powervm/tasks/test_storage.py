@@ -160,3 +160,25 @@ class TestStorage(test.TestCase):
         task.execute()
         disk_dvr.extend_disk.assert_called_once_with(context, instance,
                                                      disk_info, 1024)
+
+    def test_connect_volume(self):
+        vol_dvr = mock.Mock(connection_info={'data': {'volume_id': '1'}})
+
+        task = tf_stg.ConnectVolume(vol_dvr, 'slot map')
+        task.execute()
+        vol_dvr.connect_volume.assert_called_once_with('slot map')
+
+        task.revert('result', 'flow failures')
+        vol_dvr.reset_stg_ftsk.assert_called_once_with()
+        vol_dvr.disconnect_volume.assert_called_once_with('slot map')
+
+    def test_disconnect_volume(self):
+        vol_dvr = mock.Mock(connection_info={'data': {'volume_id': '1'}})
+
+        task = tf_stg.DisconnectVolume(vol_dvr, 'slot map')
+        task.execute()
+        vol_dvr.disconnect_volume.assert_called_once_with('slot map')
+
+        task.revert('result', 'flow failures')
+        vol_dvr.reset_stg_ftsk.assert_called_once_with()
+        vol_dvr.connect_volume.assert_called_once_with('slot map')

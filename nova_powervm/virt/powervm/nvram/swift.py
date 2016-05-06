@@ -108,19 +108,19 @@ class SwiftNvramStore(api.NvramStore):
                                       container=container)
         return self._get_name_from_listing(results)
 
-    def _store(self, instance, data):
+    def _store(self, inst_key, inst_name, data):
         """Store the NVRAM into the storage service.
 
         :param instance: instance object
         :param data: the NVRAM data base64 encoded string
         """
         source = six.StringIO(data)
-        obj = swft_srv.SwiftUploadObject(source, object_name=instance.uuid)
+        obj = swft_srv.SwiftUploadObject(source, object_name=inst_key)
         for result in self._run_operation(None, 'upload', self.container,
                                           [obj]):
             if not result['success']:
                 # The upload failed.
-                raise api.NVRAMUploadException(instance=instance.name,
+                raise api.NVRAMUploadException(instance=inst_name,
                                                reason=result)
 
     @lockutils.synchronized('nvram')
@@ -149,8 +149,24 @@ class SwiftNvramStore(api.NvramStore):
                              instance.name, instance=instance)
                     return
 
-        self._store(instance, data)
+        self._store(instance.uuid, instance.name, data)
         LOG.debug('NVRAM updated for instance: %s' % instance.name)
+
+    def store_slot_map(self, inst_key, data):
+        """Store the Slot Map to Swift.
+
+        :param inst_key: The instance key to use for the storage operation.
+        :param data: The data of the object to store.  This should be a string.
+        """
+        self._store(inst_key, inst_key, data)
+
+    def fetch_slot_map(self, inst_key):
+        """Fetch the Slot Map object.
+
+        :param inst_key: The instance key to use for the storage operation.
+        :returns: The slot map (as a string)
+        """
+        return self._fetch(inst_key)[0]
 
     def fetch(self, instance):
         """Fetch the NVRAM from the storage service.
@@ -158,6 +174,13 @@ class SwiftNvramStore(api.NvramStore):
         :param instance: instance object
         :returns: the NVRAM data base64 encoded string
         """
+        data, result = self._fetch(instance.uuid)
+        if not data:
+            raise api.NVRAMDownloadException(instance=instance.name,
+                                             reason=result)
+        return data
+
+    def _fetch(self, object_key):
         try:
             # Create a temp file for download into
             with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -167,20 +190,32 @@ class SwiftNvramStore(api.NvramStore):
             # The file is now created and closed for the swift client to use.
             for result in self._run_operation(
                 None, 'download', container=self.container,
-                objects=[instance.uuid], options=options):
+                objects=[object_key], options=options):
 
                 if result['success']:
                     with open(f.name, 'r') as f:
-                        return f.read()
+                        return f.read(), result
                 else:
-                    raise api.NVRAMDownloadException(instance=instance.name,
-                                                     reason=result)
-
+                    return None, result
         finally:
             try:
                 os.remove(f.name)
             except Exception:
                 LOG.warning(_LW('Could not remove temporary file: %s'), f.name)
+
+    def delete_slot_map(self, inst_key):
+        """Delete the Slot Map from Swift.
+
+        :param inst_key: The instance key to use for the storage operation.
+        """
+        for result in self._run_operation(
+            None, 'delete', container=self.container,
+            objects=[inst_key]):
+
+            LOG.debug('Delete slot map result: %s' % str(result))
+            if not result['success']:
+                raise api.NVRAMDeleteException(reason=result,
+                                               instance=inst_key)
 
     def delete(self, instance):
         """Delete the NVRAM into the storage service.
@@ -190,7 +225,7 @@ class SwiftNvramStore(api.NvramStore):
         for result in self._run_operation(
             None, 'delete', container=self.container,
             objects=[instance.uuid]):
-            # TODO(KYLEH): Not sure what to log here yet.
+
             LOG.debug('Delete result: %s' % str(result), instance=instance)
             if not result['success']:
                 raise api.NVRAMDeleteException(instance=instance.name,

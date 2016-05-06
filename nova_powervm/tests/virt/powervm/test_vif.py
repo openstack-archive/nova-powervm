@@ -41,6 +41,7 @@ class TestVifFunctions(test.TestCase):
 
         self.adpt = self.useFixture(pvm_fx.AdapterFx(
             traits=pvm_fx.LocalPVMTraits)).adpt
+        self.slot_mgr = mock.Mock()
 
     @mock.patch('pypowervm.wrappers.network.VSwitch.search')
     def test_get_secure_rmc_vswitch(self, mock_search):
@@ -63,11 +64,41 @@ class TestVifFunctions(test.TestCase):
     @mock.patch('pypowervm.tasks.cna.crt_cna')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_plug_secure_rmc_vif(self, mock_pvm_uuid, mock_crt):
+        # Mock up the data
         mock_pvm_uuid.return_value = 'lpar_uuid'
-        vif.plug_secure_rmc_vif(self.adpt, 'instance', 'host_uuid')
+        mock_crt.return_value = mock.Mock()
+        self.slot_mgr.build_map.get_mgmt_vea_slot = mock.Mock(
+            return_value=(None, None))
+
+        # Run the method
+        vif.plug_secure_rmc_vif(self.adpt, 'instance', 'host_uuid',
+                                self.slot_mgr)
+
+        # Validate responses
         mock_crt.assert_called_once_with(
             self.adpt, 'host_uuid', 'lpar_uuid', 4094, vswitch='MGMTSWITCH',
-            crt_vswitch=True)
+            crt_vswitch=True, slot_num=None, mac_addr=None)
+        self.slot_mgr.register_cna.assert_called_once_with(
+            mock_crt.return_value)
+
+    @mock.patch('pypowervm.tasks.cna.crt_cna')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_plug_secure_rmc_vif_with_slot(self, mock_pvm_uuid, mock_crt):
+        # Mock up the data
+        mock_pvm_uuid.return_value = 'lpar_uuid'
+        mock_crt.return_value = mock.Mock()
+        self.slot_mgr.build_map.get_mgmt_vea_slot = mock.Mock(
+            return_value=('mac_addr', 5))
+
+        # Run the method
+        vif.plug_secure_rmc_vif(self.adpt, 'instance', 'host_uuid',
+                                self.slot_mgr)
+
+        # Validate responses
+        mock_crt.assert_called_once_with(
+            self.adpt, 'host_uuid', 'lpar_uuid', 4094, vswitch='MGMTSWITCH',
+            crt_vswitch=True, slot_num=5, mac_addr='mac_addr')
+        self.assertFalse(self.slot_mgr.called)
 
     def test_build_vif_driver(self):
         # Test the Shared Ethernet Adapter type VIF
@@ -107,16 +138,20 @@ class TestVifSeaDriver(test.TestCase):
         # Set up the mocks
         fake_vif = {'network': {'meta': {'vlan': 5}},
                     'address': 'aabbccddeeff'}
+        fake_slot_num = 5
 
-        def validate_crt(adpt, host_uuid, lpar_uuid, vlan, mac_addr=None):
+        def validate_crt(adpt, host_uuid, lpar_uuid, vlan, mac_addr=None,
+                         slot_num=None):
             self.assertEqual('host_uuid', host_uuid)
             self.assertEqual(5, vlan)
             self.assertEqual('aabbccddeeff', mac_addr)
-            return pvm_net.CNA.bld(self.adpt, 5, host_uuid)
+            self.assertEqual(5, slot_num)
+            return pvm_net.CNA.bld(self.adpt, 5, host_uuid, slot_num=slot_num,
+                                   mac_addr=mac_addr)
         mock_crt_cna.side_effect = validate_crt
 
         # Invoke
-        resp = self.drv.plug(fake_vif)
+        resp = self.drv.plug(fake_vif, fake_slot_num)
 
         # Validate (along with validate method above)
         self.assertEqual(1, mock_crt_cna.call_count)
@@ -175,14 +210,15 @@ class TestVifOvsDriver(test.TestCase):
         # Run the plug
         vif = {'network': {'bridge': 'br0'}, 'address': 'aa:bb:cc:dd:ee:ff',
                'id': 'vif_id'}
-        self.drv.plug(vif)
+        slot_num = 5
+        self.drv.plug(vif, slot_num)
 
         # Validate the calls
         mock_crt_ovs_vif_port.assert_called_once_with(
             'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff', 'inst_uuid')
         mock_p2p_cna.assert_called_once_with(
             self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'], 'OpenStackOVS',
-            crt_vswitch=True, mac_addr='aa:bb:cc:dd:ee:ff')
+            crt_vswitch=True, mac_addr='aa:bb:cc:dd:ee:ff', slot_num=slot_num)
         mock_exec.assert_called_once_with('ip', 'link', 'set', 'device', 'up',
                                           run_as_root=True)
 

@@ -58,9 +58,11 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import image as img
 from nova_powervm.virt.powervm import live_migration as lpm
-from nova_powervm.virt.powervm.nvram import manager as nvram_mgr
+from nova_powervm.virt.powervm.nvram import manager as nvram_manager
+from nova_powervm.virt.powervm import slot
 from nova_powervm.virt.powervm.tasks import image as tf_img
 from nova_powervm.virt.powervm.tasks import network as tf_net
+from nova_powervm.virt.powervm.tasks import slot as tf_slot
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
 from nova_powervm.virt.powervm import vios
@@ -116,6 +118,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self.live_migrations = {}
         # Set the nvram mgr to None so events are not handled until it's setup
         self.nvram_mgr = None
+        self.store_api = None
         # Get an adapter
         self._get_adapter()
         # First need to resolve the managed host UUID
@@ -131,7 +134,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_disk_adapter()
         self.image_api = image.API()
 
-        self._setup_nvram_store()
+        self._setup_rebuild_store()
 
         # Init Host CPU Statistics
         self.host_cpu_stats = pvm_host.HostCPUStats(self.adapter,
@@ -176,15 +179,15 @@ class PowerVMDriver(driver.ComputeDriver):
             DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.powervm.disk_driver.lower()],
             conn_info)
 
-    def _setup_nvram_store(self):
-        """Setup the NVRAM store for remote restart."""
+    def _setup_rebuild_store(self):
+        """Setup the store for remote restart objects."""
         store = CONF.powervm.nvram_store.lower()
         if store != 'none':
-            store_api = importutils.import_object(
+            self.store_api = importutils.import_object(
                 NVRAM_NS + NVRAM_APIS[store])
             # Events will be handled once the nvram_mgr is set.
-            self.nvram_mgr = nvram_mgr.NvramManager(
-                store_api, self.adapter, self.host_uuid)
+            self.nvram_mgr = nvram_manager.NvramManager(
+                self.store_api, self.adapter, self.host_uuid)
             # Do host startup for NVRAM for existing VMs on the host
             n_utils.spawn(self._nvram_host_startup)
 
@@ -382,13 +385,24 @@ class PowerVMDriver(driver.ComputeDriver):
         # Define the flow
         flow_spawn = tf_lf.Flow("spawn")
 
+        # Determine if this is a VM recreate
+        recreate = (instance.task_state == task_states.REBUILD_SPAWNING and
+                    'id' not in image_meta)
+
         # Create the transaction manager (FeedTask) for Storage I/O.
-        xag = self._get_inst_xag(instance, bdms)
+        xag = self._get_inst_xag(instance, bdms, recreate=recreate)
         stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
                                            xag=xag)
 
-        recreate = (instance.task_state == task_states.REBUILD_SPAWNING and
-                    'id' not in image_meta)
+        # Build the PowerVM Slot lookup map.  Only the recreate action needs
+        # the volume driver iterator (to look up volumes and their client
+        # mappings).
+        vol_drv_iter = (self._vol_drv_iter(context, instance, bdms=bdms,
+                                           stg_ftsk=stg_ftsk)
+                        if recreate else None)
+        slot_mgr = slot.build_slot_mgr(
+            instance, self.store_api, adapter=self.adapter,
+            vol_drv_iter=vol_drv_iter)
 
         # Create the LPAR, check if NVRAM restore is needed.
         nvram_mgr = (self.nvram_mgr if self.nvram_mgr and
@@ -398,10 +412,11 @@ class PowerVMDriver(driver.ComputeDriver):
                                     flavor, stg_ftsk, nvram_mgr=nvram_mgr))
 
         # Create a flow for the IO
-        flow_spawn.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
-                                       network_info, self.host_uuid))
-        flow_spawn.add(tf_net.PlugMgmtVif(self.adapter, instance,
-                                          self.host_uuid))
+        flow_spawn.add(tf_net.PlugVifs(
+            self.virtapi, self.adapter, instance, network_info,
+            self.host_uuid, slot_mgr))
+        flow_spawn.add(tf_net.PlugMgmtVif(
+            self.adapter, instance, self.host_uuid, slot_mgr))
 
         # Only add the image disk if this is from Glance.
         if not self._is_booted_from_volume(block_device_info):
@@ -422,11 +437,11 @@ class PowerVMDriver(driver.ComputeDriver):
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
         self._add_volume_connection_tasks(
-            context, instance, bdms, flow_spawn, stg_ftsk)
+            context, instance, bdms, flow_spawn, stg_ftsk, slot_mgr)
 
         # If the config drive is needed, add those steps.  Should be done
         # after all the other I/O.
-        if configdrive.required_by(instance):
+        if configdrive.required_by(instance) and not recreate:
             flow_spawn.add(tf_stg.CreateAndConnectCfgDrive(
                 self.adapter, self.host_uuid, instance, injected_files,
                 network_info, admin_password, stg_ftsk=stg_ftsk))
@@ -443,6 +458,9 @@ class PowerVMDriver(driver.ComputeDriver):
             flow_spawn.add(tf_vm.UpdateIBMiSettings(
                 self.adapter, instance, self.host_uuid, boot_type))
 
+        # Save the slot map information
+        flow_spawn.add(tf_slot.SaveSlotStore(instance, slot_mgr))
+
         # Last step is to power on the system.
         flow_spawn.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
 
@@ -450,7 +468,7 @@ class PowerVMDriver(driver.ComputeDriver):
         tf_eng.run(flow_spawn)
 
     def _add_volume_connection_tasks(self, context, instance, bdms,
-                                     flow, stg_ftsk):
+                                     flow, stg_ftsk, slot_mgr):
         """Determine if there are volumes to connect to this instance.
 
         If there are volumes to connect to this instance add a task to the
@@ -461,20 +479,21 @@ class PowerVMDriver(driver.ComputeDriver):
         :param bdms: block device mappings.
         :param flow: the flow to add the tasks to.
         :param stg_ftsk: the storage task flow.
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is attached to a VM.
         """
-
         for bdm, vol_drv in self._vol_drv_iter(context, instance, bdms=bdms,
                                                stg_ftsk=stg_ftsk):
             # First connect the volume.  This will update the
             # connection_info.
-            flow.add(tf_stg.ConnectVolume(vol_drv))
+            flow.add(tf_stg.ConnectVolume(vol_drv, slot_mgr))
 
             # Save the BDM so that the updated connection info is
             # persisted.
             flow.add(tf_stg.SaveBDM(bdm, instance))
 
     def _add_volume_disconnection_tasks(self, context, instance, bdms,
-                                        flow, stg_ftsk):
+                                        flow, stg_ftsk, slot_mgr):
         """Determine if there are volumes to disconnect from this instance.
 
         If there are volumes to disconnect from this instance add a task to the
@@ -485,10 +504,13 @@ class PowerVMDriver(driver.ComputeDriver):
         :param bdms: block device mappings.
         :param flow: the flow to add the tasks to.
         :param stg_ftsk: the storage task flow.
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is detached from a VM.
         """
+        # TODO(thorst) Do we need to do something on the disconnect for slots?
         for bdm, vol_drv in self._vol_drv_iter(context, instance, bdms=bdms,
                                                stg_ftsk=stg_ftsk):
-            flow.add(tf_stg.DisconnectVolume(vol_drv))
+            flow.add(tf_stg.DisconnectVolume(vol_drv, slot_mgr))
 
     def _get_block_device_info(self, context, instance):
         """Retrieves the instance's block_device_info."""
@@ -557,11 +579,14 @@ class PowerVMDriver(driver.ComputeDriver):
             stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
                                                xag=xag)
 
+            # Build the PowerVM Slot lookup map.
+            slot_mgr = slot.build_slot_mgr(instance, self.store_api)
+
             # Call the unplug VIFs task.  While CNAs get removed from the LPAR
             # directly on the destroy, this clears up the I/O Host side.
             flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
             flow.add(tf_net.UnplugVifs(self.adapter, instance, network_info,
-                                       self.host_uuid))
+                                       self.host_uuid, slot_mgr))
 
             # Add the disconnect/deletion of the vOpt to the transaction
             # manager.
@@ -570,8 +595,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Determine if there are volumes to disconnect.  If so, remove each
             # volume (within the transaction manager)
-            self._add_volume_disconnection_tasks(context, instance, bdms, flow,
-                                                 stg_ftsk)
+            self._add_volume_disconnection_tasks(
+                context, instance, bdms, flow, stg_ftsk, slot_mgr)
 
             # Only detach the disk adapters if this is not a boot from volume
             # since volumes are handled above.  This is only for disks.
@@ -606,6 +631,7 @@ class PowerVMDriver(driver.ComputeDriver):
                 # operations that we should keep the NVRAM around for, then
                 # it's probably safe to delete the NVRAM from the store.
                 flow.add(tf_vm.DeleteNvram(self.nvram_mgr, instance))
+                flow.add(tf_slot.DeleteSlotStore(instance, slot_mgr))
 
             # Build the engine & run!
             tf_eng.run(flow)
@@ -692,9 +718,13 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
+        slot_mgr = slot.build_slot_mgr(instance, self.store_api)
         vol_drv = self._get_inst_vol_adpt(context, instance,
                                           conn_info=connection_info)
-        flow.add(tf_stg.ConnectVolume(vol_drv))
+        flow.add(tf_stg.ConnectVolume(vol_drv, slot_mgr))
+
+        # Save the new slot info
+        flow.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
@@ -735,7 +765,11 @@ class PowerVMDriver(driver.ComputeDriver):
         flow = tf_lf.Flow("detach_volume")
 
         # Add a task to detach the volume
-        flow.add(tf_stg.DisconnectVolume(vol_drv))
+        slot_mgr = slot.build_slot_mgr(instance, self.store_api)
+        flow.add(tf_stg.DisconnectVolume(vol_drv, slot_mgr))
+
+        # Save the new slot info
+        flow.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
@@ -972,8 +1006,12 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
 
         # Run the attach
+        slot_mgr = slot.build_slot_mgr(instance, self.store_api)
         flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
-                                 network_info, self.host_uuid))
+                                 network_info, self.host_uuid, slot_mgr))
+
+        # Save the new slot info
+        flow.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
@@ -999,8 +1037,12 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
 
         # Run the detach
+        slot_mgr = slot.build_slot_mgr(instance, self.store_api)
         flow.add(tf_net.UnplugVifs(self.adapter, instance, network_info,
-                                   self.host_uuid))
+                                   self.host_uuid, slot_mgr))
+
+        # Save the new slot info
+        flow.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
@@ -1131,10 +1173,17 @@ class PowerVMDriver(driver.ComputeDriver):
             stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
                                                xag=xag)
 
+            # Get the slot map.  This is so we build the client
+            # adapters in the same slots.
+            slot_mgr = slot.build_slot_mgr(
+                instance, self.store_api, adapter=self.adapter,
+                vol_drv_iter=self._vol_drv_iter(
+                    context, instance, bdms=bdms, stg_ftsk=stg_ftsk))
+
             # Determine if there are volumes to disconnect.  If so, remove each
             # volume (within the transaction manager)
             self._add_volume_disconnection_tasks(context, instance, bdms, flow,
-                                                 stg_ftsk)
+                                                 stg_ftsk, slot_mgr)
 
             # Add the transaction manager flow to the end of the 'storage
             # disconnection' tasks.  This will run all the disconnections in
@@ -1221,6 +1270,13 @@ class PowerVMDriver(driver.ComputeDriver):
             xag = self._get_inst_xag(instance, bdms)
             stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
                                                xag=xag)
+            # We need the slot manager
+            # a) If migrating to a different host: to restore the proper slots;
+            # b) If adding/removing block devices, to register the slots.
+            slot_mgr = slot.build_slot_mgr(
+                instance, self.store_api, adapter=self.adapter,
+                vol_drv_iter=self._vol_drv_iter(
+                    context, instance, bdms=bdms, stg_ftsk=stg_ftsk))
         else:
             stg_ftsk = None
 
@@ -1231,7 +1287,6 @@ class PowerVMDriver(driver.ComputeDriver):
                                   instance.flavor, name=new_name))
         else:
             # This is a migration over to another host.  We have a lot of work.
-
             # Create the LPAR
             flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
                                   instance.flavor, stg_ftsk,
@@ -1239,23 +1294,25 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Create a flow for the network IO
             flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
-                                     network_info, self.host_uuid))
-            flow.add(tf_net.PlugMgmtVif(self.adapter, instance,
-                                        self.host_uuid))
+                                     network_info, self.host_uuid, slot_mgr))
+            flow.add(tf_net.PlugMgmtVif(
+                self.adapter, instance, self.host_uuid, slot_mgr))
 
             # Need to attach the boot disk, if present.
             if not self._is_booted_from_volume(block_device_info):
                 flow.add(tf_stg.FindDisk(self.disk_dvr, context, instance,
                                          disk_dvr.DiskType.BOOT))
+
                 # Connects up the disk to the LPAR
+                # TODO(manas) Connect the disk flow into the slot lookup map
                 flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance,
                                             stg_ftsk=stg_ftsk))
 
         if bdms:
             # Determine if there are volumes to connect.  If so, add a
             # connection for each type.
-            self._add_volume_connection_tasks(context, instance, bdms,
-                                              flow, stg_ftsk)
+            self._add_volume_connection_tasks(
+                context, instance, bdms, flow, stg_ftsk, slot_mgr)
 
         if stg_ftsk:
             # Add the transaction manager flow to the end of the 'storage
@@ -1705,7 +1762,7 @@ class PowerVMDriver(driver.ComputeDriver):
         return console_type.ConsoleVNC(host=host, port=port,
                                        internal_access_path=lpar_uuid)
 
-    def _get_inst_xag(self, instance, bdms):
+    def _get_inst_xag(self, instance, bdms, recreate=False):
         """Returns the extended attributes required for a given instance.
 
         This is used in coordination with the FeedTask.  It identifies ahead
@@ -1713,8 +1770,14 @@ class PowerVMDriver(driver.ComputeDriver):
 
         :param instance: Nova instance for which the volume adapter is needed.
         :param bdms: The BDMs for the operation.
+        :param recreate: (Optional, Default: False) If set to true, will return
+                         all of the storage XAGs so that a full scrub can be
+                         done (since specific slots are needed).
         :return: List of extended attributes required for the operation.
         """
+        if recreate:
+            return {pvm_const.XAG.VIO_FMAP, pvm_const.XAG.VIO_SMAP,
+                    pvm_const.XAG.VIO_STOR}
         # All operations for deploy/destroy require scsi by default.  This is
         # either vopt, local/SSP disks, etc...
         xags = {pvm_const.XAG.VIO_SMAP}

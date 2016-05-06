@@ -95,6 +95,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.vios_uuid = '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'
         self.udid = (
             '01M0lCTTIxNDUxMjQ2MDA1MDc2ODAyODI4NjFEODgwMDAwMDAwMDAwMDA1Rg==')
+        self.lpar_wrap = mock.Mock(id='partition_id')
 
     @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
     @mock.patch('pypowervm.tasks.storage.find_stale_lpars')
@@ -166,23 +167,28 @@ class TestVSCSIAdapter(BaseVSCSITest):
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
-    def test_connect_volume(self, mock_vm_id, mock_lua_recovery,
+    def test_connect_volume(self, mock_get_vm_id, mock_lua_recovery,
                             mock_build_map, mock_add_map):
         # The mock return values
         mock_lua_recovery.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
+        mock_get_vm_id.return_value = 'partition_id'
+        self.lpar_wrap.build_map.get_pv_vscsi_slot = mock.Mock(
+            return_value='62')
 
-        def build_map_func(host_uuid, vios_w, lpar_uuid, pv):
+        def build_map_func(host_uuid, vios_w, lpar_uuid, pv,
+                           lpar_slot_num=None):
             self.assertEqual('host_uuid', host_uuid)
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('1234', lpar_uuid)
             self.assertIsInstance(pv, pvm_stor.PV)
+            self.assertEqual('62', lpar_slot_num)
             return 'fake_map'
 
         mock_build_map.side_effect = build_map_func
 
         # Run the method
-        self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_add_map.call_count)
@@ -194,18 +200,20 @@ class TestVSCSIAdapter(BaseVSCSITest):
     @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
                 '_validate_vios_on_connection')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_no_update(
-        self, mock_validate_vioses, mock_disc_hdisk, mock_build_map,
-        mock_add_map):
+        self, mock_get_vm_id, mock_validate_vioses, mock_disc_hdisk,
+        mock_build_map, mock_add_map):
         """Make sure we don't do an actual update of the VIOS if not needed."""
         # The mock return values
         mock_build_map.return_value = 'fake_map'
         mock_add_map.return_value = None
+        mock_get_vm_id.return_value = 'partition_id'
         mock_disc_hdisk.return_value = (hdisk.LUAStatus.DEVICE_AVAILABLE,
                                         'devname', 'udid')
 
         # Run the method
-        self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         mock_validate_vioses.assert_called_with(1)
@@ -218,12 +226,14 @@ class TestVSCSIAdapter(BaseVSCSITest):
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
                 '_validate_vios_on_connection')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_to_initiatiors(
-        self, mock_validate_vioses, mock_add_vscsi_mapping, mock_lua_recovery,
-        mock_build_itls):
+        self, mock_get_vm_id, mock_validate_vioses, mock_add_vscsi_mapping,
+        mock_lua_recovery, mock_build_itls):
         """Tests that the connect w/out initiators throws errors."""
         mock_lua_recovery.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
+        mock_get_vm_id.return_value = 'partition_id'
 
         mock_instance = mock.Mock()
         mock_instance.system_metadata = {}
@@ -233,7 +243,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
         mock_build_itls.return_value = []
         self.assertRaises(p_exc.VolumeAttachFailed,
-                          self.vol_drv.connect_volume)
+                          self.vol_drv.connect_volume, self.lpar_wrap)
 
         # Validate that the validate was called with no vioses.
         mock_validate_vioses.assert_called_with(0)
@@ -272,7 +282,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_remove_maps.side_effect = validate_remove_maps
 
         # Run the method
-        self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_remove_maps.call_count)
@@ -302,7 +312,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_remove_maps.side_effect = validate_remove_maps
 
         # Run the method
-        self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_remove_maps.call_count)
@@ -317,13 +327,13 @@ class TestVSCSIAdapter(BaseVSCSITest):
             self, mock_get_vm_id, mock_remove_maps, mock_hdisk_from_uuid):
         """Validate that if no maps removed, the VIOS update is not called."""
         # The mock return values
-        mock_remove_maps.return_value = None
+        mock_remove_maps.return_value = []
         mock_hdisk_from_uuid.return_value = 'device_name'
         mock_get_vm_id.return_value = 'partition_id'
         self.vol_drv._set_udid('UDIDIT!')
 
         # Run the method
-        self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_remove_maps.call_count)
@@ -354,7 +364,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
             return_value=('status', 'dev_name', 'udidit')):
 
             # Run the method
-            self.vol_drv.disconnect_volume()
+            self.vol_drv.disconnect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_remove_maps.call_count)
@@ -374,7 +384,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
             return_value=('status', 'dev_name', None)):
 
             # Run the method
-            self.vol_drv.disconnect_volume()
+            self.vol_drv.disconnect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(0, mock_remove_maps.call_count)
@@ -392,7 +402,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
         # Run the method.  No disconnects should yield a LOG.warning.
         with self.assertLogs(vscsi.__name__, 'WARNING'):
-            self.vol_drv.disconnect_volume()
+            self.vol_drv.disconnect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(0, mock_remove_maps.call_count)
@@ -410,6 +420,9 @@ class TestVSCSIAdapter(BaseVSCSITest):
         xags = self.vol_drv.min_xags()
         self.assertEqual(1, len(xags))
         self.assertIn(pvm_const.XAG.VIO_SMAP, xags)
+
+    def test_vol_type(self):
+        self.assertEqual('vscsi', self.vol_drv.vol_type())
 
     def test_set_udid(self):
 
@@ -481,6 +494,7 @@ class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):
     def setUp(self):
         super(TestVSCSIAdapterMultiVIOS, self).setUp(
             VIOS_FEED_MULTI, I2_WWPN_1, I2_WWPN_2)
+        self.lpar_wrap = mock.Mock(id=5)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
@@ -491,20 +505,27 @@ class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):
         # The mock return values
         mock_discover_hdisk.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
+        mock_vm_id.return_value = 'partition_id'
+        self.lpar_wrap.build_map.get_pv_vscsi_slot = mock.Mock(
+            return_value='62')
 
-        def build_map_func(host_uuid, vios_w, lpar_uuid, pv):
+        def build_map_func(host_uuid, vios_w, lpar_uuid, pv,
+                           lpar_slot_num=None):
             self.assertEqual('host_uuid', host_uuid)
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('1234', lpar_uuid)
             self.assertIsInstance(pv, pvm_stor.PV)
+            self.assertEqual('62', lpar_slot_num)
             return 'fake_map'
 
         mock_build_map.side_effect = build_map_func
 
         # Run the method
-        self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume(self.lpar_wrap)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(2, mock_add_map.call_count)
-        self.assertEqual(2, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(2, mock_build_map.call_count)
+
+        # Two of the calls are for the slots, two are for the add mappings
+        self.assertEqual(2, self.ft_fx.patchers['update'].mock.call_count)

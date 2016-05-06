@@ -165,18 +165,19 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.nvram.manager.NvramManager')
     @mock.patch('oslo_utils.importutils.import_object')
     @mock.patch('nova.utils.spawn')
-    def test_setup_nvram_store(self, mock_spawn, mock_import, mock_mgr):
+    def test_setup_rebuild_store(self, mock_spawn, mock_import, mock_mgr):
         self.flags(nvram_store='NoNe', group='powervm')
-        self.drv._setup_nvram_store()
+        self.drv._setup_rebuild_store()
         self.assertFalse(mock_import.called)
         self.assertFalse(mock_mgr.called)
         self.assertFalse(mock_spawn.called)
 
         self.flags(nvram_store='swift', group='powervm')
-        self.drv._setup_nvram_store()
+        self.drv._setup_rebuild_store()
         self.assertTrue(mock_import.called)
         self.assertTrue(mock_mgr.called)
         self.assertTrue(mock_spawn.called)
+        self.assertIsNotNone(self.drv.store_api)
 
     @mock.patch.object(vm, 'get_lpars')
     @mock.patch.object(vm, 'get_instance')
@@ -267,8 +268,9 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._vol_drv_iter')
     def test_spawn_ops(
-        self, mock_pwron, mock_get_flv, mock_cfg_drv, mock_plug_vifs,
+        self, mock_vdi, mock_pwron, mock_get_flv, mock_cfg_drv, mock_plug_vifs,
         mock_plug_mgmt_vif, mock_boot_from_vol, mock_crt_disk_img,
         mock_conn_vol, mock_crt_cfg_drv):
         """Validates the 'typical' spawn flow of the spawn of an instance.
@@ -283,6 +285,11 @@ class TestPowerVMDriver(test.TestCase):
         self.drv.spawn('context', self.inst, powervm.IMAGE1,
                        'injected_files', 'admin_password')
 
+        # _vol_drv_iter not called from spawn because not recreate; but still
+        # called from _add_volume_connection_tasks.
+        mock_vdi.assert_has_calls([mock.call(
+            'context', self.inst, bdms=[],
+            stg_ftsk=self.build_tx_feed.return_value)])
         # Assert the correct tasks were called
         self.assertTrue(mock_plug_vifs.called)
         self.assertTrue(mock_plug_mgmt_vif.called)
@@ -500,21 +507,25 @@ class TestPowerVMDriver(test.TestCase):
                                           lpars_exist=True)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
-                'CreateAndConnectCfgDrive.execute')
-    @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume'
-                '.execute')
-    @mock.patch('nova_powervm.virt.powervm.tasks.storage.FindDisk'
-                '.execute')
+                'CreateAndConnectCfgDrive')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectDisk')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.FindDisk')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
-    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
-    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif')
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.PowerOn')
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._vol_drv_iter')
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    @mock.patch('taskflow.patterns.linear_flow.Flow')
+    @mock.patch('taskflow.engines.run')
     def test_spawn_recreate(
-        self, mock_pwron, mock_get_flv, mock_cfg_drv, mock_plug_vifs,
-        mock_plug_mgmt_vif, mock_boot_from_vol, mock_find_disk,
+        self, mock_tf_run, mock_flow, mock_build_slot_mgr, mock_vol_drv_iter,
+        mock_pwron, mock_get_flv, mock_cfg_drv, mock_plug_vifs,
+        mock_plug_mgmt_vif, mock_boot_from_vol, mock_find_disk, mock_conn_disk,
         mock_conn_vol, mock_crt_cfg_drv):
         """Validates the 'recreate' spawn flow.
 
@@ -526,20 +537,43 @@ class TestPowerVMDriver(test.TestCase):
         mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = False
+        # Some tasks are mocked; some are not.  Have Flow.add "execute" them so
+        # we can verify the code thereunder.
+        mock_flow.return_value.add.side_effect = lambda task: task.execute()
         self.inst.task_state = task_states.REBUILD_SPAWNING
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.EMPTY_IMAGE,
                        'injected_files', 'admin_password')
 
+        # Recreate uses all XAGs.
+        self.build_tx_feed.assert_called_once_with(
+            self.drv.adapter, self.drv.host_uuid, xag={pvm_const.XAG.VIO_FMAP,
+                                                       pvm_const.XAG.VIO_STOR,
+                                                       pvm_const.XAG.VIO_SMAP})
+        # _vol_drv_iter gets called once in spawn itself, and once under
+        # _add_volume_connection_tasks.
+        # TODO(IBM): Find a way to make the call just once.  Unless it's cheap.
+        mock_vol_drv_iter.assert_has_calls([mock.call(
+            'context', self.inst, bdms=[],
+            stg_ftsk=self.build_tx_feed.return_value)] * 2)
+        mock_build_slot_mgr.assert_called_once_with(
+            self.inst, self.drv.store_api, adapter=self.drv.adapter,
+            vol_drv_iter=mock_vol_drv_iter.return_value)
         # Assert the correct tasks were called
-        self.assertTrue(mock_plug_vifs.called)
+        mock_plug_vifs.assert_called_once_with(
+            self.drv.virtapi, self.drv.adapter, self.inst, None,
+            self.drv.host_uuid, mock_build_slot_mgr.return_value)
+        mock_plug_mgmt_vif.assert_called_once_with(
+            self.drv.adapter, self.inst, self.drv.host_uuid,
+            mock_build_slot_mgr.return_value)
         self.assertTrue(mock_plug_mgmt_vif.called)
         self.assertTrue(mock_find_disk.called)
         self.crt_lpar.assert_called_with(
             self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor(),
             nvram='nvram data')
+        # SaveSlotStore.execute
+        mock_build_slot_mgr.return_value.save.assert_called_once_with()
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
@@ -798,32 +832,59 @@ class TestPowerVMDriver(test.TestCase):
         # The NPIV volume attach - requires SCSI, Storage and FC Mapping
         self.flags(fc_attach_strategy='npiv', group='powervm')
         xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
-        self.assertEqual(set([pvm_const.XAG.VIO_STOR,
-                              pvm_const.XAG.VIO_SMAP,
-                              pvm_const.XAG.VIO_FMAP]), set(xag))
+        self.assertEqual({pvm_const.XAG.VIO_STOR,
+                          pvm_const.XAG.VIO_SMAP,
+                          pvm_const.XAG.VIO_FMAP}, set(xag))
 
         # The vSCSI Volume attach - Ensure case insensitive.
         self.flags(fc_attach_strategy='VSCSI', group='powervm')
         xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
         self.assertEqual([pvm_const.XAG.VIO_SMAP], xag)
 
-    def test_add_vol_conn_task(self):
-        bdm, vol_drv = mock.MagicMock(), mock.MagicMock()
-        flow = mock.Mock()
-        vals = [(bdm, vol_drv), (bdm, vol_drv)]
-        with mock.patch.object(self.drv, '_vol_drv_iter', return_value=vals):
-            self.drv._add_volume_connection_tasks(
-                'context', 'instance', 'bdms', flow, 'stg_ftsk')
-        self.assertEqual(4, flow.add.call_count)
+        # If a recreate, all should be returned
+        xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()], recreate=True)
+        self.assertEqual({pvm_const.XAG.VIO_STOR,
+                          pvm_const.XAG.VIO_SMAP,
+                          pvm_const.XAG.VIO_FMAP}, set(xag))
 
-    def test_add_vol_disconn_task(self):
-        bdm, vol_drv = mock.MagicMock(), mock.MagicMock()
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.SaveBDM')
+    def test_add_vol_conn_task(self, mock_save_bdm, mock_conn_vol):
+        bdm1, bdm2, vol_drv1, vol_drv2 = [mock.Mock()] * 4
         flow = mock.Mock()
-        vals = [(bdm, vol_drv), (bdm, vol_drv)]
-        with mock.patch.object(self.drv, '_vol_drv_iter', return_value=vals):
+        mock_save_bdm.side_effect = 'save_bdm1', 'save_bdm2'
+        mock_conn_vol.side_effect = 'conn_vol1', 'conn_vol2'
+        vals = [(bdm1, vol_drv1), (bdm2, vol_drv2)]
+        with mock.patch.object(self.drv, '_vol_drv_iter',
+                               return_value=vals) as mock_vdi:
+            self.drv._add_volume_connection_tasks(
+                'context', 'instance', 'bdms', flow, 'stg_ftsk', 'slot_mgr')
+        mock_vdi.assert_called_once_with('context', 'instance', bdms='bdms',
+                                         stg_ftsk='stg_ftsk')
+        mock_conn_vol.assert_has_calls([mock.call(vol_drv1, 'slot_mgr'),
+                                        mock.call(vol_drv2, 'slot_mgr')])
+        mock_save_bdm.assert_has_calls([mock.call(bdm1, 'instance'),
+                                        mock.call(bdm2, 'instance')])
+        flow.add.assert_has_calls([
+            mock.call('conn_vol1'), mock.call('save_bdm1'),
+            mock.call('conn_vol2'), mock.call('save_bdm2')])
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.DisconnectVolume')
+    def test_add_vol_disconn_task(self, mock_disconn_vol):
+        vol_drv1, vol_drv2 = [mock.Mock()] * 2
+        flow = mock.Mock()
+        mock_disconn_vol.side_effect = 'disconn_vol1', 'disconn_vol2'
+        vals = [('bdm', vol_drv1), ('bdm', vol_drv2)]
+        with mock.patch.object(self.drv, '_vol_drv_iter',
+                               return_value=vals) as mock_vdi:
             self.drv._add_volume_disconnection_tasks(
-                'context', 'instance', 'bdms', flow, 'stg_ftsk')
-        self.assertEqual(2, flow.add.call_count)
+                'context', 'instance', 'bdms', flow, 'stg_ftsk', 'slot_mgr')
+        mock_vdi.assert_called_once_with('context', 'instance', bdms='bdms',
+                                         stg_ftsk='stg_ftsk')
+        mock_disconn_vol.assert_has_calls([mock.call(vol_drv1, 'slot_mgr'),
+                                           mock.call(vol_drv2, 'slot_mgr')])
+        flow.add.assert_has_calls([mock.call('disconn_vol1'),
+                                   mock.call('disconn_vol2')])
 
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
@@ -836,10 +897,11 @@ class TestPowerVMDriver(test.TestCase):
                 '_validate_vopt_vg')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
     def test_destroy_internal(
-        self, mock_get_flv, mock_pvmuuid, mock_val_vopt,
-        mock_dlt_vopt, mock_pwroff, mock_dlt, mock_boot_from_vol,
-        mock_unplug_vifs):
+        self, mock_bld_slot_mgr, mock_get_flv, mock_pvmuuid,
+        mock_val_vopt, mock_dlt_vopt, mock_pwroff, mock_dlt,
+        mock_boot_from_vol, mock_unplug_vifs):
         """Validates the basic PowerVM destroy."""
         # NVRAM Manager
         self.drv.nvram_mgr = mock.Mock()
@@ -848,7 +910,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_bdms = self._fake_bdms()
         mock_boot_from_vol.return_value = False
         # Invoke the method.
-        self.drv.destroy('context', self.inst, [mock.Mock],
+        self.drv.destroy('context', self.inst, ['net'],
                          block_device_info=mock_bdms)
 
         # Power off was called
@@ -856,14 +918,18 @@ class TestPowerVMDriver(test.TestCase):
                                        self.drv.host_uuid,
                                        force_immediate=True)
 
+        mock_bld_slot_mgr.assert_called_once_with(self.inst,
+                                                  self.drv.store_api)
         # Unplug should have been called
+        # TODO(IBM): Find a way to verify UnplugVifs(..., slot_mgr)
         self.assertTrue(mock_unplug_vifs.called)
 
         # Validate that the vopt delete was called
         self.assertTrue(mock_dlt_vopt.called)
 
         # Validate that the volume detach was called
-        self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
+        self.vol_drv.disconnect_volume.assert_has_calls(
+            [mock.call(mock_bld_slot_mgr.return_value)] * 2)
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
 
@@ -876,6 +942,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # NVRAM was deleted
         self.drv.nvram_mgr.remove.assert_called_once_with(self.inst)
+        # Slot store was deleted
+        mock_bld_slot_mgr.return_value.delete.assert_called_once_with()
 
         def reset_mocks():
             # Reset the mocks
@@ -1011,7 +1079,8 @@ class TestPowerVMDriver(test.TestCase):
             'context', self.inst, block_device_info=mock_bdms,
             destroy_disks=True, shutdown=True, network_info=[])
 
-    def test_attach_volume(self):
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    def test_attach_volume(self, mock_bld_slot_mgr):
         """Validates the basic PowerVM attach volume."""
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
@@ -1021,12 +1090,17 @@ class TestPowerVMDriver(test.TestCase):
             self.drv.attach_volume('context', mock_bdm.get('connection_info'),
                                    self.inst, mock.Mock())
 
+        mock_bld_slot_mgr.assert_called_once_with(self.inst,
+                                                  self.drv.store_api)
         # Verify the connect volume was invoked
-        self.assertEqual(1, self.vol_drv.connect_volume.call_count)
+        self.vol_drv.connect_volume.assert_called_once_with(
+            mock_bld_slot_mgr.return_value)
+        mock_bld_slot_mgr.return_value.save.assert_called_once_with()
         self.assertTrue(mock_save.called)
 
     @mock.patch('nova_powervm.virt.powervm.vm.instance_exists')
-    def test_detach_volume(self, mock_inst_exists):
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    def test_detach_volume(self, mock_bld_slot_mgr, mock_inst_exists):
         """Validates the basic PowerVM detach volume."""
         # Mock that the instance exists for the first test, then not.
         mock_inst_exists.side_effect = [True, False, False]
@@ -1037,8 +1111,12 @@ class TestPowerVMDriver(test.TestCase):
         self.drv.detach_volume(mock_bdm.get('connection_info'), self.inst,
                                mock.Mock())
 
+        mock_bld_slot_mgr.assert_called_once_with(self.inst,
+                                                  self.drv.store_api)
         # Verify the disconnect volume was invoked
-        self.assertEqual(1, self.vol_drv.disconnect_volume.call_count)
+        self.vol_drv.disconnect_volume.assert_called_once_with(
+            mock_bld_slot_mgr.return_value)
+        mock_bld_slot_mgr.return_value.save.assert_called_once_with()
 
         # Invoke the method, instance doesn't exist, no migration
         self.vol_drv.disconnect_volume.reset_mock()
@@ -1103,7 +1181,8 @@ class TestPowerVMDriver(test.TestCase):
         # Validate the rollbacks were called.
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
-    def test_migrate_disk_and_power_off(self):
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    def test_migrate_disk_and_power_off(self, mock_bld_slot_mgr):
         """Validates the PowerVM driver migrate / resize operation."""
         # Set up the mocks to the migrate / resize operation.
         host = self.drv.get_host_ip_addr()
@@ -1139,14 +1218,23 @@ class TestPowerVMDriver(test.TestCase):
                 'context', self.inst, dest_host, boot_flav, 'network_info',
                 mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
+            mock_bld_slot_mgr.assert_called_once_with(
+                self.inst, self.drv.store_api, adapter=self.drv.adapter,
+                vol_drv_iter=mock.ANY)
             # Check the size set in the resize task
             extend_task = taskflow_fix.tasks_added[
                 expected.index('extend_disk_boot')]
             self.assertEqual(extend_task.size, 12)
+            # Ensure slot manager was passed to disconnect
+            self.assertEqual(mock_bld_slot_mgr.return_value,
+                             taskflow_fix.tasks_added[3].slot_mgr)
+            self.assertEqual(mock_bld_slot_mgr.return_value,
+                             taskflow_fix.tasks_added[4].slot_mgr)
         self.san_lpar_name.assert_called_with('migrate_' + self.inst.name)
 
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    def test_finish_migration(self, mock_get_flv):
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    def test_finish_migration(self, mock_bld_slot_mgr, mock_get_flv):
         mock_bdms = self._fake_bdms()
         mig = objects.Migration(**powervm.TEST_MIGRATION)
         mig_same_host = objects.Migration(**powervm.TEST_MIGRATION_SAME_HOST)
@@ -1180,8 +1268,18 @@ class TestPowerVMDriver(test.TestCase):
             self.drv.finish_migration(
                 'context', mig, self.inst, disk_info, 'network_info',
                 powervm.IMAGE1, 'resize_instance', block_device_info=mock_bdms)
+            mock_bld_slot_mgr.assert_called_once_with(
+                self.inst, self.drv.store_api, adapter=self.drv.adapter,
+                vol_drv_iter=mock.ANY)
             taskflow_fix.assert_tasks_added(self, expected)
+            # Slot manager was passed to PlugVifs, PlugMgmtVif, and
+            # connect_volume (twice)
+            for idx in (1, 2, 5, 7):
+                self.assertEqual(mock_bld_slot_mgr.return_value,
+                                 taskflow_fix.tasks_added[idx].slot_mgr)
         self.san_lpar_name.assert_not_called()
+
+        mock_bld_slot_mgr.reset_mock()
 
         # Tasks expected to be added for resize to the same host
         expected = [
@@ -1199,8 +1297,17 @@ class TestPowerVMDriver(test.TestCase):
                 'context', mig_same_host, self.inst, disk_info, 'network_info',
                 powervm.IMAGE1, 'resize_instance', block_device_info=mock_bdms)
             taskflow_fix.assert_tasks_added(self, expected)
+            mock_bld_slot_mgr.assert_called_once_with(
+                self.inst, self.drv.store_api, adapter=self.drv.adapter,
+                vol_drv_iter=mock.ANY)
+            # Slot manager was passed to connect_volume (twice)
+            for idx in (1, 3):
+                self.assertEqual(mock_bld_slot_mgr.return_value,
+                                 taskflow_fix.tasks_added[idx].slot_mgr)
         self.san_lpar_name.assert_called_with('resize_' + self.inst.name)
         self.san_lpar_name.reset_mock()
+
+        mock_bld_slot_mgr.reset_mock()
 
         # Tasks expected to be added for resize to the same host, no BDMS,
         # and no power_on
@@ -1212,6 +1319,8 @@ class TestPowerVMDriver(test.TestCase):
                 'context', mig_same_host, self.inst, disk_info, 'network_info',
                 powervm.IMAGE1, 'resize_instance', power_on=False)
             taskflow_fix.assert_tasks_added(self, expected)
+        # Don't need the slot manager on a pure resize (no BDMs and same host)
+        mock_bld_slot_mgr.assert_not_called()
         self.san_lpar_name.assert_called_with('resize_' + self.inst.name)
 
     @mock.patch('nova_powervm.virt.powervm.vm.power_on')
@@ -1317,9 +1426,10 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
     def test_plug_vifs(
-        self, mock_wrap, mock_vm_get, mock_plug_vif, mock_get_rmc_vswitch,
-        mock_plug_rmc_vif):
+        self, mock_bld_slot_mgr, mock_wrap, mock_vm_get, mock_plug_vif,
+        mock_get_rmc_vswitch, mock_plug_rmc_vif):
         # Mock up the CNA response
         cnas = [mock.MagicMock(), mock.MagicMock()]
         cnas[0].mac = 'AABBCCDDEEFF'
@@ -1347,9 +1457,15 @@ class TestPowerVMDriver(test.TestCase):
         # Run method
         self.drv.plug_vifs(self.inst, net_info)
 
+        mock_bld_slot_mgr.assert_called_once_with(self.inst,
+                                                  self.drv.store_api)
+
         # The create should have only been called once.  The other was already
         # existing.
-        self.assertEqual(1, mock_plug_vif.call_count)
+        mock_plug_vif.assert_called_once_with(
+            self.drv.adapter, self.drv.host_uuid, self.inst, net_info[1],
+            mock_bld_slot_mgr.return_value)
+        mock_bld_slot_mgr.return_value.save.assert_called_once_with()
         self.assertEqual(0, mock_plug_rmc_vif.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get')
@@ -1368,6 +1484,45 @@ class TestPowerVMDriver(test.TestCase):
         # Run method
         self.assertRaises(exc.VirtualInterfacePlugException,
                           self.drv.plug_vifs, self.inst, {})
+
+    @mock.patch('nova_powervm.virt.powervm.vif.unplug')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    def test_unplug_vifs(self, mock_bld_slot_mgr, mock_wrap, mock_vm_get,
+                         mock_unplug_vif):
+        # Mock up the CNA response
+        cnas = [mock.MagicMock(), mock.MagicMock()]
+        cnas[0].mac = 'AABBCCDDEEFF'
+        cnas[0].vswitch_uri = 'fake_uri'
+        cnas[1].mac = 'AABBCCDDEE11'
+        cnas[1].vswitch_uri = 'fake_mgmt_uri'
+        mock_vm_get.return_value = cnas
+
+        mock_lpar_wrapper = mock.MagicMock()
+        mock_lpar_wrapper.can_modify_io = mock.MagicMock(
+            return_value=(True, None))
+        mock_wrap.return_value = mock_lpar_wrapper
+
+        # Mock up the network info.  They get sanitized to upper case.
+        net_info = [
+            {'address': 'aa:bb:cc:dd:ee:ff'},
+            {'address': 'aa:bb:cc:dd:ee:22'}
+        ]
+
+        # Run method
+        self.drv.unplug_vifs(self.inst, net_info)
+
+        mock_bld_slot_mgr.assert_called_once_with(self.inst,
+                                                  self.drv.store_api)
+
+        # The create should have only been called once.  The other was already
+        # existing.
+        mock_unplug_vif.assert_has_calls(
+            [mock.call(self.drv.adapter, self.drv.host_uuid, self.inst,
+                       net_inf, mock_bld_slot_mgr.return_value,
+                       cna_w_list=cnas) for net_inf in net_info])
+        mock_bld_slot_mgr.return_value.save.assert_called_once_with()
 
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get.execute')
     def test_unplug_vif_failures(self, mock_vm):
