@@ -48,6 +48,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.wwpn1 = '21000024FF649104'
         self.wwpn2 = '21000024FF649107'
         self.vios_uuid = '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089'
+        self.slot_mgr = mock.Mock()
 
         # Set up the transaction manager
         feed = pvm_vios.VIOS.wrap(self.vios_feed_resp)
@@ -96,6 +97,8 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
     def test_connect_volume(self, mock_add_map):
         # Mock
         self._basic_system_metadata(npiv.FS_UNMAPPED)
+        self.slot_mgr.build_map.get_vfc_slots = mock.Mock(
+            return_value=['62'])
 
         def add_map(vios_w, host_uuid, vm_uuid, port_map, **kwargs):
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
@@ -106,33 +109,46 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         mock_add_map.side_effect = add_map
 
         # Test connect volume
-        self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume(self.slot_mgr)
 
         # Verify that the appropriate connections were made.
         self.assertEqual(1, mock_add_map.call_count)
+        mock_add_map.assert_called_once_with(
+            mock.ANY, 'host_uuid', '1234', ('21000024FF649104', 'AA BB'),
+            lpar_slot_num='62', provided={})
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(npiv.FS_INST_MAPPED,
                          self.vol_drv._get_fabric_state('A'))
 
+        # Verify the correct post execute methods were added to the feed task
+        self.assertEqual('fab_slot_A_id',
+                         self.vol_drv.stg_ftsk._post_exec[0].name)
+        self.assertEqual('fab_A_id',
+                         self.vol_drv.stg_ftsk._post_exec[1].name)
+
     def test_connect_volume_not_valid(self):
         """Validates that a connect will fail if in a bad state."""
         self.mock_inst_wrap.can_modify_io.return_value = False, 'Invalid I/O'
-        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume)
+        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume,
+                          self.slot_mgr)
 
     def test_connect_volume_bad_wwpn(self):
         """Ensures an error is raised if a bad WWPN is used."""
         self._basic_system_metadata(npiv.FS_UNMAPPED, p_wwpn='bad')
-        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume)
+        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume,
+                          self.slot_mgr)
 
     @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
     def test_connect_volume_inst_mapped(self, mock_add_map):
         """Test if already connected to an instance, don't do anything"""
         self._basic_system_metadata(npiv.FS_INST_MAPPED)
         mock_add_map.return_value = None
+        self.slot_mgr.build_map.get_vfc_slots = mock.Mock(
+            return_value=['62'])
 
         # Test subsequent connect volume calls when the fabric is mapped with
         # inst partition
-        self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume(self.slot_mgr)
 
         # Verify
         self.assertEqual(1, mock_add_map.call_count)
@@ -161,7 +177,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         mock_find_vios.return_value = (mock.Mock(uuid=self.vios_uuid),)
 
         # Invoke
-        self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume(self.slot_mgr)
 
         # Two maps removed on one VIOS
         self.assertEqual(2, mock_remove_maps.call_count)
@@ -178,7 +194,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         mock_get_fabric_meta.return_value = []
 
         # Invoke
-        self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume(self.slot_mgr)
 
         # No mappings should have been removed
         self.assertFalse(mock_remove_maps.called)
@@ -187,14 +203,14 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         """Validates that a disconnect will fail if in a bad state."""
         self.mock_inst_wrap.can_modify_io.return_value = False, 'Bleh'
         self.assertRaises(exc.VolumeDetachFailed,
-                          self.vol_drv.disconnect_volume)
+                          self.vol_drv.disconnect_volume, self.slot_mgr)
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_remove_maps_for_fabric')
     def test_disconnect_volume_no_op(self, mock_remove_maps):
         """Tests that when the task state is not set, connections are left."""
         # Invoke
-        self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume(self.slot_mgr)
 
         # Verify
         self.assertEqual(0, mock_remove_maps.call_count)
@@ -204,7 +220,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv.instance.task_state = task_states.RESUMING
 
         # Invoke
-        self.vol_drv.disconnect_volume()
+        self.vol_drv.disconnect_volume(self.slot_mgr)
         self.assertEqual(0, self.adpt.read.call_count)
 
     def test_connect_volume_no_map(self):
@@ -222,7 +238,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         mock_vios.vfc_mappings = [mock_mapping]
 
         # Invoke
-        self.vol_drv.connect_volume()
+        self.vol_drv.connect_volume(self.slot_mgr)
 
     def test_min_xags(self):
         xags = self.vol_drv.min_xags()
@@ -560,3 +576,6 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv.instance.system_metadata = system_meta
         fabric_meta = self.vol_drv._get_fabric_meta('A')
         self.assertEqual(fabric_meta, expected)
+
+    def test_vol_type(self):
+        self.assertEqual('npiv', self.vol_drv.vol_type())

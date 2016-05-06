@@ -108,6 +108,11 @@ class PowerVMVolumeAdapter(object):
         """List of pypowervm XAGs needed to support this adapter."""
         raise NotImplementedError()
 
+    @classmethod
+    def vol_type(cls):
+        """The type of volume supported by this driver."""
+        raise NotImplementedError()
+
     def pre_live_migration_on_destination(self, mig_data):
         """Perform pre live migration steps for the volume on the target host.
 
@@ -182,8 +187,12 @@ class PowerVMVolumeAdapter(object):
         """
         pass
 
-    def connect_volume(self):
-        """Connects the volume."""
+    def connect_volume(self, slot_mgr):
+        """Connects the volume.
+
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is attached to the VM
+        """
         # Check if the VM is in a state where the attach is acceptable.
         lpar_w = vm.get_instance_wrapper(self.adapter, self.instance,
                                          self.host_uuid)
@@ -194,13 +203,17 @@ class PowerVMVolumeAdapter(object):
                 reason=reason)
 
         # Run the connect
-        self._connect_volume()
+        self._connect_volume(slot_mgr)
 
         if self.stg_ftsk.name == LOCAL_FEED_TASK:
             self.stg_ftsk.execute()
 
-    def disconnect_volume(self):
-        """Disconnect the volume."""
+    def disconnect_volume(self, slot_mgr):
+        """Disconnect the volume.
+
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
+                         slots used when a volume is detached from the VM.
+        """
         # Check if the VM is in a state where the detach is acceptable.
         lpar_w = vm.get_instance_wrapper(self.adapter, self.instance,
                                          self.host_uuid)
@@ -211,24 +224,30 @@ class PowerVMVolumeAdapter(object):
                 reason=reason)
 
         # Run the disconnect
-        self._disconnect_volume()
+        self._disconnect_volume(slot_mgr)
 
         if self.stg_ftsk.name == LOCAL_FEED_TASK:
             self.stg_ftsk.execute()
 
-    def _connect_volume(self):
+    def _connect_volume(self, slot_mgr):
         """Connects the volume.
 
         This is the actual method to implement within the subclass.  Some
         transaction maintenance is done by the parent class.
+
+        :param slot_mgr: A NovaSlotStore.  Used to store/retrieve the client
+                         slots used when a volume is attached to the VM.
         """
         raise NotImplementedError()
 
-    def _disconnect_volume(self):
+    def _disconnect_volume(self, slot_mgr):
         """Disconnect the volume.
 
         This is the actual method to implement within the subclass.  Some
         transaction maintenance is done by the parent class.
+
+        :param slot_mgr: A NovaSlotManager.  Used to delete the client slots
+                         used when a volume is detached from the VM
         """
         raise NotImplementedError()
 

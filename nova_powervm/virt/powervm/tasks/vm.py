@@ -41,7 +41,8 @@ class Get(task.Task):
         :param host_uuid: The host UUID
         :param instance: The nova instance.
         """
-        super(Get, self).__init__(name='get_lpar', provides='lpar_wrap')
+        super(Get, self).__init__(name='get_lpar',
+                                  provides='lpar_wrap')
         self.adapter = adapter
         self.host_uuid = host_uuid
         self.instance = instance
@@ -78,8 +79,7 @@ class Create(task.Task):
         :param nvram_mgr: The NVRAM manager to fetch the NVRAM from. If None,
                           the NVRAM will not be fetched.
         """
-        super(Create, self).__init__(name='crt_lpar',
-                                     provides='lpar_wrap')
+        super(Create, self).__init__(name='crt_lpar', provides='lpar_wrap')
         self.adapter = adapter
         self.host_wrapper = host_wrapper
         self.instance = instance
