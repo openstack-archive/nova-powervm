@@ -626,7 +626,9 @@ class PowerVMDriver(driver.ComputeDriver):
             # the prior step.
             flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
 
-            if destroy_disks and instance.vm_state not in KEEP_NVRAM_STATES:
+            if (destroy_disks and
+                    instance.vm_state not in KEEP_NVRAM_STATES and
+                    instance.host in [None, CONF.host]):
                 # If the disks are being destroyed and not one of the
                 # operations that we should keep the NVRAM around for, then
                 # it's probably safe to delete the NVRAM from the store.

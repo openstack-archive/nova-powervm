@@ -1041,6 +1041,70 @@ class TestPowerVMDriver(test.TestCase):
                           [], block_device_info=mock_bdms)
         assert_not_called()
 
+    @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
+    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume')
+    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                'dlt_vopt')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_validate_vopt_vg')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova.objects.flavor.Flavor.get_by_id')
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    def test_destroy_internal_no_nvram_cleanup(
+        self, mock_bld_slot_mgr, mock_get_flv, mock_pvmuuid,
+        mock_val_vopt, mock_dlt_vopt, mock_pwroff, mock_dlt,
+        mock_boot_from_vol, mock_unplug_vifs):
+        """Validates the basic PowerVM destroy, without NVRAM cleanup.
+
+        Used to validate the behavior when destroying evacuated instances.
+        It should not clean up NVRAM as the instance is still on another host.
+        """
+        # NVRAM Manager
+        self.drv.nvram_mgr = mock.Mock()
+        self.inst.host = 'other'
+
+        # BDMs
+        mock_bdms = self._fake_bdms()
+        mock_boot_from_vol.return_value = False
+
+        # Invoke the method.
+        self.drv.destroy('context', self.inst, ['net'],
+                         block_device_info=mock_bdms)
+
+        # Power off was called
+        mock_pwroff.assert_called_with(self.drv.adapter, self.inst,
+                                       self.drv.host_uuid,
+                                       force_immediate=True)
+
+        mock_bld_slot_mgr.assert_called_once_with(self.inst,
+                                                  self.drv.store_api)
+        # Unplug should have been called
+        # TODO(IBM): Find a way to verify UnplugVifs(..., slot_mgr)
+        self.assertTrue(mock_unplug_vifs.called)
+
+        # Validate that the vopt delete was called
+        self.assertTrue(mock_dlt_vopt.called)
+
+        # Validate that the volume detach was called
+        self.vol_drv.disconnect_volume.assert_has_calls(
+            [mock.call(mock_bld_slot_mgr.return_value)] * 2)
+        # Delete LPAR was called
+        mock_dlt.assert_called_with(self.apt, mock.ANY)
+
+        # Validate root device in bdm was checked.
+        mock_boot_from_vol.assert_called_with(mock_bdms)
+
+        # Validate disk driver detach and delete disk methods were called.
+        self.assertTrue(self.drv.disk_dvr.delete_disks.called)
+        self.assertTrue(self.drv.disk_dvr.disconnect_image_disk.called)
+
+        # NVRAM was NOT deleted
+        self.assertFalse(self.drv.nvram_mgr.remove.called)
+        self.assertFalse(mock_bld_slot_mgr.return_value.delete.called)
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
     def test_destroy(self, mock_getqp, mock_getuuid):
