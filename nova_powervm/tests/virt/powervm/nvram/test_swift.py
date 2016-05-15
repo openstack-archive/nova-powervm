@@ -94,19 +94,32 @@ class TestSwiftStore(test.TestCase):
     def test_get_object_names(self):
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj', 'obj2'])
+
+            # Test without a prefix
             names = self.swift_store._get_object_names('powervm_nvram')
             self.assertEqual(['obj', 'obj2'], names)
-            mock_run.assert_called_once_with(None, 'list',
-                                             container='powervm_nvram',
-                                             options={'long': True})
+            mock_run.assert_called_once_with(
+                None, 'list', container='powervm_nvram',
+                options={'long': True, 'prefix': None})
 
-    def test_underscore_store(self):
+            # Test with a prefix
+            names = self.swift_store._get_object_names('powervm_nvram',
+                                                       prefix='obj')
+            self.assertEqual(['obj', 'obj2'], names)
+            mock_run.assert_called_with(
+                None, 'list', container='powervm_nvram',
+                options={'long': True, 'prefix': 'obj'})
+
+    @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
+                '_exists')
+    def test_underscore_store(self, mock_exists):
+        mock_exists.return_value = True
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
             self.swift_store._store(powervm.TEST_INST1.uuid,
                                     powervm.TEST_INST1.name, 'data')
             mock_run.assert_called_once_with(None, 'upload', 'powervm_nvram',
-                                             mock.ANY)
+                                             mock.ANY, options=None)
 
             # Test unsuccessful upload
             mock_run.return_value[0]['success'] = False
@@ -114,18 +127,34 @@ class TestSwiftStore(test.TestCase):
                               self.swift_store._store, powervm.TEST_INST1.uuid,
                               powervm.TEST_INST1.name, 'data')
 
-    def test_store(self):
+    @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
+                '_exists')
+    def test_underscore_store_not_exists(self, mock_exists):
+        mock_exists.return_value = False
+        with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
+            mock_run.return_value = self._build_results(['obj'])
+            self.swift_store._store(powervm.TEST_INST1.uuid,
+                                    powervm.TEST_INST1.name, 'data')
+            mock_run.assert_called_once_with(
+                None, 'upload', 'powervm_nvram', mock.ANY,
+                options={'leave_segments': True})
+
+    @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
+                '_exists')
+    def test_store(self, mock_exists):
         # Test forcing a update
         with mock.patch.object(self.swift_store, '_store') as mock_store:
+            mock_exists.return_value = False
             self.swift_store.store(powervm.TEST_INST1, 'data', force=True)
             mock_store.assert_called_once_with(powervm.TEST_INST1.uuid,
                                                powervm.TEST_INST1.name,
-                                               'data')
+                                               'data', exists=False)
 
         with mock.patch.object(
             self.swift_store, '_store') as mock_store, mock.patch.object(
                 self.swift_store, '_run_operation') as mock_run:
 
+            mock_exists.return_value = True
             data_md5_hash = '8d777f385d3dfec8815d20f7496026dc'
             results = self._build_results(['obj'])
             results[0]['headers'] = {'etag': data_md5_hash}
@@ -145,7 +174,10 @@ class TestSwiftStore(test.TestCase):
 
     @mock.patch('os.remove')
     @mock.patch('tempfile.NamedTemporaryFile')
-    def test_fetch(self, mock_tmpf, mock_rmv):
+    @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
+                '_exists')
+    def test_fetch(self, mock_exists, mock_tmpf, mock_rmv):
+        mock_exists.return_value = True
         with mock.patch('nova_powervm.virt.powervm.nvram.swift.open',
                         mock.mock_open(read_data='data to read')
                         ) as m_open, mock.patch.object(
@@ -164,7 +196,10 @@ class TestSwiftStore(test.TestCase):
 
     @mock.patch('os.remove')
     @mock.patch('tempfile.NamedTemporaryFile')
-    def test_fetch_slot_map(self, mock_tmpf, mock_rmv):
+    @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
+                '_exists')
+    def test_fetch_slot_map(self, mock_exists, mock_tmpf, mock_rmv):
+        mock_exists.return_value = True
         with mock.patch('nova_powervm.virt.powervm.nvram.swift.open',
                         mock.mock_open(read_data='data to read')
                         ) as m_open, mock.patch.object(
@@ -175,6 +210,19 @@ class TestSwiftStore(test.TestCase):
             data = self.swift_store.fetch_slot_map("test_slot")
             self.assertEqual('data to read', data)
             mock_rmv.assert_called_once_with(m_open.return_value.name)
+
+    @mock.patch('os.remove')
+    @mock.patch('tempfile.NamedTemporaryFile')
+    @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
+                '_exists')
+    def test_fetch_slot_map_no_exist(self, mock_exists, mock_tmpf, mock_rmv):
+        mock_exists.return_value = False
+        data = self.swift_store.fetch_slot_map("test_slot")
+        self.assertIsNone(data)
+
+        # Make sure the remove (part of the finally block) is never called.
+        # Should not get that far.
+        self.assertFalse(mock_rmv.called)
 
     def test_delete(self):
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
@@ -202,6 +250,18 @@ class TestSwiftStore(test.TestCase):
             self.assertRaises(
                 api.NVRAMDeleteException, self.swift_store.delete_slot_map,
                 'test_slot')
+
+    @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
+                '_get_object_names')
+    def test_exists(self, mock_get_obj_names):
+        # Test where there are elements in here
+        mock_get_obj_names.return_value = ['obj', 'obj1', 'obj2']
+        self.assertTrue(self.swift_store._exists('obj'))
+
+        # Test where there are objects that start with the prefix, but aren't
+        # actually there themselves
+        mock_get_obj_names.return_value = ['obj1', 'obj2']
+        self.assertFalse(self.swift_store._exists('obj'))
 
     def test_optional_options(self):
         """Test optional config values."""
