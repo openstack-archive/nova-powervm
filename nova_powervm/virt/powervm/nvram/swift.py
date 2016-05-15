@@ -23,6 +23,7 @@ import types
 
 from nova_powervm import conf as cfg
 from nova_powervm.conf import powervm
+from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm.nvram import api
@@ -103,21 +104,36 @@ class SwiftNvramStore(api.NvramStore):
         results = self._run_operation(None, 'list', options={'long': True})
         return self._get_name_from_listing(results)
 
-    def _get_object_names(self, container):
-        results = self._run_operation(None, 'list', options={'long': True},
-                                      container=container)
+    def _get_object_names(self, container, prefix=None):
+        results = self._run_operation(
+            None, 'list', options={'long': True, 'prefix': prefix},
+            container=container)
         return self._get_name_from_listing(results)
 
-    def _store(self, inst_key, inst_name, data):
+    def _store(self, inst_key, inst_name, data, exists=None):
         """Store the NVRAM into the storage service.
 
         :param instance: instance object
         :param data: the NVRAM data base64 encoded string
+        :param exists: (Optional, Default: None) If specified, tells the upload
+                       whether or not the object exists.  Should be a boolean
+                       or None.  If left as None, the method will look up
+                       whether or not it exists.
         """
         source = six.StringIO(data)
+
+        # If the object doesn't exist, we tell it to 'leave_segments'.  This
+        # prevents a lookup and saves the logs from an ERROR in the swift
+        # client (that really isn't an error...sigh).  It should be empty
+        # if not the first upload (which defaults to leave_segments=False)
+        # so that it overrides the existing element on a subsequent upload.
+        if exists is None:
+            exists = self._exists(inst_key)
+        options = dict(leave_segments=True) if not exists else None
+
         obj = swft_srv.SwiftUploadObject(source, object_name=inst_key)
         for result in self._run_operation(None, 'upload', self.container,
-                                          [obj]):
+                                          [obj], options=options):
             if not result['success']:
                 # The upload failed.
                 raise api.NVRAMUploadException(instance=inst_name,
@@ -132,8 +148,8 @@ class SwiftNvramStore(api.NvramStore):
         :param force: boolean whether an update should always be saved,
                       otherwise, check to see if it's changed.
         """
-
-        if not force:
+        exists = self._exists(instance.uuid)
+        if not force and exists:
             # See if the entry exists and has not changed.
             results = self._run_operation(None, 'stat', options={'long': True},
                                           container=self.container,
@@ -149,7 +165,7 @@ class SwiftNvramStore(api.NvramStore):
                              instance.name, instance=instance)
                     return
 
-        self._store(instance.uuid, instance.name, data)
+        self._store(instance.uuid, instance.name, data, exists=exists)
         LOG.debug('NVRAM updated for instance: %s' % instance.name)
 
     def store_slot_map(self, inst_key, data):
@@ -180,7 +196,20 @@ class SwiftNvramStore(api.NvramStore):
                                              reason=result)
         return data
 
+    def _exists(self, object_key):
+        # Search by prefix, but since this is just a prefix, we need to loop
+        # and do a check to make sure it fully looks.
+        obj_names = self._get_object_names(self.container, prefix=object_key)
+        for obj in obj_names:
+            if object_key == obj:
+                return True
+        return False
+
     def _fetch(self, object_key):
+        # Check if the object exists.  If not, return a result accordingly.
+        if not self._exists(object_key):
+            return None, _('Object does not exist in Swift.')
+
         try:
             # Create a temp file for download into
             with tempfile.NamedTemporaryFile(delete=False) as f:
