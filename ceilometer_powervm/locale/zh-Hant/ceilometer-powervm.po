@@ -1,21 +1,21 @@
 # Translations template for ceilometer-powervm.
-# Copyright (C) 2015 ORGANIZATION
+# Copyright (C) 2016 IBM Corp.
 # This file is distributed under the same license as the ceilometer-powervm
 # project.
-# Automatically generated, 2015.
+# Automatically generated, 2016.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ceilometer-powervm 0.0.1.dev26\n"
+"Project-Id-Version: ceilometer-powervm 2.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-10-06 14:01-0500\n"
-"PO-Revision-Date: 2015-10-06 14:01-0500\n"
+"POT-Creation-Date: 2016-04-14 04:46-0400\n"
+"PO-Revision-Date: 2016-04-14 04:46-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.0\n"
+"Generated-By: Babel 2.3.2\n"
 
 #: ceilometer_powervm/compute/virt/powervm/inspector.py:80
 #, python-format
@@ -30,10 +30,14 @@ msgstr "預期只有一個主機；但找到 %d 個。"
 #: ceilometer_powervm/compute/virt/powervm/inspector.py:440
 #, python-format
 msgid "VM %s not found in PowerVM Metrics Sample."
-msgstr "在 PowerVM 度量範例中找不到 VM %s"
+msgstr "在 PowerVM 度量範例中找不到 VM %s。"
 
 #: ceilometer_powervm/compute/virt/powervm/inspector.py:158
 #, python-format
 msgid "Unable to derive CPU Utilization for VM %s."
 msgstr "無法衍生 VM %s 的 CPU 使用率。"
 
+
+# ENGL1SH_VERS10N 36919_2 DO NOT REMOVE OR CHANGE THIS LINE
+# T9N_SRC_ID 33
+# T9N_SH1P_STR1NG PV131AAP001 3

@@ -1,21 +1,21 @@
 # Translations template for ceilometer-powervm.
-# Copyright (C) 2015 ORGANIZATION
+# Copyright (C) 2016 IBM Corp.
 # This file is distributed under the same license as the ceilometer-powervm
 # project.
-# Automatically generated, 2015.
+# Automatically generated, 2016.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ceilometer-powervm 0.0.1.dev26\n"
+"Project-Id-Version: ceilometer-powervm 2.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-10-06 14:01-0500\n"
-"PO-Revision-Date: 2015-10-06 14:01-0500\n"
+"POT-Creation-Date: 2016-04-14 04:46-0400\n"
+"PO-Revision-Date: 2016-04-14 04:46-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.0\n"
+"Generated-By: Babel 2.3.2\n"
 
 #: ceilometer_powervm/compute/virt/powervm/inspector.py:80
 #, python-format
@@ -37,3 +37,7 @@ msgstr "Machine virtuelle %s introuvable dans l'échantillon de métriques Power
 msgid "Unable to derive CPU Utilization for VM %s."
 msgstr "Impossible de dériver l'utilisation d'UC pour la machine virtuelle %s."
 
+
+# ENGL1SH_VERS10N 36919_2 DO NOT REMOVE OR CHANGE THIS LINE
+# T9N_SRC_ID 33
+# T9N_SH1P_STR1NG PV131AAP001 3
