@@ -1,28 +1,32 @@
 # Translations template for nova_powervm.
-# Copyright (C) 2015 ORGANIZATION
+# Copyright (C) 2016 IBM Corp.
 # This file is distributed under the same license as the nova_powervm
 # project.
-# Automatically generated, 2015.
+# Automatically generated, 2016.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Project-Id-Version: nova_powervm 2.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-10-06 13:59-0500\n"
-"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"POT-Creation-Date: 2016-04-14 03:14-0400\n"
+"PO-Revision-Date: 2016-04-14 03:14-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.0\n"
+"Generated-By: Babel 2.3.2\n"
 
-#: nova_powervm/virt/powervm/driver.py:386
-#: nova_powervm/virt/powervm/driver.py:396
+#: nova_powervm/virt/powervm/driver.py:612
+#: nova_powervm/virt/powervm/driver.py:622
 msgid "VM was not found during destroy operation."
 msgstr "在毀損作業期間找不到 VM。"
 
-#: nova_powervm/virt/powervm/driver.py:742
+#: nova_powervm/virt/powervm/driver.py:1006
+msgid "VM was not found during unplug operation as it is already possibly deleted"
+msgstr "執行拔除作業期間找不到虛擬機器，因為可能已將它刪除"
+
+#: nova_powervm/virt/powervm/driver.py:1033
 #, python-format
 msgid ""
 "my_ip address (%(my_ip)s) was not found on any of the interfaces: "
@@ -31,11 +35,16 @@ msgstr ""
 "在下列任何介面上都找不到 my_ip 位址 (%(my_ip)s)："
 "%(ifaces)s"
 
-#: nova_powervm/virt/powervm/driver.py:1084
+#: nova_powervm/virt/powervm/driver.py:1511
 msgid "Rolling back live migration."
 msgstr "正在回復即時移轉。"
 
-#: nova_powervm/virt/powervm/host.py:174
+#: nova_powervm/virt/powervm/driver.py:1923
+#, python-format
+msgid "Unable to parse event URI: %s from PowerVM."
+msgstr "無法從 PowerVM 剖析事件 URI：%s。"
+
+#: nova_powervm/virt/powervm/host.py:171
 msgid ""
 "Host CPU Metrics determined that the total cycles reported was less than "
 "the used cycles.  This indicates an issue with the PCM data.  Please "
@@ -45,21 +54,12 @@ msgstr ""
 "已使用的週期數。這指示 PCM 資料發生問題。"
 "請調查結果。"
 
-#: nova_powervm/virt/powervm/media.py:299
+#: nova_powervm/virt/powervm/media.py:310
 #, python-format
 msgid "Unable to read volume groups for Virtual I/O Server %s"
 msgstr "無法讀取 Virtual I/O Server %s 的磁區群組"
 
-#: nova_powervm/virt/powervm/disk/driver.py:168
-#, python-format
-msgid ""
-"Failed to map boot disk %(disk_name)s of instance %(instance_name)s to "
-"the management partition from Virtual I/O Server %(vios_name)s: %(exc)s"
-msgstr ""
-"無法從 Virtual I/O Server %(vios_name)s 將實例 %(instance_name)s 的開機磁碟 %(disk_name)s 對映至"
-"管理分割區：%(exc)s"
-
-#: nova_powervm/virt/powervm/tasks/network.py:104
+#: nova_powervm/virt/powervm/vif.py:184 nova_powervm/virt/powervm/vif.py:272
 #, python-format
 msgid ""
 "Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  The VIF was"
@@ -68,12 +68,31 @@ msgstr ""
 "無法拔除實例 %(inst)s 的 VIF（MAC 為 %(mac)s）。"
 "在該實例上找不到該 VIF。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:55
+#: nova_powervm/virt/powervm/disk/driver.py:200
+#, python-format
+msgid ""
+"Failed to map boot disk %(disk_name)s of instance %(instance_name)s to "
+"the management partition from Virtual I/O Server %(vios_name)s: %(exc)s"
+msgstr ""
+"無法從 Virtual I/O Server %(vios_name)s 將實例 %(instance_name)s 的開機磁碟 %(disk_name)s 對映至"
+"管理分割區：%(exc)s"
+
+#: nova_powervm/virt/powervm/nvram/manager.py:193
+#, python-format
+msgid "Unable to store the NVRAM for instance: %s"
+msgstr "無法儲存實例的 NVRAM：%s"
+
+#: nova_powervm/virt/powervm/nvram/swift.py:183
+#, python-format
+msgid "Could not remove temporary file: %s"
+msgstr "無法移除暫存檔：%s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:57
 #, python-format
 msgid "Volume %(vol)s for instance %(inst)s to be disconnected"
 msgstr "將要斷開實例 %(inst)s 的磁區 %(vol)s 連線"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:71
+#: nova_powervm/virt/powervm/tasks/storage.py:73
 #, python-format
 msgid ""
 "Unable to disconnect volume for %(inst)s during rollback.  Error was: "
@@ -82,12 +101,12 @@ msgstr ""
 "在回復期間無法斷開 %(inst)s 的磁區連線。錯誤為："
 "%(error)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:98
+#: nova_powervm/virt/powervm/tasks/storage.py:102
 #, python-format
 msgid "Volume %(vol)s for instance %(inst)s to be re-connected"
 msgstr "將要重新連接實例 %(inst)s 的磁區 %(vol)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:115
+#: nova_powervm/virt/powervm/tasks/storage.py:119
 #, python-format
 msgid ""
 "Unable to re-connect volume for %(inst)s during rollback.  Error was: "
@@ -96,17 +115,17 @@ msgstr ""
 "在回復期間無法重新連接 %(inst)s 的磁區。錯誤為："
 "%(error)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:156
+#: nova_powervm/virt/powervm/tasks/storage.py:163
 #, python-format
 msgid "Image for instance %s to be deleted"
 msgstr "將要刪除實例 %s 的映像檔"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:203
+#: nova_powervm/virt/powervm/tasks/storage.py:211
 #, python-format
 msgid "Disk image being disconnected from instance %s"
 msgstr "磁碟映像檔將要從實例 %s 斷開連線"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:274
+#: nova_powervm/virt/powervm/tasks/storage.py:283
 #, python-format
 msgid ""
 "Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
@@ -115,21 +134,17 @@ msgstr ""
 "正在透過 Virtual I/O Server %(vios_name)s 從管理分割區取消對映實例 %(instance_name)s "
 "的開機磁碟 %(disk_name)s。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:286
+#: nova_powervm/virt/powervm/tasks/storage.py:295
 #, python-format
 msgid "Removing disk %(disk_path)s from the management partition."
 msgstr "正在從管理分割區移除磁碟 %(disk_path)s。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:170
+#: nova_powervm/virt/powervm/tasks/storage.py:549
 #, python-format
-msgid ""
-"No storage connections found between the Virtual I/O Servers and FC "
-"Fabric %(fabric)s. The connection might be removed already."
-msgstr ""
-"在 Virtual I/O Server 與 FC "
-"光纖 %(fabric)s 之間找不到儲存體連線。可能已移除該連線。"
+msgid "Disk not found: %(disk_name)s"
+msgstr "找不到磁碟：%(disk_name)s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:478
+#: nova_powervm/virt/powervm/volume/npiv.py:455
 #, python-format
 msgid ""
 "No storage connections found between the Virtual I/O Servers and FC "
@@ -138,7 +153,7 @@ msgstr ""
 "在 Virtual I/O Server 與 FC "
 "光纖 %(fabric)s 之間找不到儲存體連線。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:564
+#: nova_powervm/virt/powervm/volume/npiv.py:573
 #, python-format
 msgid ""
 "No NPIV mappings exist for instance %(inst)s on fabric %(fabric)s.  May "
@@ -149,7 +164,12 @@ msgstr ""
 "可能尚未連接至該光纖，或最近已修改光纖配置"
 "。"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:148
+#: nova_powervm/virt/powervm/volume/vscsi.py:127
+#, python-format
+msgid "Could not remove hdisk for volume: %s"
+msgstr "無法移除磁區的硬碟：%s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:206
 #, python-format
 msgid ""
 "Discovered device %(dev)s for volume %(volume)s on %(vios)s is in use. "
@@ -158,7 +178,18 @@ msgstr ""
 "%(vios)s 上磁區 %(volume)s 的已探索裝置 %(dev)s 正在使用中。"
 "錯誤碼：%(status)s。"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:237
+#: nova_powervm/virt/powervm/volume/vscsi.py:324
+#, python-format
+msgid ""
+"Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual "
+"I/O Server %(vios)s is not in a valid state.  No disconnect actions to be"
+" taken as volume is not healthy."
+msgstr ""
+"中斷連接磁區：下列 Virtual I/O Server 上磁區 %(volume_id)s 的支援硬碟未處於有效狀態："
+"%(vios)s。未執行中斷連接動作，因為"
+"磁區不正常。"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:336
 #, python-format
 msgid ""
 "Disconnect Volume: No mapped device found on Virtual I/O Server %(vios)s "
@@ -167,7 +198,7 @@ msgstr ""
 "斷開磁區連線：在 Virtual I/O Server %(vios)s 上找不到"
 "磁區 %(volume_id)s 的已對映裝置。磁區 UDID：%(volume_uid)s"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:246
+#: nova_powervm/virt/powervm/volume/vscsi.py:345
 #, python-format
 msgid ""
 "Disconnect Volume: Failed to find disk on Virtual I/O Server "
@@ -178,7 +209,7 @@ msgstr ""
 "磁區 %(volume_id)s 的磁碟。磁區 UDID：%(volume_uid)s。"
 "錯誤：%(error)s"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:288
+#: nova_powervm/virt/powervm/volume/vscsi.py:386
 #, python-format
 msgid ""
 "Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY "
@@ -187,7 +218,7 @@ msgstr ""
 "斷開磁區連線：在任何 Virtual I/O Server 上都無法斷開"
 "實例 %(inst)s 的磁區 %(volume_id)s 連線。"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:318
+#: nova_powervm/virt/powervm/volume/vscsi.py:442
 #, python-format
 msgid ""
 "There was an error removing the hdisk %(disk)s from the Virtual I/O "
@@ -196,3 +227,7 @@ msgstr ""
 "從 Virtual I/O Server 移除硬碟 %(disk)s 時發生錯誤"
 "。"
 
+
+# ENGL1SH_VERS10N 51377_8 DO NOT REMOVE OR CHANGE THIS LINE
+# T9N_SRC_ID 49
+# T9N_SH1P_STR1NG PV131AAP001 3

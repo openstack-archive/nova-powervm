@@ -1,100 +1,135 @@
 # Translations template for nova_powervm.
-# Copyright (C) 2015 ORGANIZATION
+# Copyright (C) 2016 IBM Corp.
 # This file is distributed under the same license as the nova_powervm
 # project.
-# Automatically generated, 2015.
+# Automatically generated, 2016.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Project-Id-Version: nova_powervm 2.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-10-06 13:59-0500\n"
-"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"POT-Creation-Date: 2016-04-14 03:14-0400\n"
+"PO-Revision-Date: 2016-04-14 03:14-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.0\n"
+"Generated-By: Babel 2.3.2\n"
 
-#: nova_powervm/virt/powervm/driver.py:1044
+#: nova_powervm/virt/powervm/driver.py:1471
 msgid "Live migration timed out. Aborting migration"
-msgstr "La migrazione live è scaduta. Interruzione della migrazione "
+msgstr "La migrazione live è scaduta. Interruzione della migrazione"
 
-#: nova_powervm/virt/powervm/live_migration.py:304
+#: nova_powervm/virt/powervm/live_migration.py:324
 msgid "Live migration failed."
-msgstr "Migrazione live non riuscita. "
+msgstr "Migrazione live non riuscita."
 
-#: nova_powervm/virt/powervm/live_migration.py:331
+#: nova_powervm/virt/powervm/live_migration.py:374
 #, python-format
 msgid "Migration recover failed with error: %s"
-msgstr "Ripristino migrazione non riuscito con errore: %s "
+msgstr "Ripristino migrazione non riuscito con errore: %s"
 
-#: nova_powervm/virt/powervm/live_migration.py:353
+#: nova_powervm/virt/powervm/live_migration.py:402
 msgid ""
 "Abort of live migration has failed. This is non-blocking. Exception is "
 "logged below."
 msgstr ""
-"Interruzione della migrazione live non riuscita. Non è una situazione bloccante. L'eccezione è "
-"registrata sotto."
+"Interruzione migrazione live non riuscita. Il problema non è bloccante. L'eccezione è "
+"registrata di seguito."
 
-#: nova_powervm/virt/powervm/vm.py:521
+#: nova_powervm/virt/powervm/vif.py:195
+#, python-format
+msgid "Unable to unplug VIF with mac %(mac)s for instance %(inst)s."
+msgstr "Impossibile scollegare VIF con mac %(mac)s per l'istanza %(inst)s."
+
+#: nova_powervm/virt/powervm/vm.py:628
 #, python-format
 msgid "Virtual machine delete failed: LPARID=%s"
-msgstr "Eliminazione della macchina virtuale non riuscita: LPARID=%s "
+msgstr "Eliminazione della macchina virtuale non riuscita: LPARID=%s"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:275
+#: nova_powervm/virt/powervm/disk/localdisk.py:262
 #, python-format
 msgid "Disk %s not found during resize."
-msgstr "Disco %s non trovato durante il ridimensionamento. "
+msgstr "Disco %s non trovato durante il ridimensionamento."
 
-#: nova_powervm/virt/powervm/disk/ssp.py:330
+#: nova_powervm/virt/powervm/disk/ssp.py:371
+#, python-format
+msgid "Removing failed LU %s."
+msgstr "Rimozione della LU malfunzionante %s."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:471
 #, python-format
 msgid "Error checking for shared storage. exception=%s"
-msgstr "Errore durante il controllo della memoria condivisa, eccezione=%s "
+msgstr "Errore durante il controllo della memoria condivisa, eccezione=%s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:70
+#: nova_powervm/virt/powervm/nvram/manager.py:109
+#: nova_powervm/virt/powervm/nvram/manager.py:172
+#, python-format
+msgid "Could not update NVRAM: %s"
+msgstr "Impossibile aggiornare NVRAM: %s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:73
 #, python-format
 msgid ""
 "Unable to remove VIFs from instance %(inst)s because the system is not in"
 " a correct state.  The reason reported by the system is: %(reason)s"
 msgstr ""
-"Impossibile rimuovere i VIF dall'istanza %(inst)s poiché il sistema non è in "
-"uno stato corretto. Il motivo riportato dal sistema è: %(reason)s "
+"Impossibile rimuovere i VIF dall'istanza %(inst)s perché il sistema non è in"
+" uno stato corretto. La causa riportata dal sistema è: %(reason)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:92
-#, python-format
-msgid "Unable to unplug VIF with mac %(mac)s for instance %(inst)s."
-msgstr "Impossibile scollegare il VIF con mac %(mac)s per l'istanza %(inst)s."
-
-#: nova_powervm/virt/powervm/tasks/network.py:159
+#: nova_powervm/virt/powervm/tasks/network.py:139
 #, python-format
 msgid ""
 "Unable to create VIF(s) for instance %(sys)s.  The VM was in a state "
 "where VIF plugging is not acceptable.  The reason from the system is: "
 "%(reason)s"
 msgstr ""
-"Impossibile creare i VIF per l'istanza %(sys)s. La VM era in uno stato"
-"per cui il collegamento VIF non è accettabile. Il motivo dal sistema è: "
+"Impossibile creare i VIF per l'istanza %(sys)s. La VM era in uno stato "
+"per cui il collegamento VIF non è accettabile. La causa dal sistema è: "
 "%(reason)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:182
+#: nova_powervm/virt/powervm/tasks/network.py:162
 #, python-format
 msgid "Error waiting for VIF to be created for instance %(sys)s"
 msgstr "Errore durante l'attesa della creazione del VIF per l'istanza %(sys)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:191
+#: nova_powervm/virt/powervm/tasks/network.py:171
 #, python-format
 msgid "VIF Plug failure for callback on event %(event)s for instance %(uuid)s"
 msgstr "Errore di collegamento VIF per la callback sull'evento %(event)s per l'istanza %(uuid)s"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:295
+#: nova_powervm/virt/powervm/tasks/vm.py:102
+#, python-format
+msgid "Unable to fetch NVRAM for instance %(name)s. Exception: %(reason)s"
+msgstr "Impossibile richiamare NVRAM per l'istanza %(name)s. Eccezione: %(reason)s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:271
+#, python-format
+msgid "Unable to store NVRAM for instance %(name)s. Exception: %(reason)s"
+msgstr "Impossibile archiviare NVRAM per l'istanza %(name)s. Eccezione: %(reason)s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:301
+#, python-format
+msgid "Unable to delete NVRAM for instance %(name)s. Exception: %(reason)s"
+msgstr "Impossibile eliminare NVRAM per l'istanza %(name)s. Eccezione: %(reason)s"
+
+#: nova_powervm/virt/powervm/volume/npiv.py:408
+#, python-format
+msgid "Mappings were not able to find a proper VIOS. The port mappings were %s."
+msgstr "Le associazioni non sono state in grado di trovare un VIOS appropriato. Le associazioni porta erano %s."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:393
 #, python-format
 msgid "Cannot detach volumes from virtual machine: %s"
 msgstr "Impossibile scollegare i volumi dalla macchina virtuale: %s"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:297
+#: nova_powervm/virt/powervm/volume/vscsi.py:395
 #, python-format
 msgid "Error: %s"
 msgstr "Errore: %s"
 
+
+# ENGL1SH_VERS10N 63189_5 DO NOT REMOVE OR CHANGE THIS LINE
+# T9N_SRC_ID 44
+# T9N_SH1P_STR1NG PV131AAP001 3
