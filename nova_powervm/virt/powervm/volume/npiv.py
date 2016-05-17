@@ -89,8 +89,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # VM deletion.  VM deletion occurs when the task state is deleting.
         # However, it can also occur during a 'roll-back' of the spawn.
         # Disconnect of the volumes will only be called during a roll back
-        # of the spawn.
-        if self.instance.task_state not in TASK_STATES_FOR_DISCONNECT:
+        # of the spawn. We also want to check that the instance is on this
+        # host. If it isn't then we can remove the mappings because this is
+        # being called as the result of an evacuation clean up.
+        if (self.instance.task_state not in TASK_STATES_FOR_DISCONNECT and
+           self.instance.host in [None, CONF.host]):
             # NPIV should only remove the VFC mapping upon a destroy of the VM
             return
 
