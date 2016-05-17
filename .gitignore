@@ -10,3 +10,5 @@ nova_powervm.egg-info/
 doc/build
 AUTHORS
 ChangeLog
+*.DS_Store
+.venv
