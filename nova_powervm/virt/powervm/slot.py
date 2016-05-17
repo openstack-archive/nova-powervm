@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import six
+
 from oslo_log import log as logging
 
 from pypowervm import const as c
@@ -129,7 +131,7 @@ class NovaSlotManager(slot_map.SlotMapStore):
             self._build_map = slot_map.RebuildSlotMap(
                 self, self._vios_wraps, pv_vscsi_vol_to_vio, fabric_names)
         except pvm_exc.InvalidHostForRebuild as e:
-            raise p_exc.InvalidRebuild(error=e.msg)
+            raise p_exc.InvalidRebuild(error=six.text_type(e))
 
     def _pv_vscsi_vol_to_vio(self, vol_drv, vol_to_vio):
         """Find which physical volumes are on what VIOSes.
