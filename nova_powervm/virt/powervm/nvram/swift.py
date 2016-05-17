@@ -43,6 +43,7 @@ class SwiftNvramStore(api.NvramStore):
         self.container = CONF.powervm.swift_container
         # Build the swift service options
         self.options = self._init_swift()
+        self._container_found = False
 
     @staticmethod
     def _init_swift():
@@ -105,6 +106,18 @@ class SwiftNvramStore(api.NvramStore):
         return self._get_name_from_listing(results)
 
     def _get_object_names(self, container, prefix=None):
+        # If this is the first pass, the container may not exist yet.  Check
+        # to make sure it does, otherwise the list of the object names will
+        # fail.
+        if not self._container_found:
+            container_names = self._get_container_names()
+            self._container_found = (container in container_names)
+
+            # If the container was still not found, then just return an empty
+            # list.  There are no objects.
+            if not self._container_found:
+                return []
+
         results = self._run_operation(
             None, 'list', options={'long': True, 'prefix': prefix},
             container=container)
