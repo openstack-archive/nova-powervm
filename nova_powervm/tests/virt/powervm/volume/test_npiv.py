@@ -206,10 +206,33 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
                           self.vol_drv.disconnect_volume, self.slot_mgr)
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_fabric_names')
+    def test_disconnect_volume_not_on_same_host(self, mock_names):
+        """Validates a disconnect still removes mapping when host's differ."""
+        self.vol_drv.instance.task_state = None
+        self.vol_drv.instance.host = 'not_host_in_conf'
+
+        self.vol_drv.disconnect_volume(self.slot_mgr)
+        mock_names.assert_called_once()
+
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_fabric_names')
+    def test_disconnect_volume_spawning_not_on_same_host(self, mock_names):
+        """Validates disconnect when instance is spawning on another host."""
+        self.vol_drv.instance.task_state = 'spawning'
+        self.vol_drv.instance.host = 'not_host_in_conf'
+
+        self.vol_drv.disconnect_volume(self.slot_mgr)
+        mock_names.assert_called_once()
+
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_remove_maps_for_fabric')
     def test_disconnect_volume_no_op(self, mock_remove_maps):
         """Tests that when the task state is not set, connections are left."""
         # Invoke
+        self.vol_drv.instance.task_state = None
+        self.vol_drv.instance.host = None
+
         self.vol_drv.disconnect_volume(self.slot_mgr)
 
         # Verify
@@ -218,6 +241,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
     def test_disconnect_volume_no_op_other_state(self):
         """Tests that the deletion doesn't go through on certain states."""
         self.vol_drv.instance.task_state = task_states.RESUMING
+        self.vol_drv.instance.host = CONF.host
 
         # Invoke
         self.vol_drv.disconnect_volume(self.slot_mgr)
