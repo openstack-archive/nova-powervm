@@ -1,32 +1,36 @@
 # Translations template for nova_powervm.
-# Copyright (C) 2015 ORGANIZATION
+# Copyright (C) 2016 IBM Corp.
 # This file is distributed under the same license as the nova_powervm
 # project.
-# Automatically generated, 2015.
+# Automatically generated, 2016.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Project-Id-Version: nova_powervm 2.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-10-06 13:59-0500\n"
-"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"POT-Creation-Date: 2016-04-14 03:14-0400\n"
+"PO-Revision-Date: 2016-04-14 03:14-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.0\n"
+"Generated-By: Babel 2.3.2\n"
 
-#: nova_powervm/virt/powervm/driver.py:109
+#: nova_powervm/virt/powervm/driver.py:142
 msgid "The compute driver has been initialized."
 msgstr "计算驱动程序已初始化。"
 
-#: nova_powervm/virt/powervm/driver.py:134
+#: nova_powervm/virt/powervm/driver.py:155
+msgid "The compute driver has been shutdown."
+msgstr "计算驱动程序已经关闭。"
+
+#: nova_powervm/virt/powervm/driver.py:209
 #, python-format
 msgid "Host UUID is:%s"
 msgstr "主机 UUID 为：%s"
 
-#: nova_powervm/virt/powervm/driver.py:140
+#: nova_powervm/virt/powervm/driver.py:214
 #, python-format
 msgid ""
 "Operation: %(op)s. Virtual machine display name: %(display_name)s, name: "
@@ -35,58 +39,69 @@ msgstr ""
 "操作：%(op)s。虚拟机显示名：%(display_name)s，名称："
 "%(name)s，UUID：%(uuid)s"
 
-#: nova_powervm/virt/powervm/driver.py:379
+#: nova_powervm/virt/powervm/driver.py:653
+msgid "Destroy called for migrated/resized instance."
+msgstr "对已迁移/调整大小的实例调用了毁损。"
+
+#: nova_powervm/virt/powervm/driver.py:666
 msgid "Ignoring destroy call during resize revert."
 msgstr "正在忽略调整大小还原期间的破坏调用。"
 
-#: nova_powervm/virt/powervm/driver.py:441
+#: nova_powervm/virt/powervm/driver.py:720
 msgid "During volume detach, the instance was not found on this host."
 msgstr "在卷拆离期间，此主机上找不到该实例。"
 
-#: nova_powervm/virt/powervm/driver.py:821
-msgid "Retrying to update VM."
-msgstr "正在尝试更新 VM。"
-
-#: nova_powervm/virt/powervm/driver.py:952
+#: nova_powervm/virt/powervm/driver.py:1379
 msgid "Checking live migration capability on destination host."
 msgstr "正在检查目标主机上的实时迁移功能。"
 
-#: nova_powervm/virt/powervm/driver.py:967
+#: nova_powervm/virt/powervm/driver.py:1394
 msgid "Cleaning up from checking live migration capability on destination."
 msgstr "正在目标主机上执行检查实时迁移功能后的清理。"
 
-#: nova_powervm/virt/powervm/driver.py:983
+#: nova_powervm/virt/powervm/driver.py:1410
 msgid "Checking live migration capability on source host."
 msgstr "正在检查源主机上的实时迁移功能。"
 
-#: nova_powervm/virt/powervm/driver.py:1005
+#: nova_powervm/virt/powervm/driver.py:1432
 msgid "Pre live migration processing."
 msgstr "正在进行实时迁移预处理。"
 
-#: nova_powervm/virt/powervm/driver.py:1165
+#: nova_powervm/virt/powervm/driver.py:1596
 msgid "Post live migration processing on source host."
 msgstr "正在源主机上进行实时迁移后处理。"
 
-#: nova_powervm/virt/powervm/driver.py:1181
+#: nova_powervm/virt/powervm/driver.py:1612
 msgid "Post live migration processing on destination host."
 msgstr "正在目标主机上进行实时迁移后处理。"
 
-#: nova_powervm/virt/powervm/live_migration.py:174
+#: nova_powervm/virt/powervm/driver.py:1861
+#, python-format
+msgid "Sending life cycle event for instance state change to: %s"
+msgstr "正在将实例状态更改的生命周期事件发送至：%s"
+
+#: nova_powervm/virt/powervm/live_migration.py:153
 #, python-format
 msgid "Performing pre migration for volume %(volume)s"
 msgstr "正在为卷 %(volume)s 执行预迁移"
 
-#: nova_powervm/virt/powervm/live_migration.py:203
+#: nova_powervm/virt/powervm/live_migration.py:190
+#: nova_powervm/virt/powervm/live_migration.py:339
 #, python-format
 msgid "Performing post migration for volume %(volume)s"
 msgstr "正在为卷 %(volume)s 执行后迁移"
 
-#: nova_powervm/virt/powervm/media.py:84
+#: nova_powervm/virt/powervm/live_migration.py:206
+#, python-format
+msgid "Performing detach for volume %(volume)s"
+msgstr "正在为卷 %(volume)s 执行拆离"
+
+#: nova_powervm/virt/powervm/media.py:86
 #, python-format
 msgid "Creating config drive for instance: %s"
 msgstr "正在为实例 %s 创建配置驱动器"
 
-#: nova_powervm/virt/powervm/media.py:104
+#: nova_powervm/virt/powervm/media.py:106
 #, python-format
 msgid ""
 "Config drive ISO being built for instance %(inst)s building to path "
@@ -95,7 +110,7 @@ msgstr ""
 "正在为实例 %(inst)s 构建配置驱动器 ISO。正在构建至路径"
 "%(iso_path)s。"
 
-#: nova_powervm/virt/powervm/media.py:174
+#: nova_powervm/virt/powervm/media.py:176
 #, python-format
 msgid ""
 "Adding cfg drive mapping for instance %(inst)s for Virtual I/O Server "
@@ -114,32 +129,37 @@ msgstr ""
 "正在尝试与虚拟光学介质存储库重新"
 "建立连接"
 
-#: nova_powervm/virt/powervm/media.py:383
+#: nova_powervm/virt/powervm/media.py:421
 #, python-format
 msgid "Removing virtual optical for VM with UUID %s."
 msgstr "正在为 UUDI 为 %s 的 VM 除去虚拟光学设备。"
 
-#: nova_powervm/virt/powervm/vm.py:511
+#: nova_powervm/virt/powervm/vif.py:190
+#, python-format
+msgid "Deleting VIF with mac %(mac)s for instance %(inst)s."
+msgstr "正在为实例 %(inst)s 删除 MAC 为 %(mac)s 的 VIF。"
+
+#: nova_powervm/virt/powervm/vm.py:618
 #, python-format
 msgid "Deleting virtual machine. LPARID: %s"
 msgstr "正在删除虚拟机。LPARID：%s"
 
-#: nova_powervm/virt/powervm/vm.py:517
+#: nova_powervm/virt/powervm/vm.py:624
 #, python-format
 msgid "Virtual machine delete status: %d"
 msgstr "虚拟机删除状态：%d"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:63
+#: nova_powervm/virt/powervm/disk/localdisk.py:49
 #, python-format
 msgid "Local Storage driver initialized: volume group: '%s'"
 msgstr "本地存储器驱动程序已初始化：卷组：“%s”"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:149
+#: nova_powervm/virt/powervm/disk/localdisk.py:135
 #, python-format
 msgid "Disconnecting instance %(inst)s from storage disks."
 msgstr "正在从存储磁盘断开实例 %(inst)s 的连接。"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:178
+#: nova_powervm/virt/powervm/disk/localdisk.py:164
 #, python-format
 msgid ""
 "Unmapped boot disk %(disk_name)s from the management partition from "
@@ -148,21 +168,21 @@ msgstr ""
 "已从 Virtual I/O Server %(vios_name)s 的管理分区取消引导磁盘 %(disk_name)s"
 "的映射。"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:198
+#: nova_powervm/virt/powervm/disk/localdisk.py:185
 msgid "Create disk."
 msgstr "创建磁盘。"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:242
+#: nova_powervm/virt/powervm/disk/localdisk.py:229
 #, python-format
 msgid "Adding logical volume disk connection between VM %(vm)s and VIOS %(vios)s."
 msgstr "正在添加 VM %(vm)s 与 VIOS %(vios)s 之间的逻辑卷磁盘连接。"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:288
+#: nova_powervm/virt/powervm/disk/localdisk.py:275
 #, python-format
 msgid "Extending disk: %s"
 msgstr "正在扩展磁盘：%s"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:74
+#: nova_powervm/virt/powervm/disk/ssp.py:71
 #, python-format
 msgid ""
 "SSP Storage driver initialized. Cluster '%(clust_name)s'; SSP "
@@ -171,12 +191,12 @@ msgstr ""
 "SSP 存储器驱动程序已初始化。集群“%(clust_name)s”；SSP "
 "“%(ssp_name)s”"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:116
+#: nova_powervm/virt/powervm/disk/ssp.py:142
 #, python-format
 msgid "Removing SSP disk connection between VM %(vm)s and VIOS %(vios)s."
 msgstr "正在除去 VM %(vm)s 与 VIOS %(vios)s 之间的 SSP 磁盘连接。"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:160
+#: nova_powervm/virt/powervm/disk/ssp.py:186
 #, python-format
 msgid ""
 "Unmapped boot disk %(disk_name)s from the management partition from "
@@ -185,7 +205,7 @@ msgstr ""
 "已从 Virtual I/O Server %(vios_uuid)s 的管理分区取消引导磁盘 %(disk_name)s"
 "的映射。"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:197
+#: nova_powervm/virt/powervm/disk/ssp.py:223
 #, python-format
 msgid ""
 "SSP: Create %(image_type)s disk from image %(image_id)s for instance "
@@ -194,27 +214,51 @@ msgstr ""
 "SSP：为实例 %(instance_uuid)s 从映像 %(image_id)s 创建 %(image_type)s"
 " 磁盘。"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:210
+#: nova_powervm/virt/powervm/disk/ssp.py:231
 #, python-format
 msgid "SSP: Disk name is %s"
 msgstr "SSP：磁盘名称为 %s"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:235
+#: nova_powervm/virt/powervm/disk/ssp.py:302
 #, python-format
-msgid "SSP: Using already-uploaded image LU %s."
-msgstr "SSP：正在使用已上载的映像 LU %s。"
+msgid "Using already-uploaded image LU %s."
+msgstr "正在使用已上载的映像 LU %s。"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:242
+#: nova_powervm/virt/powervm/disk/ssp.py:313
 #, python-format
-msgid "SSP: Uploading new image LU %s."
-msgstr "SSP：正在上载新的映像 LU %s。"
+msgid "Waiting for in-progress upload(s) to complete.  Marker LU(s): %s"
+msgstr "正在等待进行中的上载操作完成。标记 LU：%s"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:273
+#: nova_powervm/virt/powervm/disk/ssp.py:326
+#, python-format
+msgid "Creating marker LU %s"
+msgstr "正在创建标记 LU %s"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:339
+msgid "Abdicating in favor of in-progress upload."
+msgstr "正在放弃支持进行中的上载操作。"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:350
+#, python-format
+msgid "Abdicating upload in favor of marker %s."
+msgstr "正在放弃上载操作，转为支持标记 %s。"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:358
+#, python-format
+msgid "Uploading to image LU %(lu)s (marker %(mkr)s)."
+msgstr "正在上载至映像 LU %(lu)s（标记 %(mkr)s）。"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:414
 #, python-format
 msgid "Adding SSP disk connection between VM %(vm)s and VIOS %(vios)s."
 msgstr "正在添加 VM %(vm)s 与 VIOS %(vios)s 之间的 SSP 磁盘连接。"
 
-#: nova_powervm/virt/powervm/tasks/image.py:72
+#: nova_powervm/virt/powervm/nvram/swift.py:148
+#, python-format
+msgid "NVRAM has not changed for instance: %s"
+msgstr "NVRAM 未对实例进行更改：%s"
+
+#: nova_powervm/virt/powervm/tasks/image.py:77
 #, python-format
 msgid ""
 "Starting stream of boot device for instance %(inst)s (local blockdev "
@@ -223,7 +267,7 @@ msgstr ""
 "正在启动实例 %(inst)s 的引导设备（本地块设备 "
 "%(devpath)s）到 glance 映像 %(img_id)s 的流。"
 
-#: nova_powervm/virt/powervm/tasks/image.py:79
+#: nova_powervm/virt/powervm/tasks/image.py:84
 #, python-format
 msgid ""
 "Completed stream of boot device for instance %(inst)s (local blockdev "
@@ -232,57 +276,52 @@ msgstr ""
 "已完成实例 %(inst)s 的引导设备（本地块设备 "
 "%(devpath)s）到 glance 映像 %(img_id)s 的流。"
 
-#: nova_powervm/virt/powervm/tasks/network.py:63
+#: nova_powervm/virt/powervm/tasks/network.py:66
 #, python-format
 msgid "Unplugging the Network Interfaces to instance %s"
 msgstr "正在拔出实例 %s 的网络接口"
 
-#: nova_powervm/virt/powervm/tasks/network.py:85
-#, python-format
-msgid "Deleting VIF with mac %(mac)s for instance %(inst)s."
-msgstr "正在为实例 %(inst)s 删除 MAC 为 %(mac)s 的 VIF。"
-
-#: nova_powervm/virt/powervm/tasks/network.py:137
+#: nova_powervm/virt/powervm/tasks/network.py:117
 #, python-format
 msgid "Plugging the Network Interfaces to instance %s"
 msgstr "正在插入实例 %s 的网络接口"
 
-#: nova_powervm/virt/powervm/tasks/network.py:174
+#: nova_powervm/virt/powervm/tasks/network.py:154
 #, python-format
 msgid "Creating VIF with mac %(mac)s for instance %(sys)s"
 msgstr "正在为实例 %(sys)s 创建 MAC 为 %(mac)s 的 VIF"
 
-#: nova_powervm/virt/powervm/tasks/network.py:240
+#: nova_powervm/virt/powervm/tasks/network.py:230
 #, python-format
 msgid "Plugging the Management Network Interface to instance %s"
 msgstr "正在插入实例 %s 的管理网络接口"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:48
+#: nova_powervm/virt/powervm/tasks/storage.py:50
 #, python-format
 msgid "Connecting volume %(vol)s to instance %(inst)s"
 msgstr "正在将卷 %(vol)s 连接至实例 %(inst)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:91
+#: nova_powervm/virt/powervm/tasks/storage.py:95
 #, python-format
 msgid "Disconnecting volume %(vol)s from instance %(inst)s"
 msgstr "正在将卷 %(vol)s 从实例 %(inst)s 断开连接"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:148
+#: nova_powervm/virt/powervm/tasks/storage.py:155
 #, python-format
 msgid "Creating disk for instance: %s"
 msgstr "正在为实例 %s 创建磁盘"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:198
+#: nova_powervm/virt/powervm/tasks/storage.py:206
 #, python-format
 msgid "Connecting disk to instance: %s"
 msgstr "正在将磁盘连接至实例 %s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:242
+#: nova_powervm/virt/powervm/tasks/storage.py:251
 #, python-format
 msgid "Mapping boot disk of instance %(instance_name)s to management partition."
 msgstr "正在将实例 %(instance_name)s 的引导磁盘映射至管理分区。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:259
+#: nova_powervm/virt/powervm/tasks/storage.py:268
 #, python-format
 msgid ""
 "Discovering device and path for mapping of %(dev_name)s on the management"
@@ -291,7 +330,7 @@ msgstr ""
 "正在为管理分区上的 %(dev_name)s 映射发现设备和"
 "路径。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:327
+#: nova_powervm/virt/powervm/tasks/storage.py:337
 #, python-format
 msgid ""
 "Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
@@ -300,114 +339,140 @@ msgstr ""
 "已通过 Virtual I/O Server %(vios_name)s 从管理分区取消实例 %(instance_name)s 的"
 "引导磁盘 %(disk_name)s 的映射。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:334
+#: nova_powervm/virt/powervm/tasks/storage.py:344
 #, python-format
 msgid "Removing disk %(disk_path)s from the management partition."
 msgstr "正在从管理分区除去磁盘 %(disk_path)s。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:376
+#: nova_powervm/virt/powervm/tasks/storage.py:387
 #, python-format
 msgid "Creating Config Drive for instance: %s"
 msgstr "正在为实例 %s 创建配置驱动器"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:456
+#: nova_powervm/virt/powervm/tasks/storage.py:469
 #, python-format
 msgid "Detaching disk storage adapters for instance %s"
 msgstr "正在为实例 %s 拆离磁盘存储适配器"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:482
+#: nova_powervm/virt/powervm/tasks/storage.py:496
 #, python-format
 msgid "Deleting storage disk for instance %s."
 msgstr "正在为实例 %s 删除存储磁盘。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:502
+#: nova_powervm/virt/powervm/tasks/storage.py:517
 #, python-format
 msgid "Saving block device mapping for volume id %(vol_id)s on instance %(inst)s."
 msgstr "正在保存实例 %(inst)s 上卷标识 %(vol_id)s 的块设备映射。"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:84
+#: nova_powervm/virt/powervm/tasks/storage.py:546
+#, python-format
+msgid "Finding disk for instance: %s"
+msgstr "正在查找实例的磁盘：%s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:579
+#, python-format
+msgid "Extending disk size of disk: %(disk)s size: %(size)s."
+msgstr "正在扩展磁盘 %(disk)s 的磁盘大小，大小：%(size)s。"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:91
 #, python-format
 msgid "Creating instance: %s"
 msgstr "正在创建实例 %s"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:113
+#: nova_powervm/virt/powervm/tasks/vm.py:95
+#, python-format
+msgid "Fetching NVRAM for instance %s."
+msgstr "正在访存实例 %s 的 NVRAM。"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:140
+#, python-format
+msgid "Resizing instance: %s"
+msgstr "正在调整实例的大小：%s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:170
+#, python-format
+msgid "Renaming instance to name: %s"
+msgstr "正在将实例重命名为名称：%s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:206
 #, python-format
 msgid "Powering on instance: %s"
 msgstr "正在开启实例 %s"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:117
+#: nova_powervm/virt/powervm/tasks/vm.py:211
 #, python-format
 msgid "Powering off instance: %s"
 msgstr "正在关闭实例 %s"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:145
+#: nova_powervm/virt/powervm/tasks/vm.py:243
 #, python-format
 msgid "Powering off instance %s."
 msgstr "正在关闭实例 %s。"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:166
+#: nova_powervm/virt/powervm/tasks/vm.py:296
+#, python-format
+msgid "Deleting NVRAM for instance: %s"
+msgstr "正在删除实例的 NVRAM：%s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:325
 #, python-format
 msgid "Deleting instance %s from system."
 msgstr "正在从系统删除实例 %s。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:156
+#: nova_powervm/virt/powervm/tasks/vm.py:350
 #, python-format
-msgid "Removing mgmt NPIV mapping for instance %(inst)s for fabric %(fabric)s."
-msgstr "正在为光纤网 %(fabric)s 的实例 %(inst)s 除去管理 NPIV 映射。"
+msgid "Update settings of instance %s."
+msgstr "实例 %s 的更新设置。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:240
-#, python-format
-msgid ""
-"Mapping instance %(inst)s to the mgmt partition for fabric %(fabric)s "
-"because the VM does not yet have a valid vFC device."
-msgstr ""
-"正在将实例 %(inst)s 映射至光纤网 %(fabric)s 的管理分区，"
-"因为 VM 尚未具有有效的 vFC 设备。"
-
-#: nova_powervm/virt/powervm/volume/npiv.py:274
+#: nova_powervm/virt/powervm/volume/npiv.py:248
 #, python-format
 msgid ""
-"Mapping instance %(inst)s to the mgmt partition for fabric %(fabric)s "
-"because the VM is migrating to this host."
+"Instance %(inst)s has not yet defined a WWPN on fabric %(fabric)s.  "
+"Appropriate WWPNs will be generated."
 msgstr ""
-"正在将实例 %(inst)s 映射至光纤网 %(fabric)s 的管理分区，"
-"因为 VM 正在迁移至此主机。"
+"实例 %(inst)s 尚未在光纤网 %(fabric)s 上定义 WWPN。"
+"将生成相应的 WWPN。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:332
+#: nova_powervm/virt/powervm/volume/npiv.py:347
 #, python-format
 msgid "NPIV wwpns fabric state=%(st)s for instance %(inst)s"
 msgstr "对于实例 %(inst)s，NPIV WWPN 光纤网状态为 %(st)s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:363
-#, python-format
-msgid "Adding NPIV Mapping with mgmt partition for instance %s"
-msgstr "正在为实例 %s 添加管理分区的 NPIV 映射"
-
-#: nova_powervm/virt/powervm/volume/npiv.py:424
-#, python-format
-msgid ""
-"Removing NPIV mapping for mgmt partition for instance %(inst)s on VIOS "
-"%(vios)s."
-msgstr ""
-"正在为 VIOS %(vios)s 上的实例 %(inst)s 除去管理分区的 NPIV"
-" 映射。"
-
-#: nova_powervm/virt/powervm/volume/npiv.py:436
+#: nova_powervm/virt/powervm/volume/npiv.py:415
 #, python-format
 msgid "Adding NPIV mapping for instance %(inst)s for Virtual I/O Server %(vios)s."
 msgstr "正在为 Virtual I/O Server %(vios)s 的实例 %(inst)s 添加 NPIV 映射。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:465
+#: nova_powervm/virt/powervm/volume/npiv.py:443
 #, python-format
 msgid "Removing a NPIV mapping for instance %(inst)s for fabric %(fabric)s."
 msgstr "正在为光纤网 %(fabric)s 的实例 %(inst)s 除去 NPIV 映射。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:501
+#: nova_powervm/virt/powervm/volume/npiv.py:478
 #, python-format
 msgid "Setting Fabric state=%(st)s for instance=%(inst)s"
 msgstr "正在将实例 %(inst)s 的光纤网状态设置为 %(st)s"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:143
+#: nova_powervm/virt/powervm/volume/npiv.py:529
+#, python-format
+msgid ""
+"Fabric %(fabric)s wwpn metadata will be set to %(meta)s for instance "
+"%(inst)s"
+msgstr ""
+"针对下列实例，光纤网 %(fabric)s WWPN 元数据将设置为 %(meta)s："
+"%(inst)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:131
+#, python-format
+msgid "Removing hdisk for udid: %s"
+msgstr "正在移除 UDID 为 %s 的 hdisk"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:137
+#, python-format
+msgid "Removing %(hdisk)s from VIOS %(vios)s"
+msgstr "正在从 VIOS %(vios)s 中移除 %(hdisk)s"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:201
 #, python-format
 msgid ""
 "Discovered %(hdisk)s on vios %(vios)s for volume %(volume_id)s. Status "
@@ -416,7 +481,7 @@ msgstr ""
 "在卷 %(volume_id)s 的 VIOS %(vios)s 上发现 %(hdisk)s。状态"
 "码：%(status)s。"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:255
+#: nova_powervm/virt/powervm/volume/vscsi.py:354
 #, python-format
 msgid ""
 "Disconnect Volume: Discovered the device %(hdisk)s on Virtual I/O Server "
@@ -425,18 +490,37 @@ msgstr ""
 "为卷断开连接：已在卷 %(volume_id)s 的 Virtual I/O Server"
 "%(vios_name)s 上发现设备 %(hdisk)s。卷 UDID：%(volume_uid)s。"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:353
+#: nova_powervm/virt/powervm/volume/vscsi.py:415
+#, python-format
+msgid "%(num)d Storage Mappings found for %(dev)s"
+msgstr "找到 %(dev)s 的 %(num)d 个存储器映射"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:435
+#, python-format
+msgid "Running remove for hdisk: '%s'"
+msgstr "正在对 hdisk 运行移除：“%s”"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:453
+#, python-format
+msgid "hdisk %(disk)s is not removed because it has existing storage mappings"
+msgstr "未移除 hdisk %(disk)s，因为它具有现有存储器映射"
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:484
 #, python-format
 msgid "Removing vSCSI mapping from Physical Volume %(dev)s to VM %(vm)s"
 msgstr "正在除去从物理卷 %(dev)s 至 VM %(vm)s 的 vSCSI 映射"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:367
+#: nova_powervm/virt/powervm/volume/vscsi.py:498
 #, python-format
 msgid "Adding vSCSI mapping to Physical Volume %(dev)s to VM %(vm)s"
 msgstr "正在添加从物理卷 %(dev)s 至 VM %(vm)s 的 vSCSI 映射"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:419
+#: nova_powervm/virt/powervm/volume/vscsi.py:550
 #, python-format
 msgid "Failed to retrieve device_id key from BDM for volume id %s"
 msgstr "未能从 BDM 检索卷标识 %s 的 device_id 关键字"
 
+
+# ENGL1SH_VERS10N 46696_18 DO NOT REMOVE OR CHANGE THIS LINE
+# T9N_SRC_ID 54
+# T9N_SH1P_STR1NG PV131AAP001 3

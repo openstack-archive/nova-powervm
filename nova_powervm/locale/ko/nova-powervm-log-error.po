@@ -1,36 +1,36 @@
 # Translations template for nova_powervm.
-# Copyright (C) 2015 ORGANIZATION
+# Copyright (C) 2016 IBM Corp.
 # This file is distributed under the same license as the nova_powervm
 # project.
-# Automatically generated, 2015.
+# Automatically generated, 2016.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 0.0.1.dev394\n"
+"Project-Id-Version: nova_powervm 2.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-10-06 13:59-0500\n"
-"PO-Revision-Date: 2015-10-06 13:59-0500\n"
+"POT-Creation-Date: 2016-04-14 03:14-0400\n"
+"PO-Revision-Date: 2016-04-14 03:14-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.0\n"
+"Generated-By: Babel 2.3.2\n"
 
-#: nova_powervm/virt/powervm/driver.py:1044
+#: nova_powervm/virt/powervm/driver.py:1471
 msgid "Live migration timed out. Aborting migration"
 msgstr "실시간 마이그레이션이 제한시간을 초과했습니다. 마이그레이션을 중단합니다."
 
-#: nova_powervm/virt/powervm/live_migration.py:304
+#: nova_powervm/virt/powervm/live_migration.py:324
 msgid "Live migration failed."
 msgstr "실시간 마이그레이션에 실패했습니다."
 
-#: nova_powervm/virt/powervm/live_migration.py:331
+#: nova_powervm/virt/powervm/live_migration.py:374
 #, python-format
 msgid "Migration recover failed with error: %s"
 msgstr "마이그레이션 복구 실패. 오류: %s"
 
-#: nova_powervm/virt/powervm/live_migration.py:353
+#: nova_powervm/virt/powervm/live_migration.py:402
 msgid ""
 "Abort of live migration has failed. This is non-blocking. Exception is "
 "logged below."
@@ -38,22 +38,38 @@ msgstr ""
 "실시간 마이그레이션 중단에 실패했습니다. 이는 비차단입니다. 예외가 "
 "아래에 로그됩니다."
 
-#: nova_powervm/virt/powervm/vm.py:521
+#: nova_powervm/virt/powervm/vif.py:195
+#, python-format
+msgid "Unable to unplug VIF with mac %(mac)s for instance %(inst)s."
+msgstr "%(inst)s 인스턴스에 대한 mac %(mac)s을(를) 사용하는 VIF를 언플러그할 수 없습니다."
+
+#: nova_powervm/virt/powervm/vm.py:628
 #, python-format
 msgid "Virtual machine delete failed: LPARID=%s"
 msgstr "가상 머신 삭제 실패: LPARID=%s"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:275
+#: nova_powervm/virt/powervm/disk/localdisk.py:262
 #, python-format
 msgid "Disk %s not found during resize."
 msgstr "크기 조정 중에 %s 디스크를 찾을 수 없습니다."
 
-#: nova_powervm/virt/powervm/disk/ssp.py:330
+#: nova_powervm/virt/powervm/disk/ssp.py:371
+#, python-format
+msgid "Removing failed LU %s."
+msgstr "실패한 LU %s을(를) 제거하는 중입니다."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:471
 #, python-format
 msgid "Error checking for shared storage. exception=%s"
 msgstr "공유 스토리지를 확인하는 중에 오류가 발생했습니다. 예외=%s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:70
+#: nova_powervm/virt/powervm/nvram/manager.py:109
+#: nova_powervm/virt/powervm/nvram/manager.py:172
+#, python-format
+msgid "Could not update NVRAM: %s"
+msgstr "NVRAM을 업데이트할 수 없음: %s"
+
+#: nova_powervm/virt/powervm/tasks/network.py:73
 #, python-format
 msgid ""
 "Unable to remove VIFs from instance %(inst)s because the system is not in"
@@ -62,12 +78,7 @@ msgstr ""
 "시스템 상태가 올바르지 않으므로 %(inst)s 인스턴스에서 VIF를 "
 "제거할 수 없습니다. 시스템에서 보고한 이유: %(reason)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:92
-#, python-format
-msgid "Unable to unplug VIF with mac %(mac)s for instance %(inst)s."
-msgstr "%(inst)s 인스턴스에 대한 mac %(mac)s을(를) 사용하는 VIF를 언플러그할 수 없습니다."
-
-#: nova_powervm/virt/powervm/tasks/network.py:159
+#: nova_powervm/virt/powervm/tasks/network.py:139
 #, python-format
 msgid ""
 "Unable to create VIF(s) for instance %(sys)s.  The VM was in a state "
@@ -78,23 +89,47 @@ msgstr ""
 "허용 불가능한 상태에 있었습니다. 시스템의 이유: "
 "%(reason)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:182
+#: nova_powervm/virt/powervm/tasks/network.py:162
 #, python-format
 msgid "Error waiting for VIF to be created for instance %(sys)s"
 msgstr "%(sys)s 인스턴스에 대한 VIF가 작성되기를 대기하는 동안 오류 발생"
 
-#: nova_powervm/virt/powervm/tasks/network.py:191
+#: nova_powervm/virt/powervm/tasks/network.py:171
 #, python-format
 msgid "VIF Plug failure for callback on event %(event)s for instance %(uuid)s"
 msgstr "%(uuid)s 인스턴스의 %(event)s 이벤트에 대한 콜백의 VIF 플러그 실패"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:295
+#: nova_powervm/virt/powervm/tasks/vm.py:102
+#, python-format
+msgid "Unable to fetch NVRAM for instance %(name)s. Exception: %(reason)s"
+msgstr "%(name)s 인스턴스에 대한 NVRAM을 페치할 수 없습니다. 예외: %(reason)s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:271
+#, python-format
+msgid "Unable to store NVRAM for instance %(name)s. Exception: %(reason)s"
+msgstr "%(name)s 인스턴스에 대한 NVRAM을 저장할 수 없습니다. 예외: %(reason)s"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:301
+#, python-format
+msgid "Unable to delete NVRAM for instance %(name)s. Exception: %(reason)s"
+msgstr "%(name)s 인스턴스에 대한 NVRAM을 삭제할 수 없습니다. 예외: %(reason)s"
+
+#: nova_powervm/virt/powervm/volume/npiv.py:408
+#, python-format
+msgid "Mappings were not able to find a proper VIOS. The port mappings were %s."
+msgstr "맵핑에서 적절한 VIOS를 찾을 수 없습니다. 포트 맵핑은 %s입니다."
+
+#: nova_powervm/virt/powervm/volume/vscsi.py:393
 #, python-format
 msgid "Cannot detach volumes from virtual machine: %s"
 msgstr "가상 머신에서 볼륨을 분리할 수 없음: %s"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:297
+#: nova_powervm/virt/powervm/volume/vscsi.py:395
 #, python-format
 msgid "Error: %s"
 msgstr "오류: %s"
 
+
+# ENGL1SH_VERS10N 63189_5 DO NOT REMOVE OR CHANGE THIS LINE
+# T9N_SRC_ID 44
+# T9N_SH1P_STR1NG PV131AAP001 3
