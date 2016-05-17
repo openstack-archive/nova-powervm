@@ -91,16 +91,26 @@ class TestSwiftStore(test.TestCase):
             mock_run.assert_called_once_with(None, 'list',
                                              options={'long': True})
 
-    def test_get_object_names(self):
+    @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
+                '_get_container_names')
+    def test_get_object_names(self, mock_container_names):
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj', 'obj2'])
 
+            # First run, no containers.
+            mock_container_names.return_value = []
+            names = self.swift_store._get_object_names('powervm_nvram')
+            self.assertEqual([], names)
+            self.assertEqual(1, mock_container_names.call_count)
+
             # Test without a prefix
+            mock_container_names.return_value = ['powervm_nvram']
             names = self.swift_store._get_object_names('powervm_nvram')
             self.assertEqual(['obj', 'obj2'], names)
             mock_run.assert_called_once_with(
                 None, 'list', container='powervm_nvram',
                 options={'long': True, 'prefix': None})
+            self.assertEqual(mock_container_names.call_count, 2)
 
             # Test with a prefix
             names = self.swift_store._get_object_names('powervm_nvram',
@@ -109,6 +119,9 @@ class TestSwiftStore(test.TestCase):
             mock_run.assert_called_with(
                 None, 'list', container='powervm_nvram',
                 options={'long': True, 'prefix': 'obj'})
+
+            # Second run should not increment the call count here
+            self.assertEqual(mock_container_names.call_count, 2)
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
                 '_exists')
