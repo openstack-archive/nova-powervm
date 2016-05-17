@@ -289,6 +289,25 @@ class TestVifOvsDriver(test.TestCase):
         # TODO(thorst) Implement as logic is added
         self.drv.post_live_migrate_at_destination(mock.Mock())
 
-    def test_post_live_migrate_at_source(self):
-        # TODO(thorst) Implement as logic is added
-        self.drv.post_live_migrate_at_source(mock.Mock())
+    @mock.patch('pypowervm.tasks.cna.find_orphaned_trunks')
+    @mock.patch('nova.network.linux_net.delete_ovs_vif_port')
+    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
+                'get_trunk_dev_name')
+    def test_post_live_migrate_at_source(self, mock_trunk_dev_name,
+                                         mock_del_ovs_port,
+                                         mock_find_orphan):
+        t1, t2 = mock.MagicMock(), mock.MagicMock()
+        mock_find_orphan.return_value = [t1, t2]
+        mock_trunk_dev_name.side_effect = ['fake_dev1', 'fake_dev2']
+
+        vif = {'network': {'bridge': 'br-int'}}
+        self.drv.post_live_migrate_at_source(vif)
+
+        # The orphans should have been deleted
+        self.assertTrue(t1.delete.called)
+        self.assertTrue(t2.delete.called)
+
+        # Validate the OVS port delete call was made twice
+        self.assertEqual(2, mock_del_ovs_port.call_count)
+        mock_del_ovs_port.assert_any_call('br-int', 'fake_dev1')
+        mock_del_ovs_port.assert_called_with('br-int', 'fake_dev2')
