@@ -261,11 +261,6 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Task state should still be bad.
         self.assertFalse(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
 
-        # Set state to REBUILD_SPAWNING and that should return this is as
-        # an intial wwpn
-        self.vol_drv.instance.task_state = task_states.REBUILD_SPAWNING
-        self.assertTrue(self.vol_drv._is_initial_wwpn(npiv.FS_UNMAPPED, 'a'))
-
         # Set a good task state, but fails due to the WWPNs already being
         # hosted
         self.vol_drv.instance.task_state = task_states.NETWORKING
