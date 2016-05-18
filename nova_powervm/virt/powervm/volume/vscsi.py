@@ -246,16 +246,15 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             status, device_name, udid = self._discover_volume_on_vios(
                 vios_w, self.volume_id)
 
-            # Get the slot to look up.
-            lpar_slot_num = slot_mgr.build_map.get_pv_vscsi_slot(
-                vios_w, udid)
+            # Get the slot and LUA to assign.
+            slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, udid)
 
             if hdisk.good_discovery(status, device_name):
                 # Found a hdisk on this Virtual I/O Server.  Add the action to
                 # map it to the VM when the stg_ftsk is executed.
                 with lockutils.lock(hash(self)):
                     self._add_append_mapping(vios_w.uuid, device_name,
-                                             lpar_slot_num=lpar_slot_num)
+                                             lpar_slot_num=slot, lua=lua)
 
                 # Save the UDID for the disk in the connection info.  It is
                 # used for the detach.
@@ -542,8 +541,9 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             return removed_maps
         self.stg_ftsk.wrapper_tasks[vios_uuid].add_functor_subtask(rm_func)
 
-    def _add_append_mapping(self, vios_uuid, device_name, lpar_slot_num=None):
-        """This method will update the stg_ftsk to append the mapping to the VIOS
+    def _add_append_mapping(self, vios_uuid, device_name, lpar_slot_num=None,
+                            lua=None):
+        """Update the stg_ftsk to append the mapping to the VIOS.
 
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
         :param device_name: The The hdisk device name.
@@ -551,6 +551,10 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                               lpar slot number to use on the mapping.  If left
                               as None, it will use the next available slot
                               number.
+        :param lua: (Optional.  Default: None) Logical Unit Address to set on
+                    the TargetDevice.  If None, the LUA will be assigned by the
+                    server.  Should be specified for all of the VSCSIMappings
+                    for a particular bus, or none of them.
         """
         def add_func(vios_w):
             LOG.info(_LI("Adding vSCSI mapping to Physical Volume %(dev)s "
@@ -559,7 +563,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             pv = pvm_stor.PV.bld(self.adapter, device_name)
             v_map = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, self.vm_uuid, pv,
-                lpar_slot_num=lpar_slot_num)
+                lpar_slot_num=lpar_slot_num, lua=lua)
             return tsk_map.add_map(vios_w, v_map)
         self.stg_ftsk.wrapper_tasks[vios_uuid].add_functor_subtask(add_func)
 
