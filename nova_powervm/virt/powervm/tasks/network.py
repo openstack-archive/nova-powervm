@@ -239,7 +239,7 @@ class PlugVifs(task.Task):
         for network_info in self.network_infos:
             try:
                 vif.unplug(self.adapter, self.host_uuid, self.instance,
-                           network_info, cna_w_list=cna_w_list)
+                           network_info, self.slot_mgr, cna_w_list=cna_w_list)
             except Exception as e:
                 LOG.exception(e)
                 LOG.warning(_LW("An exception occurred during an unplug "

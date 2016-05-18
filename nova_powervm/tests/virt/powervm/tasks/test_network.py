@@ -287,11 +287,11 @@ class TestNetwork(test.TestCase):
 
         # Make sure each call is invoked correctly.
         c1 = mock.call(self.apt, 'host_uuid', inst, net_info[0],
-                       cna_w_list=cna_list)
+                       'slot_mgr', cna_w_list=cna_list)
         c2 = mock.call(self.apt, 'host_uuid', inst, net_info[1],
-                       cna_w_list=cna_list)
+                       'slot_mgr', cna_w_list=cna_list)
         c3 = mock.call(self.apt, 'host_uuid', inst, net_info[2],
-                       cna_w_list=cna_list)
+                       'slot_mgr', cna_w_list=cna_list)
         mock_unplug.assert_has_calls([c1, c2, c3])
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
