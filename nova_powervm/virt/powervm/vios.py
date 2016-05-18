@@ -25,7 +25,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as nova_pvm_exc
-
+from nova_powervm.virt.powervm.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -39,22 +39,47 @@ VALID_RMC_STATES = [pvm_bp.RMCState.ACTIVE, pvm_bp.RMCState.BUSY]
 VALID_VM_STATES = [pvm_bp.LPARState.RUNNING]
 
 
-def get_active_vioses(adapter, host_uuid, xag=None):
+def get_active_vioses(adapter, host_uuid, xag=None, vios_wraps=None):
     """Returns a list of active Virtual I/O Server Wrappers for a host.
 
     Active is defined by powered on and RMC state being 'active'.
 
     :param adapter: The pypowervm adapter for the query.
-    :param host_uuid: The host servers UUID.
-    :param xag: Optional list of extended attributes to use.  If not passed
-                in defaults to None.
+    :param host_uuid: The host server's UUID.
+    :param xag: (Optional, Default: None) List of extended attributes to use.
+    :param vios_wraps: (Optional, Default: None) A list of VIOS wrappers. If
+                       specified, the method will check for active VIOSes
+                       in this list instead of issuing a GET.
     :return: List of VIOS wrappers.
     """
-    vio_feed_resp = adapter.read(pvm_ms.System.schema_type, root_id=host_uuid,
-                                 child_type=pvm_vios.VIOS.schema_type,
-                                 xag=xag)
-    wrappers = pvm_vios.VIOS.wrap(vio_feed_resp)
-    return [vio for vio in wrappers if is_vios_active(vio)]
+    if not vios_wraps:
+        vios_wraps = pvm_vios.VIOS.get(adapter, root_id=host_uuid, xag=xag)
+
+    return [vio for vio in vios_wraps if is_vios_active(vio)]
+
+
+def get_inactive_running_vioses(vios_wraps):
+    """Method to get RMC inactive but powered on VIOSes
+
+    Not waiting for VIOS RMC states to go active when the host boots up
+    may result in stale adapter mappings from evacuated instances.
+
+    :param vios_wraps: A list of VIOS wrappers.
+    :return: List of RMC inactive but powered on VIOSes from the list.
+    """
+    inactive_running_vioses = []
+    for vios in vios_wraps:
+        if (vios.rmc_state not in VALID_RMC_STATES and
+           vios.state not in [pvm_bp.LPARState.NOT_ACTIVATED,
+                              pvm_bp.LPARState.ERROR,
+                              pvm_bp.LPARState.NOT_AVAILBLE,
+                              pvm_bp.LPARState.SHUTTING_DOWN,
+                              pvm_bp.LPARState.SUSPENDED,
+                              pvm_bp.LPARState.SUSPENDING,
+                              pvm_bp.LPARState.UNKNOWN]):
+            inactive_running_vioses.append(vios)
+
+    return inactive_running_vioses
 
 
 def is_vios_active(vios):
@@ -109,9 +134,10 @@ def build_tx_feed_task(adapter, host_uuid, name='vio_feed_mgr',
 def validate_vios_ready(adapter, host_uuid):
     """Check whether VIOS rmc is up and running on this host.
 
-    Will query the VIOSes for a period of time and ensure that at least
-    one is active and available on the system before returning.  If no
-    VIOSes are ready by the timeout, it will raise an exception.
+    Will query the VIOSes for a period of time attempting to ensure all
+    running VIOSes get an active RMC. If no VIOSes are ready by the timeout
+    it will raise an exception. If only some of the VIOSes had RMC go active
+    by the end of the wait period host initialization will continue.
 
     The timeout is defined by the vios_active_wait_timeout conf option.
 
@@ -122,14 +148,34 @@ def validate_vios_ready(adapter, host_uuid):
     """
     max_wait_time = CONF.powervm.vios_active_wait_timeout
 
-    @retrying.retry(retry_on_result=lambda result: len(result) == 0,
+    vios_wraps = []
+
+    @retrying.retry(retry_on_result=lambda result: len(result) > 0,
                     wait_fixed=5 * 1000,
                     stop_max_delay=max_wait_time * 1000)
-    def _get_active_vioses():
+    def _wait_for_active_vioses():
         try:
-            return get_active_vioses(adapter, host_uuid)
-        except Exception:
-            return []
+            # Update the wrappers list and get the list of inactive
+            # running VIOSes
+            del vios_wraps[:]
+            vios_wraps.extend(pvm_vios.VIOS.get(adapter))
+            return get_inactive_running_vioses(vios_wraps)
+        except Exception as e:
+            LOG.exception(e)
+            # If we errored then we want to keep retrying so return something
+            # with a length greater than zero
+            return [None]
 
-    if len(_get_active_vioses()) == 0:
+    inactive_vioses = _wait_for_active_vioses()
+    if len(inactive_vioses) > 0 and inactive_vioses != [None]:
+        LOG.warning(
+            _LW('Timed out waiting for the RMC state of all the powered on '
+                'Virtual I/O Servers to be active. Wait time was: %(time)s '
+                'seconds. VIOSes that did not go active were: %(vioses)s.'),
+            {'time': max_wait_time,
+             'vioses': ', '.join([
+                 vio.name for vio in inactive_vioses if vio is not None])})
+
+    # If we didn't get a single active VIOS then raise an exception
+    if not get_active_vioses(adapter, host_uuid, vios_wraps=vios_wraps):
         raise nova_pvm_exc.ViosNotAvailable(wait_time=max_wait_time)
