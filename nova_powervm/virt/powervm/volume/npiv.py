@@ -242,11 +242,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :return: True if the invocation appears to be for a spawn/volume
                  action. False otherwise.
         """
-        # For RR we generate new wwpns so that the vm on the source loses
-        # access to the disk if it comes back up again.
-        if self.instance.task_state == task_states.REBUILD_SPAWNING:
-            return True
-
         # Easy fabric state check.  If its a state other than unmapped, it
         # can't be an initial WWPN
         if fc_state != FS_UNMAPPED:
