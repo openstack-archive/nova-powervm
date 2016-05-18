@@ -18,7 +18,10 @@
 import mock
 
 from nova import test
+from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import slot
+
+from pypowervm import exceptions as pvm_exc
 
 
 class TestNovaSlotManager(test.TestCase):
@@ -92,6 +95,17 @@ class TestSwiftSlotManager(test.TestCase):
         self.slot_mgr.init_recreate_map(mock.Mock(), self._vol_drv_iter())
         mock_rebuild_slot.assert_called_once_with(
             self.slot_mgr, mock.ANY, {'udid': ['uuid2']}, ['a', 'b'])
+
+    @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap')
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
+    def test_init_recreate_map_fails(self, mock_vios_get, mock_rebuild_slot):
+        vios1, vios2 = mock.Mock(uuid='uuid1'), mock.Mock(uuid='uuid2')
+        mock_vios_get.return_value = [vios1, vios2]
+        mock_rebuild_slot.side_effect = (
+            pvm_exc.InvalidHostForRebuildNotEnoughVIOS)
+        self.assertRaises(
+            p_exc.InvalidRebuild, self.slot_mgr.init_recreate_map, mock.Mock(),
+            self._vol_drv_iter())
 
     def _vol_drv_iter(self):
         mock_scsi = mock.Mock()
