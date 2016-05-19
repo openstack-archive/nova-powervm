@@ -54,7 +54,7 @@ class TestSwiftSlotManager(test.TestCase):
         super(TestSwiftSlotManager, self).setUp()
         self.store_api = mock.MagicMock()
         self.store_api.fetch_slot_map = mock.MagicMock(return_value=None)
-        self.inst = mock.MagicMock(uuid='uuid1')
+        self.inst = mock.MagicMock(uuid='a2e71b38-160f-4650-bbdc-2a10cd507e2b')
         self.slot_mgr = slot.SwiftSlotManager(self.store_api,
                                               instance=self.inst)
 
@@ -63,7 +63,8 @@ class TestSwiftSlotManager(test.TestCase):
         self.slot_mgr.load()
 
         # Validate the call
-        self.store_api.fetch_slot_map.assert_called_with('uuid1_slot_map')
+        self.store_api.fetch_slot_map.assert_called_with(
+            self.inst.uuid + '_slot_map')
 
     def test_save(self):
         # Mock the call
@@ -74,7 +75,7 @@ class TestSwiftSlotManager(test.TestCase):
 
         # Validate the call
         self.store_api.store_slot_map.assert_called_once_with(
-            'uuid1_slot_map', mock.ANY)
+            self.inst.uuid + '_slot_map', mock.ANY)
 
     def test_delete(self):
         # Mock the call
@@ -85,22 +86,35 @@ class TestSwiftSlotManager(test.TestCase):
 
         # Validate the call
         self.store_api.delete_slot_map.assert_called_once_with(
-            'uuid1_slot_map')
+            self.inst.uuid + '_slot_map')
 
     @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
-    def test_init_recreate_map(self, mock_vios_get, mock_rebuild_slot):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    @mock.patch('pypowervm.tasks.storage.add_lpar_storage_scrub_tasks')
+    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
+    def test_init_recreate_map(self, mock_ftsk, mock_alsst, mock_vm_id,
+                               mock_rebuild_slot):
         vios1, vios2 = mock.Mock(uuid='uuid1'), mock.Mock(uuid='uuid2')
-        mock_vios_get.return_value = [vios1, vios2]
+        mock_ftsk.return_value.feed = [vios1, vios2]
         self.slot_mgr.init_recreate_map(mock.Mock(), self._vol_drv_iter())
+        # get_vm_id called with converted UUID
+        mock_vm_id.assert_called_once_with(
+            mock.ANY, '22E71B38-160F-4650-BBDC-2A10CD507E2B')
+        self.assertEqual(1, mock_ftsk.call_count)
+        mock_alsst.assert_called_once_with(
+            [mock_vm_id.return_value], mock_ftsk.return_value,
+            lpars_exist=True)
         mock_rebuild_slot.assert_called_once_with(
             self.slot_mgr, mock.ANY, {'udid': ['uuid2']}, ['a', 'b'])
 
     @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
-    def test_init_recreate_map_fails(self, mock_vios_get, mock_rebuild_slot):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id', new=mock.Mock())
+    @mock.patch('pypowervm.tasks.storage.add_lpar_storage_scrub_tasks',
+                new=mock.Mock())
+    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
+    def test_init_recreate_map_fails(self, mock_ftsk, mock_rebuild_slot):
         vios1, vios2 = mock.Mock(uuid='uuid1'), mock.Mock(uuid='uuid2')
-        mock_vios_get.return_value = [vios1, vios2]
+        mock_ftsk.return_value.feed = [vios1, vios2]
         mock_rebuild_slot.side_effect = (
             pvm_exc.InvalidHostForRebuildNotEnoughVIOS(udid='udid56'))
         self.assertRaises(
