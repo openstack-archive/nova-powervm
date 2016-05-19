@@ -102,7 +102,7 @@ class TestSwiftSlotManager(test.TestCase):
         vios1, vios2 = mock.Mock(uuid='uuid1'), mock.Mock(uuid='uuid2')
         mock_vios_get.return_value = [vios1, vios2]
         mock_rebuild_slot.side_effect = (
-            pvm_exc.InvalidHostForRebuildNotEnoughVIOS)
+            pvm_exc.InvalidHostForRebuildNotEnoughVIOS(udid='udid56'))
         self.assertRaises(
             p_exc.InvalidRebuild, self.slot_mgr.init_recreate_map, mock.Mock(),
             self._vol_drv_iter())
