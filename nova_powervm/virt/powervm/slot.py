@@ -18,14 +18,13 @@ import six
 
 from oslo_log import log as logging
 
-from pypowervm import const as c
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import slot_map
-from pypowervm.wrappers import virtual_io_server as pvm_vios
+from pypowervm.tasks import storage as pvm_tstor
 
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.i18n import _LW
-
+from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 
@@ -112,11 +111,18 @@ class NovaSlotManager(slot_map.SlotMapStore):
         :param adapter: The pypowervm adapter.
         :param vol_drv_iter: An iterator of the volume drivers.
         """
-        # Get the VIOSes first.  Be greedy, this should only be called on a
-        # rebuild.  For the rebuild we need to focus on being correct first.
-        # Performance is secondary.
-        self._vios_wraps = pvm_vios.VIOS.get(
-            adapter, xag=[c.XAG.VIO_STOR, c.XAG.VIO_FMAP, c.XAG.VIO_SMAP])
+        # This should only be called on a rebuild. Focus on being correct
+        # first. Performance is secondary.
+
+        # We need to scrub existing stale mappings, including those for the VM
+        # we're creating.  It is critical that this happen *before* we create
+        # any of the mappings we actually want this VM to have.
+        scrub_ftsk = pvm_tstor.ComprehensiveScrub(adapter)
+        lpar_id = vm.get_vm_id(adapter, vm.get_pvm_uuid(self.instance))
+        pvm_tstor.add_lpar_storage_scrub_tasks([lpar_id], scrub_ftsk,
+                                               lpars_exist=True)
+        scrub_ftsk.execute()
+        self._vios_wraps = scrub_ftsk.feed
 
         pv_vscsi_vol_to_vio = {}
         fabric_names = []
