@@ -170,20 +170,19 @@ class SwiftSlotManager(NovaSlotManager):
         self.store_api = store_api
         super(SwiftSlotManager, self).__init__(**kwargs)
 
-    def load(self):
-        return self.store_api.fetch_slot_map(self.inst_key)
+    def _load(self, key):
+        return self.store_api.fetch_slot_map(key)
 
-    def save(self):
-        self.store_api.store_slot_map(self.inst_key, self.serialized)
+    def _save(self, key, blob):
+        self.store_api.store_slot_map(key, blob)
 
-    def delete(self):
+    def _delete(self, key):
         try:
-            self.store_api.delete_slot_map(self.inst_key)
+            self.store_api.delete_slot_map(key)
         except Exception:
             LOG.warning(_LW("Unable to delete the slot map from Swift backing "
-                            "store with ID %(inst_key)s.  Will require "
-                            "manual cleanup."), {'inst_key': self.inst_key},
-                        self.instance)
+                            "store with ID %(key)s.  Will require "
+                            "manual cleanup."), {'key': key}, self.instance)
 
 
 class NoopSlotManager(NovaSlotManager):
