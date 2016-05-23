@@ -48,9 +48,7 @@ class TestVios(test.TestCase):
         vio = vioses[0]
         self.assertEqual(pvm_bp.LPARState.RUNNING, vio.state)
         self.assertEqual(pvm_bp.RMCState.ACTIVE, vio.rmc_state)
-        self.adpt.read.assert_called_with(pvm_vios.VIOS.schema_type,
-                                          root_id='host_uuid',
-                                          xag=None)
+        self.adpt.read.assert_called_with(pvm_vios.VIOS.schema_type, xag=None)
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
     def test_get_active_vioses_w_vios_wraps(self, mock_get):
