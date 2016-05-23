@@ -45,7 +45,7 @@ def get_active_vioses(adapter, host_uuid, xag=None, vios_wraps=None):
     Active is defined by powered on and RMC state being 'active'.
 
     :param adapter: The pypowervm adapter for the query.
-    :param host_uuid: The host server's UUID.
+    :param host_uuid: The host server's UUID (not used).
     :param xag: (Optional, Default: None) List of extended attributes to use.
     :param vios_wraps: (Optional, Default: None) A list of VIOS wrappers. If
                        specified, the method will check for active VIOSes
@@ -53,7 +53,7 @@ def get_active_vioses(adapter, host_uuid, xag=None, vios_wraps=None):
     :return: List of VIOS wrappers.
     """
     if not vios_wraps:
-        vios_wraps = pvm_vios.VIOS.get(adapter, root_id=host_uuid, xag=xag)
+        vios_wraps = pvm_vios.VIOS.get(adapter, xag=xag)
 
     return [vio for vio in vios_wraps if is_vios_active(vio)]
 
