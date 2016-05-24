@@ -28,11 +28,7 @@ class TestVolumeAdapter(test.TestCase):
         self.mock_get_inst_wrap_p = mock.patch('nova_powervm.virt.powervm.vm.'
                                                'get_instance_wrapper')
         self.mock_get_inst_wrap = self.mock_get_inst_wrap_p.start()
+        self.addCleanup(self.mock_get_inst_wrap_p.stop)
         self.mock_inst_wrap = mock.MagicMock()
         self.mock_inst_wrap.can_modify_io.return_value = (True, None)
         self.mock_get_inst_wrap.return_value = self.mock_inst_wrap
-
-    def tearDown(self):
-        super(TestVolumeAdapter, self).tearDown()
-
-        self.mock_get_inst_wrap_p.stop()

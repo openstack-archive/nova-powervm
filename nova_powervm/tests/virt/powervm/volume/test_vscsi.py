@@ -392,6 +392,19 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.assertEqual(0, mock_remove_hdisk.call_count)
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
+    def test_disconnect_volume_udid_no_name(self, mock_hdisk_from_uuid):
+        """The VIO has no Storage XAG; should trigger discovery."""
+        self.vol_drv._set_udid(self.udid)
+        mock_hdisk_from_uuid.return_value = None
+
+        with mock.patch.object(self.vol_drv,
+                               '_discover_volume_on_vios') as mock_dvov:
+            self.vol_drv.disconnect_volume(self.slot_mgr)
+            mock_dvov.assert_called()
+
+        mock_hdisk_from_uuid.assert_called()
+
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     def test_disconnect_volume_no_valid_vio(self, mock_remove_maps,
                                             mock_hdisk_from_uuid):
