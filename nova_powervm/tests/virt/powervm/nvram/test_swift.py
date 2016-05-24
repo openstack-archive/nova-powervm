@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import fixtures
 import mock
 from nova import test
 from swiftclient import service as swft_srv
@@ -25,14 +24,13 @@ from nova_powervm.virt.powervm.nvram import swift
 
 
 class TestSwiftStore(test.TestCase):
+
     def setUp(self):
         super(TestSwiftStore, self).setUp()
         self.flags(swift_password='secret', swift_auth_url='url',
                    group='powervm')
-        self.swift_store = swift.SwiftNvramStore()
 
-        self.swift_srv = self.useFixture(
-            fixtures.MockPatch('swiftclient.service.SwiftService')).mock
+        self.swift_store = swift.SwiftNvramStore()
 
     def test_run_operation(self):
 
@@ -44,15 +42,12 @@ class TestSwiftStore(test.TestCase):
                 yield item
 
         # Address the 'list' method that should be called.
-        list_op = (self.swift_srv.return_value.__enter__.
-                   return_value.list)
+        list_op = mock.Mock()
+        self.swift_store.swift_service = mock.Mock(list=list_op)
 
         # Setup expected results
         list_op.return_value = fake_generator(fake_result)
-        results = self.swift_store._run_operation(None, 'list', 1, x=2)
-
-        self.swift_srv.assert_called_once_with(
-            options=self.swift_store.options)
+        results = self.swift_store._run_operation('list', 1, x=2)
 
         list_op.assert_called_once_with(1, x=2)
         # Returns a copy of the results
@@ -62,7 +57,7 @@ class TestSwiftStore(test.TestCase):
         # Try a single result - Setup expected results
         list_op.reset_mock()
         list_op.return_value = fake_result2
-        results = self.swift_store._run_operation(None, 'list', 3, x=4)
+        results = self.swift_store._run_operation('list', 3, x=4)
 
         list_op.assert_called_once_with(3, x=4)
         # Returns the actual result
@@ -72,7 +67,7 @@ class TestSwiftStore(test.TestCase):
         # Should raise any swift errors encountered
         list_op.side_effect = swft_srv.SwiftError('Error message.')
         self.assertRaises(swft_srv.SwiftError, self.swift_store._run_operation,
-                          None, 'list', 3, x=4)
+                          'list', 3, x=4)
 
     def _build_results(self, names):
         listing = [{'name': name} for name in names]
@@ -88,7 +83,7 @@ class TestSwiftStore(test.TestCase):
             mock_run.return_value = self._build_results(['container'])
             names = self.swift_store._get_container_names()
             self.assertEqual(['container'], names)
-            mock_run.assert_called_once_with(None, 'list',
+            mock_run.assert_called_once_with('list',
                                              options={'long': True})
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
@@ -108,7 +103,7 @@ class TestSwiftStore(test.TestCase):
             names = self.swift_store._get_object_names('powervm_nvram')
             self.assertEqual(['obj', 'obj2'], names)
             mock_run.assert_called_once_with(
-                None, 'list', container='powervm_nvram',
+                'list', container='powervm_nvram',
                 options={'long': True, 'prefix': None})
             self.assertEqual(mock_container_names.call_count, 2)
 
@@ -117,7 +112,7 @@ class TestSwiftStore(test.TestCase):
                                                        prefix='obj')
             self.assertEqual(['obj', 'obj2'], names)
             mock_run.assert_called_with(
-                None, 'list', container='powervm_nvram',
+                'list', container='powervm_nvram',
                 options={'long': True, 'prefix': 'obj'})
 
             # Second run should not increment the call count here
@@ -131,7 +126,7 @@ class TestSwiftStore(test.TestCase):
             mock_run.return_value = self._build_results(['obj'])
             self.swift_store._store(powervm.TEST_INST1.uuid,
                                     powervm.TEST_INST1.name, 'data')
-            mock_run.assert_called_once_with(None, 'upload', 'powervm_nvram',
+            mock_run.assert_called_once_with('upload', 'powervm_nvram',
                                              mock.ANY, options=None)
 
             # Test unsuccessful upload
@@ -149,7 +144,7 @@ class TestSwiftStore(test.TestCase):
             self.swift_store._store(powervm.TEST_INST1.uuid,
                                     powervm.TEST_INST1.name, 'data')
             mock_run.assert_called_once_with(
-                None, 'upload', 'powervm_nvram', mock.ANY,
+                'upload', 'powervm_nvram', mock.ANY,
                 options={'leave_segments': True})
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
@@ -175,7 +170,7 @@ class TestSwiftStore(test.TestCase):
             self.swift_store.store(powervm.TEST_INST1, 'data', force=False)
             self.assertFalse(mock_store.called)
             mock_run.assert_called_once_with(
-                None, 'stat', options={'long': True},
+                'stat', options={'long': True},
                 container='powervm_nvram', objects=[powervm.TEST_INST1.uuid])
 
     def test_store_slot_map(self):
@@ -241,7 +236,7 @@ class TestSwiftStore(test.TestCase):
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
             self.swift_store.delete(powervm.TEST_INST1)
-            mock_run.assert_called_once_with(None, 'delete',
+            mock_run.assert_called_once_with('delete',
                                              container='powervm_nvram',
                                              objects=[powervm.TEST_INST1.uuid])
 
@@ -254,9 +249,8 @@ class TestSwiftStore(test.TestCase):
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
             self.swift_store.delete_slot_map('test_slot')
-            mock_run.assert_called_once_with(None, 'delete',
-                                             container='powervm_nvram',
-                                             objects=['test_slot'])
+            mock_run.assert_called_once_with(
+                'delete', container='powervm_nvram', objects=['test_slot'])
 
             # Bad result from the operation
             mock_run.return_value[0]['success'] = False

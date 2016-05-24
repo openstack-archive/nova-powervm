@@ -42,11 +42,12 @@ class SwiftNvramStore(api.NvramStore):
         super(SwiftNvramStore, self).__init__()
         self.container = CONF.powervm.swift_container
         # Build the swift service options
-        self.options = self._init_swift()
+        self.options = self._init_swift_options()
+        self.swift_service = swft_srv.SwiftService(options=self.options)
         self._container_found = False
 
     @staticmethod
-    def _init_swift():
+    def _init_swift_options():
         """Initialize all the options needed to communicate with Swift."""
 
         for opt in powervm.swift_opts:
@@ -66,31 +67,28 @@ class SwiftNvramStore(api.NvramStore):
 
         return options
 
-    def _run_operation(self, service_options, f, *args, **kwargs):
+    def _run_operation(self, f, *args, **kwargs):
         """Convenience method to call the Swift client service."""
 
-        service_options = (self.options if service_options is None
-                           else service_options)
-        with swft_srv.SwiftService(options=service_options) as swift:
-            # Get the function to call
-            func = getattr(swift, f)
-            try:
-                result = func(*args, **kwargs)
-                # For generators we have to copy the results because the
-                # service is going out of scope.
-                if isinstance(result, types.GeneratorType):
-                    results = []
-                    LOG.debug('SwiftOperation results:')
-                    for r in result:
-                        results.append(copy.deepcopy(r))
-                        LOG.debug(str(r))
-                    result = results
-                else:
-                    LOG.debug('SwiftOperation result: %s' % str(result))
-                return result
-            except swft_srv.SwiftError as e:
-                LOG.exception(e)
-                raise
+        # Get the function to call
+        func = getattr(self.swift_service, f)
+        try:
+            result = func(*args, **kwargs)
+            # For generators we have to copy the results because the
+            # service is going out of scope.
+            if isinstance(result, types.GeneratorType):
+                results = []
+                LOG.debug('SwiftOperation results:')
+                for r in result:
+                    results.append(copy.deepcopy(r))
+                    LOG.debug(str(r))
+                result = results
+            else:
+                LOG.debug('SwiftOperation result: %s' % str(result))
+            return result
+        except swft_srv.SwiftError as e:
+            LOG.exception(e)
+            raise
 
     @classmethod
     def _get_name_from_listing(cls, results):
@@ -102,7 +100,7 @@ class SwiftNvramStore(api.NvramStore):
         return names
 
     def _get_container_names(self):
-        results = self._run_operation(None, 'list', options={'long': True})
+        results = self._run_operation('list', options={'long': True})
         return self._get_name_from_listing(results)
 
     def _get_object_names(self, container, prefix=None):
@@ -119,7 +117,7 @@ class SwiftNvramStore(api.NvramStore):
                 return []
 
         results = self._run_operation(
-            None, 'list', options={'long': True, 'prefix': prefix},
+            'list', options={'long': True, 'prefix': prefix},
             container=container)
         return self._get_name_from_listing(results)
 
@@ -145,7 +143,7 @@ class SwiftNvramStore(api.NvramStore):
         options = dict(leave_segments=True) if not exists else None
 
         obj = swft_srv.SwiftUploadObject(source, object_name=inst_key)
-        for result in self._run_operation(None, 'upload', self.container,
+        for result in self._run_operation('upload', self.container,
                                           [obj], options=options):
             if not result['success']:
                 # The upload failed.
@@ -164,7 +162,7 @@ class SwiftNvramStore(api.NvramStore):
         exists = self._exists(instance.uuid)
         if not force and exists:
             # See if the entry exists and has not changed.
-            results = self._run_operation(None, 'stat', options={'long': True},
+            results = self._run_operation('stat', options={'long': True},
                                           container=self.container,
                                           objects=[instance.uuid])
             result = results[0]
@@ -230,10 +228,10 @@ class SwiftNvramStore(api.NvramStore):
                     'out_file': f.name
                 }
             # The file is now created and closed for the swift client to use.
-            for result in self._run_operation(
-                None, 'download', container=self.container,
-                objects=[object_key], options=options):
-
+            results = self._run_operation(
+                'download', container=self.container, objects=[object_key],
+                options=options)
+            for result in results:
                 if result['success']:
                     with open(f.name, 'r') as f:
                         return f.read(), result
@@ -251,8 +249,7 @@ class SwiftNvramStore(api.NvramStore):
         :param inst_key: The instance key to use for the storage operation.
         """
         for result in self._run_operation(
-            None, 'delete', container=self.container,
-            objects=[inst_key]):
+            'delete', container=self.container, objects=[inst_key]):
 
             LOG.debug('Delete slot map result: %s' % str(result))
             if not result['success']:
@@ -265,8 +262,7 @@ class SwiftNvramStore(api.NvramStore):
         :param instance: instance object
         """
         for result in self._run_operation(
-            None, 'delete', container=self.container,
-            objects=[instance.uuid]):
+            'delete', container=self.container, objects=[instance.uuid]):
 
             LOG.debug('Delete result: %s' % str(result), instance=instance)
             if not result['success']:
