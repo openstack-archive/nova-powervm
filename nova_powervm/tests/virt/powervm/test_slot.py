@@ -59,16 +59,23 @@ class TestSwiftSlotManager(test.TestCase):
                                               instance=self.inst)
 
     def test_load(self):
-        # Run load
-        self.slot_mgr.load()
-
-        # Validate the call
+        # load() should have been called internally by __init__
         self.store_api.fetch_slot_map.assert_called_with(
             self.inst.uuid + '_slot_map')
 
     def test_save(self):
         # Mock the call
         self.store_api.store_slot_map = mock.MagicMock()
+
+        # Run save
+        self.slot_mgr.save()
+
+        # Not called because nothing changed
+        self.store_api.store_slot_map.assert_not_called()
+
+        # Change something
+        mock_vfcmap = mock.Mock(server_adapter=mock.Mock(lpar_slot_num=123))
+        self.slot_mgr.register_vfc_mapping(mock_vfcmap, 'fabric')
 
         # Run save
         self.slot_mgr.save()
