@@ -7,4 +7,4 @@ oslo.log>=1.14.0  # Apache-2.0
 oslo.serialization>=1.10.0              # Apache-2.0
 oslo.utils>=3.5.0                       # Apache-2.0
 taskflow>=1.26.0  # Apache-2.0
-setuptools<20.2
+setuptools>=16.0
