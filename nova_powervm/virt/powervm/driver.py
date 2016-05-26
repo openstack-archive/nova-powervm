@@ -1863,32 +1863,43 @@ class NovaEventHandler(pvm_apt.RawEventHandler):
     def __init__(self, driver):
         self._driver = driver
 
-    def _handle_event(self, uri, etype, details, eid):
+    def _handle_event(self, uri, etype, details, eid, inst=None):
         """Handle an individual event.
 
         :param uri: PowerVM event uri
         :param etype: PowerVM event type
         :param details: PowerVM event details
         :param eid: PowerVM event id
+        :param inst: (Optional, Default: None) The pypowervm wrapper object
+                    that represents the VM instance.
+                    If None we try to look it up based on UUID.
+        :return: returns the instance object or None (when it's not an
+                 instance event or action is not partition state change
+                 or NVRAM change)
         """
 
         # See if this uri ends with a PowerVM UUID.
         if not pvm_util.is_instance_path(uri):
-            return
+            return None
 
         pvm_uuid = pvm_util.get_req_path_uuid(
             uri, preserve_case=True)
         # If a vm event and one we handle, call the inst handler.
         if (uri.endswith('LogicalPartition/' + pvm_uuid) and
                 (self.inst_actions_handled & set(details))):
-            inst = vm.get_instance(ctx.get_admin_context(),
-                                   pvm_uuid)
+            if not inst:
+                LOG.debug('PowerVM Nova Event Handler: Getting inst '
+                          'for id %s' % pvm_uuid)
+                inst = vm.get_instance(ctx.get_admin_context(),
+                                       pvm_uuid)
             if inst:
                 LOG.debug('Handle action "%(action)s" event for instance: '
                           '%(inst)s' %
                           dict(action=details, inst=inst.name))
                 self._handle_inst_event(
                     inst, pvm_uuid, uri, etype, details, eid)
+                return inst
+        return None
 
     def _handle_inst_event(self, inst, pvm_uuid, uri, etype, details, eid):
         """Handle an instance event.
@@ -1963,6 +1974,7 @@ class NovaEventHandler(pvm_apt.RawEventHandler):
                             },
                        ]
         """
+        inst_cache = {}
         for pvm_event in events:
             try:
                 # Pull all the pieces of the event.
@@ -1975,7 +1987,9 @@ class NovaEventHandler(pvm_apt.RawEventHandler):
                 if etype not in ['NEW_CLIENT']:
                     LOG.debug('PowerVM Event-Action: %s URI: %s Details %s' %
                               (etype, uri, details))
-                    self._handle_event(uri, etype, details, eid)
+                inst_cache[uri] = self._handle_event(uri, etype, details, eid,
+                                                     inst=inst_cache.get(uri,
+                                                                         None))
             except Exception as e:
                 LOG.exception(e)
                 LOG.warning(_LW('Unable to parse event URI: %s from PowerVM.'),
