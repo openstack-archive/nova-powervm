@@ -14,4 +14,4 @@
 
 import pbr.version
 
-version_info = pbr.version.VersionInfo('__project__')
+version_info = pbr.version.VersionInfo(__package__)
