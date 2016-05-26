@@ -132,12 +132,6 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume,
                           self.slot_mgr)
 
-    def test_connect_volume_bad_wwpn(self):
-        """Ensures an error is raised if a bad WWPN is used."""
-        self._basic_system_metadata(npiv.FS_UNMAPPED, p_wwpn='bad')
-        self.assertRaises(exc.VolumeAttachFailed, self.vol_drv.connect_volume,
-                          self.slot_mgr)
-
     @mock.patch('pypowervm.tasks.vfc_mapper.add_map')
     def test_connect_volume_inst_mapped(self, mock_add_map):
         """Test if already connected to an instance, don't do anything"""
@@ -157,6 +151,38 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Check the fabric state remains mapped to instance
         self.assertEqual(npiv.FS_INST_MAPPED,
                          self.vol_drv._get_fabric_state('A'))
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.find_vios_for_wwpn')
+    @mock.patch('pypowervm.tasks.vfc_mapper.derive_npiv_map')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_set_fabric_meta')
+    def test_ensure_phys_ports(self, set_fabric_meta, derive_npiv_map,
+                               find_vios_for_wwpn):
+        """Test that an npiv mapping gets rebuilt for stale wwpns"""
+
+        self._basic_system_metadata(npiv.FS_INST_MAPPED, "stale-wwpn")
+        port_maps = [('stale-wwpn', 'AA BB')]
+        vios_wraps = [mock.MagicMock()]
+        fab = 'A'
+
+        # First the 'good' case where output should equal input
+        port_maps = [(self.wwpn1, 'AA BB')]
+        find_vios_for_wwpn.return_value = (vios_wraps[0], mock.MagicMock())
+        maps = self.vol_drv._ensure_phys_ports_for_system(port_maps,
+                                                          vios_wraps, fab)
+        self.assertEqual(port_maps, maps)
+        find_vios_for_wwpn.assert_called_once()
+        derive_npiv_map.assert_not_called()
+
+        # Now test the stale case - rebuild
+        port_maps = [('stale-wwpn', 'AA BB')]
+        expected_map = [(self.wwpn1, port_maps[0][1])]
+        derive_npiv_map.return_value = expected_map
+        find_vios_for_wwpn.return_value = (None, None)
+        maps = self.vol_drv._ensure_phys_ports_for_system(port_maps,
+                                                          vios_wraps, fab)
+        self.assertEqual(expected_map, maps)
+        derive_npiv_map.assert_called_once()
 
     def _basic_system_metadata(self, fabric_state, p_wwpn='21000024FF649104'):
         meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
