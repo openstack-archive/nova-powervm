@@ -359,7 +359,12 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             udid, device_name = None, None
             try:
                 udid = self._get_udid()
-                if not udid:
+
+                if udid:
+                    # This will only work if vios_w has the Storage XAG.
+                    device_name = vios_w.hdisk_from_uuid(udid)
+
+                if not udid or not device_name:
                     # We lost our bdm data. We'll need to discover it.
                     status, device_name, udid = self._discover_volume_on_vios(
                         vios_w, self.volume_id)
@@ -376,18 +381,6 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                             "actions to be taken as volume is not healthy."),
                             {'volume_id': self.volume_id, 'vios': vios_w.name})
                         return False
-
-                if udid and not device_name:
-                    device_name = vios_w.hdisk_from_uuid(udid)
-
-                if not device_name:
-                    LOG.warning(_LW(
-                        "Disconnect Volume: No mapped device found on Virtual "
-                        "I/O Server %(vios)s for volume %(volume_id)s.  "
-                        "Volume UDID: %(volume_uid)s"),
-                        {'volume_uid': udid, 'volume_id': self.volume_id,
-                         'vios': vios_w.name})
-                    return False
 
             except Exception as e:
                 LOG.warning(_LW(
