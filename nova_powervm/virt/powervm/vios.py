@@ -127,8 +127,12 @@ def build_tx_feed_task(adapter, host_uuid, name='vio_feed_mgr',
                 in defaults to all storage options (as this is most common
                 case for using a transaction manager).
     """
-    return pvm_tx.FeedTask(name,
-                           get_active_vioses(adapter, host_uuid, xag=xag))
+
+    active_vio_feed = get_active_vioses(adapter, xag=xag)
+    if not active_vio_feed:
+        raise nova_pvm_exc.NoActiveViosForFeedTask()
+
+    return pvm_tx.FeedTask(name, active_vio_feed)
 
 
 def validate_vios_ready(adapter, host_uuid):
