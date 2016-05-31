@@ -125,6 +125,10 @@ class ViosNotAvailable(nex.NovaException):
                 "I/O Servers and then restart the Nova Compute Agent.")
 
 
+class NoActiveViosForFeedTask(nex.NovaException):
+    msg_fmt = _("There are no active Virtual I/O Servers available.")
+
+
 class InvalidRebuild(nex.NovaException):
     msg_fmt = _("Unable to rebuild virtual machine on new host.  Error is "
                 "%(error)s")

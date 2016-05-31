@@ -103,6 +103,22 @@ class TestVios(test.TestCase):
         result = set(vios.get_physical_wwpns(self.adpt, 'fake_uuid'))
         self.assertSetEqual(expected, result)
 
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    @mock.patch('pypowervm.utils.transaction.FeedTask')
+    def test_build_tx_feed_task(self, mock_feed_task, mock_get_active_vioses):
+        mock_get_active_vioses.return_value = ['vios1', 'vios2']
+        mock_feed_task.return_value = 'mock_feed'
+        self.assertEqual('mock_feed',
+                         vios.build_tx_feed_task(mock.MagicMock(),
+                                                 mock.MagicMock()))
+
+    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    def test_build_tx_feed_task_w_empty_feed(self, mock_get_active_vioses):
+        mock_get_active_vioses.return_value = []
+        self.assertRaises(
+            nova_pvm_exc.NoActiveViosForFeedTask, vios.build_tx_feed_task,
+            mock.MagicMock(), mock.MagicMock())
+
     @mock.patch('retrying.retry')
     @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
     @mock.patch('nova_powervm.virt.powervm.vios.get_inactive_running_vioses')
