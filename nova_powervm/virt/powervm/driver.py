@@ -402,7 +402,8 @@ class PowerVMDriver(driver.ComputeDriver):
                      (recreate or instance.vm_state in FETCH_NVRAM_STATES)
                      else None)
         flow_spawn.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
-                                    flavor, stg_ftsk, nvram_mgr=nvram_mgr))
+                                    flavor, stg_ftsk, nvram_mgr=nvram_mgr,
+                                    slot_mgr=slot_mgr))
 
         # Create a flow for the IO
         flow_spawn.add(tf_net.PlugVifs(
@@ -1287,7 +1288,7 @@ class PowerVMDriver(driver.ComputeDriver):
             # Create the LPAR
             flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
                                   instance.flavor, stg_ftsk,
-                                  nvram_mgr=self.nvram_mgr))
+                                  nvram_mgr=self.nvram_mgr, slot_mgr=slot_mgr))
 
             # Create a flow for the network IO
             flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,

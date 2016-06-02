@@ -56,7 +56,7 @@ class Create(task.Task):
     """The task for creating a VM."""
 
     def __init__(self, adapter, host_wrapper, instance, flavor, stg_ftsk,
-                 nvram_mgr=None):
+                 nvram_mgr=None, slot_mgr=None):
         """Creates the Task for creating a VM.
 
         The revert method is not implemented because the compute manager
@@ -77,6 +77,8 @@ class Create(task.Task):
         :param stg_ftsk: A FeedTask managing storage I/O operations.
         :param nvram_mgr: The NVRAM manager to fetch the NVRAM from. If None,
                           the NVRAM will not be fetched.
+        :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the
+                         maximum number of virtual slots for the VM.
         """
         super(Create, self).__init__(name='crt_lpar', provides='lpar_wrap')
         self.adapter = adapter
@@ -85,6 +87,7 @@ class Create(task.Task):
         self.flavor = flavor
         self.stg_ftsk = stg_ftsk
         self.nvram_mgr = nvram_mgr
+        self.slot_mgr = slot_mgr
 
     def execute(self):
         LOG.info(_LI('Creating instance: %s'), self.instance.name)
@@ -97,7 +100,7 @@ class Create(task.Task):
             LOG.debug('NVRAM data is: %s', data, instance=self.instance)
 
         wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
-                           self.flavor, nvram=data)
+                           self.flavor, nvram=data, slot_mgr=self.slot_mgr)
         pvm_stg.add_lpar_storage_scrub_tasks([wrap.id], self.stg_ftsk,
                                              lpars_exist=True)
         return wrap
