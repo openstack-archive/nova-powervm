@@ -128,7 +128,7 @@ def build_tx_feed_task(adapter, host_uuid, name='vio_feed_mgr',
                 case for using a transaction manager).
     """
 
-    active_vio_feed = get_active_vioses(adapter, xag=xag)
+    active_vio_feed = get_active_vioses(adapter, host_uuid, xag=xag)
     if not active_vio_feed:
         raise nova_pvm_exc.NoActiveViosForFeedTask()
 

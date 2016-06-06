@@ -19,6 +19,7 @@ import mock
 
 from nova import test
 
+from pypowervm import const as pvm_const
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import base_partition as pvm_bp
@@ -109,8 +110,11 @@ class TestVios(test.TestCase):
         mock_get_active_vioses.return_value = ['vios1', 'vios2']
         mock_feed_task.return_value = 'mock_feed'
         self.assertEqual('mock_feed',
-                         vios.build_tx_feed_task(mock.MagicMock(),
-                                                 mock.MagicMock()))
+                         vios.build_tx_feed_task('adpt', 'host_uuid'))
+        mock_get_active_vioses.assert_called_once_with(
+            'adpt', 'host_uuid',
+            xag=[pvm_const.XAG.VIO_STOR, pvm_const.XAG.VIO_SMAP,
+                 pvm_const.XAG.VIO_FMAP])
 
     @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
     def test_build_tx_feed_task_w_empty_feed(self, mock_get_active_vioses):
