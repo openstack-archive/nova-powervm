@@ -35,10 +35,10 @@ class TestNovaSlotManager(test.TestCase):
         # Test when NVRAM store exists
         # The Swift-backed implementation of PowerVM SlotMapStore is returned
         self.store_api.fetch_slot_map = mock.MagicMock(return_value=None)
-        self.assertIsInstance(
-            slot.build_slot_mgr(self.inst, self.store_api, adapter=None,
-                                vol_drv_iter=None),
-            slot.SwiftSlotManager)
+        slot_mgr = slot.build_slot_mgr(self.inst, self.store_api, adapter=None,
+                                       vol_drv_iter=None)
+        self.assertIsInstance(slot_mgr, slot.SwiftSlotManager)
+        self.assertFalse(slot_mgr.is_rebuild)
 
         # Test when no NVRAM store is set up
         # The no-op implementation of PowerVM SlotMapStore is returned
@@ -46,6 +46,11 @@ class TestNovaSlotManager(test.TestCase):
             slot.build_slot_mgr(self.inst, None, adapter=None,
                                 vol_drv_iter=None),
             slot.NoopSlotManager)
+
+        # Test that the rebuild flag is set when it is flagged as a rebuild
+        slot_mgr = slot.build_slot_mgr(
+            self.inst, self.store_api, adapter='adpt', vol_drv_iter='test')
+        self.assertTrue(slot_mgr.is_rebuild)
 
 
 class TestSwiftSlotManager(test.TestCase):

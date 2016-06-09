@@ -85,6 +85,7 @@ class NovaSlotManager(slot_map.SlotMapStore):
         self.vol_drv_iter = vol_drv_iter if vol_drv_iter else ()
         self._build_map = None
         self._vios_wraps = []
+        self.is_rebuild = (self.adapter and vol_drv_iter)
 
     @property
     def build_map(self):
@@ -94,7 +95,7 @@ class NovaSlotManager(slot_map.SlotMapStore):
         adapters.
         """
         if self._build_map is None:
-            if self.adapter and self.vol_drv_iter:
+            if self.is_rebuild:
                 self.init_recreate_map(self.adapter, self.vol_drv_iter)
             else:
                 self._build_map = slot_map.BuildSlotMap(self)
