@@ -168,6 +168,34 @@ class TestVSCSIAdapter(BaseVSCSITest):
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    def test_connect_volume_rebuild_new_vio(self, mock_get_vm_id, mock_lua,
+                                            mock_build_map, mock_add_map):
+        """Check if bad slot map.
+
+        If the slot map on a rebuild returns None, we should NOT connect it.
+        """
+        # Make sure the rebuild is set to True
+        self.slot_mgr.build_map.get_vscsi_slot.return_value = None, None
+        self.slot_mgr.is_rebuild = True
+
+        # Set up that the device is on the VIOS
+        mock_get_vm_id.return_value = 'partition_id'
+        mock_build_map.side_effect = Exception
+        mock_lua.return_value = (
+            hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
+
+        # Run the method.  It will fail only because there isn't a second
+        # VIOS that does support the connect.
+        self.assertRaises(p_exc.VolumeAttachFailed,
+                          self.vol_drv.connect_volume, self.slot_mgr)
+
+        # Make sure an add map is not invoked
+        self.assertEqual(0, mock_add_map.call_count)
+
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume(self, mock_get_vm_id, mock_lua_recovery,
                             mock_build_map, mock_add_map):
         # The mock return values

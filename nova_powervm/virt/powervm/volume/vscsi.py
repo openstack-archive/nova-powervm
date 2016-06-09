@@ -249,6 +249,12 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             # Get the slot and LUA to assign.
             slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, udid)
 
+            if slot_mgr.is_rebuild and not slot:
+                LOG.debug('Detected a device with UDID %s on VIOS %s on the '
+                          'rebuild that did not exist on the source.  '
+                          'Ignoring.', udid, vios_w.uuid)
+                return False
+
             if hdisk.good_discovery(status, device_name):
                 # Found a hdisk on this Virtual I/O Server.  Add the action to
                 # map it to the VM when the stg_ftsk is executed.
