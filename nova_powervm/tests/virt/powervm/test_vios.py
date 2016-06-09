@@ -16,6 +16,7 @@
 
 
 import mock
+import retrying
 
 from nova import test
 
@@ -204,4 +205,27 @@ class TestVios(test.TestCase):
         mock_get_inactive_vioses.return_value = [mock_vios1, mock_vios2]
         mock_get_active_vioses.reset_mock()
         mock_get_active_vioses.side_effect = ['vios1', 'vios2']
+        vios.validate_vios_ready(adpt, host_uuid)
+
+        def retry_exception(**kwargs):
+            validate_retry(kwargs)
+
+            def wrapped(func):
+                return raise_exception
+
+            def raise_exception():
+                raise retrying.RetryError('test retry error')
+
+            return wrapped
+
+        mock_get_active_vioses.reset_mock()
+        mock_retry.side_effect = retry_exception
+        mock_get_active_vioses.side_effect = [[], ['vios1', 'vios2']]
+        # Test failure when retry decorator fails out with no active VIOSes
+        self.assertRaises(
+            nova_pvm_exc.ViosNotAvailable, vios.validate_vios_ready, adpt,
+            host_uuid)
+
+        # Test success when retry decorator fails out with at least 1 active
+        # VIOS
         vios.validate_vios_ready(adpt, host_uuid)
