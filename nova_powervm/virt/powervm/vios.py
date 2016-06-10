@@ -152,7 +152,9 @@ def validate_vios_ready(adapter, host_uuid):
     """
     max_wait_time = CONF.powervm.vios_active_wait_timeout
 
+    # Used to keep track of VIOSes and reduce queries to API
     vios_wraps = []
+    rmc_down_vioses = []
 
     @retrying.retry(retry_on_result=lambda result: len(result) > 0,
                     wait_fixed=5 * 1000,
@@ -170,15 +172,22 @@ def validate_vios_ready(adapter, host_uuid):
             # with a length greater than zero
             return [None]
 
-    inactive_vioses = _wait_for_active_vioses()
-    if len(inactive_vioses) > 0 and inactive_vioses != [None]:
+    try:
+        rmc_down_vioses = _wait_for_active_vioses()
+    except retrying.RetryError:
+        # This is thrown if we've hit our max retry count.  If so, no
+        # issue... just continue
+        pass
+
+    if len(rmc_down_vioses) > 0 and rmc_down_vioses != [None]:
         LOG.warning(
-            _LW('Timed out waiting for the RMC state of all the powered on '
-                'Virtual I/O Servers to be active. Wait time was: %(time)s '
-                'seconds. VIOSes that did not go active were: %(vioses)s.'),
+            _LW('Timed out waiting for the RMC state of all the powered '
+                'on Virtual I/O Servers to be active. Wait time was: '
+                '%(time)s seconds. VIOSes that did not go active were: '
+                '%(vioses)s.'),
             {'time': max_wait_time,
              'vioses': ', '.join([
-                 vio.name for vio in inactive_vioses if vio is not None])})
+                 vio.name for vio in rmc_down_vioses if vio is not None])})
 
     # If we didn't get a single active VIOS then raise an exception
     if not get_active_vioses(adapter, host_uuid, vios_wraps=vios_wraps):
