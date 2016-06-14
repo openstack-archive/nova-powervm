@@ -189,13 +189,21 @@ class TestLPM(test.TestCase):
 
         self.lpmsrc.lpar_w = mock.Mock()
         self.lpmsrc.live_migration('context', self.mig_data)
-        mock_migr.called_once_with('context')
+        mock_migr.assert_called_once_with(
+            self.lpmsrc.lpar_w, 'a', sdn_override=True, tgt_mgmt_svr='1',
+            tgt_mgmt_usr='neo', validate_only=False,
+            virtual_fc_mappings=None, virtual_scsi_mappings=None,
+            vlan_check_override=True)
 
         # Test that we raise errors received during migration
         mock_migr.side_effect = ValueError()
         self.assertRaises(ValueError, self.lpmsrc.live_migration, 'context',
                           self.mig_data)
-        mock_migr.called_once_with('context')
+        mock_migr.assert_called_with(
+            self.lpmsrc.lpar_w, 'a', sdn_override=True, tgt_mgmt_svr='1',
+            tgt_mgmt_usr='neo', validate_only=False,
+            virtual_fc_mappings=None, virtual_scsi_mappings=None,
+            vlan_check_override=True)
 
     @mock.patch('nova_powervm.virt.powervm.vif.post_live_migrate_at_source')
     def test_post_live_mig_src(self, mock_post_migrate_vif):

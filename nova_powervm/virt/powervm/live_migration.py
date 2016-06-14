@@ -320,12 +320,13 @@ class LiveMigrationSrc(LiveMigration):
 
         try:
             # Migrate the LPAR!
-            mig.migrate_lpar(self.lpar_w, self.mig_data.dest_sys_name,
-                             validate_only=False,
-                             tgt_mgmt_svr=self.mig_data.dest_ip,
-                             tgt_mgmt_usr=self.mig_data.dest_user_id,
-                             virtual_fc_mappings=vfc_mappings,
-                             virtual_scsi_mappings=vscsi_mappings)
+            mig.migrate_lpar(
+                self.lpar_w, self.mig_data.dest_sys_name,
+                validate_only=False, tgt_mgmt_svr=self.mig_data.dest_ip,
+                tgt_mgmt_usr=self.mig_data.dest_user_id,
+                virtual_fc_mappings=vfc_mappings,
+                virtual_scsi_mappings=vscsi_mappings,
+                sdn_override=True, vlan_check_override=True)
 
         except Exception:
             LOG.error(_LE("Live migration failed."), instance=self.instance)
