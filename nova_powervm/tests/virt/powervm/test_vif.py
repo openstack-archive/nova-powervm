@@ -229,9 +229,9 @@ class TestVifLBDriver(test.TestCase):
 
         # Validate the calls
         mock_p2p_cna.assert_called_once_with(
-            self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'], 'OpenStackOVS',
-            crt_vswitch=True, mac_addr='aa:bb:cc:dd:ee:ff', dev_name='tap_dev',
-            slot_num=6)
+            self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'],
+            'NovaLinkVEABridge', crt_vswitch=True,
+            mac_addr='aa:bb:cc:dd:ee:ff', dev_name='tap_dev', slot_num=6)
         mock_exec.assert_called_once_with('ip', 'link', 'set', 'tap_dev', 'up',
                                           run_as_root=True)
         mock_ensure_bridge.assert_called_once_with('br0', 'tap_dev')
@@ -308,9 +308,9 @@ class TestVifOvsDriver(test.TestCase):
         mock_crt_ovs_vif_port.assert_called_once_with(
             'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff', 'inst_uuid')
         mock_p2p_cna.assert_called_once_with(
-            self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'], 'OpenStackOVS',
-            crt_vswitch=True, mac_addr='aa:bb:cc:dd:ee:ff', slot_num=slot_num,
-            dev_name='device')
+            self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'],
+            'NovaLinkVEABridge', crt_vswitch=True,
+            mac_addr='aa:bb:cc:dd:ee:ff', slot_num=slot_num, dev_name='device')
         mock_exec.assert_called_with('ip', 'link', 'set', 'device', 'up',
                                      run_as_root=True)
 

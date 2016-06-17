@@ -55,11 +55,11 @@ powervm_opts = [
                default='localdisk',
                help='The disk driver to use for PowerVM disks. '
                'Valid options are: localdisk, ssp'),
-    cfg.StrOpt('pvm_vswitch_for_ovs',
-               default='OpenStackOVS',
+    cfg.StrOpt('pvm_vswitch_for_novalink_io',
+               default='NovaLinkVEABridge',
                help="Name of the PowerVM virtual switch to be used when "
-                    "mapping Open vSwitch ports to PowerVM virtual Ethernet "
-                    "devices"),
+                    "mapping Linux based network ports to PowerVM virtual "
+                    "Ethernet devices"),
     cfg.BoolOpt('use_rmc_mgmt_vif',
                 default=True,
                 help="If enabled, tells the PowerVM Driver to create an RMC "

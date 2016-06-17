@@ -353,7 +353,7 @@ class PvmLioVifDriver(PvmVifDriver):
         dev_name = self.get_trunk_dev_name(vif)
         cna_w, trunk_wraps = pvm_cna.crt_p2p_cna(
             self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
-            CONF.powervm.pvm_vswitch_for_ovs, crt_vswitch=True,
+            CONF.powervm.pvm_vswitch_for_novalink_io, crt_vswitch=True,
             mac_addr=vif['address'], dev_name=dev_name, slot_num=slot_num)
 
         utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
@@ -516,7 +516,7 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         vswitch_w = pvm_net.VSwitch.search(
             self.adapter, parent_type=pvm_ms.System.schema_type,
             one_result=True, parent_uuid=self.host_uuid,
-            name=CONF.powervm.pvm_vswitch_for_ovs)
+            name=CONF.powervm.pvm_vswitch_for_novalink_io)
         cna = pvm_net.CNA.search(
             self.adapter, mac=mac, one_result=True, parent_type=pvm_lpar.LPAR,
             parent_uuid=vm.get_pvm_uuid(self.instance))
@@ -547,7 +547,7 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         """
         # Deletes orphaned trunks
         orphaned_trunks = pvm_cna.find_orphaned_trunks(
-            self.adapter, CONF.powervm.pvm_vswitch_for_ovs)
+            self.adapter, CONF.powervm.pvm_vswitch_for_novalink_io)
         dev = self.get_trunk_dev_name(vif)
         linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
         for orphan in orphaned_trunks:
