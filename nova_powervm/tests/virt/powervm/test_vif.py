@@ -15,7 +15,7 @@
 #    under the License.
 
 import mock
-import netifaces
+from mock import call
 
 from nova import exception
 from nova import test
@@ -188,6 +188,86 @@ class TestVifSeaDriver(test.TestCase):
         self.drv.post_live_migrate_at_source(mock.Mock())
 
 
+class TestVifLBDriver(test.TestCase):
+
+    def setUp(self):
+        super(TestVifLBDriver, self).setUp()
+
+        self.adpt = self.useFixture(pvm_fx.AdapterFx(
+            traits=pvm_fx.LocalPVMTraits)).adpt
+        self.inst = mock.MagicMock(uuid='inst_uuid')
+        self.drv = vif.PvmLBVifDriver(self.adpt, 'host_uuid', self.inst)
+
+    @mock.patch('nova.network.linux_net.LinuxBridgeInterfaceDriver.'
+                'ensure_bridge')
+    @mock.patch('nova.utils.execute')
+    @mock.patch('nova.network.linux_net.create_ovs_vif_port')
+    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
+                'get_trunk_dev_name')
+    @mock.patch('pypowervm.tasks.cna.crt_p2p_cna')
+    @mock.patch('pypowervm.tasks.partition.get_this_partition')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_plug(
+            self, mock_pvm_uuid, mock_mgmt_lpar, mock_p2p_cna,
+            mock_trunk_dev_name, mock_crt_ovs_vif_port, mock_exec,
+            mock_ensure_bridge):
+        # Mock the data
+        mock_pvm_uuid.return_value = 'lpar_uuid'
+        mock_mgmt_lpar.return_value = mock.Mock(uuid='mgmt_uuid')
+        mock_trunk_dev_name.return_value = 'device'
+
+        cna_w, trunk_wraps = mock.MagicMock(), [mock.MagicMock()]
+        mock_p2p_cna.return_value = cna_w, trunk_wraps
+
+        # Run the plug
+        vif = {'network': {'bridge': 'br0'}, 'address': 'aa:bb:cc:dd:ee:ff',
+               'id': 'vif_id', 'devname': 'tap_dev'}
+        self.drv.plug(vif, 6)
+
+        # Validate the calls
+        mock_p2p_cna.assert_called_once_with(
+            self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'], 'OpenStackOVS',
+            crt_vswitch=True, mac_addr='aa:bb:cc:dd:ee:ff', dev_name='tap_dev',
+            slot_num=6)
+        mock_exec.assert_called_once_with('ip', 'link', 'set', 'tap_dev', 'up',
+                                          run_as_root=True)
+        mock_ensure_bridge.assert_called_once_with('br0', 'tap_dev')
+
+    @mock.patch('nova.utils.execute')
+    @mock.patch('pypowervm.tasks.cna.find_trunks')
+    @mock.patch('nova_powervm.virt.powervm.vif.PvmLBVifDriver.'
+                'get_trunk_dev_name')
+    @mock.patch('nova_powervm.virt.powervm.vif.PvmLBVifDriver.'
+                '_find_cna_for_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    def test_unplug(self, mock_get_cnas, mock_find_cna, mock_trunk_dev_name,
+                    mock_find_trunks, mock_exec):
+        # Set up the mocks
+        mock_cna = mock.Mock()
+        mock_get_cnas.return_value = [mock_cna, mock.Mock()]
+        mock_find_cna.return_value = mock_cna
+
+        t1 = mock.MagicMock()
+        mock_find_trunks.return_value = [t1]
+
+        mock_trunk_dev_name.return_value = 'fake_dev'
+
+        # Call the unplug
+        vif = {'address': 'aa:bb:cc:dd:ee:ff', 'network': {'bridge': 'br0'}}
+        self.drv.unplug(vif)
+
+        # The trunks and the cna should have been deleted
+        self.assertTrue(t1.delete.called)
+        self.assertTrue(mock_cna.delete.called)
+
+        # Validate the execute
+        call_ip = call('ip', 'link', 'set', 'fake_dev', 'down',
+                       run_as_root=True)
+        call_delif = call('brctl', 'delif', 'br0', 'fake_dev',
+                          run_as_root=True)
+        mock_exec.assert_has_calls([call_ip, call_delif])
+
+
 class TestVifOvsDriver(test.TestCase):
 
     def setUp(self):
@@ -226,33 +306,21 @@ class TestVifOvsDriver(test.TestCase):
             'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff', 'inst_uuid')
         mock_p2p_cna.assert_called_once_with(
             self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'], 'OpenStackOVS',
-            crt_vswitch=True, mac_addr='aa:bb:cc:dd:ee:ff', slot_num=slot_num)
-        mock_exec.assert_called_once_with('ip', 'link', 'set', 'device', 'up',
-                                          run_as_root=True)
+            crt_vswitch=True, mac_addr='aa:bb:cc:dd:ee:ff', slot_num=slot_num,
+            dev_name='device')
+        mock_exec.assert_called_with('ip', 'link', 'set', 'device', 'up',
+                                     run_as_root=True)
 
-    @mock.patch('netifaces.ifaddresses')
-    @mock.patch('netifaces.interfaces')
-    def test_get_trunk_dev_name(self, mock_interfaces, mock_ifaddresses):
-        trunk_w = mock.Mock(mac='01234567890A')
+    def test_get_trunk_dev_name(self):
+        mock_vif = {'devname': 'tap_test', 'id': '1234567890123456'}
 
-        mock_link_addrs1 = {
-            netifaces.AF_LINK: [{'addr': '00:11:22:33:44:55'},
-                                {'addr': '00:11:22:33:44:66'}]}
-        mock_link_addrs2 = {
-            netifaces.AF_LINK: [{'addr': '00:11:22:33:44:77'},
-                                {'addr': '01:23:45:67:89:0a'}]}
+        # Test when the dev name is available
+        self.assertEqual('tap_test', self.drv.get_trunk_dev_name(mock_vif))
 
-        mock_interfaces.return_value = ['a', 'b']
-        mock_ifaddresses.side_effect = [mock_link_addrs1, mock_link_addrs2]
-
-        # The mock_link_addrs2 (or interface b) should be the match
-        self.assertEqual('b', self.drv.get_trunk_dev_name(trunk_w))
-
-        # If you take out the correct adapter, make sure it fails.
-        mock_interfaces.return_value = ['a']
-        mock_ifaddresses.side_effect = [mock_link_addrs1]
-        self.assertRaises(exception.VirtualInterfacePlugException,
-                          self.drv.get_trunk_dev_name, trunk_w)
+        # And when it isn't.  Should also cut off a few characters from the id
+        del mock_vif['devname']
+        self.assertEqual('nic12345678901',
+                         self.drv.get_trunk_dev_name(mock_vif))
 
     @mock.patch('pypowervm.tasks.cna.find_trunks')
     @mock.patch('nova.network.linux_net.delete_ovs_vif_port')
