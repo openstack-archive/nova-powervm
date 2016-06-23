@@ -24,7 +24,6 @@ from pypowervm import util as pvm_util
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
-from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import vif
 
@@ -401,7 +400,7 @@ class TestVifOvsDriver(test.TestCase):
         mock_trunk_bld(
             self.drv.adapter, pvid=70, vlan_ids=[], vswitch=mock_vswitch)
         mock_trunk.create.assert_called_once_with(
-            parent_type=pvm_vios.VIOS, parent_uuid='mgmt_uuid')
+            parent=mock_mgmt_lpar.return_value)
         mock_cna_search.assert_called_once_with(
             self.adpt, mac=mac, one_result=True,
             parent_type=pvm_lpar.LPAR, parent_uuid='lpar_uuid')

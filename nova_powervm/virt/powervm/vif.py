@@ -31,7 +31,6 @@ from pypowervm import util as pvm_util
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
-from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
@@ -508,7 +507,7 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         # 3) Create a trunk adapter on the destination of the migration
         #    using the same vlan as the CNA
 
-        mgmt_uuid = pvm_par.get_this_partition(self.adapter).uuid
+        mgmt_wrap = pvm_par.get_this_partition(self.adapter)
         dev_name = self.get_trunk_dev_name(vif)
         mac = pvm_util.sanitize_mac_for_api(vif['address'])
 
@@ -529,8 +528,7 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         trunk_adpt = pvm_net.CNA.bld(
             self.adapter, cna.pvid, vswitch_w.related_href, trunk_pri=1,
             dev_name=dev_name)
-        trunk_adpt.create(
-            parent_type=pvm_vios.VIOS, parent_uuid=mgmt_uuid)
+        trunk_adpt.create(parent=mgmt_wrap)
 
         utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
         linux_net.create_ovs_vif_port(vif['network']['bridge'], dev_name,
