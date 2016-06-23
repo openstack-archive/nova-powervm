@@ -449,7 +449,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.assertEqual(0, mock_remove_maps.call_count)
         self.assertEqual(0, self.ft_fx.patchers['update'].mock.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vios.get_physical_wwpns')
+    @mock.patch('pypowervm.tasks.partition.get_physical_wwpns')
     def test_wwpns(self, mock_vio_wwpns):
         mock_vio_wwpns.return_value = ['aa', 'bb']
 

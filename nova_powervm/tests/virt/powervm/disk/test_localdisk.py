@@ -109,7 +109,7 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual(3072.0, local.capacity_used)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses')
     def test_disconnect_image_disk(self, mock_active_vioses, mock_rm_maps):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
         # to act as the feed for FeedTaskFx and FeedTask.
@@ -138,7 +138,7 @@ class TestLocalDisk(test.TestCase):
                                              match_func=mock.ANY)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses')
     def test_disconnect_image_disk_no_update(self, mock_active_vioses,
                                              mock_rm_maps):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
@@ -192,7 +192,7 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses')
     def test_connect_image_disk(self, mock_active_vioses, mock_add_map,
                                 mock_build_map):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
@@ -221,7 +221,7 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses')
     def test_connect_image_disk_no_update(self, mock_active_vioses,
                                           mock_add_map, mock_build_map):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list

@@ -111,7 +111,7 @@ class TestPowerVMDriver(test.TestCase):
             'nova_powervm.virt.powervm.vm.get_instance_wrapper')).mock
 
         self.build_tx_feed = self.useFixture(fixtures.MockPatch(
-            'nova_powervm.virt.powervm.vios.build_tx_feed_task')).mock
+            'pypowervm.tasks.partition.build_active_vio_feed_task')).mock
 
         self.stg_ftsk = pvm_tx.FeedTask('fake', pvm_vios.VIOS.getter(self.apt))
         self.build_tx_feed.return_value = self.stg_ftsk
@@ -549,9 +549,9 @@ class TestPowerVMDriver(test.TestCase):
 
         # Recreate uses all XAGs.
         self.build_tx_feed.assert_called_once_with(
-            self.drv.adapter, self.drv.host_uuid, xag={pvm_const.XAG.VIO_FMAP,
-                                                       pvm_const.XAG.VIO_STOR,
-                                                       pvm_const.XAG.VIO_SMAP})
+            self.drv.adapter, xag={pvm_const.XAG.VIO_FMAP,
+                                   pvm_const.XAG.VIO_STOR,
+                                   pvm_const.XAG.VIO_SMAP})
         # _vol_drv_iter gets called once in spawn itself, and once under
         # _add_volume_connection_tasks.
         # TODO(IBM): Find a way to make the call just once.  Unless it's cheap.

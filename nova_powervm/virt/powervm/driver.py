@@ -65,7 +65,6 @@ from nova_powervm.virt.powervm.tasks import network as tf_net
 from nova_powervm.virt.powervm.tasks import slot as tf_slot
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
-from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm import volume as vol_attach
 
@@ -128,7 +127,7 @@ class PowerVMDriver(driver.ComputeDriver):
         LOG.debug("Driver found compute partition UUID of: %s" % self.mp_uuid)
 
         # Make sure the Virtual I/O Server(s) are available.
-        vios.validate_vios_ready(self.adapter, self.host_uuid)
+        pvm_par.validate_vios_ready(self.adapter)
 
         # Initialize the disk adapter.  Sets self.disk_dvr
         self._get_disk_adapter()
@@ -391,8 +390,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Create the transaction manager (FeedTask) for Storage I/O.
         xag = self._get_inst_xag(instance, bdms, recreate=recreate)
-        stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
-                                           xag=xag)
+        stg_ftsk = pvm_par.build_active_vio_feed_task(self.adapter, xag=xag)
 
         # Build the PowerVM Slot lookup map.  Only the recreate action needs
         # the volume driver iterator (to look up volumes and their client
@@ -576,8 +574,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Create the transaction manager (FeedTask) for Storage I/O.
             xag = self._get_inst_xag(instance, bdms)
-            stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
-                                               xag=xag)
+            stg_ftsk = pvm_par.build_active_vio_feed_task(self.adapter,
+                                                          xag=xag)
 
             # Build the PowerVM Slot lookup map.
             slot_mgr = slot.build_slot_mgr(instance, self.store_api)
@@ -1173,8 +1171,8 @@ class PowerVMDriver(driver.ComputeDriver):
         if bdms:
             # Create the transaction manager (FeedTask) for Storage I/O.
             xag = self._get_inst_xag(instance, bdms)
-            stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
-                                               xag=xag)
+            stg_ftsk = pvm_par.build_active_vio_feed_task(self.adapter,
+                                                          xag=xag)
 
             # Get the slot map.  This is so we build the client
             # adapters in the same slots.
@@ -1271,8 +1269,8 @@ class PowerVMDriver(driver.ComputeDriver):
         if bdms or not same_host:
             # Create the transaction manager (FeedTask) for Storage I/O.
             xag = self._get_inst_xag(instance, bdms)
-            stg_ftsk = vios.build_tx_feed_task(self.adapter, self.host_uuid,
-                                               xag=xag)
+            stg_ftsk = pvm_par.build_active_vio_feed_task(self.adapter,
+                                                          xag=xag)
             # We need the slot manager
             # a) If migrating to a different host: to restore the proper slots;
             # b) If adding/removing block devices, to register the slots.

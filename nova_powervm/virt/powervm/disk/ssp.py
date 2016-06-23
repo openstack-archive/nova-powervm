@@ -23,11 +23,11 @@ from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
 import pypowervm.const as pvm_const
 from pypowervm.tasks import cluster_ssp as tsk_cs
+from pypowervm.tasks import partition as tsk_par
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 import pypowervm.util as pvm_u
@@ -133,9 +133,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                  disconnected from the I/O Server and VM.
         """
         if stg_ftsk is None:
-            stg_ftsk = vios.build_tx_feed_task(
-                self.adapter, self.host_uuid, name='ssp',
-                xag=[pvm_const.XAG.VIO_SMAP])
+            stg_ftsk = tsk_par.build_active_vio_feed_task(
+                self.adapter, name='ssp', xag=[pvm_const.XAG.VIO_SMAP])
 
         lpar_uuid = vm.get_pvm_uuid(instance)
         match_func = tsk_map.gen_match_func(pvm_stg.LU, prefixes=disk_type)
@@ -265,9 +264,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                          immediately when this method is executed.
         """
         if stg_ftsk is None:
-            stg_ftsk = vios.build_tx_feed_task(
-                self.adapter, self.host_uuid, name='ssp',
-                xag=[pvm_const.XAG.VIO_SMAP])
+            stg_ftsk = tsk_par.build_active_vio_feed_task(
+                self.adapter, name='ssp', xag=[pvm_const.XAG.VIO_SMAP])
 
         # Create the LU structure
         lu = pvm_stg.LU.bld_ref(self.adapter, disk_info.name, disk_info.udid)

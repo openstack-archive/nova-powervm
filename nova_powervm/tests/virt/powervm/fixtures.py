@@ -93,15 +93,11 @@ class PowerVMComputeDriver(fixtures.Fixture):
 
         # Mock active vios
         self.get_active_vios = self.useFixture(fixtures.MockPatch(
-            'nova_powervm.virt.powervm.vios.get_active_vioses')).mock
+            'pypowervm.tasks.partition.get_active_vioses')).mock
         self.get_active_vios.return_value = ['mock_vios']
 
-        # Mock get inactive running vioses
-        self.get_inactive_running_vioses = self.useFixture(
-            fixtures.MockPatch(
-                'nova_powervm.virt.powervm.vios.'
-                'get_inactive_running_vioses')).mock
-        self.get_inactive_running_vioses.return_value = []
+        self.useFixture(fixtures.MockPatch(
+            'pypowervm.tasks.partition.validate_vios_ready'))
 
         self.drv.adapter.read.return_value = ms_http
         self.drv.session = self.drv.adapter.session
