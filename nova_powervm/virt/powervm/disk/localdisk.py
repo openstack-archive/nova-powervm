@@ -20,6 +20,7 @@ from oslo_log import log as logging
 from nova import exception as nova_exc
 from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
+from pypowervm.tasks import partition as pvm_tpar
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -31,7 +32,6 @@ from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 
 
@@ -123,9 +123,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Ensure we have a transaction manager.
         if stg_ftsk is None:
-            stg_ftsk = vios.build_tx_feed_task(
-                self.adapter, self.host_uuid, name='localdisk',
-                xag=[pvm_const.XAG.VIO_SMAP])
+            stg_ftsk = pvm_tpar.build_active_vio_feed_task(
+                self.adapter, name='localdisk', xag=[pvm_const.XAG.VIO_SMAP])
 
         # Build the match function
         match_func = tsk_map.gen_match_func(pvm_stg.VDisk, prefixes=disk_type)
@@ -221,9 +220,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Ensure we have a transaction manager.
         if stg_ftsk is None:
-            stg_ftsk = vios.build_tx_feed_task(
-                self.adapter, self.host_uuid, name='localdisk',
-                xag=[pvm_const.XAG.VIO_SMAP])
+            stg_ftsk = pvm_tpar.build_active_vio_feed_task(
+                self.adapter, name='localdisk', xag=[pvm_const.XAG.VIO_SMAP])
 
         def add_func(vios_w):
             LOG.info(_LI("Adding logical volume disk connection between VM "

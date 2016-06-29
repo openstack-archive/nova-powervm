@@ -24,13 +24,13 @@ from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
-from nova_powervm.virt.powervm import vios
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 from pypowervm import const as pvm_const
 from pypowervm.tasks import client_storage as pvm_c_stor
 from pypowervm.tasks import hdisk
+from pypowervm.tasks import partition as pvm_tpar
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.utils import transaction as tx
 from pypowervm.wrappers import storage as pvm_stor
@@ -509,8 +509,7 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # Use a global variable so this is pulled once when the process starts.
         global _vscsi_pfc_wwpns
         if _vscsi_pfc_wwpns is None:
-            _vscsi_pfc_wwpns = vios.get_physical_wwpns(self.adapter,
-                                                       self.host_uuid)
+            _vscsi_pfc_wwpns = pvm_tpar.get_physical_wwpns(self.adapter)
         return _vscsi_pfc_wwpns
 
     def host_name(self):

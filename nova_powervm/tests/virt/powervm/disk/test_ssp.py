@@ -401,7 +401,7 @@ class TestSSPDiskAdapter(test.TestCase):
                 'vios_uuids')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses')
     def test_connect_disk(self, mock_active_vioses, mock_add_map,
                           mock_build_map, mock_vio_uuids):
         # vio is a single-entry response.  Wrap it and put it in a list
@@ -432,7 +432,7 @@ class TestSSPDiskAdapter(test.TestCase):
                 'vios_uuids')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses')
     def test_connect_disk_no_update(self, mock_active_vioses, mock_add_map,
                                     mock_build_map, mock_vio_uuids):
         # vio is a single-entry response.  Wrap it and put it in a list
@@ -471,7 +471,7 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
-    @mock.patch('nova_powervm.virt.powervm.vios.get_active_vioses')
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses')
     def test_disconnect_disk(self, mock_active_vioses, mock_build_map,
                              mock_remove_maps, mock_find_maps, mock_vio_uuids):
         # vio is a single-entry response.  Wrap it and put it in a list
