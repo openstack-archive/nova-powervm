@@ -17,6 +17,7 @@
 import copy
 import hashlib
 import os
+import retrying
 import six
 import tempfile
 import types
@@ -30,6 +31,7 @@ from nova_powervm.virt.powervm.nvram import api
 
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
+from swiftclient import exceptions as swft_exc
 from swiftclient import service as swft_srv
 
 LOG = logging.getLogger(__name__)
@@ -141,10 +143,35 @@ class SwiftNvramStore(api.NvramStore):
         if exists is None:
             exists = self._exists(inst_key)
         options = dict(leave_segments=True) if not exists else None
-
         obj = swft_srv.SwiftUploadObject(source, object_name=inst_key)
-        for result in self._run_operation('upload', self.container,
-                                          [obj], options=options):
+
+        # The swift client already has a retry opertaion. The retry method
+        # takes a 'reset' function as a parameter. This parameter is 'None'
+        # for all operations except upload. For upload, it's set to a default
+        # method that throws a ClientException if the object to upload doesn't
+        # implement tell/see/reset. If the authentication error occurs during
+        # upload, this ClientException is raised with no retry. For any other
+        # operation, swift client will retry and succeed.
+        @retrying.retry(retry_on_result=lambda result: not result,
+                        wait_fixed=250, stop_max_attempt_number=2)
+        def _run_upload_operation():
+            try:
+                return self._run_operation('upload', self.container,
+                                           [obj], options=options)
+            except swft_exc.ClientException:
+                # Upload operation failed due to expired Keystone token.
+                # Retry SwiftClient operation to allow regeneration of token.
+                return None
+
+        try:
+            results = _run_upload_operation()
+        except retrying.RetryError as re:
+            # The upload failed.
+            reason = (_('Unable to store NVRAM after %d attempts') %
+                      re.last_attempt.attempt_number)
+            raise api.NVRAMUploadException(instance=inst_name, reason=reason)
+
+        for result in results:
             if not result['success']:
                 # The upload failed.
                 raise api.NVRAMUploadException(instance=inst_name,
