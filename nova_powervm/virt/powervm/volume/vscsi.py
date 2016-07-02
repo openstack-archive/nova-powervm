@@ -118,13 +118,15 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 vios_w, volume_id)
             # If we found one, no need to check the others.
             found = found or hdisk.good_discovery(status, device_name)
+            # if valid udid is returned save in mig_data
+            volume_key = 'vscsi-' + volume_id
+            if udid is not None:
+                mig_data[volume_key] = udid
 
-        if not found:
+        if not found or volume_key not in mig_data:
             ex_args = dict(volume_id=volume_id,
                            instance_name=self.instance.name)
             raise p_exc.VolumePreMigrationFailed(**ex_args)
-
-        mig_data['vscsi-' + volume_id] = udid
 
     def _cleanup_volume(self, udid):
         """Cleanup the hdisk associated with this udid."""

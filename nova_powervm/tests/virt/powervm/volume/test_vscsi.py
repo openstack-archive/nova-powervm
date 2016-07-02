@@ -570,3 +570,18 @@ class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):
 
         # Two of the calls are for the slots, two are for the add mappings
         self.assertEqual(2, self.ft_fx.patchers['update'].mock.call_count)
+
+    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
+    @mock.patch('pypowervm.tasks.storage.find_stale_lpars')
+    def test_pre_live_migration_multi_vios(self, mock_fsl, mock_discover):
+        # The mock return values
+        mock_fsl.return_value = []
+
+        mock_discover.side_effect = [(
+            hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid'),
+            (None, None, None)]
+
+        # Run the method
+        mig_data = {}
+        self.vol_drv.pre_live_migration_on_destination(mig_data)
+        self.assertIsNotNone(mig_data.get('vscsi-' + self.vol_drv.volume_id))
