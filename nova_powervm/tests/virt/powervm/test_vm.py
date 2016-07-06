@@ -453,8 +453,7 @@ class TestVM(test.TestCase):
 
         entry = mock.Mock()
         entry.update.return_value = 'NewEntry'
-        new_entry = vm.rename(self.apt, 'mock_host_uuid', instance, 'new_name',
-                              entry=entry)
+        new_entry = vm.rename(self.apt, instance, 'new_name', entry=entry)
         self.assertEqual('new_name', entry.name)
         entry.update.assert_called_once_with()
         mock_entry_transaction.assert_called_once_with(mock.ANY)
@@ -465,9 +464,8 @@ class TestVM(test.TestCase):
         # Test optional entry parameter
         entry.reset_mock()
         mock_get_inst.return_value = entry
-        new_entry = vm.rename(self.apt, 'mock_host_uuid', instance, 'new_name')
-        mock_get_inst.assert_called_once_with(self.apt, instance,
-                                              'mock_host_uuid')
+        new_entry = vm.rename(self.apt, instance, 'new_name')
+        mock_get_inst.assert_called_once_with(self.apt, instance)
         self.assertEqual('new_name', entry.name)
         entry.update.assert_called_once_with()
         self.assertEqual('NewEntry', new_entry)
@@ -537,7 +535,7 @@ class TestVM(test.TestCase):
     def test_instance_exists(self, mock_getvmqp, mock_getuuid):
         # Try the good case where it exists
         mock_getvmqp.side_effect = 'fake_state'
-        mock_parms = (mock.Mock(), mock.Mock(), mock.Mock())
+        mock_parms = (mock.Mock(), mock.Mock())
         self.assertTrue(vm.instance_exists(*mock_parms))
 
         # Test the scenario where it does not exist.
@@ -626,16 +624,14 @@ class TestVM(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     def test_update_ibmi_settings(self, mock_lparw, mock_ibmi):
         instance = mock.MagicMock()
+
         # Test update load source with vscsi boot
         boot_type = 'vscsi'
-        vm.update_ibmi_settings(
-            self.apt, instance, 'host-uuid', boot_type)
-        mock_ibmi.assert_called_once_with(
-            self.apt, mock.ANY, 'vscsi')
+        vm.update_ibmi_settings(self.apt, instance, boot_type)
+        mock_ibmi.assert_called_once_with(self.apt, mock.ANY, 'vscsi')
         mock_ibmi.reset_mock()
+
         # Test update load source with npiv boot
         boot_type = 'npiv'
-        vm.update_ibmi_settings(
-            self.apt, instance, 'host-uuid', boot_type)
-        mock_ibmi.assert_called_once_with(
-            self.apt, mock.ANY, 'npiv')
+        vm.update_ibmi_settings(self.apt, instance, boot_type)
+        mock_ibmi.assert_called_once_with(self.apt, mock.ANY, 'npiv')

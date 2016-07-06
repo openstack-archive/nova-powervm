@@ -83,7 +83,7 @@ class UnplugVifs(task.Task):
             raise VirtualInterfaceUnplugException()
 
         # Get all the current Client Network Adapters (CNA) on the VM itself.
-        cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
+        cna_w_list = vm.get_cnas(self.adapter, self.instance)
 
         # Walk through the VIFs and delete the corresponding CNA on the VM.
         for network_info in self.network_infos:
@@ -127,7 +127,7 @@ class PlugVifs(task.Task):
                  self.instance.name)
 
         # Get the current adapters on the system
-        cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
+        cna_w_list = vm.get_cnas(self.adapter, self.instance)
 
         # Trim the VIFs down to the ones that haven't yet been created.
         crt_network_infos = []
@@ -235,7 +235,7 @@ class PlugVifs(task.Task):
                     instance=self.instance)
 
         # Get the current adapters on the system
-        cna_w_list = vm.get_cnas(self.adapter, self.instance, self.host_uuid)
+        cna_w_list = vm.get_cnas(self.adapter, self.instance)
         for network_info in self.network_infos:
             try:
                 vif.unplug(self.adapter, self.host_uuid, self.instance,

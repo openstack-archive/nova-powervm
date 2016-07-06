@@ -39,6 +39,20 @@ class TestMgmt(test.TestCase):
 
         self.resp = lpar_http.response
 
+    @mock.patch('pypowervm.tasks.partition.get_this_partition')
+    def test_mgmt_uuid(self, mock_get_partition):
+        mock_get_partition.return_value = mock.Mock(uuid='mock_mgmt')
+        adpt = mock.Mock()
+
+        # First run should call the partition only once
+        self.assertEqual('mock_mgmt', mgmt.mgmt_uuid(adpt))
+        mock_get_partition.assert_called_once_with(adpt)
+
+        # But a subsequent call should effectively no-op
+        mock_get_partition.reset_mock()
+        self.assertEqual('mock_mgmt', mgmt.mgmt_uuid(adpt))
+        mock_get_partition.assert_not_called()
+
     @mock.patch('glob.glob')
     @mock.patch('nova.utils.execute')
     @mock.patch('os.path.realpath')

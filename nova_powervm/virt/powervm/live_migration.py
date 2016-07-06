@@ -238,8 +238,7 @@ class LiveMigrationSrc(LiveMigration):
         :returns: a PowerVMLiveMigrateData object
         """
 
-        lpar_w = vm.get_instance_wrapper(
-            self.drvr.adapter, self.instance, self.drvr.host_uuid)
+        lpar_w = vm.get_instance_wrapper(self.drvr.adapter, self.instance)
         self.lpar_w = lpar_w
 
         LOG.debug('Dest Migration data: %s' % self.mig_data)

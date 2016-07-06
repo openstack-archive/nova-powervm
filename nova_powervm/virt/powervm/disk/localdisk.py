@@ -40,8 +40,8 @@ CONF = cfg.CONF
 
 
 class LocalStorage(disk_dvr.DiskAdapter):
-    def __init__(self, connection):
-        super(LocalStorage, self).__init__(connection)
+    def __init__(self, adapter, host_uuid):
+        super(LocalStorage, self).__init__(adapter, host_uuid)
 
         # Query to get the Volume Group UUID
         self.vg_name = CONF.powervm.volume_group_name
@@ -195,11 +195,9 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # resize the disk, create a new partition, etc...
         # If the image is bigger than disk, API should make the disk big
         # enough to support the image (up to 1 Gb boundary).
-        vdisk, f_wrap = tsk_stg.upload_new_vdisk(
+        return tsk_stg.upload_new_vdisk(
             self.adapter, self._vios_uuid, self.vg_uuid, stream, vol_name,
-            image_meta.size, d_size=disk_bytes)
-
-        return vdisk
+            image_meta.size, d_size=disk_bytes)[0]
 
     def connect_disk(self, context, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.

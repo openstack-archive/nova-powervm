@@ -238,8 +238,7 @@ class PvmVifDriver(object):
 
         # Need to find the adapters if they were not provided
         if not cna_w_list:
-            cna_w_list = vm.get_cnas(self.adapter, self.instance,
-                                     self.host_uuid)
+            cna_w_list = vm.get_cnas(self.adapter, self.instance)
 
         cna_w = self._find_cna_for_vif(cna_w_list, vif)
         if not cna_w:
@@ -396,8 +395,7 @@ class PvmLBVifDriver(PvmLioVifDriver):
         """
         # Need to find the adapters if they were not provided
         if not cna_w_list:
-            cna_w_list = vm.get_cnas(self.adapter, self.instance,
-                                     self.host_uuid)
+            cna_w_list = vm.get_cnas(self.adapter, self.instance)
 
         # Find the CNA for this vif.
         cna_w = self._find_cna_for_vif(cna_w_list, vif)
@@ -472,8 +470,7 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         """
         # Need to find the adapters if they were not provided
         if not cna_w_list:
-            cna_w_list = vm.get_cnas(self.adapter, self.instance,
-                                     self.host_uuid)
+            cna_w_list = vm.get_cnas(self.adapter, self.instance)
 
         # Find the CNA for this vif.
         cna_w = self._find_cna_for_vif(cna_w_list, vif)

@@ -60,10 +60,10 @@ class TestVMTasks(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.rename')
     def test_rename(self, mock_vm_rename):
         mock_vm_rename.return_value = 'new_entry'
-        rename = tf_vm.Rename(self.apt, 'host_uuid', self.instance, 'new_name')
+        rename = tf_vm.Rename(self.apt, self.instance, 'new_name')
         new_entry = rename.execute()
-        mock_vm_rename.assert_called_once_with(self.apt, 'host_uuid',
-                                               self.instance, 'new_name')
+        mock_vm_rename.assert_called_once_with(
+            self.apt, self.instance, 'new_name')
         self.assertEqual('new_entry', new_entry)
 
     def test_store_nvram(self):

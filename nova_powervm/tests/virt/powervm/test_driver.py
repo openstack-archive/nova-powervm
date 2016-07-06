@@ -159,11 +159,11 @@ class TestPowerVMDriver(test.TestCase):
         self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
 
-    def test_get_disk_adapter(self):
+    def test_setup_disk_adapter(self):
         # Ensure we can handle upper case option and we instantiate the class
         self.flags(disk_driver='LoCaLDisK', group='powervm')
         self.drv.disk_dvr = None
-        self.drv._get_disk_adapter()
+        self.drv._setup_disk_adapter()
         # The local disk driver has been mocked, so we just compare the name
         self.assertIn('LocalStorage()', str(self.drv.disk_dvr))
 
@@ -622,16 +622,16 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
 
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
-    @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
-                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg.'
+                'execute')
     @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.UpdateIBMiSettings'
-                '.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.UpdateIBMiSettings.'
+                'execute')
     @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
                 '_get_boot_connectivity_type')
     @mock.patch('pypowervm.tasks.power.power_on')

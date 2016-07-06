@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import fixtures
 import mock
 
 import copy
@@ -60,6 +61,11 @@ class TestLocalDisk(test.TestCase):
         vg_uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
         self.mock_vg_uuid.return_value = ('vios_uuid', vg_uuid)
 
+        # Return the mgmt uuid
+        self.mgmt_uuid = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
+        self.mgmt_uuid.return_value = 'mp_uuid'
+
     def tearDown(self):
         test.TestCase.tearDown(self)
 
@@ -68,8 +74,7 @@ class TestLocalDisk(test.TestCase):
 
     @staticmethod
     def get_ls(adpt):
-        return ld.LocalStorage({'adapter': adpt, 'host_uuid': 'host_uuid',
-                                'mp_uuid': 'mp_uuid'})
+        return ld.LocalStorage(adpt, 'host_uuid')
 
     @mock.patch('pypowervm.tasks.storage.upload_new_vdisk')
     @mock.patch('nova_powervm.virt.powervm.disk.driver.'
@@ -400,6 +405,11 @@ class TestLocalDiskFindVG(test.TestCase):
         self.mock_vios_feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
         self.mock_vg_feed = [pvm_stor.VG.wrap(self.vg_to_vio)]
 
+        # Return the mgmt uuid
+        self.mgmt_uuid = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
+        self.mgmt_uuid.return_value = 'mp_uuid'
+
     @mock.patch('pypowervm.wrappers.storage.VG.wrap')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
     def test_get_vg_uuid(self, mock_vio_wrap, mock_vg_wrap):
@@ -411,9 +421,7 @@ class TestLocalDiskFindVG(test.TestCase):
         mock_vg_wrap.return_value = self.mock_vg_feed
         self.flags(volume_group_name='rootvg', group='powervm')
 
-        storage = ld.LocalStorage({'adapter': self.apt,
-                                   'host_uuid': 'host_uuid',
-                                   'mp_uuid': 'mp_uuid'})
+        storage = ld.LocalStorage(self.apt, 'host_uuid')
 
         # Make sure the uuids match
         self.assertEqual('d5065c2c-ac43-3fa6-af32-ea84a3960291',
@@ -435,5 +443,4 @@ class TestLocalDiskFindVG(test.TestCase):
                    volume_group_vios_name='invalid_vios', group='powervm')
 
         self.assertRaises(npvmex.VGNotFound, ld.LocalStorage,
-                          {'adapter': self.apt, 'host_uuid': 'host_uuid',
-                           'mp_uuid': 'mp_uuid'})
+                          self.apt, 'host_uuid')

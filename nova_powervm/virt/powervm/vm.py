@@ -449,12 +449,11 @@ def get_lpar_names(adapter):
     return [x.name for x in get_lpars(adapter)]
 
 
-def get_instance_wrapper(adapter, instance, host_uuid, xag=None):
+def get_instance_wrapper(adapter, instance, xag=None):
     """Get the LPAR wrapper for a given Nova instance.
 
     :param adapter: The adapter for the pypowervm API
     :param instance: The nova instance.
-    :param host_uuid: The host UUID
     :param xag: The pypowervm XAG to be used on the read request
     :return: The pypowervm logical_partition wrapper.
     """
@@ -471,12 +470,11 @@ def get_instance_wrapper(adapter, instance, host_uuid, xag=None):
             raise
 
 
-def instance_exists(adapter, instance, host_uuid, log_errors=False):
+def instance_exists(adapter, instance, log_errors=False):
     """Determine if an instance exists on the host.
 
     :param adapter: The adapter for the pypowervm API
     :param instance: The nova instance.
-    :param host_uuid: The host UUID
     :param log_errors: Indicator whether to log REST data after an exception
     :return: boolean, whether the instance exists.
     """
@@ -578,7 +576,7 @@ def update(adapter, host_wrapper, instance, flavor, entry=None, name=None):
     """
 
     if not entry:
-        entry = get_instance_wrapper(adapter, instance, host_wrapper.uuid)
+        entry = get_instance_wrapper(adapter, instance)
 
     lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
     lpar_b.rebuild(entry)
@@ -590,11 +588,10 @@ def update(adapter, host_wrapper, instance, flavor, entry=None, name=None):
     return entry.update()
 
 
-def rename(adapter, host_uuid, instance, name, entry=None):
+def rename(adapter, instance, name, entry=None):
     """Rename a VM.
 
     :param adapter: The adapter for the pypowervm API
-    :param host_uuid: The host UUID.
     :param instance: The nova instance.
     :param name: The new name.
     :param entry: The instance pvm entry, if available, otherwise it will
@@ -602,7 +599,7 @@ def rename(adapter, host_uuid, instance, name, entry=None):
     :returns: The updated LPAR wrapper.
     """
     if not entry:
-        entry = get_instance_wrapper(adapter, instance, host_uuid)
+        entry = get_instance_wrapper(adapter, instance)
 
     hyp_name = pvm_util.sanitize_partition_name_for_api(name)
 
@@ -640,7 +637,7 @@ def dlt_lpar(adapter, lpar_uuid):
 
 def power_on(adapter, instance, host_uuid, entry=None):
     if entry is None:
-        entry = get_instance_wrapper(adapter, instance, host_uuid)
+        entry = get_instance_wrapper(adapter, instance)
 
     # Get the current state and see if we can start the VM
     if entry.state in POWERVM_STARTABLE_STATE:
@@ -654,7 +651,7 @@ def power_on(adapter, instance, host_uuid, entry=None):
 def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
               force_immediate=False):
     if entry is None:
-        entry = get_instance_wrapper(adapter, instance, host_uuid)
+        entry = get_instance_wrapper(adapter, instance)
 
     # Get the current state and see if we can stop the VM
     LOG.debug("Powering off request for instance %(inst)s which is in "
@@ -732,13 +729,12 @@ def get_instance(context, pvm_uuid):
     return None
 
 
-def get_cnas(adapter, instance, host_uuid):
+def get_cnas(adapter, instance):
     """Returns the current CNAs on the instance.
 
     The Client Network Adapters are the Ethernet adapters for a VM.
     :param adapter: The pypowervm adapter.
     :param instance: The nova instance.
-    :param host_uuid: The host system UUID.
     :return The CNA wrappers that represent the ClientNetworkAdapters on the VM
     """
     cna_resp = adapter.read(pvm_lpar.LPAR.schema_type,
@@ -761,14 +757,13 @@ def norm_mac(mac):
     return ':'.join(mac[i:i + 2] for i in range(0, len(mac), 2))
 
 
-def update_ibmi_settings(adapter, instance, host_uuid, boot_type):
+def update_ibmi_settings(adapter, instance, boot_type):
     """Update settings of IBMi VMs on the instance.
 
     :param adapter: The pypowervm adapter.
     :param instance: The nova instance.
-    :param host_uuid: The host system UUID.
     :param boot_type: The boot connectivity type of the instance.
     """
-    lpar_wrap = get_instance_wrapper(adapter, instance, host_uuid)
+    lpar_wrap = get_instance_wrapper(adapter, instance)
     entry = ibmi.update_ibmi_settings(adapter, lpar_wrap, boot_type)
     entry.update()

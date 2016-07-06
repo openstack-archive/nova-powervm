@@ -188,7 +188,6 @@ class NvramManager(object):
         try:
             # Get the data from the adapter.
             entry = vm.get_instance_wrapper(self._adapter, instance,
-                                            self._host_uuid,
                                             xag=[pvm_const.XAG.NVRAM])
             data = entry.nvram
             LOG.debug('NVRAM for instance: %s', data, instance=instance)

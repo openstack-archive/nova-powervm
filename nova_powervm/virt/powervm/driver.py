@@ -122,15 +122,12 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_adapter()
         # First need to resolve the managed host UUID
         self._get_host_uuid()
-        # Get the management partition's UUID
-        self.mp_uuid = pvm_par.get_this_partition(self.adapter).uuid
-        LOG.debug("Driver found compute partition UUID of: %s" % self.mp_uuid)
 
         # Make sure the Virtual I/O Server(s) are available.
         pvm_par.validate_vios_ready(self.adapter)
 
         # Initialize the disk adapter.  Sets self.disk_dvr
-        self._get_disk_adapter()
+        self._setup_disk_adapter()
         self.image_api = image.API()
 
         self._setup_rebuild_store()
@@ -170,16 +167,14 @@ class PowerVMDriver(driver.ComputeDriver):
         eh = NovaEventHandler(self)
         self.session.get_event_listener().subscribe(eh)
 
-    def _get_disk_adapter(self):
-        conn_info = {'adapter': self.adapter, 'host_uuid': self.host_uuid,
-                     'mp_uuid': self.mp_uuid}
-
+    def _setup_disk_adapter(self):
+        """Set up the nova ephemeral disk adapter."""
         self.disk_dvr = importutils.import_object_ns(
             DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.powervm.disk_driver.lower()],
-            conn_info)
+            self.adapter, self.host_uuid)
 
     def _setup_rebuild_store(self):
-        """Setup the store for remote restart objects."""
+        """Set up the store for remote restart objects."""
         store = CONF.powervm.nvram_store.lower()
         if store != 'none':
             self.store_api = importutils.import_object(
@@ -246,7 +241,7 @@ class PowerVMDriver(driver.ComputeDriver):
         Returns True if an instance with the supplied ID exists on
         the host, False otherwise.
         """
-        return vm.instance_exists(self.adapter, instance, self.host_uuid)
+        return vm.instance_exists(self.adapter, instance)
 
     def estimate_instance_overhead(self, instance_info):
         """Estimate the virtualization overhead required to build an instance.
@@ -454,7 +449,7 @@ class PowerVMDriver(driver.ComputeDriver):
             boot_type = self._get_boot_connectivity_type(
                 context, bdms, block_device_info)
             flow_spawn.add(tf_vm.UpdateIBMiSettings(
-                self.adapter, instance, self.host_uuid, boot_type))
+                self.adapter, instance, boot_type))
 
         # Save the slot map information
         flow_spawn.add(tf_slot.SaveSlotStore(instance, slot_mgr))
@@ -752,7 +747,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # for each volume attached to the instance, against the destination
         # host.  If the migration failed, then the VM is probably not on
         # the destination host.
-        if not vm.instance_exists(self.adapter, instance, self.host_uuid):
+        if not vm.instance_exists(self.adapter, instance):
             LOG.info(_LI('During volume detach, the instance was not found'
                          ' on this host.'), instance=instance)
 
@@ -942,7 +937,7 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         self._log_operation(reboot_type + ' reboot', instance)
         force_immediate = reboot_type == 'HARD'
-        entry = vm.get_instance_wrapper(self.adapter, instance, self.host_uuid)
+        entry = vm.get_instance_wrapper(self.adapter, instance)
         if entry.state != pvm_bp.LPARState.NOT_ACTIVATED:
             pvm_pwr.power_off(entry, self.host_uuid, restart=True,
                               force_immediate=force_immediate)
@@ -1195,8 +1190,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # easy to see the VM is being migrated from pvmctl.  We use the resize
         # name so we don't destroy it on a revert when it's on the same host.
         new_name = self._gen_resize_name(instance, same_host=same_host)
-        flow.add(tf_vm.Rename(self.adapter, self.host_uuid, instance,
-                              new_name))
+        flow.add(tf_vm.Rename(self.adapter, instance, new_name))
         try:
             tf_eng.run(flow)
         except Exception as e:
@@ -1343,7 +1337,7 @@ class PowerVMDriver(driver.ComputeDriver):
         if same_host:
             # This was a local resize, don't delete our only VM!
             self._log_operation('confirm resize', instance)
-            vm.rename(self.adapter, self.host_uuid, instance, instance.name)
+            vm.rename(self.adapter, instance, instance.name)
             return
 
         # Confirming the migrate means we need to delete source VM.

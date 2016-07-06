@@ -48,8 +48,7 @@ class Get(task.Task):
         self.instance = instance
 
     def execute(self):
-        return vm.get_instance_wrapper(self.adapter, self.instance,
-                                       self.host_uuid)
+        return vm.get_instance_wrapper(self.adapter, self.instance)
 
 
 class Create(task.Task):
@@ -141,29 +140,25 @@ class Rename(task.Task):
 
     """The task for renaming an existing VM."""
 
-    def __init__(self, adapter, host_uuid, instance, name):
+    def __init__(self, adapter, instance, name):
         """Creates the Task to rename a VM.
 
         Provides the 'lpar_wrap' for other tasks.
 
         :param adapter: The adapter for the pypowervm API
-        :param host_uuid: The managed system uuid
         :param instance: The nova instance.
         :param name: The new VM name.
         """
         super(Rename, self).__init__(name='rename_lpar_%s' % name,
                                      provides='lpar_wrap')
         self.adapter = adapter
-        self.host_uuid = host_uuid
         self.instance = instance
         self.vm_name = name
 
     def execute(self):
         LOG.info(_LI('Renaming instance to name: %s'), self.name,
                  instance=self.instance)
-        wrap = vm.rename(self.adapter, self.host_uuid, self.instance,
-                         self.vm_name)
-        return wrap
+        return vm.rename(self.adapter, self.instance, self.vm_name)
 
 
 class PowerOn(task.Task):
@@ -323,23 +318,19 @@ class UpdateIBMiSettings(task.Task):
 
     """The task to update settings of an ibmi instance."""
 
-    def __init__(self, adapter, instance, host_uuid, boot_type):
+    def __init__(self, adapter, instance, boot_type):
         """Create the Task to update settings of the IBMi VM.
 
         :param adapter: The adapter for the pypowervm API.
         :param instance: The nova instance.
-        :param host_uuid: The host's PowerVM UUID.
         :param boot_type: The boot type of the instance.
         """
         super(UpdateIBMiSettings, self).__init__(
             name='update_ibmi_settings')
         self.adapter = adapter
         self.instance = instance
-        self.host_uuid = host_uuid
         self.boot_type = boot_type
 
     def execute(self):
-        LOG.info(_LI('Update settings of instance %s.'),
-                 self.instance.name)
-        vm.update_ibmi_settings(
-            self.adapter, self.instance, self.host_uuid, self.boot_type)
+        LOG.info(_LI('Update settings of instance %s.'), self.instance.name)
+        vm.update_ibmi_settings(self.adapter, self.instance, self.boot_type)

@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import fixtures
 import mock
 from nova import test
 from pypowervm import const as pvm_const
@@ -30,9 +31,14 @@ class TestDiskAdapter(test.TestCase):
         super(TestDiskAdapter, self).setUp()
         self.useFixture(fx.ImageAPI())
 
-        # These are not used currently.
-        conn = {'adapter': None, 'host_uuid': None, 'mp_uuid': None}
-        self.st_adpt = disk_dvr.DiskAdapter(conn)
+        # Return the mgmt uuid
+        self.mgmt_uuid = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
+        self.mgmt_uuid.return_value = 'mp_uuid'
+
+        # The values (adapter and host uuid) are not used in the base.
+        # Default them to None.
+        self.st_adpt = disk_dvr.DiskAdapter(None, None)
 
     def test_capacity(self):
         """These are arbitrary capacity numbers."""

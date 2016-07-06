@@ -112,11 +112,14 @@ class TestSSPDiskAdapter(test.TestCase):
         # By default, assume the config supplied a Cluster name
         self.flags(cluster_name='clust1', group='powervm')
 
+        # Return the mgmt uuid
+        self.mgmt_uuid = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
+        self.mgmt_uuid.return_value = 'mp_uuid'
+
     def _get_ssp_stor(self):
         ssp_stor = ssp_dvr.SSPDiskAdapter(
-            {'adapter': self.apt,
-             'host_uuid': '67dca605-3923-34da-bd8f-26a378fc817f',
-             'mp_uuid': 'mp_uuid'})
+            self.apt, '67dca605-3923-34da-bd8f-26a378fc817f')
         return ssp_stor
 
     def _bld_resp(self, status=200, entry_or_list=None):

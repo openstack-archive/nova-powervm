@@ -27,12 +27,25 @@ from nova import exception
 from nova import utils
 import os
 from os import path
+from oslo_concurrency import lockutils
 from oslo_log import log as logging
+from pypowervm.tasks import partition as pvm_par
 import retrying
 
 from nova_powervm.virt.powervm import exception as npvmex
 
 LOG = logging.getLogger(__name__)
+
+_MP_UUID = None
+
+
+@lockutils.synchronized("mgmt_lpar_uuid")
+def mgmt_uuid(adapter):
+    """Returns the management partitions UUID."""
+    global _MP_UUID
+    if not _MP_UUID:
+        _MP_UUID = pvm_par.get_this_partition(adapter).uuid
+    return _MP_UUID
 
 
 def _tee_as_root(fpath, payload):

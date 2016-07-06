@@ -194,8 +194,7 @@ class PowerVMVolumeAdapter(object):
                          slots used when a volume is attached to the VM
         """
         # Check if the VM is in a state where the attach is acceptable.
-        lpar_w = vm.get_instance_wrapper(self.adapter, self.instance,
-                                         self.host_uuid)
+        lpar_w = vm.get_instance_wrapper(self.adapter, self.instance)
         capable, reason = lpar_w.can_modify_io()
         if not capable:
             raise exc.VolumeAttachFailed(
@@ -215,8 +214,7 @@ class PowerVMVolumeAdapter(object):
                          slots used when a volume is detached from the VM.
         """
         # Check if the VM is in a state where the detach is acceptable.
-        lpar_w = vm.get_instance_wrapper(self.adapter, self.instance,
-                                         self.host_uuid)
+        lpar_w = vm.get_instance_wrapper(self.adapter, self.instance)
         capable, reason = lpar_w.can_modify_io()
         if not capable:
             raise exc.VolumeDetachFailed(

@@ -30,6 +30,7 @@ import pypowervm.wrappers.virtual_io_server as pvm_vios
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LW
+from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -73,15 +74,15 @@ class DiskAdapter(object):
         'shared_storage': False,
     }
 
-    def __init__(self, connection):
+    def __init__(self, adapter, host_uuid):
         """Initialize the DiskAdapter
 
-        :param connection: connection information for the underlying driver
+        :param adapter: The pypowervm adapter
+        :param host_uuid: The UUID of the PowerVM host.
         """
-        self._connection = connection
-        self.adapter = connection['adapter']
-        self.host_uuid = connection['host_uuid']
-        self.mp_uuid = connection['mp_uuid']
+        self.adapter = adapter
+        self.host_uuid = host_uuid
+        self.mp_uuid = mgmt.mgmt_uuid(self.adapter)
         self.image_api = image.API()
 
     @property
@@ -151,8 +152,7 @@ class DiskAdapter(object):
                  element.
         """
         if lpar_wrap is None:
-            lpar_wrap = vm.get_instance_wrapper(self.adapter, instance,
-                                                self.host_uuid)
+            lpar_wrap = vm.get_instance_wrapper(self.adapter, instance)
         match_func = self.disk_match_func(disk_type, instance)
         for vios_uuid in self.vios_uuids:
             vios_wrap = pvm_vios.VIOS.wrap(self.adapter.read(
@@ -173,8 +173,7 @@ class DiskAdapter(object):
         :raise InstanceDiskMappingFailed: If the mapping could not be done.
         """
         msg_args = {'instance_name': instance.name}
-        lpar_wrap = vm.get_instance_wrapper(self.adapter, instance,
-                                            self.host_uuid)
+        lpar_wrap = vm.get_instance_wrapper(self.adapter, instance)
         for stg_elem, vios in self.instance_disk_iter(instance,
                                                       lpar_wrap=lpar_wrap):
             msg_args['disk_name'] = stg_elem.name

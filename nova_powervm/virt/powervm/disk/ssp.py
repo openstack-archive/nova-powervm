@@ -54,12 +54,12 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         'shared_storage': True,
     }
 
-    def __init__(self, connection):
+    def __init__(self, adapter, host_uuid):
         """Initialize the SSPDiskAdapter.
 
         :param connection: connection information for the underlying driver
         """
-        super(SSPDiskAdapter, self).__init__(connection)
+        super(SSPDiskAdapter, self).__init__(adapter, host_uuid)
 
         self._cluster = self._fetch_cluster(CONF.powervm.cluster_name)
         self.clust_name = self._cluster.name
@@ -236,10 +236,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         boot_lu_name = self._get_disk_name(image_type, instance)
         LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)
 
-        tier, boot_lu = tsk_stg.crt_lu(self._tier, boot_lu_name, disk_size_gb,
-                                       typ=pvm_stg.LUType.DISK, clone=image_lu)
-
-        return boot_lu
+        return tsk_stg.crt_lu(self._tier, boot_lu_name, disk_size_gb,
+                              typ=pvm_stg.LUType.DISK, clone=image_lu)[1]
 
     def get_disk_ref(self, instance, disk_type):
         """Returns a reference to the disk for the instance."""
