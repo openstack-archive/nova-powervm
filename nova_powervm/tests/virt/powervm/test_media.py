@@ -14,6 +14,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from __future__ import absolute_import
+
+import fixtures
 import mock
 
 from nova import test
@@ -21,7 +24,6 @@ from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import media as m
 
 
@@ -33,16 +35,13 @@ class TestConfigDrivePowerVM(test.TestCase):
 
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
-        # Wipe out the static variables, so that the revalidate is called
-        m.ConfigDrivePowerVM._cur_vios_uuid = None
-        m.ConfigDrivePowerVM._cur_vios_name = None
-        m.ConfigDrivePowerVM._cur_vg_uuid = None
+        self.validate_vopt = self.useFixture(fixtures.MockPatch(
+            'pypowervm.tasks.vopt.validate_vopt_repo_exists')).mock
+        self.validate_vopt.return_value = None, None
 
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg')
     @mock.patch('nova.api.metadata.base.InstanceMetadata')
     @mock.patch('nova.virt.configdrive.ConfigDriveBuilder.make_drive')
-    def test_crt_cfg_dr_iso(self, mock_mkdrv, mock_meta, mock_vopt_valid):
+    def test_crt_cfg_dr_iso(self, mock_mkdrv, mock_meta):
         """Validates that the image creation method works."""
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'host_uuid')
         mock_instance = mock.MagicMock()
@@ -63,19 +62,18 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertEqual('cfg_fake_instance_with_name_that_.iso', file_name)
         self.assertEqual('/tmp/cfgdrv/cfg_fake_instance_with_name_that_.iso',
                          iso_path)
+        self.assertTrue(self.validate_vopt.called)
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_create_cfg_dr_iso')
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg')
     @mock.patch('os.path.getsize')
     @mock.patch('os.remove')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_upload_vopt')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_attach_vopt')
-    def test_crt_cfg_drv_vopt(self, mock_attach, mock_upld,
-                              mock_rm, mock_size, mock_validate, mock_cfg_iso):
+    def test_crt_cfg_drv_vopt(self, mock_attach, mock_upld, mock_rm, mock_size,
+                              mock_cfg_iso):
         # Mock Returns
         mock_cfg_iso.return_value = '/tmp/cfgdrv/fake.iso', 'fake.iso'
         mock_size.return_value = 10000
@@ -88,14 +86,13 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertTrue(mock_upld.called)
         self.assertTrue(mock_attach.called)
         mock_attach.assert_called_with(mock.ANY, 'fake_lpar', mock.ANY, None)
+        self.assertTrue(self.validate_vopt.called)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg')
     @mock.patch('pypowervm.utils.transaction.WrapperTask')
-    def test_attach_vopt(self, mock_class_wrapper_task, mock_validate,
-                         mock_build_map, mock_add_map):
+    def test_attach_vopt(self, mock_class_wrapper_task, mock_build_map,
+                         mock_add_map):
         # Create objects to test with
         mock_instance = mock.MagicMock(name='fake-instance')
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
@@ -132,10 +129,9 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertTrue(mock_wrapper_task.execute.called)
         self.assertEqual(1, mock_build_map.call_count)
         self.assertEqual(1, mock_add_map.call_count)
+        self.assertTrue(self.validate_vopt.called)
 
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg')
-    def test_mgmt_cna_to_vif(self, mock_validate):
+    def test_mgmt_cna_to_vif(self):
         mock_cna = mock.MagicMock()
         mock_cna.mac = "FAD4433ED120"
 
@@ -167,176 +163,6 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertEqual('fe80::fdff:ffff:feff:ffff',
                          m.ConfigDrivePowerVM._mac_to_link_local(mac))
 
-    @mock.patch('pypowervm.wrappers.storage.VG.get')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
-    def test_validate_vopt_vg1(self, mock_vios_get, mock_vg_get):
-        """One VIOS, rootvg found; locals are set."""
-        # Init objects to test with
-        mock_vg = mock.Mock()
-        mock_vg.configure_mock(name='rootvg',
-                               uuid='1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f',
-                               vmedia_repos=['repo'])
-        mock_vg_get.return_value = [mock_vg]
-        mock_vios = mock.Mock()
-        mock_vios.configure_mock(name='the_vios', uuid='vios_uuid',
-                                 rmc_state='active')
-        mock_vios_get.return_value = [mock_vios]
-
-        # Run
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
-
-        # Validate
-        self.assertEqual('1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f',
-                         cfg_dr_builder.vg_uuid)
-        self.assertEqual('the_vios', cfg_dr_builder.vios_name)
-        self.assertEqual('vios_uuid', cfg_dr_builder.vios_uuid)
-
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '__init__', new=mock.MagicMock(return_value=None))
-    def _mock_cfg_dr_no_validate(self):
-        """Mock ConfigDrivePowerVM without running _validate_vopt_vg."""
-        cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
-        cfg_dr.adapter = self.apt
-        cfg_dr.host_uuid = 'fake_host'
-        return cfg_dr
-
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
-    @mock.patch('pypowervm.wrappers.storage.VG.get')
-    def test_validate_vopt_vg2(self, mock_vg_get, mock_vios_get):
-        """Dual VIOS, first is inactive; statics are set."""
-        # Init objects to test with
-        cfg_dr = self._mock_cfg_dr_no_validate()
-        vwrap1 = mock.Mock(rmc_state='#busy')
-        vwrap2 = mock.Mock()
-        vwrap2.configure_mock(name='vname', rmc_state='active', uuid='vio_id')
-        mock_vios_get.return_value = [vwrap1, vwrap2]
-        vg_wrap = mock.Mock()
-        vg_wrap.configure_mock(name='rootvg', vmedia_repos=[1], uuid='vg_uuid')
-        mock_vg_get.return_value = [vg_wrap]
-
-        # Run
-        cfg_dr._validate_vopt_vg()
-
-        # Validate
-        self.assertEqual('vg_uuid', cfg_dr._cur_vg_uuid)
-        self.assertEqual('vio_id', cfg_dr._cur_vios_uuid)
-        self.assertEqual('vname', cfg_dr._cur_vios_name)
-
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
-    @mock.patch('pypowervm.wrappers.storage.VG.get')
-    @mock.patch('pypowervm.wrappers.storage.VMediaRepos.bld')
-    def test_validate_vopt_vg3(self, mock_vmr_bld, mock_vg_get, mock_vios_get):
-        """Dual VIOS, multiple VGs, repos on non-rootvg."""
-        cfg_dr = self._mock_cfg_dr_no_validate()
-        vwrap1 = mock.Mock()
-        vwrap1.configure_mock(name='vio1', rmc_state='active', uuid='vio_id1')
-        vwrap2 = mock.Mock()
-        vwrap2.configure_mock(name='vio2', rmc_state='active', uuid='vio_id2')
-        mock_vios_get.return_value = [vwrap1, vwrap2]
-        vg1 = mock.Mock()
-        vg1.configure_mock(name='rootvg', vmedia_repos=[], uuid='vg1')
-        vg2 = mock.Mock()
-        vg2.configure_mock(name='other1vg', vmedia_repos=[], uuid='vg2')
-        vg3 = mock.Mock()
-        vg3.configure_mock(name='rootvg', vmedia_repos=[], uuid='vg3')
-        vg4 = mock.Mock()
-        vg4.configure_mock(name='other2vg', vmedia_repos=[1], uuid='vg4')
-
-        # 1: Find the media repos on non-rootvg on the second VIOS
-        mock_vg_get.side_effect = [[vg1, vg2], [vg3, vg4]]
-
-        cfg_dr._validate_vopt_vg()
-
-        # Found the repos on VIOS 2, VG 2
-        self.assertEqual('vg4', cfg_dr._cur_vg_uuid)
-        self.assertEqual('vio_id2', cfg_dr._cur_vios_uuid)
-        self.assertEqual('vio2', cfg_dr._cur_vios_name)
-
-        mock_vios_get.reset_mock()
-        mock_vg_get.reset_mock()
-
-        # 2: At this point, the statics are set.  If we validate again, and the
-        # VG.get returns the right one, we should bail out early.
-        mock_vg_get.side_effect = None
-        mock_vg_get.return_value = vg4
-
-        cfg_dr._validate_vopt_vg()
-
-        # Statics unchanged
-        self.assertEqual('vg4', cfg_dr._cur_vg_uuid)
-        self.assertEqual('vio_id2', cfg_dr._cur_vios_uuid)
-        self.assertEqual('vio2', cfg_dr._cur_vios_name)
-        # We didn't have to query the VIOS
-        mock_vios_get.assert_not_called()
-        # We only did VG.get once
-        self.assertEqual(1, mock_vg_get.call_count)
-
-        mock_vg_get.reset_mock()
-
-        # 3: Same again, but this time the repos is somewhere else.  We should
-        # find it.
-        vg4.vmedia_repos = []
-        vg2.vmedia_repos = [1]
-        # The first VG.get is looking for the already-set repos.  The second
-        # will be the feed from the first VIOS.  There should be no third call,
-        # since we should find the repos on VIOS 2.
-        mock_vg_get.side_effect = [vg4, [vg1, vg2]]
-
-        cfg_dr._validate_vopt_vg()
-
-        self.assertEqual('vg2', cfg_dr._cur_vg_uuid)
-        self.assertEqual('vio_id1', cfg_dr._cur_vios_uuid)
-        self.assertEqual('vio1', cfg_dr._cur_vios_name)
-
-        mock_vg_get.reset_mock()
-        mock_vios_get.reset_mock()
-
-        # 4: No repository anywhere - need to create one.  The default VG name
-        # (rootvg) exists in multiple places.  Ensure we create in the first
-        # one, for efficiency.
-        vg2.vmedia_repos = []
-        mock_vg_get.side_effect = [vg1, [vg1, vg2], [vg3, vg4]]
-        vg1.update.return_value = vg1
-
-        cfg_dr._validate_vopt_vg()
-
-        self.assertEqual('vg1', cfg_dr._cur_vg_uuid)
-        self.assertEqual('vio_id1', cfg_dr._cur_vios_uuid)
-        self.assertEqual('vio1', cfg_dr._cur_vios_name)
-        self.assertEqual([mock_vmr_bld.return_value], vg1.vmedia_repos)
-
-        mock_vg_get.reset_mock()
-        mock_vios_get.reset_mock()
-        vg1.update.reset_mock()
-
-        # 5: No repos - need to create.  Make sure conf setting is honored.
-        vg1.vmedia_repos = []
-        self.flags(vopt_media_volume_group='other2vg', group='powervm')
-
-        mock_vg_get.side_effect = [vg1, [vg1, vg2], [vg3, vg4]]
-        vg4.update.return_value = vg4
-
-        cfg_dr._validate_vopt_vg()
-
-        self.assertEqual('vg4', cfg_dr._cur_vg_uuid)
-        self.assertEqual('vio_id2', cfg_dr._cur_vios_uuid)
-        self.assertEqual('vio2', cfg_dr._cur_vios_name)
-        self.assertEqual([mock_vmr_bld.return_value], vg4.vmedia_repos)
-        vg1.update.assert_not_called()
-
-        mock_vg_get.reset_mock()
-        mock_vios_get.reset_mock()
-
-        # 6: No repos, and a configured VG name that doesn't exist
-        vg4.vmedia_repos = []
-        self.flags(vopt_media_volume_group='mythicalvg', group='powervm')
-        mock_vg_get.side_effect = [vg1, [vg1, vg2], [vg3, vg4]]
-
-        self.assertRaises(npvmex.NoMediaRepoVolumeGroupFound,
-                          cfg_dr._validate_vopt_vg)
-
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg', new=mock.MagicMock())
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'add_dlt_vopt_tasks')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap',
@@ -358,8 +184,6 @@ class TestConfigDrivePowerVM(test.TestCase):
             '2', mock_feed_task, remove_mappings=False)
         self.assertTrue(mock_feed_task.execute.called)
 
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg', new=mock.MagicMock())
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id',
                 new=mock.MagicMock(return_value='2'))
     @mock.patch('pypowervm.tasks.scsi_mapper.gen_match_func')

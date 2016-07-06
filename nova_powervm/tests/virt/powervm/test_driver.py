@@ -123,6 +123,10 @@ class TestPowerVMDriver(test.TestCase):
             'pypowervm.util.sanitize_partition_name_for_api')).mock
         self.san_lpar_name.side_effect = lambda name: name
 
+        self.validate_vopt = self.useFixture(fixtures.MockPatch(
+            'pypowervm.tasks.vopt.validate_vopt_repo_exists')).mock
+        self.validate_vopt.return_value = None, None
+
         # Create an instance to test with
         self.inst = objects.Instance(**powervm.TEST_INST_SPAWNING)
         self.inst_ibmi = objects.Instance(**powervm.TEST_INST_SPAWNING)
@@ -309,14 +313,11 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'create_cfg_drv_vopt')
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_cfg(self, mock_pwron, mock_get_flv, mock_cfg_drv,
-                            mock_val_vopt, mock_cfg_vopt, mock_plug_vifs,
-                            mock_plug_mgmt_vif):
+                            mock_cfg_vopt, mock_plug_vifs, mock_plug_mgmt_vif):
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
         mock_get_flv.return_value = self.inst.get_flavor()
@@ -331,8 +332,8 @@ class TestPowerVMDriver(test.TestCase):
                                          self.inst, self.inst.get_flavor(),
                                          nvram=None)
         # Config drive was called
-        self.assertTrue(mock_val_vopt.called)
         self.assertTrue(mock_cfg_vopt.called)
+        self.assertTrue(self.validate_vopt.called)
 
         # Power on was called
         self.assertTrue(mock_pwron.called)
@@ -897,15 +898,12 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'dlt_vopt')
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
     def test_destroy_internal(self, mock_bld_slot_mgr, mock_get_flv,
-                              mock_pvmuuid, mock_val_vopt, mock_dlt_vopt,
-                              mock_pwroff, mock_dlt, mock_boot_from_vol,
-                              mock_unplug_vifs):
+                              mock_pvmuuid, mock_dlt_vopt, mock_pwroff,
+                              mock_dlt, mock_boot_from_vol, mock_unplug_vifs):
         """Validates the basic PowerVM destroy."""
         # NVRAM Manager
         self.drv.nvram_mgr = mock.Mock()
@@ -1051,16 +1049,13 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'dlt_vopt')
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
     def test_destroy_internal_no_nvram_cleanup(self, mock_bld_slot_mgr,
                                                mock_get_flv, mock_pvmuuid,
-                                               mock_val_vopt, mock_dlt_vopt,
-                                               mock_pwroff, mock_dlt,
-                                               mock_boot_from_vol,
+                                               mock_dlt_vopt, mock_pwroff,
+                                               mock_dlt, mock_boot_from_vol,
                                                mock_unplug_vifs):
         """Validates the basic PowerVM destroy, without NVRAM cleanup.
 
@@ -1212,12 +1207,9 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'dlt_vopt')
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_validate_vopt_vg')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    def test_destroy_rollback(self, mock_get_flv, mock_val_vopt,
-                              mock_dlt_vopt, mock_pwroff, mock_dlt,
-                              mock_unplug_vifs):
+    def test_destroy_rollback(self, mock_get_flv, mock_dlt_vopt,
+                              mock_pwroff, mock_dlt, mock_unplug_vifs):
         """Validates the basic PowerVM destroy rollback mechanism works."""
         # Set up the mocks to the tasks.
         mock_get_flv.return_value = self.inst.get_flavor()
