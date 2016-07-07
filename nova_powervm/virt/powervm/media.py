@@ -302,4 +302,6 @@ class ConfigDrivePowerVM(object):
                                        child_id=self.vg_uuid)
             tsk_stg.rm_vg_storage(pvm_stg.VG.wrap(vg_rsp), vopts=media_elems)
 
-        stg_ftsk.add_post_execute(task.FunctorTask(rm_vopt))
+        # Don't add this task if there is no media to delete (eg. config drive)
+        if media_elems:
+            stg_ftsk.add_post_execute(task.FunctorTask(rm_vopt))

@@ -588,8 +588,10 @@ class PowerVMDriver(driver.ComputeDriver):
 
             # Add the disconnect/deletion of the vOpt to the transaction
             # manager.
-            flow.add(tf_stg.DeleteVOpt(self.adapter, self.host_uuid, instance,
-                                       pvm_inst_uuid, stg_ftsk=stg_ftsk))
+            if configdrive.required_by(instance):
+                flow.add(tf_stg.DeleteVOpt(
+                    self.adapter, self.host_uuid, instance, pvm_inst_uuid,
+                    stg_ftsk=stg_ftsk))
 
             # Determine if there are volumes to disconnect.  If so, remove each
             # volume (within the transaction manager)
