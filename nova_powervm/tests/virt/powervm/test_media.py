@@ -167,21 +167,22 @@ class TestConfigDrivePowerVM(test.TestCase):
                 'add_dlt_vopt_tasks')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap',
                 new=mock.MagicMock())
+    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
     @mock.patch('pypowervm.utils.transaction.FeedTask')
     @mock.patch('pypowervm.utils.transaction.FeedTask.execute')
     def test_dlt_vopt_no_map(self, mock_execute, mock_class_feed_task,
-                             mock_add_dlt_vopt_tasks):
+                             mock_add_dlt_vopt_tasks, mock_find_maps):
         # Init objects to test with
         mock_feed_task = mock.MagicMock()
         mock_class_feed_task.return_value = mock_feed_task
+        mock_find_maps.return_value = []
 
         # Invoke the operation
         cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
         cfg_dr.dlt_vopt('2', remove_mappings=False)
 
         # Verify expected methods were called
-        mock_add_dlt_vopt_tasks.assert_called_with(
-            '2', mock_feed_task, remove_mappings=False)
+        mock_add_dlt_vopt_tasks.assert_not_called()
         self.assertTrue(mock_feed_task.execute.called)
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id',
@@ -194,6 +195,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         stg_ftsk = mock.MagicMock()
         cfg_dr.vios_uuid = 'vios_uuid'
         lpar_uuid = 'lpar_uuid'
+        mock_find_maps.return_value = [mock.Mock(backing_storage='stor')]
 
         # Run
         cfg_dr.add_dlt_vopt_tasks(lpar_uuid, stg_ftsk)
