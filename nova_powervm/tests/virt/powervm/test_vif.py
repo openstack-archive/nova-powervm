@@ -269,6 +269,24 @@ class TestVifLBDriver(test.TestCase):
                           run_as_root=True)
         mock_exec.assert_has_calls([call_ip, call_delif])
 
+        # Test unplug for the case where tap device
+        # was not configured with the bridge.
+        mock_exec.reset_mock()
+        t1.reset_mock()
+        mock_cna.reset_mock()
+        mock_exec.side_effect = [None,
+                                 exception.NovaException('Command error')]
+
+        # Call the unplug
+        self.drv.unplug(vif)
+
+        # The trunks and the cna should have been deleted
+        self.assertTrue(t1.delete.called)
+        self.assertTrue(mock_cna.delete.called)
+
+        # Validate the execute
+        mock_exec.assert_has_calls([call_ip, call_delif])
+
 
 class TestVifOvsDriver(test.TestCase):
 
