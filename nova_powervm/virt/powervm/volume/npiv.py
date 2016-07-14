@@ -409,6 +409,50 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # The return object needs to be a list for the volume connector.
         return resp_wwpns
 
+    def _ensure_phys_ports_for_system(self, npiv_port_maps, vios_wraps,
+                                      fabric):
+        """Ensures that the npiv_port_map is correct for the system.
+
+        Rare scenarios can occur where the physical port on the NPIV port
+        map does not match the actual port.  This is generally caused when the
+        last volume is removed from the VM, the VM is migrated to another host,
+        and then a new volume is attached.
+
+        Stale metadata would be there (as it can't be cleaned out) on the
+        attach.  This method clears that up.
+
+        :param npiv_port_maps: The existing port maps.
+        :param vios_wraps: The Virtual I/O Server wraps.
+        :param fabric: The name of the fabric
+        :return: The npiv_port_maps.  May be unchanged.
+        """
+        # Check that all physical ports in the mappings belong to 'this'
+        # set of VIOSs.
+        if all(pvm_vfcm.find_vios_for_wwpn(vios_wraps, pm[0])[0]
+               for pm in npiv_port_maps):
+            LOG.debug("Physical ports check out - just return maps.")
+            return npiv_port_maps
+
+        # If ANY of the VIOS ports were not there, rebuild the port maps
+        LOG.debug("Rebuild existing_npiv_port_maps=%s. Reset fabric state." %
+                  npiv_port_maps)
+        v_wwpns = []
+        for port_map in npiv_port_maps:
+            v_wwpns.extend(port_map[1].split())
+        self._set_fabric_state(fabric, FS_UNMAPPED)
+
+        # Derive new maps and don't preserve existing maps
+        npiv_port_maps = pvm_vfcm.derive_npiv_map(
+            vios_wraps, self._fabric_ports(fabric), v_wwpns, preserve=False)
+        LOG.debug("Rebuilt port maps: %s" % npiv_port_maps)
+        self._set_fabric_meta(fabric, npiv_port_maps)
+        LOG.warning(_LW("Had to update the system metadata for the WWPNs "
+                        "due to incorrect physical WWPNs on fabric "
+                        "%(fabric)s"),
+                    {'fabric': fabric}, instance=self.instance)
+
+        return npiv_port_maps
+
     def _add_maps_for_fabric(self, fabric, slot_mgr):
         """Adds the vFC storage mappings to the VM for a given fabric.
 
@@ -416,8 +460,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
                          slots used when a volume is attached to the VM
         """
-        npiv_port_maps = self._get_fabric_meta(fabric)
         vios_wraps = self.stg_ftsk.feed
+        # Ensure the physical ports in the metadata are not for a different
+        # host (stale). If so, rebuild the maps with current info.
+        npiv_port_maps = self._ensure_phys_ports_for_system(
+            self._get_fabric_meta(fabric), vios_wraps, fabric)
         volume_id = self.connection_info['data']['volume_id']
 
         # This loop adds the maps from the appropriate VIOS to the client VM
