@@ -34,8 +34,14 @@ configured ahead of time.
 
 Configuration File Options
 --------------------------
-The standard nova configuration options are supported.  Additionally, a
-``[powervm]`` section is used to provide additional customization to the driver.
+The standard nova configuration options are supported.  In particular, to use
+PowerVM SR-IOV vNIC for networking, the ``pci_passthrough_whitelist`` option
+must be set.  See the `networking-powervm usage devref`_ for details.
+
+.. _`networking-powervm usage devref`: http://networking-powervm.readthedocs.io/en/latest/devref/usage.html
+
+Additionally, a ``[powervm]`` section is used to provide additional
+customization to the driver.
 
 By default, no additional inputs are needed.  The base configuration allows for
 a Nova driver to support ephemeral disks to a local volume group (only

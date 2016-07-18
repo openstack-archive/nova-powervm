@@ -197,8 +197,8 @@ Shared Storage Pool (a PowerVM clustered file system) is supported.  For
 volume attachments, the driver supports Cinder-based attachments via
 protocols supported by the hypervisor (e.g. Fibre Channel).
 
-For networking, the networking-powervm project provides a Neutron ML2 Agent.
-The agent provides the necessary configuration on the Virtual I/O Server for
+For networking, the networking-powervm project provides Neutron ML2 Agents.
+The agents provide the necessary configuration on the Virtual I/O Server for
 networking.  The PowerVM Nova driver code creates the VIF for the client VM,
 but the Neutron agent creates the VIF for VLANs.
 

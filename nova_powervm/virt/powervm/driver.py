@@ -992,11 +992,8 @@ class PowerVMDriver(driver.ComputeDriver):
             a driver that manages only one node can safely ignore this
         :return: Dictionary describing resources
         """
-
-        resp = self.adapter.read(pvm_ms.System.schema_type,
-                                 root_id=self.host_uuid)
-        if resp:
-            self.host_wrapper = pvm_ms.System.wrap(resp.entry)
+        # Do this here so it refreshes each time this method is called.
+        self.host_wrapper = pvm_ms.System.get(self.adapter)[0]
         # Get host information
         data = pvm_host.build_host_resource_from_ms(self.host_wrapper)
 

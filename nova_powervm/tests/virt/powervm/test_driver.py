@@ -1501,13 +1501,13 @@ class TestPowerVMDriver(test.TestCase):
                     'op': 'fake_op'}
         mock_log.info.assert_called_with(entry, msg_dict)
 
-    def test_host_resources(self):
-        # Mock methods not currently under test
-        with mock.patch.object(self.apt, 'read') as mock_read:
-            mock_read.return_value = None
-            # Run the actual test
-            stats = self.drv.get_available_resource('nodename')
-            self.assertIsNotNone(stats)
+    @mock.patch('pypowervm.wrappers.managed_system.System.get',
+                new=mock.Mock(return_value=[mock.Mock()]))
+    @mock.patch('nova_powervm.virt.powervm.host.build_host_resource_from_ms')
+    def test_host_resources(self, mock_bhrfm):
+        mock_bhrfm.return_value = {}
+        stats = self.drv.get_available_resource('nodename')
+        self.assertIsNotNone(stats)
 
         # Check for the presence of fields added to host stats
         fields = ('local_gb', 'local_gb_used')

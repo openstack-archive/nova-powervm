@@ -18,6 +18,7 @@ import math
 from nova.compute import arch
 from nova.compute import hv_type
 from nova.compute import vm_mode
+from nova.objects import fields
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
@@ -82,6 +83,27 @@ def build_host_resource_from_ms(ms_wrapper):
              'memory_region_size': ms_wrapper.memory_region_size
              }
     data["stats"] = stats
+
+    # Produce SR-IOV PCI data.  Devices are validated by virtue of the network
+    # name associated with their label, which must be cleared via an entry in
+    # the pci_passthrough_whitelist in the nova.conf.
+    nets = {pport.label or 'default'
+            for sriov in ms_wrapper.asio_config.sriov_adapters
+            for pport in sriov.phys_ports}
+    pci_devs = []
+    for net in nets:
+        # These fields are all required in order to satisfy a Claim.  Their
+        # values are as general as possible.
+        LOG.debug("Registering SR-IOV passthrough for network '%s'", net)
+        pci_devs.append({"physical_network": net,
+                         "label": net,
+                         "dev_type": fields.PciDeviceType.STANDARD,
+                         "address": "*:*:*.*",
+                         "parent_addr": "*:*:*.*",
+                         "vendor_id": "*",
+                         "product_id": "*",
+                         "numa_node": 1})
+    data["pci_passthrough_devices"] = jsonutils.dumps(pci_devs)
 
     return data
 

@@ -19,6 +19,7 @@ import mock
 
 import logging
 from nova import test
+from oslo_serialization import jsonutils
 import pypowervm.tests.test_fixtures as pvm_fx
 
 from nova_powervm.virt.powervm import host as pvm_host
@@ -30,13 +31,17 @@ logging.basicConfig()
 class TestPowerVMHost(test.TestCase):
     def test_host_resources(self):
         # Create objects to test with
+        sriov_adaps = [mock.Mock(phys_ports=[mock.Mock(label='foo'),
+                                             mock.Mock(label='')]),
+                       mock.Mock(phys_ports=[mock.Mock(label='bar')])]
         ms_wrapper = mock.MagicMock(
             proc_units_configurable=500,
             proc_units_avail=500,
             memory_configurable=5242880,
             memory_free=5242752,
             mtms=mock.MagicMock(mtms_str='8484923A123456'),
-            memory_region_size='big')
+            memory_region_size='big',
+            asio_config=mock.Mock(sriov_adapters=sriov_adaps))
 
         # Run the actual test
         stats = pvm_host.build_host_resource_from_ms(ms_wrapper)
@@ -47,7 +52,7 @@ class TestPowerVMHost(test.TestCase):
                   ('memory_mb', 5242880), ('memory_mb_used', 128),
                   'hypervisor_type', 'hypervisor_version',
                   'hypervisor_hostname', 'cpu_info',
-                  'supported_instances', 'stats')
+                  'supported_instances', 'stats', 'pci_passthrough_devices')
         for fld in fields:
             if isinstance(fld, tuple):
                 value = stats.get(fld[0], None)
@@ -64,6 +69,20 @@ class TestPowerVMHost(test.TestCase):
             else:
                 value = stats['stats'].get(stat, None)
                 self.assertIsNotNone(value)
+        # pci_passthrough_devices.  Parse json - entries can be in any order.
+        ppdstr = stats['pci_passthrough_devices']
+        ppdlist = jsonutils.loads(ppdstr)
+        self.assertEqual({'foo', 'bar', 'default'}, {ppd['physical_network']
+                                                     for ppd in ppdlist})
+        self.assertEqual({'foo', 'bar', 'default'}, {ppd['label']
+                                                     for ppd in ppdlist})
+        for ppd in ppdlist:
+            self.assertEqual('type-PCI', ppd['dev_type'])
+            self.assertEqual('*:*:*.*', ppd['address'])
+            self.assertEqual('*:*:*.*', ppd['parent_addr'])
+            self.assertEqual('*', ppd['vendor_id'])
+            self.assertEqual('*', ppd['product_id'])
+            self.assertEqual(1, ppd['numa_node'])
 
 
 class TestHostCPUStats(test.TestCase):

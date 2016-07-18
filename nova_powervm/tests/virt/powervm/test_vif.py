@@ -15,7 +15,6 @@
 #    under the License.
 
 import mock
-from mock import call
 
 from nova import exception
 from nova import test
@@ -111,6 +110,11 @@ class TestVifFunctions(test.TestCase):
                                   {'type': 'pvm_sea'}),
             vif.PvmSeaVifDriver)
 
+        self.assertIsInstance(
+            vif._build_vif_driver(self.adpt, 'host_uuid', mock_inst,
+                                  {'type': 'pvm_sriov'}),
+            vif.PvmVnicSriovVifDriver)
+
         # Test raises exception for no type
         self.assertRaises(exception.VirtualInterfacePlugException,
                           vif._build_vif_driver, self.adpt, 'host_uuid',
@@ -120,6 +124,121 @@ class TestVifFunctions(test.TestCase):
         self.assertRaises(exception.VirtualInterfacePlugException,
                           vif._build_vif_driver, self.adpt, 'host_uuid',
                           mock_inst, {'type': 'bad'})
+
+
+class TestVifSriovDriver(test.TestCase):
+
+    def setUp(self):
+        super(TestVifSriovDriver, self).setUp()
+
+        self.adpt = self.useFixture(pvm_fx.AdapterFx()).adpt
+        self.inst = mock.MagicMock()
+        self.drv = vif.PvmVnicSriovVifDriver(self.adpt, 'host_uuid', self.inst)
+
+    def test_plug_no_pports(self):
+        """Raise when plug is called with a network with no physical ports."""
+        self.assertRaises(exception.VirtualInterfacePlugException,
+                          self.drv.plug, FakeDirectVif('net2', pports=[]), 1)
+
+    @mock.patch('pypowervm.util.sanitize_mac_for_api')
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_plug(self, mock_pvm_uuid, mock_back_devs, mock_vnic_bld,
+                  mock_san_mac):
+        slot = 10
+        pports = ['port1', 'port2']
+        self.drv.plug(FakeDirectVif('default', pports=pports),
+                      slot)
+        mock_san_mac.assert_called_once_with('ab:ab:ab:ab:ab:ab')
+        mock_vnic_bld.assert_called_once_with(
+            self.drv.adapter, 79, slot_num=slot,
+            mac_addr=mock_san_mac.return_value, allowed_vlans='NONE',
+            allowed_macs='NONE')
+        mock_back_devs.assert_called_once_with(
+            mock_vnic_bld.return_value, ['port1', 'port2'], min_redundancy=3,
+            max_redundancy=3, capacity=None)
+        mock_pvm_uuid.assert_called_once_with(self.drv.instance)
+        mock_vnic_bld.return_value.create.assert_called_once_with(
+            parent_type=pvm_lpar.LPAR, parent_uuid=mock_pvm_uuid.return_value)
+
+        # Now with redundancy/capacity values from binding:profile
+        mock_san_mac.reset_mock()
+        mock_vnic_bld.reset_mock()
+        mock_back_devs.reset_mock()
+        mock_pvm_uuid.reset_mock()
+        self.drv.plug(FakeDirectVif('default', pports=pports, cap=0.08),
+                      slot)
+        mock_san_mac.assert_called_once_with('ab:ab:ab:ab:ab:ab')
+        mock_vnic_bld.assert_called_once_with(
+            self.drv.adapter, 79, slot_num=slot,
+            mac_addr=mock_san_mac.return_value, allowed_vlans='NONE',
+            allowed_macs='NONE')
+        mock_back_devs.assert_called_once_with(
+            mock_vnic_bld.return_value, ['port1', 'port2'], min_redundancy=3,
+            max_redundancy=3, capacity=0.08)
+        mock_pvm_uuid.assert_called_once_with(self.drv.instance)
+        mock_vnic_bld.return_value.create.assert_called_once_with(
+            parent_type=pvm_lpar.LPAR, parent_uuid=mock_pvm_uuid.return_value)
+
+        # No-op with new_vif=False
+        mock_san_mac.reset_mock()
+        mock_vnic_bld.reset_mock()
+        mock_back_devs.reset_mock()
+        mock_pvm_uuid.reset_mock()
+        self.assertIsNone(self.drv.plug(
+            FakeDirectVif('default', pports=pports), slot, new_vif=False))
+        mock_san_mac.assert_not_called()
+        mock_vnic_bld.assert_not_called()
+        mock_back_devs.assert_not_called()
+        mock_pvm_uuid.assert_not_called()
+
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.search')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.util.sanitize_mac_for_api')
+    def test_unplug(self, mock_san_mac, mock_pvm_uuid, mock_find):
+        fvif = FakeDirectVif('default')
+        self.assertEqual(mock_find.return_value, self.drv.unplug(fvif))
+        mock_find.assert_called_once_with(
+            self.drv.adapter, parent_type=pvm_lpar.LPAR,
+            parent_uuid=mock_pvm_uuid.return_value,
+            mac=mock_san_mac.return_value, one_result=True)
+        mock_pvm_uuid.assert_called_once_with(self.inst)
+        mock_san_mac.assert_called_once_with(fvif['address'])
+        mock_find.return_value.delete.assert_called_once_with()
+
+        # Not found
+        mock_find.reset_mock()
+        mock_pvm_uuid.reset_mock()
+        mock_san_mac.reset_mock()
+        mock_find.return_value = None
+        self.assertIsNone(self.drv.unplug(fvif))
+        mock_find.assert_called_once_with(
+            self.drv.adapter, parent_type=pvm_lpar.LPAR,
+            parent_uuid=mock_pvm_uuid.return_value,
+            mac=mock_san_mac.return_value, one_result=True)
+        mock_pvm_uuid.assert_called_once_with(self.inst)
+        mock_san_mac.assert_called_once_with(fvif['address'])
+
+
+class FakeDirectVif(dict):
+    def __init__(self, physnet, pports=None, cap=None):
+        self._physnet = physnet
+        super(FakeDirectVif, self).__init__(
+            network={'id': 'net_id'},
+            address='ab:ab:ab:ab:ab:ab',
+            details={
+                'vlan': '79',
+                'physical_ports': [],
+                'redundancy': 3},
+            profile={})
+        if pports is not None:
+            self['details']['physical_ports'] = pports
+        if cap is not None:
+            self['profile']['capacity'] = cap
+
+    def get_physical_network(self):
+        return self._physnet
 
 
 class TestVifSeaDriver(test.TestCase):
@@ -289,10 +408,10 @@ class TestVifLBDriver(test.TestCase):
         self.assertTrue(mock_cna.delete.called)
 
         # Validate the execute
-        call_ip = call('ip', 'link', 'set', 'fake_dev', 'down',
-                       run_as_root=True)
-        call_delif = call('brctl', 'delif', 'br0', 'fake_dev',
-                          run_as_root=True)
+        call_ip = mock.call('ip', 'link', 'set', 'fake_dev', 'down',
+                            run_as_root=True)
+        call_delif = mock.call('brctl', 'delif', 'br0', 'fake_dev',
+                               run_as_root=True)
         mock_exec.assert_has_calls([call_ip, call_delif])
 
         # Test unplug for the case where tap device

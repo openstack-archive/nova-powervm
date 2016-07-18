@@ -27,7 +27,9 @@ from oslo_config import cfg
 from oslo_utils import importutils
 from pypowervm.tasks import cna as pvm_cna
 from pypowervm.tasks import partition as pvm_par
+from pypowervm.tasks import sriov as sriovtask
 from pypowervm import util as pvm_util
+from pypowervm.wrappers import iocard as pvm_card
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import network as pvm_net
@@ -45,7 +47,9 @@ SECURE_RMC_VLAN = 4094
 
 VIF_MAPPING = {'pvm_sea': 'nova_powervm.virt.powervm.vif.PvmSeaVifDriver',
                'ovs': 'nova_powervm.virt.powervm.vif.PvmOvsVifDriver',
-               'bridge': 'nova_powervm.virt.powervm.vif.PvmLBVifDriver'}
+               'bridge': 'nova_powervm.virt.powervm.vif.PvmLBVifDriver',
+               'pvm_sriov':
+               'nova_powervm.virt.powervm.vif.PvmVnicSriovVifDriver'}
 
 CONF = cfg.CONF
 
@@ -104,12 +108,12 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
     slot_num = slot_mgr.build_map.get_vea_slot(vif['address'])
 
     # Invoke the plug
-    cna_w = vif_drv.plug(vif, slot_num, new_vif=new_vif)
+    vnet_w = vif_drv.plug(vif, slot_num, new_vif=new_vif)
 
     # If the slot number hadn't been provided initially, save it for the
     # next rebuild
     if not slot_num and new_vif:
-        slot_mgr.register_cna(cna_w)
+        slot_mgr.register_vnet(vnet_w)
 
 
 def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
@@ -126,9 +130,9 @@ def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
                        allows for an improvement in operation speed.
     """
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
-    cna_w = vif_drv.unplug(vif, cna_w_list=cna_w_list)
-    if cna_w:
-        slot_mgr.drop_cna(cna_w)
+    vnet_w = vif_drv.unplug(vif, cna_w_list=cna_w_list)
+    if vnet_w:
+        slot_mgr.drop_vnet(vnet_w)
 
 
 def post_live_migrate_at_destination(adapter, host_uuid, instance, vif):
@@ -467,6 +471,66 @@ class PvmLBVifDriver(PvmLioVifDriver):
 
         # Now delete the client CNA
         return super(PvmLBVifDriver, self).unplug(vif, cna_w_list=cna_w_list)
+
+
+class PvmVnicSriovVifDriver(PvmVifDriver):
+    """The SR-IOV VIF driver for PowerVM."""
+
+    def plug(self, vif, slot_num, new_vif=True):
+        if not new_vif:
+            return None
+
+        physnet = vif.get_physical_network()
+        LOG.debug("Plugging vNIC SR-IOV vif for physical network "
+                  "'%(physnet)s' into instance %(inst)s.",
+                  {'physnet': physnet, 'inst': self.instance.name})
+
+        # Physical ports for the given physical network
+        pports = vif['details']['physical_ports']
+        if not pports:
+            raise exception.VirtualInterfacePlugException(
+                _("Unable to find SR-IOV physical ports for physical "
+                  "network '%(physnet)s' (instance %(inst)s).  VIF: %(vif)s") %
+                {'physnet': physnet, 'inst': self.instance.name, 'vif': vif})
+
+        # MAC
+        mac_address = pvm_util.sanitize_mac_for_api(vif['address'])
+
+        # vlan id
+        vlan_id = int(vif['details']['vlan'])
+
+        # Redundancy: plugin sets from binding:profile, then conf, then default
+        redundancy = int(vif['details']['redundancy'])
+
+        # Capacity: from binding:profile or pport default
+        capacity = vif['profile'].get('capacity')
+
+        vnic = pvm_card.VNIC.bld(
+            self.adapter, vlan_id, slot_num=slot_num, mac_addr=mac_address,
+            allowed_vlans=pvm_util.VLANList.NONE,
+            allowed_macs=pvm_util.MACList.NONE)
+
+        sriovtask.set_vnic_back_devs(vnic, pports, min_redundancy=redundancy,
+                                     max_redundancy=redundancy,
+                                     capacity=capacity)
+
+        return vnic.create(parent_type=pvm_lpar.LPAR,
+                           parent_uuid=vm.get_pvm_uuid(self.instance))
+
+    def unplug(self, vif, cna_w_list=None):
+        mac = pvm_util.sanitize_mac_for_api(vif['address'])
+        vnic = pvm_card.VNIC.search(
+            self.adapter, parent_type=pvm_lpar.LPAR,
+            parent_uuid=vm.get_pvm_uuid(self.instance),
+            mac=mac, one_result=True)
+        if not vnic:
+            LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
+                            'instance %(inst)s.  No matching vNIC was found '
+                            'on the instance.  VIF: %(vif)s'),
+                        {'mac': mac, 'inst': self.instance.name, 'vif': vif})
+            return None
+        vnic.delete()
+        return vnic
 
 
 class PvmOvsVifDriver(PvmLioVifDriver):
