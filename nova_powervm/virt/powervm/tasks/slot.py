@@ -16,14 +16,13 @@
 
 
 from oslo_log import log as logging
-from taskflow import task
 
-from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.tasks import base as pvm_task
 
 LOG = logging.getLogger(__name__)
 
 
-class SaveSlotStore(task.Task):
+class SaveSlotStore(pvm_task.PowerVMTask):
 
     """Will run the save of the slot store.
 
@@ -39,21 +38,16 @@ class SaveSlotStore(task.Task):
         :param slot_mgr: A NovaSlotManager.  Contains the object that will be
                          saved.
         """
-        self.instance = instance
         self.slot_mgr = slot_mgr
-        self.orig = None
+        super(SaveSlotStore, self).__init__(instance, 'save_slot_store')
 
-        super(SaveSlotStore, self).__init__(name='save_slot_store')
-
-    def execute(self):
-        LOG.info(_LI('Saving slot topology for instance %(inst)s'),
-                 {'inst': self.instance.name}, instance=self.instance)
+    def execute_impl(self):
         LOG.debug("Topology for instance %(inst)s: %(topo)s",
                   {'inst': self.instance.name, 'topo': self.slot_mgr.topology})
         self.slot_mgr.save()
 
 
-class DeleteSlotStore(task.Task):
+class DeleteSlotStore(pvm_task.PowerVMTask):
 
     """Will run the delete of the slot store.
 
@@ -68,12 +62,8 @@ class DeleteSlotStore(task.Task):
         :param slot_mgr: A NovaSlotManager.  Contains the object that will be
                          deleted.
         """
-        self.instance = instance
         self.slot_mgr = slot_mgr
-
-        super(DeleteSlotStore, self).__init__(name='delete_slot_store')
+        super(DeleteSlotStore, self).__init__(instance, 'delete_slot_store')
 
     def execute(self):
-        LOG.info(_LI('Deleting slot store for instance %(inst)s'),
-                 {'inst': self.instance.name}, instance=self.instance)
         self.slot_mgr.delete()

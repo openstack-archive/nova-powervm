@@ -1272,13 +1272,13 @@ class TestPowerVMDriver(test.TestCase):
         boot_flav = objects.Flavor(vcpus=1, memory_mb=2048, root_gb=12)
         # Tasks expected to be added for migrate
         expected = [
-            'pwr_off_lpar',
+            'pwr_off_vm',
             'store_nvram',
             'extend_disk_boot',
             'disconnect_vol_*',
             'disconnect_vol_*',
             'fake',
-            'rename_lpar_migrate_instance-00000001',
+            'rename_vm_migrate_instance-00000001',
         ]
         dest_host = host + '1'
         with fx.DriverTaskFlow() as taskflow_fix:
@@ -1319,7 +1319,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Tasks expected to be added for migration to different host
         expected = [
-            'crt_lpar',
+            'crt_vm',
             'plug_vifs',
             'plug_mgmt_vif',
             'find_disk',
@@ -1329,8 +1329,8 @@ class TestPowerVMDriver(test.TestCase):
             'connect_vol_*',
             'save_bdm_fake_vol2',
             'fake',
-            'get_lpar',
-            'pwr_lpar',
+            'get_vm',
+            'pwr_vm',
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
             self.drv.finish_migration(
@@ -1351,14 +1351,14 @@ class TestPowerVMDriver(test.TestCase):
 
         # Tasks expected to be added for resize to the same host
         expected = [
-            'resize_lpar',
+            'resize_vm',
             'connect_vol_*',
             'save_bdm_fake_vol1',
             'connect_vol_*',
             'save_bdm_fake_vol2',
             'fake',
-            'get_lpar',
-            'pwr_lpar',
+            'get_vm',
+            'pwr_vm',
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
             self.drv.finish_migration(
@@ -1380,7 +1380,7 @@ class TestPowerVMDriver(test.TestCase):
         # Tasks expected to be added for resize to the same host, no BDMS,
         # and no power_on
         expected = [
-            'resize_lpar',
+            'resize_vm',
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
             self.drv.finish_migration(
