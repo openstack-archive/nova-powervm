@@ -140,6 +140,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertFalse(
             test_driver.capabilities['supports_migrate_to_same_host'])
         self.assertTrue(test_driver.capabilities['supports_attach_interface'])
+        self.assertFalse(test_driver.capabilities['supports_device_tagging'])
 
     def _setup_lpm(self):
         """Setup the lpm environment.
