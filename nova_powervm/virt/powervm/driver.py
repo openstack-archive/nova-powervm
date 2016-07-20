@@ -101,7 +101,8 @@ class PowerVMDriver(driver.ComputeDriver):
     capabilities = {
         "has_imagecache": False,
         "supports_recreate": True,
-        "supports_migrate_to_same_host": False
+        "supports_migrate_to_same_host": False,
+        "supports_attach_interface": True
     }
 
     def __init__(self, virtapi):

@@ -132,6 +132,15 @@ class TestPowerVMDriver(test.TestCase):
         self.inst_ibmi = objects.Instance(**powervm.TEST_INST_SPAWNING)
         self.inst_ibmi.system_metadata = {'image_os_distro': 'ibmi'}
 
+    def test_driver_capabilities(self):
+        """Test the default capabilities."""
+        test_driver = driver.PowerVMDriver(fake.FakeVirtAPI())
+        self.assertFalse(test_driver.capabilities['has_imagecache'])
+        self.assertTrue(test_driver.capabilities['supports_recreate'])
+        self.assertFalse(
+            test_driver.capabilities['supports_migrate_to_same_host'])
+        self.assertTrue(test_driver.capabilities['supports_attach_interface'])
+
     def _setup_lpm(self):
         """Setup the lpm environment.
 
