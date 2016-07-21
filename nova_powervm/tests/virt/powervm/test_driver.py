@@ -1721,7 +1721,8 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual('uuid', resp.internal_access_path)
 
         mock_vterm.assert_called_once_with(
-            mock.ANY, 'uuid', mock.ANY, vnc_path='uuid')
+            mock.ANY, 'uuid', mock.ANY, vnc_path='uuid', use_x509_auth=False,
+            ca_certs=None, server_cert=None, server_key=None)
 
     @staticmethod
     def _fake_bdms():

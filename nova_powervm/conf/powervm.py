@@ -187,8 +187,20 @@ swift_opts = [
                'file.  Example: /etc/swiftclient/myca.pem')
 ]
 
+vnc_opts = [
+    cfg.BoolOpt('vnc_use_x509_auth', default=False,
+                help='If enabled, uses X509 Authentication for the '
+                'VNC sessions started for each VM.'),
+    cfg.StrOpt('vnc_ca_certs', help='Path to CA certificate '
+               'to use for verifying VNC X509 Authentication.'),
+    cfg.StrOpt('vnc_server_cert', help='Path to Server certificate '
+               'to use for verifying VNC X509 Authentication.'),
+    cfg.StrOpt('vnc_server_key', help='Path to Server private key '
+               'to use for verifying VNC X509 Authentication.')
+]
+
 STATIC_OPTIONS = (powervm_opts + localdisk_opts + ssp_opts + vol_adapter_opts
-                  + npiv_opts + remote_restart_opts + swift_opts)
+                  + npiv_opts + remote_restart_opts + swift_opts + vnc_opts)
 
 # Dictionary where the key is the NPIV Fabric Name, and the value is a list of
 # Physical WWPNs that match the key.
