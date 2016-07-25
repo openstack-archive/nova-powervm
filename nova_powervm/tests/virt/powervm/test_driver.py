@@ -50,6 +50,7 @@ from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import vm
+from nova_powervm.virt.powervm import volume as vol_attach
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
@@ -101,8 +102,12 @@ class TestPowerVMDriver(test.TestCase):
         self._setup_lpm()
 
         self.disk_dvr = self.drv.disk_dvr
-        self.vol_fix = self.useFixture(fx.VolumeAdapter())
+        self.vol_fix = self.useFixture(fx.VolumeAdapter(
+            'nova_powervm.virt.powervm.volume.vscsi.PVVscsiFCVolumeAdapter'))
         self.vol_drv = self.vol_fix.drv
+        self.iscsi_vol_fix = self.useFixture(fx.VolumeAdapter(
+            'nova_powervm.virt.powervm.volume.iscsi.IscsiVolumeAdapter'))
+        self.iscsi_vol_drv = self.iscsi_vol_fix.drv
 
         self.crt_lpar = self.useFixture(fixtures.MockPatch(
             'nova_powervm.virt.powervm.vm.crt_lpar')).mock
@@ -156,6 +161,15 @@ class TestPowerVMDriver(test.TestCase):
         self.lpm_inst.uuid = 'inst1'
         self.drv.live_migrations = {'inst1': self.lpm}
 
+    def _vol_drv_maps(self):
+        VOLUME_DRIVER_MAPPINGS = {
+            'fibre_channel': vol_attach.FC_STRATEGY_MAPPING[
+                driver.CONF.powervm.fc_attach_strategy.lower()],
+            'iscsi': vol_attach.NETWORK_STRATEGY_MAPPING[
+                driver.CONF.powervm.network_attach_strategy.lower()],
+        }
+        return VOLUME_DRIVER_MAPPINGS
+
     def test_driver_create(self):
         """Validates that a driver of the PowerVM type can be initialized."""
         test_drv = driver.PowerVMDriver(fake.FakeVirtAPI())
@@ -168,9 +182,15 @@ class TestPowerVMDriver(test.TestCase):
 
     def test_get_volume_connector(self):
         """Tests that a volume connector can be built."""
+
+        self.flags(volume_adapter='fibre_channel', group='powervm')
         vol_connector = self.drv.get_volume_connector(mock.Mock())
         self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
+
+        self.flags(volume_adapter='iscsi', group='powervm')
+        vol_connector = self.drv.get_volume_connector(mock.Mock())
+        self.assertIsNotNone(vol_connector['initiator'])
 
     def test_setup_disk_adapter(self):
         # Ensure we can handle upper case option and we instantiate the class
@@ -839,7 +859,13 @@ class TestPowerVMDriver(test.TestCase):
         ret = self.drv._is_booted_from_volume(None)
         self.assertFalse(ret)
 
-    def test_get_inst_xag(self):
+    @mock.patch('nova_powervm.virt.powervm.driver.VOLUME_DRIVER_MAPPINGS')
+    def test_get_inst_xag(self, mock_mapping):
+        def getitem(name):
+            return self._vol_drv_maps()[name]
+        mock_mapping.__getitem__.side_effect = getitem
+
+        self.flags(volume_adapter='fibre_channel', group='powervm')
         # No volumes - should be just the SCSI mapping
         xag = self.drv._get_inst_xag(mock.Mock(), None)
         self.assertEqual([pvm_const.XAG.VIO_SMAP], xag)
@@ -851,6 +877,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # The NPIV volume attach - requires SCSI, Storage and FC Mapping
         self.flags(fc_attach_strategy='npiv', group='powervm')
+        mock_mapping.return_value = self._vol_drv_maps()
         xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
         self.assertEqual({pvm_const.XAG.VIO_STOR,
                           pvm_const.XAG.VIO_SMAP,
@@ -858,6 +885,13 @@ class TestPowerVMDriver(test.TestCase):
 
         # The vSCSI Volume attach - Ensure case insensitive.
         self.flags(fc_attach_strategy='VSCSI', group='powervm')
+        mock_mapping.return_value = self._vol_drv_maps()
+        xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
+        self.assertEqual([pvm_const.XAG.VIO_SMAP], xag)
+
+        # The iSCSI volume attach - only nees the SCSI mapping.
+        self.flags(volume_adapter='iscsi', group='powervm')
+        mock_mapping.return_value = self._vol_drv_maps()
         xag = self.drv._get_inst_xag(mock.Mock(), [mock.Mock()])
         self.assertEqual([pvm_const.XAG.VIO_SMAP], xag)
 

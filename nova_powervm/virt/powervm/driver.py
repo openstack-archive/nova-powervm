@@ -74,11 +74,13 @@ LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 # Defines, for all cinder volume types, which volume driver to use.  Currently
-# only supports Fibre Channel, which has multiple options for connections.
-# The connection strategy is defined above.
+# only supports Fibre Channel, which has multiple options for connections, and
+# iSCSI.
 VOLUME_DRIVER_MAPPINGS = {
     'fibre_channel': vol_attach.FC_STRATEGY_MAPPING[
-        CONF.powervm.fc_attach_strategy]
+        CONF.powervm.fc_attach_strategy.lower()],
+    'iscsi': vol_attach.NETWORK_STRATEGY_MAPPING[
+        CONF.powervm.network_attach_strategy.lower()],
 }
 
 DISK_ADPT_NS = 'nova_powervm.virt.powervm.disk'
@@ -1132,15 +1134,14 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # The WWPNs in case of FC connection.
         if vol_drv is not None:
-            # Override the host name.
-            # TODO(IBM) See if there is a way to support a FC host name that
-            # is independent of overall host name.
-            connector['host'] = vol_drv.host_name()
 
-            # Set the WWPNs
-            wwpn_list = vol_drv.wwpns()
-            if wwpn_list is not None:
-                connector["wwpns"] = wwpn_list
+            if CONF.powervm.volume_adapter.lower() == "fibre_channel":
+                # Set the WWPNs
+                wwpn_list = vol_drv.wwpns()
+                if wwpn_list is not None:
+                    connector["wwpns"] = wwpn_list
+            connector['host'] = vol_drv.host_name()
+            connector['initiator'] = vol_drv.host_name()
         return connector
 
     def migrate_disk_and_power_off(self, context, instance, dest,
@@ -1824,10 +1825,8 @@ class PowerVMDriver(driver.ComputeDriver):
                       {'inst': instance.name,
                        'xags': ','.join(xags)})
             return list(xags)
-
         # If we have any volumes, add the volumes required mapping XAGs.
-        adp_type = vol_attach.FC_STRATEGY_MAPPING[
-            CONF.powervm.fc_attach_strategy.lower()]
+        adp_type = VOLUME_DRIVER_MAPPINGS[CONF.powervm.volume_adapter]
         vol_cls = importutils.import_class(adp_type)
         xags.update(set(vol_cls.min_xags()))
         LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',
@@ -1856,8 +1855,7 @@ class PowerVMDriver(driver.ComputeDriver):
                  the adapter based on the connection-type of
                  connection_info.
         """
-        adp_type = vol_attach.FC_STRATEGY_MAPPING[
-            CONF.powervm.fc_attach_strategy]
+        adp_type = VOLUME_DRIVER_MAPPINGS[CONF.powervm.volume_adapter]
         vol_cls = importutils.import_class(adp_type)
         if conn_info:
             LOG.debug('Volume Adapter returned for connection_info=%s' %
@@ -1883,13 +1881,19 @@ class PowerVMDriver(driver.ComputeDriver):
         if self._is_booted_from_volume(block_device_info) and bdms is not None:
             for bdm in bdms:
                 if bdm.get('boot_index') == 0:
-                    conn_info = bdm.get('connection_info')
-                    connectivity_type = conn_info['data']['connection-type']
-                    boot_conn_type = ('vscsi' if connectivity_type ==
-                                      'pv_vscsi' else connectivity_type)
-                    return boot_conn_type
+                    return self._get_connectivity_type(bdm)
         else:
             return boot_conn_type
+
+    def _get_connectivity_type(self, bdm):
+        conn_info = bdm.get('connection_info')
+        if 'connection-type' in conn_info['data']:
+            connectivity_type = conn_info['data']['connection-type']
+            boot_conn_type = ('vscsi' if connectivity_type == 'pv_vscsi' else
+                              connectivity_type)
+        elif 'driver_volume_type' in conn_info['data']:
+            boot_conn_type = conn_info['data']['driver_volume_type']
+        return boot_conn_type
 
 
 class NovaEventHandler(pvm_apt.RawEventHandler):

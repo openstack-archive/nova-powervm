@@ -55,6 +55,11 @@ powervm_opts = [
                default='localdisk',
                help='The disk driver to use for PowerVM disks. '
                'Valid options are: localdisk, ssp'),
+    cfg.StrOpt('volume_adapter',
+               choices=['fibre_channel', 'iscsi'], ignore_case=True,
+               default='fibre_channel',
+               help='The volume adapter to use for PowerVM volumes. '
+               'Valid options are: fibre_channel, iscsi'),
     cfg.StrOpt('pvm_vswitch_for_novalink_io',
                default='NovaLinkVEABridge',
                help="Name of the PowerVM virtual switch to be used when "
@@ -119,6 +124,12 @@ vol_adapter_opts = [
                     'specified and at least one fabric_X_port_wwpns option '
                     '(where X corresponds to the fabric name) must be '
                     'specified.'),
+    cfg.StrOpt('network_attach_strategy',
+               choices=['iscsi'], ignore_case=True,
+               default='iscsi',
+               help='The iSCSI Volume Strategy defines how iSCSI Cinder '
+                    'volumes should be attached to the Virtual Machine. The '
+                    'option is: iscsi.'),
     cfg.StrOpt('fc_npiv_adapter_api',
                default='nova_powervm.virt.powervm.volume.npiv.'
                'NPIVVolumeAdapter',
@@ -126,7 +137,7 @@ vol_adapter_opts = [
                     'connection mechanism.'),
     cfg.StrOpt('fc_vscsi_adapter_api',
                default='nova_powervm.virt.powervm.volume.vscsi.'
-               'VscsiVolumeAdapter',
+               'PVVscsiFCVolumeAdapter',
                help='Volume Adapter API to connect FC volumes through Virtual '
                     'I/O Server using PowerVM vSCSI connection mechanism.'),
     cfg.IntOpt('vscsi_vios_connections_required',
