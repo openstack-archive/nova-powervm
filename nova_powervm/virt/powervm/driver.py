@@ -1433,8 +1433,8 @@ class PowerVMDriver(driver.ComputeDriver):
         return mig.check_destination(context, src_compute_info,
                                      dst_compute_info)
 
-    def check_can_live_migrate_destination_cleanup(self, context,
-                                                   dest_check_data):
+    def cleanup_live_migration_destination_check(self, context,
+                                                 dest_check_data):
         """Do required cleanup on dest host after check_can_live_migrate calls
 
         :param context: security context

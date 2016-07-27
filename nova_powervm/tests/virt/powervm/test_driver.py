@@ -1773,7 +1773,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual('dest_data', dest_data)
 
     def test_can_live_mig_dest_clnup(self):
-        self.drv.check_can_live_migrate_destination_cleanup(
+        self.drv.cleanup_live_migration_destination_check(
             'context', 'dest_data')
 
     @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationSrc')
