@@ -98,7 +98,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.slot_mgr = mock.Mock()
         self.slot_mgr.build_map.get_vscsi_slot.return_value = 62, 'the_lua'
 
-    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
+    @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('pypowervm.tasks.storage.find_stale_lpars')
     def test_pre_live_migration(self, mock_fsl, mock_discover):
         # The mock return values
@@ -166,9 +166,9 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
-    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
+    @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
-    def test_connect_volume_rebuild_new_vio(self, mock_get_vm_id, mock_lua,
+    def test_connect_volume_rebuild_new_vio(self, mock_get_vm_id, mock_disc,
                                             mock_build_map, mock_add_map):
         """Check if bad slot map.
 
@@ -181,7 +181,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         # Set up that the device is on the VIOS
         mock_get_vm_id.return_value = 'partition_id'
         mock_build_map.side_effect = Exception
-        mock_lua.return_value = (
+        mock_disc.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
 
         # Run the method.  It will fail only because there isn't a second
@@ -194,12 +194,12 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
-    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
+    @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
-    def test_connect_volume(self, mock_get_vm_id, mock_lua_recovery,
+    def test_connect_volume(self, mock_get_vm_id, mock_disc_hdisk,
                             mock_build_map, mock_add_map):
         # The mock return values
-        mock_lua_recovery.return_value = (
+        mock_disc_hdisk.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
         mock_get_vm_id.return_value = 'partition_id'
 
@@ -250,17 +250,14 @@ class TestVSCSIAdapter(BaseVSCSITest):
         self.assertEqual(1, mock_disc_hdisk.call_count)
 
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
-    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
                 '_validate_vios_on_connection')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_to_initiators(
         self, mock_get_vm_id, mock_validate_vioses, mock_add_vscsi_mapping,
-        mock_lua_recovery, mock_build_itls):
+        mock_build_itls):
         """Tests that the connect w/out initiators throws errors."""
-        mock_lua_recovery.return_value = (
-            hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
         mock_get_vm_id.return_value = 'partition_id'
 
         mock_instance = mock.Mock()
@@ -571,7 +568,7 @@ class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):
         # Two of the calls are for the slots, two are for the add mappings
         self.assertEqual(2, self.ft_fx.patchers['update'].mock.call_count)
 
-    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
+    @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('pypowervm.tasks.storage.find_stale_lpars')
     def test_pre_live_migration_multi_vios(self, mock_fsl, mock_discover):
         # The mock return values
