@@ -411,8 +411,15 @@ class PvmLBVifDriver(PvmLioVifDriver):
 
         dev_name = self.get_trunk_dev_name(vif)
         utils.execute('ip', 'link', 'set', dev_name, 'down', run_as_root=True)
-        utils.execute('brctl', 'delif', vif['network']['bridge'],
-                      dev_name, run_as_root=True)
+        try:
+            utils.execute('brctl', 'delif', vif['network']['bridge'],
+                          dev_name, run_as_root=True)
+        except Exception as e:
+            LOG.warning(_LW('Unable to delete device %(dev_name)s from bridge '
+                            '%(bridge)s. Error: %(error)s'),
+                        {'dev_name': dev_name,
+                         'bridge': vif['network']['bridge'],
+                         'error': e.message})
         for trunk in trunks:
             trunk.delete()
 
