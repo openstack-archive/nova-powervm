@@ -385,8 +385,8 @@ class VscsiVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                         LOG.warning(_LW(
                             "Disconnect Volume: The backing hdisk for volume "
                             "%(volume_id)s on Virtual I/O Server %(vios)s is "
-                            "not in a valid state.  No disconnect "
-                            "actions to be taken as volume is not healthy."),
+                            "not in a valid state.  This may be the result of "
+                            "an evacuate."),
                             {'volume_id': self.volume_id, 'vios': vios_w.name})
                         return False
 

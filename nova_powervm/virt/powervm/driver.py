@@ -44,6 +44,7 @@ from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks import memory as pvm_mem
 from pypowervm.tasks import partition as pvm_par
 from pypowervm.tasks import power as pvm_pwr
+from pypowervm.tasks import scsi_mapper as pvm_smap
 from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm import util as pvm_util
 from pypowervm.wrappers import base_partition as pvm_bp
@@ -607,6 +608,24 @@ class PowerVMDriver(driver.ComputeDriver):
                 if destroy_disks:
                     destroy_disk_task = tf_stg.DeleteDisk(
                         self.disk_dvr, context, instance)
+
+            # It's possible that volume disconnection may have failed for disks
+            # which had been removed from the VIOS by the storage back end
+            # (e.g. if we're destroying an evacuated instance).  In that case,
+            # the storage is already gone, but we had no way to identify its
+            # mappings because no disk name/UDID.  We now remove such mappings
+            # based on their association with the LPAR ID.
+            def _rm_vscsi_maps(vwrap):
+                removals = pvm_smap.remove_maps(vwrap, pvm_inst_uuid)
+                if removals:
+                    LOG.warning(_LW("Removing %(num_maps)d storage-less VSCSI "
+                                    "mappings associated with LPAR ID "
+                                    "%(lpar_uuid)s from VIOS %(vios_name)s."),
+                                {'num_maps': len(removals),
+                                 'lpar_uuid': pvm_inst_uuid,
+                                 'vios_name': vwrap.name})
+                return removals
+            stg_ftsk.add_functor_subtask(_rm_vscsi_maps)
 
             # Add the transaction manager flow to the end of the 'storage
             # connection' tasks.  This will run all the disconnection ops
