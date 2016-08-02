@@ -23,6 +23,7 @@ from pypowervm.tasks import management_console as mgmt_task
 from pypowervm.tasks import migration as mig
 from pypowervm.tasks import storage as stor_task
 from pypowervm.tasks import vterm
+from pypowervm import util
 import six
 
 from nova_powervm import conf as cfg
@@ -129,14 +130,14 @@ class LiveMigrationDest(LiveMigration):
 
         return self.mig_data
 
-    def pre_live_migration(self, context, block_device_info, network_info,
+    def pre_live_migration(self, context, block_device_info, network_infos,
                            disk_info, migrate_data, vol_drvs):
 
         """Prepare an instance for live migration
 
         :param context: security context
         :param block_device_info: instance block device information
-        :param network_info: instance network information
+        :param network_infos: instance network information
         :param disk_info: instance disk information
         :param migrate_data: a PowerVMLiveMigrateData object
         :param vol_drvs: volume drivers for the attached volumes
@@ -148,6 +149,15 @@ class LiveMigrationDest(LiveMigration):
         # Set the ssh auth key.
         mgmt_task.add_authorized_key(self.drvr.adapter,
                                      migrate_data.public_key)
+
+        # For each network info, run the pre-live migration.  This tells the
+        # system what the target vlans will be.
+        vea_vlan_mappings = {}
+        for network_info in network_infos:
+            vif.pre_live_migrate_at_destination(
+                self.drvr.adapter, self.drvr.host_uuid, self.instance,
+                network_info, vea_vlan_mappings)
+        migrate_data.vea_vlan_mappings = vea_vlan_mappings
 
         # For each volume, make sure it's ready to migrate
         for vol_drv in vol_drvs:
@@ -182,12 +192,6 @@ class LiveMigrationDest(LiveMigration):
         LOG.debug("Post live migration at destination.",
                   instance=self.instance)
 
-        # Run the post live migration steps at the destination
-        for network_info in network_infos:
-            vif.post_live_migrate_at_destination(
-                self.drvr.adapter, self.drvr.host_uuid, self.instance,
-                network_info)
-
         # An unbounded dictionary that each volume adapter can use to persist
         # data from one call to the next.
         mig_vol_stor = {}
@@ -204,6 +208,26 @@ class LiveMigrationDest(LiveMigration):
                 raise LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
                     name=self.instance.name, volume=vol_drv.volume_id)
+
+    def rollback_live_migration_at_destination(
+            self, context, instance, network_infos, block_device_info,
+            destroy_disks=True, migrate_data=None):
+        """Clean up destination node after a failed live migration.
+
+        :param context: security context
+        :param instance: instance object that was being migrated
+        :param network_infos: instance network infos
+        :param block_device_info: instance block device information
+        :param destroy_disks:
+            if true, destroy disks at destination during cleanup
+        :param migrate_data: a LiveMigrateData object
+
+        """
+        # Clean up any network infos
+        for network_info in network_infos:
+            vif.rollback_live_migration_at_destination(
+                self.drvr.adapter, self.drvr.host_uuid, self.instance,
+                network_info, migrate_data.vea_vlan_mappings)
 
     def cleanup_volume(self, vol_drv):
         """Cleanup a volume after a failed migration.
@@ -308,6 +332,7 @@ class LiveMigrationSrc(LiveMigration):
 
         # The passed in mig data has more info (dest data added), so replace
         self.mig_data = migrate_data
+
         # Get the vFC and vSCSI live migration mappings
         vol_data = migrate_data.vol_data
         vfc_mappings = vol_data.get('vfc_lpm_mappings')
@@ -317,6 +342,18 @@ class LiveMigrationSrc(LiveMigration):
         if vscsi_mappings is not None:
             vscsi_mappings = jsonutils.loads(vscsi_mappings)
 
+        # Run the pre-live migration on the network objects
+        network_infos = self.instance.info_cache.network_info
+        trunks_to_del = []
+        for network_info in network_infos:
+            trunks_to_del.extend(vif.pre_live_migrate_at_source(
+                self.drvr.adapter, self.drvr.host_uuid, self.instance,
+                network_info))
+
+        # Convert the network mappings into something the API can understand.
+        vlan_mappings = self._convert_nl_io_mappings(
+            migrate_data.vea_vlan_mappings)
+
         try:
             # Migrate the LPAR!
             mig.migrate_lpar(
@@ -325,13 +362,26 @@ class LiveMigrationSrc(LiveMigration):
                 tgt_mgmt_usr=self.mig_data.dest_user_id,
                 virtual_fc_mappings=vfc_mappings,
                 virtual_scsi_mappings=vscsi_mappings,
-                sdn_override=True, vlan_check_override=True)
+                vlan_mappings=vlan_mappings, sdn_override=True,
+                vlan_check_override=True)
 
+            # Delete the source side network trunk adapters
+            for trunk_to_del in trunks_to_del:
+                trunk_to_del.delete()
         except Exception:
             LOG.error(_LE("Live migration failed."), instance=self.instance)
             raise
         finally:
             LOG.debug("Finished migration.", instance=self.instance)
+
+    def _convert_nl_io_mappings(self, mappings):
+        if not mappings:
+            return None
+
+        resp = []
+        for mac, value in six.iteritems(mappings):
+            resp.append("%s/%s" % (util.sanitize_mac_for_api(mac), value))
+        return resp
 
     def post_live_migration(self, vol_drvs, migrate_data):
         """Post operation of live migration at source host.
@@ -362,10 +412,6 @@ class LiveMigrationSrc(LiveMigration):
         :param network_infos: instance network information
         """
         LOG.debug("Post live migration at source.", instance=self.instance)
-        for network_info in network_infos:
-            vif.post_live_migrate_at_source(
-                self.drvr.adapter, self.drvr.host_uuid, self.instance,
-                network_info)
 
     def rollback_live_migration(self, context):
         """Roll back a failed migration.
