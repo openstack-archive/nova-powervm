@@ -889,6 +889,9 @@ class TestPowerVMDriver(test.TestCase):
         flow.add.assert_has_calls([mock.call('disconn_vol1'),
                                    mock.call('disconn_vol2')])
 
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
+    @mock.patch('pypowervm.wrappers.entry_wrapper.EntryWrapper.update',
+                new=mock.Mock())
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
@@ -904,7 +907,7 @@ class TestPowerVMDriver(test.TestCase):
     def test_destroy_internal(self, mock_bld_slot_mgr, mock_get_flv,
                               mock_pvmuuid, mock_val_vopt, mock_dlt_vopt,
                               mock_pwroff, mock_dlt, mock_boot_from_vol,
-                              mock_unplug_vifs):
+                              mock_unplug_vifs, mock_rm_maps):
         """Validates the basic PowerVM destroy."""
         # NVRAM Manager
         self.drv.nvram_mgr = mock.Mock()
@@ -912,6 +915,11 @@ class TestPowerVMDriver(test.TestCase):
         # BDMs
         mock_bdms = self._fake_bdms()
         mock_boot_from_vol.return_value = False
+
+        def validate_rm_maps(vwrap, lpar_uuid):
+            self.assertIsInstance(vwrap, pvm_vios.VIOS)
+            self.assertEqual(mock_pvmuuid.return_value, lpar_uuid)
+        mock_rm_maps.side_effect = validate_rm_maps
         # Invoke the method.
         self.drv.destroy('context', self.inst, ['net'],
                          block_device_info=mock_bdms)
@@ -933,6 +941,10 @@ class TestPowerVMDriver(test.TestCase):
         # Validate that the volume detach was called
         self.vol_drv.disconnect_volume.assert_has_calls(
             [mock.call(mock_bld_slot_mgr.return_value)] * 2)
+
+        # Post-scrub was invoked
+        mock_rm_maps.assert_called()
+
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)
 
