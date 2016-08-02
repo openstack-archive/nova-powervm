@@ -23,6 +23,7 @@ import mock
 from nova import exception
 from nova import objects
 from nova import test
+from nova.tests.unit import fake_network
 
 from nova_powervm.objects import migrate_data as mig_obj
 from nova_powervm.tests.virt import powervm
@@ -41,6 +42,10 @@ class TestLPM(test.TestCase):
 
         self.inst = objects.Instance(**powervm.TEST_INSTANCE)
 
+        self.network_infos = fake_network.fake_get_instance_nw_info(self, 1)
+        self.inst.info_cache = objects.InstanceInfoCache(
+            network_info=self.network_infos)
+
         self.mig_data = mig_obj.PowerVMLiveMigrateData()
         self.mig_data.host_mig_data = {}
         self.mig_data.dest_ip = '1'
@@ -49,6 +54,7 @@ class TestLPM(test.TestCase):
         self.mig_data.public_key = 'PublicKey'
         self.mig_data.dest_proc_compat = 'a,b,c'
         self.mig_data.vol_data = {}
+        self.mig_data.vea_vlan_mappings = {}
 
         self.lpmsrc = lpm.LiveMigrationSrc(self.drv, self.inst, self.mig_data)
         self.lpmdst = lpm.LiveMigrationDest(self.drv, self.inst)
@@ -151,11 +157,29 @@ class TestLPM(test.TestCase):
                               src_compute_info, dst_compute_info)
 
     @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
-    def test_pre_live_mig(self, mock_scrub):
+    @mock.patch('nova_powervm.virt.powervm.vif.'
+                'pre_live_migrate_at_destination')
+    def test_pre_live_mig(self, mock_vif_pre, mock_scrub):
         vol_drv = mock.MagicMock()
+        network_infos = [{'type': 'pvm_sea'}]
+
+        def update_vea_mapping(adapter, host_uuid, instance, network_info,
+                               vea_vlan_mappings):
+            # Make sure what comes in is None, but that we change it.
+            self.assertEqual(vea_vlan_mappings, {})
+            vea_vlan_mappings['test'] = 'resp'
+
+        mock_vif_pre.side_effect = update_vea_mapping
+
         resp = self.lpmdst.pre_live_migration(
-            'context', 'block_device_info', 'network_info', 'disk_info',
+            'context', 'block_device_info', network_infos, 'disk_info',
             self.mig_data, [vol_drv])
+
+        # Make sure the pre_live_migrate_at_destination was invoked for the vif
+        mock_vif_pre.assert_called_once_with(
+            self.drv.adapter, self.drv.host_uuid, self.inst, network_infos[0],
+            mock.ANY)
+        self.assertEqual({'test': 'resp'}, self.mig_data.vea_vlan_mappings)
 
         # Make sure we get something back, and that the volume driver was
         # invoked.
@@ -171,7 +195,7 @@ class TestLPM(test.TestCase):
             Exception('foo'))
         self.assertRaises(
             exception.MigrationPreCheckError, self.lpmdst.pre_live_migration,
-            'context', 'block_device_info', 'network_info', 'disk_info',
+            'context', 'block_device_info', network_infos, 'disk_info',
             self.mig_data, [vol_drv, raising_vol_drv])
         vol_drv.pre_live_migration_on_destination.assert_called_once_with({})
         (raising_vol_drv.pre_live_migration_on_destination.
@@ -185,7 +209,14 @@ class TestLPM(test.TestCase):
         vol_drv.cleanup_volume_at_destination.assert_called_once_with({})
 
     @mock.patch('pypowervm.tasks.migration.migrate_lpar')
-    def test_live_migration(self, mock_migr):
+    @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationSrc.'
+                '_convert_nl_io_mappings')
+    @mock.patch('nova_powervm.virt.powervm.vif.pre_live_migrate_at_source')
+    def test_live_migration(self, mock_vif_pre_lpm, mock_convert_mappings,
+                            mock_migr):
+        mock_trunk = mock.MagicMock()
+        mock_vif_pre_lpm.return_value = [mock_trunk]
+        mock_convert_mappings.return_value = ['AABBCCDDEEFF/5']
 
         self.lpmsrc.lpar_w = mock.Mock()
         self.lpmsrc.live_migration('context', self.mig_data)
@@ -193,7 +224,12 @@ class TestLPM(test.TestCase):
             self.lpmsrc.lpar_w, 'a', sdn_override=True, tgt_mgmt_svr='1',
             tgt_mgmt_usr='neo', validate_only=False,
             virtual_fc_mappings=None, virtual_scsi_mappings=None,
-            vlan_check_override=True)
+            vlan_check_override=True, vlan_mappings=['AABBCCDDEEFF/5'])
+
+        # Network assertions
+        mock_vif_pre_lpm.assert_called_once_with(
+            self.drv.adapter, self.drv.host_uuid, self.inst, mock.ANY)
+        mock_trunk.delete.assert_called_once()
 
         # Test that we raise errors received during migration
         mock_migr.side_effect = ValueError()
@@ -203,20 +239,18 @@ class TestLPM(test.TestCase):
             self.lpmsrc.lpar_w, 'a', sdn_override=True, tgt_mgmt_svr='1',
             tgt_mgmt_usr='neo', validate_only=False,
             virtual_fc_mappings=None, virtual_scsi_mappings=None,
-            vlan_check_override=True)
+            vlan_mappings=['AABBCCDDEEFF/5'], vlan_check_override=True)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.post_live_migrate_at_source')
-    def test_post_live_mig_src(self, mock_post_migrate_vif):
-        network_infos = [mock.Mock(), mock.Mock()]
-        self.lpmsrc.post_live_migration_at_source(network_infos)
-        self.assertEqual(2, mock_post_migrate_vif.call_count)
+    def test_convert_nl_io_mappings(self):
+        # Test simple None case
+        self.assertIsNone(self.lpmsrc._convert_nl_io_mappings(None))
 
-    @mock.patch('nova_powervm.virt.powervm.vif.'
-                'post_live_migrate_at_destination')
-    def test_post_live_mig_dest(self, mock_post_migrate_vif):
-        network_infos = [mock.Mock(), mock.Mock()]
-        self.lpmdst.post_live_migration_at_destination(network_infos, [])
-        self.assertEqual(2, mock_post_migrate_vif.call_count)
+        # Do some mappings
+        test_mappings = {'aa:bb:cc:dd:ee:ff': 5, 'aa:bb:cc:dd:ee:ee': 126}
+        expected = ['AABBCCDDEEFF/5', 'AABBCCDDEEEE/126']
+        self.assertEqual(
+            set(expected),
+            set(self.lpmsrc._convert_nl_io_mappings(test_mappings)))
 
     @mock.patch('pypowervm.tasks.migration.migrate_recover')
     def test_rollback(self, mock_migr):

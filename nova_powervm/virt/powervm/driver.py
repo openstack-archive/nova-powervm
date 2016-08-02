@@ -1612,6 +1612,13 @@ class PowerVMDriver(driver.ComputeDriver):
         :param migrate_data: a LiveMigrateData object
 
         """
+        # Run the rollback
+        mig = self.live_migrations[instance.uuid]
+        mig.rollback_live_migration_at_destination(
+            context, instance, network_info, block_device_info,
+            destroy_disks=destroy_disks, migrate_data=migrate_data)
+
+        # Remove the active migration
         del self.live_migrations[instance.uuid]
 
     def check_instance_shared_storage_local(self, context, instance):

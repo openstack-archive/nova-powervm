@@ -1936,6 +1936,10 @@ class TestPowerVMDriver(test.TestCase):
     def test_rollbk_lpm_dest(self):
         self.drv.rollback_live_migration_at_destination(
             'context', self.lpm_inst, 'network_info', 'block_device_info')
+        mock_rollback = self.lpm.rollback_live_migration_at_destination
+        mock_rollback.assert_called_once_with(
+            'context', self.lpm_inst, 'network_info', 'block_device_info',
+            destroy_disks=True, migrate_data=None)
         self.assertRaises(
             KeyError, lambda: self.drv.live_migrations[self.lpm_inst.uuid])
 

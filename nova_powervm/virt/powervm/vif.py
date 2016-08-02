@@ -15,15 +15,14 @@
 #    under the License.
 
 import abc
-import logging
 import six
 
 from nova import exception
 from nova.network import linux_net
 from nova.network import model as network_model
 from nova import utils
-from oslo_concurrency import lockutils
 from oslo_config import cfg
+from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import importutils
 from pypowervm import exceptions as pvm_ex
@@ -43,7 +42,8 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
-LOG = logging.getLogger(__name__)
+
+LOG = log.getLogger(__name__)
 
 SECURE_RMC_VSWITCH = 'MGMTSWITCH'
 SECURE_RMC_VLAN = 4094
@@ -179,30 +179,57 @@ def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
         slot_mgr.drop_vnet(vnet_w)
 
 
-def post_live_migrate_at_destination(adapter, host_uuid, instance, vif):
-    """Performs live migrate cleanup on the destination host.
+def pre_live_migrate_at_destination(adapter, host_uuid, instance, vif,
+                                    vea_vlan_mappings):
+    """Performs the pre live migrate on the destination host.
 
     :param adapter: The pypowervm adapter.
     :param host_uuid: The host UUID for the PowerVM API.
     :param instance: The nova instance object.
-    :param vif: The virtual interface that was migrated.  This may be called
-                network_info in other portions of the code.
+    :param vif: The virtual interface that will be migrated.  This may be
+                called network_info in other portions of the code.
+    :param vea_vlan_mappings: The VEA VLAN mappings.  Key is the vif mac
+                              address, value is the destination's target
+                              hypervisor VLAN.
     """
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
-    vif_drv.post_live_migrate_at_destination(vif)
+    vif_drv.pre_live_migrate_at_destination(vif, vea_vlan_mappings)
 
 
-def post_live_migrate_at_source(adapter, host_uuid, instance, vif):
-    """Performs live migrate cleanup on the source host.
+def rollback_live_migration_at_destination(adapter, host_uuid, instance, vif,
+                                           vea_vlan_mappings):
+    """Performs the rollback of the live migrate on the destination host.
 
     :param adapter: The pypowervm adapter.
     :param host_uuid: The host UUID for the PowerVM API.
     :param instance: The nova instance object.
-    :param vif: The virtual interface that was migrated.  This may be called
-                network_info in other portions of the code.
+    :param vif: The virtual interface that is being rolled back.  This may be
+                called network_info in other portions of the code.
+    :param vea_vlan_mappings: The VEA VLAN mappings.  Key is the vif mac
+                              address, value is the destination's target
+                              hypervisor VLAN.
     """
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
-    vif_drv.post_live_migrate_at_source(vif)
+    vif_drv.rollback_live_migration_at_destination(vif, vea_vlan_mappings)
+
+
+def pre_live_migrate_at_source(adapter, host_uuid, instance, vif):
+    """Performs the pre live migrate on the source host.
+
+    This is executed directly before the migration is started on the source
+    host.
+
+    :param adapter: The pypowervm adapter.
+    :param host_uuid: The host UUID for the PowerVM API.
+    :param instance: The nova instance object.
+    :param vif: The virtual interface that will be migrated.  This may be
+                called network_info in other portions of the code.
+    :return: The list of TrunkAdapter's on the source that are hosting the
+             VM's vif.  Should only return data if those trunks should be
+             deleted after the migration.
+    """
+    vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
+    return vif_drv.pre_live_migrate_at_source(vif)
 
 
 def get_secure_rmc_vswitch(adapter, host_uuid):
@@ -333,23 +360,44 @@ class PvmVifDriver(object):
                 return cna_w
         return None
 
-    def post_live_migrate_at_destination(self, vif):
-        """Performs live migrate cleanup on the destination host.
+    def pre_live_migrate_at_destination(self, vif, vea_vlan_mappings):
+        """Performs the pre live migrate on the destination host.
 
-        This is optional, child classes do not need to implement this.
+        Pre live migrate at destination is invoked before
+        pre_live_migrate_at_source.
 
-        :param vif: The virtual interface that was migrated.
+        :param vif: The virtual interface that will be migrated.  This may be
+                    called network_info in other portions of the code.
+        :param vea_vlan_mappings: The VEA VLAN mappings.  Key is the vif
+                                  mac address, value is the destination's
+                                  target hypervisor VLAN.
         """
         pass
 
-    def post_live_migrate_at_source(self, vif):
-        """Performs live migrate cleanup on the source host.
+    def rollback_live_migrate_at_destination(self, vif, vea_vlan_mappings):
+        """Rolls back the pre live migrate on the destination host.
 
-        This is optional, child classes do not need to implement this.
-
-        :param vif: The virtual interface that was migrated.
+        :param vif: The virtual interface that was being migrated.  This may be
+                    called network_info in other portions of the code.
+        :param vea_vlan_mappings: The VEA VLAN mappings.  Key is the vif
+                                  mac address, value is the destination's
+                                  target hypervisor VLAN.
         """
         pass
+
+    def pre_live_migrate_at_source(self, vif):
+        """Performs the pre live migrate on the source host.
+
+        This is executed directly before the migration is started on the source
+        host.
+
+        :param vif: The virtual interface that will be migrated.  This may be
+                    called network_info in other portions of the code.
+        :return: The list of TrunkAdapter's on the source that are hosting the
+                 VM's vif.  Should only return data if those trunks should be
+                 deleted after the migration.
+        """
+        return []
 
 
 class PvmSeaVifDriver(PvmVifDriver):
@@ -661,58 +709,102 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         # Now delete the client CNA
         return super(PvmOvsVifDriver, self).unplug(vif, cna_w_list=cna_w_list)
 
-    def post_live_migrate_at_destination(self, vif):
-        """Performs live migrate cleanup on the destination host.
+    def pre_live_migrate_at_destination(self, vif, vea_vlan_mappings):
+        """Performs the pre live migrate on the destination host.
 
-        This is optional, child classes do not need to implement this.
+        This method will create the trunk adapter on the destination host,
+        set its link state up, and attach it to the integration OVS switch.
+        It also updates the vea_vlan_mappings to indicate which unique
+        hypervisor VLAN should be used for this VIF for the migration operation
+        to complete properly.
 
-        :param vif: The virtual interface that was migrated.
+        :param vif: The virtual interface that will be migrated.  This may be
+                    called network_info in other portions of the code.
+        :param vea_vlan_mappings: The VEA VLAN mappings.  Key is the vif
+                                  mac address, value is the destination's
+                                  target hypervisor VLAN.
         """
-        # 1) Find a free vlan to use
-        # 2) Update the migrated CNA to use the new vlan that was found
-        #    and ensure that the CNA is enabled
-        # 3) Create a trunk adapter on the destination of the migration
-        #    using the same vlan as the CNA
-
         mgmt_wrap = pvm_par.get_this_partition(self.adapter)
-        dev_name = self.get_trunk_dev_name(vif)
-        mac = pvm_util.sanitize_mac_for_api(vif['address'])
+        dev = self.get_trunk_dev_name(vif)
 
-        # Get vlan
-        vswitch_w = pvm_net.VSwitch.search(
-            self.adapter, parent_type=pvm_ms.System.schema_type,
-            one_result=True, parent_uuid=self.host_uuid,
-            name=CONF.powervm.pvm_vswitch_for_novalink_io)
-        cna = vm.get_cnas(
-            self.adapter, self.instance, mac=mac, one_result=True)
+        # Find a specific free VLAN and create the Trunk in a single atomic
+        # action.
+        cna_w = pvm_cna.crt_trunk_with_free_vlan(
+            self.adapter, self.host_uuid, [mgmt_wrap.uuid],
+            CONF.powervm.pvm_vswitch_for_novalink_io, dev_name=dev)[0]
 
-        # Assigns a free vlan (which is returned) to the cna_list
-        # also enable the cna
-        cna = pvm_cna.assign_free_vlan(
-            self.adapter, self.host_uuid, vswitch_w, cna)
-        # Create a trunk with the vlan_id
-        trunk_adpt = pvm_net.CNA.bld(
-            self.adapter, cna.pvid, vswitch_w.related_href, trunk_pri=1,
-            dev_name=dev_name)
-        trunk_adpt.create(parent=mgmt_wrap)
-
-        utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
-        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev_name,
+        # Bring the vif up.  This signals to neutron that its ready for vif
+        # plugging
+        utils.execute('ip', 'link', 'set', dev, 'up', run_as_root=True)
+        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev,
                                       self.get_ovs_interfaceid(vif),
                                       vif['address'], self.instance.uuid)
 
-    @lockutils.synchronized("post_migration_pvm_ovs")
-    def post_live_migrate_at_source(self, vif):
-        """Performs live migrate cleanup on the source host.
+        # Save this data for the migration command.
+        vea_vlan_mappings[vif['address']] = cna_w.pvid
+        LOG.info(_LI("VIF with mac %(mac)s is going on trunk %(dev)s with "
+                     "PVID %(pvid)s"),
+                 {'mac': vif['address'], 'dev': dev, 'pvid': cna_w.pvid},
+                 instance=self.instance)
 
-        This is optional, child classes do not need to implement this.
+    def rollback_live_migrate_at_destination(self, vif, vea_vlan_mappings):
+        """Rolls back the pre live migrate on the destination host.
 
-        :param vif: The virtual interface that was migrated.
+        Will delete the TrunkAdapter that pre_live_migrate_at_destination
+        created with its unique hypervisor VLAN.  This uses the
+        vea_vlan_mappings to provide the information as to what TrunkAdapter
+        it should remove.
+
+        :param vif: The virtual interface that was being migrated.  This may be
+                    called network_info in other portions of the code.
+        :param vea_vlan_mappings: The VEA VLAN mappings.  Key is the vif
+                                  mac address, value is the destination's
+                                  target hypervisor VLAN.
         """
-        # Deletes orphaned trunks
-        orphaned_trunks = pvm_cna.find_orphaned_trunks(
-            self.adapter, CONF.powervm.pvm_vswitch_for_novalink_io)
-        dev = self.get_trunk_dev_name(vif)
-        linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
-        for orphan in orphaned_trunks:
-            orphan.delete()
+        LOG.warning(_LW("Rolling back the live migrate of VIF with mac "
+                        "%(mac)s."), {'mac': vif['address']},
+                    instance=self.instance)
+
+        # We know that we just attached the VIF to the NovaLink VM.  Search
+        # for a trunk adapter with the PVID and vSwitch that we specified
+        # above.  This is guaranteed to be unique.
+        vlan = vea_vlan_mappings[vif['address']]
+        vswitch_id = pvm_net.VSwitch.search(
+            self.adapter, parent_type=pvm_ms.System, one_result=True,
+            name=CONF.powervm.pvm_vswitch_for_novalink_io).switch_id
+
+        # Find the trunk
+        mgmt_wrap = pvm_par.get_this_partition(self.adapter)
+        trunk = pvm_net.CNA.search(
+            self.adapter, parent_type=mgmt_wrap.schema_type,
+            parent_uuid=mgmt_wrap.uuid, pvid=vlan, vswitch_id=vswitch_id,
+            one_result=True)
+
+        if trunk:
+            # Delete the peer'd trunk adapter.
+            LOG.warning(_LW("Deleting target side trunk adapter %(dev)s for "
+                            "rollback operation"), {'dev': trunk.dev_name},
+                        instance=self.instance)
+            trunk.delete()
+
+    def pre_live_migrate_at_source(self, vif):
+        """Performs the pre live migrate on the source host.
+
+        This is executed directly before the migration is started on the source
+        host.
+
+        :param vif: The virtual interface that will be migrated.  This may be
+                    called network_info in other portions of the code.
+        :return: The list of TrunkAdapter's on the source that are hosting the
+                 VM's vif.  Should only return data if those trunks should be
+                 deleted after the migration.
+        """
+        # Right before the migration, we need to find the trunk on the source
+        # host.
+        mac = pvm_util.sanitize_mac_for_api(vif['address'])
+        cna_w = pvm_net.CNA.search(
+            self.adapter, parent_type=pvm_lpar.LPAR.schema_type,
+            parent_uuid=vm.get_pvm_uuid(self.instance), one_result=True,
+            mac=mac)
+
+        return pvm_cna.find_trunks(self.adapter, cna_w)

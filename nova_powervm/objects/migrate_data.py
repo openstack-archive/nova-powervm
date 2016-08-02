@@ -23,7 +23,8 @@ from nova.objects import migrate_data
 @obj_base.NovaObjectRegistry.register
 class PowerVMLiveMigrateData(migrate_data.LiveMigrateData):
     # Version 1.0: Initial version
-    VERSION = '1.0'
+    # Version 1.1: Added the Virtual Ethernet Adapter VLAN mappings.
+    VERSION = '1.1'
 
     fields = {
         'host_mig_data': fields.DictOfNullableStringsField(),
@@ -33,4 +34,5 @@ class PowerVMLiveMigrateData(migrate_data.LiveMigrateData):
         'public_key': fields.StringField(),
         'dest_proc_compat': fields.StringField(),
         'vol_data': fields.DictOfNullableStringsField(),
+        'vea_vlan_mappings': fields.DictOfNullableStringsField(),
     }
