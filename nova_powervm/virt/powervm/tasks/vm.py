@@ -26,6 +26,8 @@ from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm.tasks import base as pvm_task
 from nova_powervm.virt.powervm import vm
 
+from nova.compute import task_states
+
 LOG = logging.getLogger(__name__)
 
 
@@ -58,10 +60,14 @@ class Create(pvm_task.PowerVMTask):
                  nvram_mgr=None, slot_mgr=None):
         """Creates the Task for creating a VM.
 
-        The revert method is not implemented because the compute manager
-        calls the driver destroy operation for spawn errors.  By not deleting
-        the lpar, it's a cleaner flow through the destroy operation and
-        accomplishes the same result.
+        The revert method only needs to do something for failed rebuilds.
+        Since the rebuild and build methods have different flows, it is
+        necessary to clean up the destination LPAR on fails during rebuild.
+
+        The revert method is not implemented for build because the compute
+        manager calls the driver destroy operation for spawn errors. By
+        not deleting the lpar, it's a cleaner flow through the destroy
+        operation and accomplishes the same result.
 
         Any stale storage associated with the new VM's (possibly recycled) ID
         will be cleaned up.  The cleanup work will be delegated to the FeedTask
@@ -101,6 +107,16 @@ class Create(pvm_task.PowerVMTask):
         pvm_stg.add_lpar_storage_scrub_tasks([wrap.id], self.stg_ftsk,
                                              lpars_exist=True)
         return wrap
+
+    def revert_impl(self, result, flow_failures, **kwargs):
+        # Only reverts failed rebuilds, because the revert
+        # for a failed build is handled in the manager.
+
+        if self.instance.task_state == task_states.REBUILD_SPAWNING:
+            LOG.info(_LI('Rebuild of instance %s failed. '
+                     'Deleting instance from destination.'),
+                     self.instance.name, instance=self.instance)
+            vm.dlt_lpar(self.adapter, vm.get_pvm_uuid(self.instance))
 
 
 class Resize(pvm_task.PowerVMTask):
