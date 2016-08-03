@@ -17,6 +17,7 @@
 import fixtures
 import mock
 from nova import test
+from pypowervm import exceptions as pvm_exc
 import time
 
 from nova_powervm.tests.virt import powervm
@@ -37,6 +38,36 @@ class TestNvramManager(test.TestCase):
             fixtures.MockPatchObject(self.fake_store, 'fetch')).mock
         self.mock_remove = self.useFixture(
             fixtures.MockPatchObject(self.fake_store, 'delete')).mock
+
+    @mock.patch('nova_powervm.virt.powervm.nvram.manager.LOG.warning')
+    @mock.patch.object(vm, 'get_instance_wrapper')
+    def test_store_with_exception(self, mock_get_inst, mock_log):
+        mock_resp = mock.Mock()
+        mock_resp.status = 410
+        mock_resp.reqpath = (
+            '/rest/api/uom/ManagedSystem/c5d782c7-44e4-3086-ad15-'
+            'b16fb039d63b/LogicalPartition/1B5FB633-16D1-4E10-A14'
+            '5-E6FB905161A3?group=None')
+        mock_get_inst.side_effect = pvm_exc.HttpError(mock_resp)
+        mgr = manager.NvramManager(self.fake_store, mock.Mock(), mock.Mock())
+        mgr.store(powervm.TEST_INST1)
+        mock_log.assert_called_once_with(u'Unable to store the NVRAM for '
+                                         u'instance: %s',
+                                         powervm.TEST_INST1.name)
+
+    @mock.patch('nova_powervm.virt.powervm.nvram.manager.LOG.warning')
+    @mock.patch.object(vm, 'get_instance_wrapper')
+    def test_store_with_not_found_exc(self, mock_get_inst, mock_log):
+        mock_resp = mock.Mock()
+        mock_resp.status = 404
+        mock_resp.reqpath = (
+            '/rest/api/uom/ManagedSystem/c5d782c7-44e4-3086-ad15-'
+            'b16fb039d63b/LogicalPartition/1B5FB633-16D1-4E10-A14'
+            '5-E6FB905161A3?group=None')
+        mock_get_inst.side_effect = pvm_exc.HttpError(mock_resp)
+        mgr = manager.NvramManager(self.fake_store, mock.Mock(), mock.Mock())
+        mgr.store(powervm.TEST_INST1)
+        mock_log.assert_not_called()
 
     @mock.patch.object(vm, 'get_instance_wrapper')
     def test_manager(self, mock_get_inst):
