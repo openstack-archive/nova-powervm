@@ -113,6 +113,7 @@ class PlugVifs(pvm_task.PowerVMTask):
         self.network_infos = network_infos
         self.host_uuid = host_uuid
         self.slot_mgr = slot_mgr
+        self.crt_network_infos, self.update_network_infos = [], []
 
         super(PlugVifs, self).__init__(
             instance, 'plug_vifs', provides='vm_cnas', requires=['lpar_wrap'])
@@ -121,22 +122,23 @@ class PlugVifs(pvm_task.PowerVMTask):
         # Get the current adapters on the system
         cna_w_list = vm.get_cnas(self.adapter, self.instance)
 
-        # Trim the VIFs down to the ones that haven't yet been created.
-        crt_network_infos = []
+        # We will have two types of network infos.  One is for newly created
+        # vifs.  The others are those that exist, but should be re-'treated'
         for network_info in self.network_infos:
             for cna_w in cna_w_list:
                 if vm.norm_mac(cna_w.mac) == network_info['address']:
+                    self.update_network_infos.append(network_info)
                     break
             else:
-                crt_network_infos.append(network_info)
+                self.crt_network_infos.append(network_info)
 
-        # If there are no vifs to create, then just exit immediately.
-        if len(crt_network_infos) == 0:
+        # If there are no vifs to create or update, then just exit immediately.
+        if not self.crt_network_infos and not self.update_network_infos:
             return []
 
         # Check to see if the LPAR is OK to add VIFs to.
         modifiable, reason = lpar_wrap.can_modify_io()
-        if not modifiable:
+        if not modifiable and self.crt_network_infos:
             LOG.error(_LE('Unable to create VIF(s) for instance %(sys)s.  The '
                           'VM was in a state where VIF plugging is not '
                           'acceptable.  The reason from the system is: '
@@ -161,20 +163,30 @@ class PlugVifs(pvm_task.PowerVMTask):
             self.instance.save()
             undo_host_change = True
 
+        # For existing VIFs that we just need to update, run the plug but do
+        # not wait for the neutron event as that likely won't be sent (it was
+        # already done).
+        for network_info in self.update_network_infos:
+            LOG.info(_LI("Updating VIF with mac %(mac)s for instance %(sys)s"),
+                     {'mac': network_info['address'],
+                      'sys': self.instance.name}, instance=self.instance)
+            vif.plug(self.adapter, self.host_uuid, self.instance,
+                     network_info, self.slot_mgr, new_vif=False)
+
         # For the VIFs, run the creates (and wait for the events back)
         try:
             with self.virt_api.wait_for_instance_event(
                     self.instance, self._get_vif_events(),
                     deadline=CONF.vif_plugging_timeout,
                     error_callback=self._vif_callback_failed):
-                for network_info in crt_network_infos:
+                for network_info in self.crt_network_infos:
                     LOG.info(_LI('Creating VIF with mac %(mac)s for instance '
                                  '%(sys)s'),
                              {'mac': network_info['address'],
                               'sys': self.instance.name},
                              instance=self.instance)
                     vif.plug(self.adapter, self.host_uuid, self.instance,
-                             network_info, self.slot_mgr)
+                             network_info, self.slot_mgr, new_vif=True)
         except eventlet.timeout.Timeout:
             LOG.error(_LE('Error waiting for VIF to be created for instance '
                           '%(sys)s'), {'sys': self.instance.name},
@@ -228,7 +240,7 @@ class PlugVifs(pvm_task.PowerVMTask):
 
         # Get the current adapters on the system
         cna_w_list = vm.get_cnas(self.adapter, self.instance)
-        for network_info in self.network_infos:
+        for network_info in self.crt_network_infos:
             try:
                 vif.unplug(self.adapter, self.host_uuid, self.instance,
                            network_info, self.slot_mgr, cna_w_list=cna_w_list)

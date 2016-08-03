@@ -114,10 +114,16 @@ class TestNetwork(test.TestCase):
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid', 'slot_mgr')
+
         p_vifs.execute(self.mock_lpar_wrap)
 
-        # The create should have only been called once.
-        self.assertEqual(2, mock_plug.call_count)
+        # new vif should be created twice.
+        mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[0],
+                                  'slot_mgr', new_vif=False)
+        mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[1],
+                                  'slot_mgr', new_vif=True)
+        mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[2],
+                                  'slot_mgr', new_vif=True)
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
@@ -137,16 +143,12 @@ class TestNetwork(test.TestCase):
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid', 'slot_mgr')
-        resp = p_vifs.execute(self.mock_lpar_wrap)
+        p_vifs.execute(self.mock_lpar_wrap)
 
-        # The create should not have been called.  The response should have
-        # been empty.
-        self.assertEqual(0, mock_plug.call_count)
-        self.assertEqual([], resp)
-
-        # State check shouldn't have even been invoked as no creates were
-        # required
-        self.assertEqual(0, self.mock_lpar_wrap.can_modify_io.call_count)
+        # The create should have been called with new_vif as False.
+        mock_plug.assert_called_with(
+            self.apt, 'host_uuid', inst, net_info[1],
+            'slot_mgr', new_vif=False)
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
@@ -257,8 +259,9 @@ class TestNetwork(test.TestCase):
         self.assertEqual('host1', inst.host)
 
     @mock.patch('nova_powervm.virt.powervm.vif.unplug')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_revert(self, mock_vm_get, mock_unplug):
+    def test_plug_vifs_revert(self, mock_vm_get, mock_plug, mock_unplug):
         """Tests that the revert flow works properly."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
@@ -279,6 +282,7 @@ class TestNetwork(test.TestCase):
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid', 'slot_mgr')
+        p_vifs.execute(self.mock_lpar_wrap)
         p_vifs.revert(self.mock_lpar_wrap, mock.Mock(), mock.Mock())
 
         # The unplug should be called three times.  The exception shouldn't
