@@ -261,16 +261,22 @@ class VMBuilder(object):
             pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS_ALWAYS
     }
 
-    def __init__(self, host_w, adapter):
+    def __init__(self, host_w, adapter, slot_mgr=None):
         """Initialize the converter.
 
         :param host_w: The host system wrapper.
+        :param adapter: The pypowervm.adapter.Adapter for the PowerVM REST API.
+        :param slot_mgr: NovaSlotManager for setting/saving the maximum number
+                         of virtual slots on the VM.
         """
         self.adapter = adapter
         self.host_w = host_w
-        self.stdz = lpar_bldr.DefaultStandardize(
-            self.host_w, uncapped_weight=CONF.powervm.uncapped_proc_weight,
-            proc_units_factor=CONF.powervm.proc_units_factor)
+        kwargs = dict(uncapped_weight=CONF.powervm.uncapped_proc_weight,
+                      proc_units_factor=CONF.powervm.proc_units_factor)
+        if slot_mgr is not None:
+            # This will already default if not set
+            kwargs['max_slots'] = slot_mgr.build_map.get_max_vslots()
+        self.stdz = lpar_bldr.DefaultStandardize(self.host_w, **kwargs)
 
     def lpar_builder(self, instance, flavor):
         """Returns the pypowervm LPARBuilder for a given Nova flavor.
@@ -532,7 +538,8 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
     return jsonutils.loads(resp.body)
 
 
-def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None):
+def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None,
+             slot_mgr=None):
     """Create an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
@@ -540,16 +547,21 @@ def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None):
     :param instance: The nova instance.
     :param flavor: The nova flavor.
     :param nvram: The NVRAM to set on the LPAR.
+    :param slot_mgr: NovaSlotManager to restore/save the maximum number of
+                     virtual slots.  If omitted, the default is used.
     :return: The LPAR response from the API.
     """
     try:
-        lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance,
-                                                               flavor)
+        lpar_b = VMBuilder(
+            host_wrapper, adapter, slot_mgr=slot_mgr).lpar_builder(instance,
+                                                                   flavor)
         pending_lpar_w = lpar_b.build()
         vldn.LPARWrapperValidator(pending_lpar_w, host_wrapper).validate_all()
         if nvram is not None:
             pending_lpar_w.nvram = nvram
         lpar_w = pending_lpar_w.create(parent=host_wrapper)
+        if slot_mgr is not None:
+            slot_mgr.register_max_vslots(lpar_w.io_config.max_virtual_slots)
         return lpar_w
     except lpar_bldr.LPARBuilderException as e:
         # Raise the BuildAbortException since LPAR failed to build

@@ -385,18 +385,30 @@ class TestVM(test.TestCase):
         self.apt.create.assert_called_once_with(
             lparw, host_wrapper.schema_type, child_type='LogicalPartition',
             root_id=host_wrapper.uuid, service='uom', timeout=-1)
+        mock_stdz.assert_called_once_with(host_wrapper, uncapped_weight=64,
+                                          proc_units_factor=0.1)
         self.assertEqual(lparw.nvram, 'data')
         self.assertTrue(mock_vld_all.called)
 
-        # Test srr
+        # Test srr and slot_mgr
         self.apt.reset_mock()
         mock_vld_all.reset_mock()
+        mock_stdz.reset_mock()
         flavor.extra_specs = {'powervm:srr_capability': 'true'}
         self.apt.create.return_value = lparw.entry
-        vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
+        mock_slot_mgr = mock.Mock(build_map=mock.Mock(
+            get_max_vslots=mock.Mock(return_value=123)))
+        vm.crt_lpar(self.apt, host_wrapper, instance, flavor,
+                    slot_mgr=mock_slot_mgr)
         self.assertTrue(self.apt.create.called)
         self.assertTrue(mock_vld_all.called)
         self.assertTrue(lparw.srr_enabled)
+        mock_stdz.assert_called_once_with(host_wrapper, uncapped_weight=64,
+                                          proc_units_factor=0.1, max_slots=123)
+        # The save is called with the LPAR's actual value, which in this mock
+        # setup comes from lparw
+        mock_slot_mgr.register_max_vslots.assert_called_with(
+            lparw.io_config.max_virtual_slots)
 
         # Test to verify the LPAR Creation with invalid name specification
         mock_bld.side_effect = lpar_bld.LPARBuilderException("Invalid Name")

@@ -35,13 +35,14 @@ class TestVMTasks(test.TestCase):
         lpar_entry = mock.Mock()
 
         crt = tf_vm.Create(self.apt, 'host_wrapper', self.instance,
-                           'flavor', 'stg_ftsk', nvram_mgr=nvram_mgr)
+                           'flavor', 'stg_ftsk', nvram_mgr=nvram_mgr,
+                           slot_mgr='slot_mgr')
         mock_vm_crt.return_value = lpar_entry
         crt_entry = crt.execute()
 
         mock_vm_crt.assert_called_once_with(self.apt, 'host_wrapper',
                                             self.instance, 'flavor',
-                                            nvram='data')
+                                            nvram='data', slot_mgr='slot_mgr')
         self.assertEqual(lpar_entry, crt_entry)
         nvram_mgr.fetch.assert_called_once_with(self.instance)
 
