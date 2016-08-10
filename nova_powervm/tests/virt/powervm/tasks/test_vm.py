@@ -16,9 +16,14 @@
 
 import mock
 
+from nova.compute import task_states
+from nova import exception
 from nova import test
 
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
+
+from taskflow import engines as tf_eng
+from taskflow.patterns import linear_flow as tf_lf
 
 
 class TestVMTasks(test.TestCase):
@@ -45,6 +50,30 @@ class TestVMTasks(test.TestCase):
                                             nvram='data', slot_mgr='slot_mgr')
         self.assertEqual(lpar_entry, crt_entry)
         nvram_mgr.fetch.assert_called_once_with(self.instance)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Create.execute')
+    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    def test_create_revert(self, mock_vm_dlt, mock_crt_exc,
+                           mock_get_pvm_uuid):
+
+        mock_crt_exc.side_effect = exception.NovaException()
+        crt = tf_vm.Create(self.apt, 'host_wrapper', self.instance,
+                           'flavor', 'stg_ftsk', None)
+
+        # Assert that a failure while building does not revert
+        crt.instance.task_state = task_states.SPAWNING
+        flow_test = tf_lf.Flow("test_revert")
+        flow_test.add(crt)
+        self.assertRaises(exception.NovaException, tf_eng.run, flow_test)
+        mock_vm_dlt.assert_not_called()
+
+        # Assert that a failure when rebuild results in revert
+        crt.instance.task_state = task_states.REBUILD_SPAWNING
+        flow_test = tf_lf.Flow("test_revert")
+        flow_test.add(crt)
+        self.assertRaises(exception.NovaException, tf_eng.run, flow_test)
+        mock_vm_dlt.assert_called()
 
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     def test_resize(self, mock_vm_update):
