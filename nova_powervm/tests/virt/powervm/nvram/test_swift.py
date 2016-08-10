@@ -16,6 +16,7 @@
 
 import mock
 from nova import test
+from requests.exceptions import RequestException
 from swiftclient import exceptions as swft_exc
 from swiftclient import service as swft_srv
 
@@ -131,18 +132,24 @@ class TestSwiftStore(test.TestCase):
                                              mock.ANY, options=None)
 
             # Test unsuccessful upload
-            mock_run.return_value[0]['success'] = False
+            mock_result = [{'success': False,
+                            'error': RequestException('Error Message.')}]
+            mock_run.return_value = mock_result
             self.assertRaises(api.NVRAMUploadException,
                               self.swift_store._store, powervm.TEST_INST1.uuid,
                               powervm.TEST_INST1.name, 'data')
 
             # Test retry upload
-            mock_run.side_effect = [swft_exc.ClientException('Error message.'),
-                                    self._build_results(['obj'])]
+            mock_run.reset_mock()
+            mock_res_obj = [{'success': False,
+                             'error': swft_exc.
+                             ClientException('Error Message.')}]
+            mock_run.side_effect = [mock_res_obj, self._build_results(['obj'])]
             self.swift_store._store(powervm.TEST_INST1.uuid,
                                     powervm.TEST_INST1.name, 'data')
             mock_run.assert_called_with('upload', 'powervm_nvram',
                                         mock.ANY, options=None)
+            self.assertEqual(mock_run.call_count, 2)
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
                 '_exists')
@@ -157,13 +164,14 @@ class TestSwiftStore(test.TestCase):
                 options={'leave_segments': True})
 
             # Test retry upload
-            mock_run.side_effect = [swft_exc.ClientException('Error message.'),
-                                    self._build_results(['obj'])]
+            mock_res_obj = [{'success': False,
+                             'error': swft_exc.
+                            ClientException('Error Message.')}]
+            mock_run.side_effect = [mock_res_obj, self._build_results(['obj'])]
             self.swift_store._store(powervm.TEST_INST1.uuid,
                                     powervm.TEST_INST1.name, 'data')
-            mock_run.assert_called_with(
-                'upload', 'powervm_nvram', mock.ANY,
-                options={'leave_segments': True})
+            mock_run.assert_called_with('upload', 'powervm_nvram', mock.ANY,
+                                        options={'leave_segments': True})
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
                 '_exists')

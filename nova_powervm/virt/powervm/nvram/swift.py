@@ -152,30 +152,44 @@ class SwiftNvramStore(api.NvramStore):
         # implement tell/see/reset. If the authentication error occurs during
         # upload, this ClientException is raised with no retry. For any other
         # operation, swift client will retry and succeed.
-        @retrying.retry(retry_on_result=lambda result: not result,
+        @retrying.retry(retry_on_result=lambda result: result,
                         wait_fixed=250, stop_max_attempt_number=2)
         def _run_upload_operation():
-            try:
-                return self._run_operation('upload', self.container,
-                                           [obj], options=options)
-            except swft_exc.ClientException:
-                # Upload operation failed due to expired Keystone token.
-                # Retry SwiftClient operation to allow regeneration of token.
-                return None
+            """Run the upload operation
 
+            Attempts retry for a maximum number of two times. The upload
+            operation will fail with ClientException, if there is an
+            authentication error. The second attempt only happens if the
+            first attempt failed with ClientException. A return value of
+            True means we should retry, and False means no failure during
+            upload, thus no retry is required.
+
+            Raises RetryError if the upload failed during second attempt,
+            as the number of attempts for retry is reached.
+
+            """
+            results = self._run_operation('upload', self.container,
+                                          [obj], options=options)
+            for result in results:
+                if not result['success']:
+                    # TODO(arun-mani - Bug 1611011): Filed for updating swift
+                    # client to return http status code in case of failure
+                    if isinstance(result['error'], swft_exc.ClientException):
+                        # Upload operation failed due to expired Keystone
+                        # token. Retry SwiftClient operation to allow
+                        # regeneration of token.
+                        return True
+                    # The upload failed.
+                    raise api.NVRAMUploadException(instance=inst_name,
+                                                   reason=result)
+            return False
         try:
-            results = _run_upload_operation()
+            _run_upload_operation()
         except retrying.RetryError as re:
             # The upload failed.
             reason = (_('Unable to store NVRAM after %d attempts') %
                       re.last_attempt.attempt_number)
             raise api.NVRAMUploadException(instance=inst_name, reason=reason)
-
-        for result in results:
-            if not result['success']:
-                # The upload failed.
-                raise api.NVRAMUploadException(instance=inst_name,
-                                               reason=result)
 
     @lockutils.synchronized('nvram')
     def store(self, instance, data, force=True):
@@ -275,8 +289,8 @@ class SwiftNvramStore(api.NvramStore):
 
         :param inst_key: The instance key to use for the storage operation.
         """
-        for result in self._run_operation(
-            'delete', container=self.container, objects=[inst_key]):
+        for result in self._run_operation('delete', container=self.container,
+                                          objects=[inst_key]):
 
             LOG.debug('Delete slot map result: %s' % str(result))
             if not result['success']:
@@ -288,8 +302,8 @@ class SwiftNvramStore(api.NvramStore):
 
         :param instance: instance object
         """
-        for result in self._run_operation(
-            'delete', container=self.container, objects=[instance.uuid]):
+        for result in self._run_operation('delete', container=self.container,
+                                          objects=[instance.uuid]):
 
             LOG.debug('Delete result: %s' % str(result), instance=instance)
             if not result['success']:
