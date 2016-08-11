@@ -22,6 +22,7 @@ from nova import test
 
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
 
+from pypowervm import const as pvmc
 from taskflow import engines as tf_eng
 from taskflow.patterns import linear_flow as tf_lf
 
@@ -32,24 +33,40 @@ class TestVMTasks(test.TestCase):
         self.apt = mock.Mock()
         self.instance = mock.Mock()
 
+    @mock.patch('pypowervm.utils.transaction.FeedTask')
+    @mock.patch('pypowervm.tasks.partition.build_active_vio_feed_task')
     @mock.patch('pypowervm.tasks.storage.add_lpar_storage_scrub_tasks')
     @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
-    def test_create(self, mock_vm_crt, mock_stg):
+    def test_create(self, mock_vm_crt, mock_stg, mock_bld, mock_ftsk):
         nvram_mgr = mock.Mock()
         nvram_mgr.fetch.return_value = 'data'
         lpar_entry = mock.Mock()
 
+        # Test create with normal (non-recreate) ftsk
         crt = tf_vm.Create(self.apt, 'host_wrapper', self.instance,
-                           'flavor', 'stg_ftsk', nvram_mgr=nvram_mgr,
+                           'flavor', mock_ftsk, nvram_mgr=nvram_mgr,
                            slot_mgr='slot_mgr')
         mock_vm_crt.return_value = lpar_entry
         crt_entry = crt.execute()
 
+        mock_ftsk.execute.assert_not_called()
         mock_vm_crt.assert_called_once_with(self.apt, 'host_wrapper',
                                             self.instance, 'flavor',
                                             nvram='data', slot_mgr='slot_mgr')
         self.assertEqual(lpar_entry, crt_entry)
         nvram_mgr.fetch.assert_called_once_with(self.instance)
+
+        mock_ftsk.name = 'create_scrubber'
+        mock_bld.return_value = mock_ftsk
+        # Test create with recreate ftsk
+        rcrt = tf_vm.Create(self.apt, 'host_wrapper', self.instance,
+                            'flavor', None, nvram_mgr=nvram_mgr,
+                            slot_mgr='slot_mgr')
+        mock_bld.assert_called_once_with(
+            self.apt, name='create_scrubber',
+            xag={pvmc.XAG.VIO_SMAP, pvmc.XAG.VIO_FMAP})
+        rcrt.execute()
+        mock_ftsk.execute.assert_called_once_with()
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.Create.execute')

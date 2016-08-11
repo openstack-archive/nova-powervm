@@ -24,7 +24,6 @@ from pypowervm.tasks import storage as pvm_tstor
 
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.i18n import _LW
-from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 
@@ -119,9 +118,6 @@ class NovaSlotManager(slot_map.SlotMapStore):
         # we're creating.  It is critical that this happen *before* we create
         # any of the mappings we actually want this VM to have.
         scrub_ftsk = pvm_tstor.ComprehensiveScrub(adapter)
-        lpar_id = vm.get_vm_id(adapter, vm.get_pvm_uuid(self.instance))
-        pvm_tstor.add_lpar_storage_scrub_tasks([lpar_id], scrub_ftsk,
-                                               lpars_exist=True)
         scrub_ftsk.execute()
         self._vios_wraps = scrub_ftsk.feed
 

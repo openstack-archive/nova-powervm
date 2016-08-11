@@ -560,12 +560,14 @@ class TestPowerVMDriver(test.TestCase):
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.EMPTY_IMAGE,
                        'injected_files', 'admin_password')
-
-        # Recreate uses all XAGs.
-        self.build_tx_feed.assert_called_once_with(
-            self.drv.adapter, xag={pvm_const.XAG.VIO_FMAP,
-                                   pvm_const.XAG.VIO_STOR,
-                                   pvm_const.XAG.VIO_SMAP})
+        xags = {pvm_const.XAG.VIO_FMAP, pvm_const.XAG.VIO_SMAP,
+                pvm_const.XAG.VIO_STOR}
+        calls = [mock.call(self.drv.adapter, xag=xags),
+                 mock.call(self.drv.adapter, name='create_scrubber',
+                           xag=xags - {pvm_const.XAG.VIO_STOR})]
+        # Recreate uses all XAGs, builds special FeedTask for immediate
+        # scrubbing.
+        self.build_tx_feed.assert_has_calls(calls)
         # _vol_drv_iter gets called once in spawn itself, and once under
         # _add_volume_connection_tasks.
         # TODO(IBM): Find a way to make the call just once.  Unless it's cheap.

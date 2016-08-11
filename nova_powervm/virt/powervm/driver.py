@@ -404,9 +404,14 @@ class PowerVMDriver(driver.ComputeDriver):
         nvram_mgr = (self.nvram_mgr if self.nvram_mgr and
                      (recreate or instance.vm_state in FETCH_NVRAM_STATES)
                      else None)
-        flow_spawn.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
-                                    flavor, stg_ftsk, nvram_mgr=nvram_mgr,
-                                    slot_mgr=slot_mgr))
+
+        # If we're recreating pass None in for the FeedTask. This will make the
+        # Create task produce a FeedTask that will be used to scrub stale
+        # adapters immediately after the LPAR is created.
+        flow_spawn.add(tf_vm.Create(
+            self.adapter, self.host_wrapper, instance, flavor,
+            stg_ftsk=(None if recreate else stg_ftsk), nvram_mgr=nvram_mgr,
+            slot_mgr=slot_mgr))
 
         # Create a flow for the IO
         flow_spawn.add(tf_net.PlugVifs(

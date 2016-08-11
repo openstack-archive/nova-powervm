@@ -15,6 +15,8 @@
 #    under the License.
 
 from oslo_log import log as logging
+from pypowervm import const as pvm_const
+from pypowervm.tasks import partition as pvm_tpar
 from pypowervm.tasks import power
 from pypowervm.tasks import storage as pvm_stg
 import six
@@ -56,7 +58,7 @@ class Create(pvm_task.PowerVMTask):
 
     """The task for creating a VM."""
 
-    def __init__(self, adapter, host_wrapper, instance, flavor, stg_ftsk,
+    def __init__(self, adapter, host_wrapper, instance, flavor, stg_ftsk=None,
                  nvram_mgr=None, slot_mgr=None):
         """Creates the Task for creating a VM.
 
@@ -79,7 +81,10 @@ class Create(pvm_task.PowerVMTask):
         :param host_wrapper: The managed system wrapper
         :param instance: The nova instance.
         :param flavor: The nova flavor.
-        :param stg_ftsk: A FeedTask managing storage I/O operations.
+        :param stg_ftsk: (Optional, Default: None) A FeedTask managing storage
+                         I/O operations.  If None, one will be built locally
+                         and executed immediately. Otherwise it is the caller's
+                         responsibility to execute the FeedTask.
         :param nvram_mgr: The NVRAM manager to fetch the NVRAM from. If None,
                           the NVRAM will not be fetched.
         :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the
@@ -90,7 +95,9 @@ class Create(pvm_task.PowerVMTask):
         self.adapter = adapter
         self.host_wrapper = host_wrapper
         self.flavor = flavor
-        self.stg_ftsk = stg_ftsk
+        self.stg_ftsk = stg_ftsk or pvm_tpar.build_active_vio_feed_task(
+            adapter, name='create_scrubber',
+            xag={pvm_const.XAG.VIO_SMAP, pvm_const.XAG.VIO_FMAP})
         self.nvram_mgr = nvram_mgr
         self.slot_mgr = slot_mgr
 
@@ -106,6 +113,18 @@ class Create(pvm_task.PowerVMTask):
                            self.flavor, nvram=data, slot_mgr=self.slot_mgr)
         pvm_stg.add_lpar_storage_scrub_tasks([wrap.id], self.stg_ftsk,
                                              lpars_exist=True)
+        # If the stg_ftsk passed in was None and we initialized a
+        # 'create_scrubber' stg_ftsk then run it immediately. We do
+        # this because we moved the LPAR storage scrub tasks out of the
+        # build_map initialization. This was so that we could construct the
+        # build map earlier in the spawn, just before the LPAR is created.
+        # Only rebuilds should be passing in None for stg_ftsk.
+        if self.stg_ftsk.name == 'create_scrubber':
+            LOG.info(_LI('Scrubbing storage for instance %s as part of '
+                         'rebuild.'), self.instance.name,
+                     instance=self.instance)
+            self.stg_ftsk.execute()
+
         return wrap
 
     def revert_impl(self, result, flow_failures, **kwargs):
