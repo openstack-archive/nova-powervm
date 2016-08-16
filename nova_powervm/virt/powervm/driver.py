@@ -1782,12 +1782,16 @@ class PowerVMDriver(driver.ComputeDriver):
         ca_certs = CONF.powervm.vnc_ca_certs
         server_key = CONF.powervm.vnc_server_key
         server_cert = CONF.powervm.vnc_server_cert
-        # Open up a remote vterm with the host and certificates configured
-        # This will only use TLS if the use_x509_auth is set to True
-        port = pvm_vterm.open_remotable_vnc_vterm(
-            self.adapter, lpar_uuid, host, vnc_path=lpar_uuid,
-            use_x509_auth=use_x509_auth, ca_certs=ca_certs,
-            server_cert=server_cert, server_key=server_key)
+        try:
+            # Open up a remote vterm with the host and certificates configured
+            # This will only use TLS if the use_x509_auth is set to True
+            port = pvm_vterm.open_remotable_vnc_vterm(
+                self.adapter, lpar_uuid, host, vnc_path=lpar_uuid,
+                use_x509_auth=use_x509_auth, ca_certs=ca_certs,
+                server_cert=server_cert, server_key=server_key)
+        except pvm_exc.VNCBasedTerminalFailedToOpen as err:
+            raise exception.ConsoleTypeUnavailable(
+                message=_("Unable to open console.  Error is: %s") % err)
 
         # Note that the VNC viewer will wrap the internal_access_path with
         # the HTTP content.
