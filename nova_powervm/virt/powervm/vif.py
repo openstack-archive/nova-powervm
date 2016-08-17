@@ -83,7 +83,7 @@ def _build_vif_driver(adapter, host_uuid, instance, vif):
         {'vif_type': vif['type'], 'instance': instance.name})
 
 
-def plug(adapter, host_uuid, instance, vif, slot_mgr):
+def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
     """Plugs a virtual interface (network) into a VM.
 
     :param adapter: The pypowervm adapter.
@@ -92,6 +92,10 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr):
     :param vif: The virtual interface to plug into the instance.
     :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
                      slots used when a VIF is attached to the VM.
+    :param new_vif: (Optional, Default: True) If set, indicates that it is
+                    a brand new VIF.  If False, it indicates that the VIF
+                    is already on the client but should be treated on the
+                    bridge.
     """
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
 
@@ -100,11 +104,11 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr):
     slot_num = slot_mgr.build_map.get_vea_slot(vif['address'])
 
     # Invoke the plug
-    cna_w = vif_drv.plug(vif, slot_num)
+    cna_w = vif_drv.plug(vif, slot_num, new_vif=new_vif)
 
     # If the slot number hadn't been provided initially, save it for the
     # next rebuild
-    if not slot_num:
+    if not slot_num and new_vif:
         slot_mgr.register_cna(cna_w)
 
 
@@ -216,11 +220,17 @@ class PvmVifDriver(object):
         self.instance = instance
 
     @abc.abstractmethod
-    def plug(self, vif, slot_num):
+    def plug(self, vif, slot_num, new_vif=True):
         """Plugs a virtual interface (network) into a VM.
 
         :param vif: The virtual interface to plug into the instance.
         :param slot_num: Which slot number to plug the VIF into.  May be None.
+        :param new_vif: (Optional, Default: True) If set, indicates that it is
+                        a brand new VIF.  If False, it indicates that the VIF
+                        is already on the client but should be treated on the
+                        bridge.
+        :return: The new vif that was created.  Only returned if new_vif is
+                 set to True.  Otherwise None is expected.
         """
         pass
 
@@ -297,14 +307,24 @@ class PvmVifDriver(object):
 class PvmSeaVifDriver(PvmVifDriver):
     """The PowerVM Shared Ethernet Adapter VIF Driver."""
 
-    def plug(self, vif, slot_num):
+    def plug(self, vif, slot_num, new_vif=True):
         """Plugs a virtual interface (network) into a VM.
 
         This method simply creates the client network adapter into the VM.
 
         :param vif: The virtual interface to plug into the instance.
         :param slot_num: Which slot number to plug the VIF into.  May be None.
+        :param new_vif: (Optional, Default: True) If set, indicates that it is
+                        a brand new VIF.  If False, it indicates that the VIF
+                        is already on the client but should be treated on the
+                        bridge.
+        :return: The new vif that was created.  Only returned if new_vif is
+                 set to True.  Otherwise None is expected.
         """
+        # Do nothing if not a new VIF
+        if not new_vif:
+            return None
+
         lpar_uuid = vm.get_pvm_uuid(self.instance)
 
         # CNA's require a VLAN.  If the network doesn't provide, default to 1
@@ -333,7 +353,7 @@ class PvmLioVifDriver(PvmVifDriver):
             return vif['devname']
         return ("nic" + vif['id'])[:network_model.NIC_NAME_LEN]
 
-    def plug(self, vif, slot_num):
+    def plug(self, vif, slot_num, new_vif=True):
         """Plugs a virtual interface (network) into a VM.
 
         Creates a 'peer to peer' connection between the Management partition
@@ -344,16 +364,28 @@ class PvmLioVifDriver(PvmVifDriver):
 
         :param vif: The virtual interface to plug into the instance.
         :param slot_num: Which slot number to plug the VIF into.  May be None.
+        :param new_vif: (Optional, Default: True) If set, indicates that it is
+                        a brand new VIF.  If False, it indicates that the VIF
+                        is already on the client but should be treated on the
+                        bridge.
+        :return: The new vif that was created.  Only returned if new_vif is
+                 set to True.  Otherwise None is expected.
         """
-        # Create the trunk and client adapter.
-        lpar_uuid = vm.get_pvm_uuid(self.instance)
-        mgmt_uuid = pvm_par.get_this_partition(self.adapter).uuid
         dev_name = self.get_trunk_dev_name(vif)
-        cna_w, trunk_wraps = pvm_cna.crt_p2p_cna(
-            self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
-            CONF.powervm.pvm_vswitch_for_novalink_io, crt_vswitch=True,
-            mac_addr=vif['address'], dev_name=dev_name, slot_num=slot_num)
 
+        if new_vif:
+            # Create the trunk and client adapter.
+            lpar_uuid = vm.get_pvm_uuid(self.instance)
+            mgmt_uuid = pvm_par.get_this_partition(self.adapter).uuid
+            cna_w = pvm_cna.crt_p2p_cna(
+                self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
+                CONF.powervm.pvm_vswitch_for_novalink_io, crt_vswitch=True,
+                mac_addr=vif['address'], dev_name=dev_name,
+                slot_num=slot_num)[0]
+        else:
+            cna_w = None
+
+        # Make sure to just run the up just in case.
         utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
 
         return cna_w
@@ -362,7 +394,7 @@ class PvmLioVifDriver(PvmVifDriver):
 class PvmLBVifDriver(PvmLioVifDriver):
     """The Linux Bridge VIF driver for PowerVM."""
 
-    def plug(self, vif, slot_num):
+    def plug(self, vif, slot_num, new_vif=True):
         """Plugs a virtual interface (network) into a VM.
 
         Extends the base Lio implementation.  Will make sure that the bridge
@@ -370,8 +402,18 @@ class PvmLBVifDriver(PvmLioVifDriver):
 
         :param vif: The virtual interface to plug into the instance.
         :param slot_num: Which slot number to plug the VIF into.  May be None.
+        :param new_vif: (Optional, Default: True) If set, indicates that it is
+                        a brand new VIF.  If False, it indicates that the VIF
+                        is already on the client but should be treated on the
+                        bridge.
+        :return: The new vif that was created.  Only returned if new_vif is
+                 set to True.  Otherwise None is expected.
         """
-        cna_w = super(PvmLBVifDriver, self).plug(vif, slot_num)
+        # Only call the parent if it is truly a new VIF
+        if new_vif:
+            cna_w = super(PvmLBVifDriver, self).plug(vif, slot_num)
+        else:
+            cna_w = None
 
         # Similar to libvirt's vif.py plug_bridge.  Need to attach the
         # interface to the bridge.
@@ -430,7 +472,7 @@ class PvmLBVifDriver(PvmLioVifDriver):
 class PvmOvsVifDriver(PvmLioVifDriver):
     """The Open vSwitch VIF driver for PowerVM."""
 
-    def plug(self, vif, slot_num):
+    def plug(self, vif, slot_num, new_vif=True):
         """Plugs a virtual interface (network) into a VM.
 
         Extends the Lio implementation.  Will make sure that the trunk device
@@ -439,8 +481,18 @@ class PvmOvsVifDriver(PvmLioVifDriver):
 
         :param vif: The virtual interface to plug into the instance.
         :param slot_num: Which slot number to plug the VIF into.  May be None.
+        :param new_vif: (Optional, Default: True) If set, indicates that it is
+                        a brand new VIF.  If False, it indicates that the VIF
+                        is already on the client but should be treated on the
+                        bridge.
+        :return: The new vif that was created.  Only returned if new_vif is
+                 set to True.  Otherwise None is expected.
         """
-        cna_w = super(PvmOvsVifDriver, self).plug(vif, slot_num)
+        # Only call the parent if it is truly a new VIF
+        if new_vif:
+            cna_w = super(PvmOvsVifDriver, self).plug(vif, slot_num)
+        else:
+            cna_w = None
 
         # There will only be one trunk wrap, as we have created with just the
         # mgmt lpar.  Next step is to set the device up and connect to the OVS

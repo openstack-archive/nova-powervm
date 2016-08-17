@@ -1556,9 +1556,9 @@ class TestPowerVMDriver(test.TestCase):
 
         # The create should have only been called once.  The other was already
         # existing.
-        mock_plug_vif.assert_called_once_with(
+        mock_plug_vif.assert_called_with(
             self.drv.adapter, self.drv.host_uuid, self.inst, net_info[1],
-            mock_bld_slot_mgr.return_value)
+            mock_bld_slot_mgr.return_value, new_vif=True)
         mock_bld_slot_mgr.return_value.save.assert_called_once_with()
         self.assertEqual(0, mock_plug_rmc_vif.call_count)
 

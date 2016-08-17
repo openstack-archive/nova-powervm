@@ -160,6 +160,19 @@ class TestVifSeaDriver(test.TestCase):
         self.assertIsNotNone(resp)
         self.assertIsInstance(resp, pvm_net.CNA)
 
+    def test_plug_existing_vif(self):
+        """Tests that a VIF need not be created."""
+
+        # Set up the mocks
+        fake_vif = {'network': {'meta': {'vlan': 5}},
+                    'address': 'aabbccddeeff'}
+        fake_slot_num = 5
+
+        # Invoke
+        resp = self.drv.plug(fake_vif, fake_slot_num, new_vif=False)
+
+        self.assertIsNone(resp)
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
     def test_unplug_vifs(self, mock_vm_get):
         """Tests that a delete of the vif can be done."""
@@ -234,6 +247,19 @@ class TestVifLBDriver(test.TestCase):
         mock_exec.assert_called_once_with('ip', 'link', 'set', 'tap_dev', 'up',
                                           run_as_root=True)
         mock_ensure_bridge.assert_called_once_with('br0', 'tap_dev')
+
+    @mock.patch('nova.network.linux_net.LinuxBridgeInterfaceDriver.'
+                'ensure_bridge')
+    def test_plug_existing_vif(
+            self, mock_ensure_bridge):
+
+        # Run the plug
+        vif = {'network': {'bridge': 'br0'}, 'address': 'aa:bb:cc:dd:ee:ff',
+               'id': 'vif_id', 'devname': 'tap_dev'}
+        resp = self.drv.plug(vif, 6, new_vif=False)
+
+        mock_ensure_bridge.assert_called_once_with('br0', 'tap_dev')
+        self.assertIsNone(resp)
 
     @mock.patch('nova.utils.execute')
     @mock.patch('pypowervm.tasks.cna.find_trunks')
@@ -330,6 +356,27 @@ class TestVifOvsDriver(test.TestCase):
             mac_addr='aa:bb:cc:dd:ee:ff', slot_num=slot_num, dev_name='device')
         mock_exec.assert_called_with('ip', 'link', 'set', 'device', 'up',
                                      run_as_root=True)
+
+    @mock.patch('nova.utils.execute')
+    @mock.patch('nova.network.linux_net.create_ovs_vif_port')
+    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
+                'get_trunk_dev_name')
+    def test_plug_existing_vif(self, mock_trunk_dev_name,
+                               mock_crt_ovs_vif_port, mock_exec):
+        # Mock the data
+        mock_trunk_dev_name.return_value = 'device'
+        # Run the plug
+        mock_vif = {'network': {'bridge': 'br0'},
+                    'address': 'aa:bb:cc:dd:ee:ff', 'id': 'vif_id'}
+        slot_num = 5
+        resp = self.drv.plug(mock_vif, slot_num, new_vif=False)
+
+        # Validate the calls
+        mock_crt_ovs_vif_port.assert_called_once_with(
+            'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff', 'inst_uuid')
+        mock_exec.assert_called_with('ip', 'link', 'set', 'device', 'up',
+                                     run_as_root=True)
+        self.assertIsNone(resp)
 
     def test_get_trunk_dev_name(self):
         mock_vif = {'devname': 'tap_test', 'id': '1234567890123456'}
