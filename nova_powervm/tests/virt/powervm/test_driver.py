@@ -1742,6 +1742,18 @@ class TestPowerVMDriver(test.TestCase):
             mock.ANY, 'uuid', mock.ANY, vnc_path='uuid', use_x509_auth=False,
             ca_certs=None, server_cert=None, server_key=None)
 
+    @mock.patch('pypowervm.tasks.vterm.open_remotable_vnc_vterm')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_get_vnc_console_failure(self, mock_uuid, mock_vterm):
+        # Mock response
+        mock_vterm.side_effect = pvm_exc.VNCBasedTerminalFailedToOpen(
+            err='test')
+        mock_uuid.return_value = 'uuid'
+
+        # Invoke
+        self.assertRaises(exc.ConsoleTypeUnavailable, self.drv.get_vnc_console,
+                          mock.ANY, self.inst)
+
     @staticmethod
     def _fake_bdms():
         def _fake_bdm(volume_id, target_lun):
