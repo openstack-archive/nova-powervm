@@ -331,8 +331,14 @@ class PvmSeaVifDriver(PvmVifDriver):
 
         lpar_uuid = vm.get_pvm_uuid(self.instance)
 
-        # CNA's require a VLAN.  If the network doesn't provide, default to 1
-        vlan = vif['network']['meta'].get('vlan', 1)
+        # CNA's require a VLAN.  Nova network puts it in network-meta.
+        # The networking-powervm neutron agent will also send it, if so via
+        # the vif details.
+        vlan = vif['network']['meta'].get('vlan', None)
+        if not vlan:
+            vlan = int(vif['details']['vlan'])
+
+        LOG.debug("Creating SEA based VIF with VLAN %s" % str(vlan))
         cna_w = pvm_cna.crt_cna(self.adapter, self.host_uuid, lpar_uuid, vlan,
                                 mac_addr=vif['address'], slot_num=slot_num)
 
