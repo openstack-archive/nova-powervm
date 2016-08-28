@@ -22,6 +22,15 @@ required.  The nova-powervm driver should be installed on the management VM.
 
 .. _NovaLink: http://www-01.ibm.com/common/ssi/cgi-bin/ssialias?infotype=AN&subtype=CA&htmlfid=897/ENUS215-262&appname=USN
 
+**Note:** Installing the NovaLink software creates the ``pvm_admin`` group.  In
+order to function properly, the user executing the Nova compute service must
+be a member of this group.  Use the ``usermod`` command to add the user.  For
+example, to add the user ``stacker`` to the ``pvm_admin`` group, execute::
+
+  sudo usermod -a -G pvm_admin stacker
+
+The user must re-login for the change to take effect.
+
 The NovaLink architecture is such that the compute driver runs directly on the
 PowerVM system.  No external management element (e.g. Hardware Management
 Console or PowerVC) is needed.  Management of the virtualization is driven
