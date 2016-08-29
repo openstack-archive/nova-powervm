@@ -31,9 +31,12 @@ logging.basicConfig()
 class TestPowerVMHost(test.TestCase):
     def test_host_resources(self):
         # Create objects to test with
-        sriov_adaps = [mock.Mock(phys_ports=[mock.Mock(label='foo'),
-                                             mock.Mock(label='')]),
-                       mock.Mock(phys_ports=[mock.Mock(label='bar')])]
+        sriov_adaps = [
+            mock.Mock(sriov_adap_id=1, phys_ports=[
+                mock.Mock(port_id=2, label='foo', supp_max_lps=1),
+                mock.Mock(port_id=3, label='', supp_max_lps=2)]),
+            mock.Mock(sriov_adap_id=4, phys_ports=[
+                mock.Mock(port_id=5, label='bar', supp_max_lps=3)])]
         ms_wrapper = mock.MagicMock(
             proc_units_configurable=500,
             proc_units_avail=500,
@@ -76,9 +79,11 @@ class TestPowerVMHost(test.TestCase):
                                                      for ppd in ppdlist})
         self.assertEqual({'foo', 'bar', 'default'}, {ppd['label']
                                                      for ppd in ppdlist})
+        self.assertEqual({'*:1:2.0', '*:1:3.0', '*:1:3.1', '*:4:5.0',
+                          '*:4:5.1', '*:4:5.2'},
+                         {ppd['address'] for ppd in ppdlist})
         for ppd in ppdlist:
-            self.assertEqual('type-PCI', ppd['dev_type'])
-            self.assertEqual('*:*:*.*', ppd['address'])
+            self.assertEqual('type-VF', ppd['dev_type'])
             self.assertEqual('*:*:*.*', ppd['parent_addr'])
             self.assertEqual('*', ppd['vendor_id'])
             self.assertEqual('*', ppd['product_id'])
