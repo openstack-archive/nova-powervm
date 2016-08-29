@@ -279,6 +279,34 @@ class TestVifSeaDriver(test.TestCase):
         self.assertIsNotNone(resp)
         self.assertIsInstance(resp, pvm_net.CNA)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.cna.crt_cna')
+    def test_plug_from_neutron(self, mock_crt_cna, mock_pvm_uuid):
+        """Tests that a VIF can be created.  Mocks Neutron net"""
+
+        # Set up the mocks.  Look like Neutron
+        fake_vif = {'details': {'vlan': 5}, 'network': {'meta': {}},
+                    'address': 'aabbccddeeff'}
+        fake_slot_num = 5
+
+        def validate_crt(adpt, host_uuid, lpar_uuid, vlan, mac_addr=None,
+                         slot_num=None):
+            self.assertEqual('host_uuid', host_uuid)
+            self.assertEqual(5, vlan)
+            self.assertEqual('aabbccddeeff', mac_addr)
+            self.assertEqual(5, slot_num)
+            return pvm_net.CNA.bld(self.adpt, 5, host_uuid, slot_num=slot_num,
+                                   mac_addr=mac_addr)
+        mock_crt_cna.side_effect = validate_crt
+
+        # Invoke
+        resp = self.drv.plug(fake_vif, fake_slot_num)
+
+        # Validate (along with validate method above)
+        self.assertEqual(1, mock_crt_cna.call_count)
+        self.assertIsNotNone(resp)
+        self.assertIsInstance(resp, pvm_net.CNA)
+
     def test_plug_existing_vif(self):
         """Tests that a VIF need not be created."""
 
