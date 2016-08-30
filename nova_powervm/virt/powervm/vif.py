@@ -508,8 +508,8 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
         # Redundancy: plugin sets from binding:profile, then conf, then default
         redundancy = int(vif['details']['redundancy'])
 
-        # Capacity: from binding:profile or pport default
-        capacity = vif['profile'].get('capacity')
+        # Capacity: plugin sets from binding:profile, then conf, then default
+        capacity = vif['details']['capacity']
 
         vnic = pvm_card.VNIC.bld(
             self.adapter, vlan_id, slot_num=slot_num, mac_addr=mac_address,

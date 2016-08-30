@@ -230,12 +230,11 @@ class FakeDirectVif(dict):
             details={
                 'vlan': '79',
                 'physical_ports': [],
-                'redundancy': 3},
+                'redundancy': 3,
+                'capacity': cap},
             profile={})
         if pports is not None:
             self['details']['physical_ports'] = pports
-        if cap is not None:
-            self['profile']['capacity'] = cap
 
     def get_physical_network(self):
         return self._physnet
