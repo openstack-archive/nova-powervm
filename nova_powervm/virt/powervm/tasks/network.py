@@ -223,7 +223,7 @@ class PlugVifs(pvm_task.PowerVMTask):
         if (utils.is_neutron() and CONF.vif_plugging_is_fatal and
                 CONF.vif_plugging_timeout):
             return [('network-vif-plugged', network_info['id'])
-                    for network_info in self.network_infos
+                    for network_info in self.crt_network_infos
                     if not network_info.get('active', True)]
         else:
             return []

@@ -332,6 +332,7 @@ class TestNetwork(test.TestCase):
         # Set up the runner.
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid', 'slot_mgr')
+        p_vifs.crt_network_infos = net_info
 
         # Mock that neutron is off.
         mock_is_neutron.return_value = False
