@@ -45,6 +45,7 @@ from pypowervm.tasks import memory as pvm_mem
 from pypowervm.tasks import partition as pvm_par
 from pypowervm.tasks import power as pvm_pwr
 from pypowervm.tasks import scsi_mapper as pvm_smap
+from pypowervm.tasks import storage as pvm_stor
 from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm import util as pvm_util
 from pypowervm.wrappers import base_partition as pvm_bp
@@ -128,6 +129,10 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Make sure the Virtual I/O Server(s) are available.
         pvm_par.validate_vios_ready(self.adapter)
+
+        # Do a scrub of the I/O plane to make sure the system is in good shape
+        LOG.info(_LI("Clearing stale I/O connections on driver init."))
+        pvm_stor.ComprehensiveScrub(self.adapter).execute()
 
         # Initialize the disk adapter.  Sets self.disk_dvr
         self._setup_disk_adapter()
