@@ -84,28 +84,39 @@ def build_host_resource_from_ms(ms_wrapper):
              }
     data["stats"] = stats
 
-    # Produce SR-IOV PCI data.  Devices are validated by virtue of the network
-    # name associated with their label, which must be cleared via an entry in
-    # the pci_passthrough_whitelist in the nova.conf.
-    nets = {pport.label or 'default'
-            for sriov in ms_wrapper.asio_config.sriov_adapters
-            for pport in sriov.phys_ports}
-    pci_devs = []
-    for net in nets:
-        # These fields are all required in order to satisfy a Claim.  Their
-        # values are as general as possible.
-        LOG.debug("Registering SR-IOV passthrough for network '%s'", net)
-        pci_devs.append({"physical_network": net,
-                         "label": net,
-                         "dev_type": fields.PciDeviceType.STANDARD,
-                         "address": "*:*:*.*",
-                         "parent_addr": "*:*:*.*",
-                         "vendor_id": "*",
-                         "product_id": "*",
-                         "numa_node": 1})
-    data["pci_passthrough_devices"] = jsonutils.dumps(pci_devs)
+    data["pci_passthrough_devices"] = _build_pci_json(ms_wrapper)
 
     return data
+
+
+def _build_pci_json(sys_w):
+    """Build the JSON string for the pci_passthrough_devices host resource.
+
+    :param sys_w: pypowervm.wrappers.managed_system.System wrapper of the host.
+    :return: JSON string representing a list of "PCI passthrough device" dicts,
+             See nova.objects.pci_device.PciDevice.
+    """
+    # Produce SR-IOV PCI data.  Devices are validated by virtue of the network
+    # name associated with their label, which must be cleared via an entry in
+    # the pci_passthrough_whitelist in the nova.conf.  Each Claim allocates a
+    # device and filters it from the list for subsequent claims; so we generate
+    # the maximum number of "devices" (VFs) we could possibly create on each
+    # port.  These are NOT real VFs.  The real VFs get created on the fly by
+    # VNIC.create.
+    pci_devs = [
+        {"physical_network": pport.label or 'default',
+         "label": pport.label or 'default',
+         "dev_type": fields.PciDeviceType.SRIOV_VF,
+         "address": '*:%d:%d.%d' % (sriov.sriov_adap_id, pport.port_id, vfn),
+         "parent_addr": "*:*:*.*",
+         "vendor_id": "*",
+         "product_id": "*",
+         "numa_node": 1}
+        for sriov in sys_w.asio_config.sriov_adapters
+        for pport in sriov.phys_ports
+        for vfn in range(pport.supp_max_lps)]
+
+    return jsonutils.dumps(pci_devs)
 
 
 class HostCPUStats(pcm_util.MetricCache):
