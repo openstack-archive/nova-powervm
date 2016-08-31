@@ -19,6 +19,7 @@ import mock
 from nova_powervm import conf as cfg
 from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
 from nova_powervm.virt.powervm import exception as p_exc
+from nova_powervm.virt.powervm.volume import volume
 from nova_powervm.virt.powervm.volume import vscsi
 
 from pypowervm import const as pvm_const
@@ -78,8 +79,8 @@ class BaseVSCSITest(test_vol.TestVolumeAdapter):
             # that would otherwise need to be mocked).
             mock_getter.return_value = self.feed
 
-            return vscsi.VscsiVolumeAdapter(self.adpt, 'host_uuid', mock_inst,
-                                            con_info)
+            return vscsi.PVVscsiFCVolumeAdapter(self.adpt, 'host_uuid',
+                                                mock_inst, con_info)
         self.vol_drv = init_vol_adpt()
 
 
@@ -124,7 +125,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
         # Bad path.  udid not found
         # Run the method - this should produce a warning
-        with self.assertLogs(vscsi.__name__, 'WARNING'):
+        with self.assertLogs(volume.__name__, 'WARNING'):
             self.vol_drv._cleanup_volume(None)
 
         # Good path
@@ -204,7 +205,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_get_vm_id.return_value = 'partition_id'
 
         def build_map_func(host_uuid, vios_w, lpar_uuid, pv,
-                           lpar_slot_num=None, lua=None):
+                           lpar_slot_num=None, lua=None, target_name=None):
             self.assertEqual('host_uuid', host_uuid)
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('1234', lpar_uuid)
@@ -226,8 +227,8 @@ class TestVSCSIAdapter(BaseVSCSITest):
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
-                '_validate_vios_on_connection')
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.PVVscsiFCVolumeAdapter'
+                '._validate_vios_on_connection')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_no_update(
         self, mock_get_vm_id, mock_validate_vioses, mock_disc_hdisk,
@@ -251,8 +252,8 @@ class TestVSCSIAdapter(BaseVSCSITest):
 
     @mock.patch('pypowervm.tasks.hdisk.build_itls')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
-    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.VscsiVolumeAdapter.'
-                '_validate_vios_on_connection')
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.PVVscsiFCVolumeAdapter'
+                '._validate_vios_on_connection')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_to_initiators(
         self, mock_get_vm_id, mock_validate_vioses, mock_add_vscsi_mapping,
@@ -547,7 +548,7 @@ class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):
         mock_vm_id.return_value = 'partition_id'
 
         def build_map_func(host_uuid, vios_w, lpar_uuid, pv,
-                           lpar_slot_num=None, lua=None):
+                           lpar_slot_num=None, lua=None, target_name=None):
             self.assertEqual('host_uuid', host_uuid)
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('1234', lpar_uuid)

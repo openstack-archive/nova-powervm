@@ -72,17 +72,19 @@ class ComprehensiveScrub(fixtures.Fixture):
 class VolumeAdapter(fixtures.Fixture):
     """Mock out the VolumeAdapter."""
 
+    def __init__(self, patch_class):
+        self.patch_class = patch_class
+
     def setUp(self):
         super(VolumeAdapter, self).setUp()
         self.std_vol_adpt_fx = self.useFixture(
-            fixtures.MockPatch('nova_powervm.virt.powervm.volume.vscsi.'
-                               'VscsiVolumeAdapter', __name__='MockVSCSI'))
+            fixtures.MockPatch(self.patch_class, __name__='MockVolumeAdapter'))
         self.std_vol_adpt = self.std_vol_adpt_fx.mock
         # We want to mock out the connection_info individually so it gives
         # back a new mock on every call.  That's because the vol id is
         # used for task names and we can't have duplicates.  Here we have
         # just one mock for simplicity of the vol driver but we need
-        # mulitiple names.
+        # multiple names.
         self.std_vol_adpt.return_value.connection_info.__getitem__\
             .side_effect = mock.MagicMock
         self.drv = self.std_vol_adpt.return_value

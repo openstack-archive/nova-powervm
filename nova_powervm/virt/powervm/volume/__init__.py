@@ -23,3 +23,6 @@ FC_STRATEGY_MAPPING = {
     'npiv': CONF.powervm.fc_npiv_adapter_api,
     'vscsi': CONF.powervm.fc_vscsi_adapter_api
 }
+NETWORK_STRATEGY_MAPPING = {
+    'iscsi': 'nova_powervm.virt.powervm.volume.iscsi.IscsiVolumeAdapter'
+}
