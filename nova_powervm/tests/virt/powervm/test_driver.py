@@ -21,6 +21,7 @@ import fixtures
 import logging
 import mock
 from oslo_serialization import jsonutils
+import six
 
 from nova import block_device as nova_block_device
 from nova.compute import task_states
@@ -1787,6 +1788,25 @@ class TestPowerVMDriver(test.TestCase):
         # Invoke
         self.assertRaises(exc.ConsoleTypeUnavailable, self.drv.get_vnc_console,
                           mock.ANY, self.inst)
+
+    @mock.patch('pypowervm.tasks.vterm.open_remotable_vnc_vterm')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_get_vnc_console_notfound(self, mock_uuid, mock_vterm):
+        # Mock response
+        mock_resp = mock.Mock(status=404)
+        mock_vterm.side_effect = pvm_exc.HttpError(mock_resp)
+        mock_uuid.return_value = 'uuid'
+        exc_str = None
+
+        # Invoke
+        try:
+            self.drv.get_vnc_console(mock.ANY, self.inst)
+        except Exception as exc:
+            exc_str = six.text_type(exc)
+
+        self.assertIsNotNone(exc_str, 'Expected Not Found Exception')
+        self.assertEqual(exc_str, 'Unable to open console since '
+                         'virtual machine Fake Instance does not exist.')
 
     @staticmethod
     def _fake_bdms():

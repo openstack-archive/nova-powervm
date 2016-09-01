@@ -1792,7 +1792,14 @@ class PowerVMDriver(driver.ComputeDriver):
                 self.adapter, lpar_uuid, host, vnc_path=lpar_uuid,
                 use_x509_auth=use_x509_auth, ca_certs=ca_certs,
                 server_cert=server_cert, server_key=server_key)
-        except pvm_exc.VNCBasedTerminalFailedToOpen as err:
+        except Exception as err:
+            # If the LPAR was not found, then give a more descriptive message
+            if isinstance(err, pvm_exc.HttpError):
+                if err.response.status == 404:
+                    msg = _("Unable to open console since virtual machine "
+                            "%s does not exist.") % instance['display_name']
+                    raise exception.ConsoleTypeUnavailable(message=msg)
+            # Otherwise wrapper the error in an exception that can be handled
             raise exception.ConsoleTypeUnavailable(
                 message=_("Unable to open console.  Error is: %s") % err)
 
