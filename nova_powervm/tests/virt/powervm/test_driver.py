@@ -1574,8 +1574,8 @@ class TestPowerVMDriver(test.TestCase):
 
         # Mock up the network info.  They get sanitized to upper case.
         net_info = [
-            {'address': 'aa:bb:cc:dd:ee:ff'},
-            {'address': 'aa:bb:cc:dd:ee:22'}
+            {'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'},
+            {'address': 'aa:bb:cc:dd:ee:22', 'vnic_type': 'normal'}
         ]
 
         # Mock up the rmc vswitch

@@ -35,6 +35,7 @@ from pypowervm.utils import transaction as pvm_trans
 from pypowervm.utils import uuid as pvm_uuid
 from pypowervm.utils import validation as vldn
 from pypowervm.wrappers import base_partition as pvm_bp
+from pypowervm.wrappers import iocard as pvm_card
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import network as pvm_net
 from pypowervm.wrappers import shared_proc_pool as pvm_spp
@@ -741,18 +742,35 @@ def get_instance(context, pvm_uuid):
     return None
 
 
-def get_cnas(adapter, instance):
-    """Returns the current CNAs on the instance.
+def get_cnas(adapter, instance, **search):
+    """Returns the (possibly filtered) current CNAs on the instance.
 
     The Client Network Adapters are the Ethernet adapters for a VM.
     :param adapter: The pypowervm adapter.
     :param instance: The nova instance.
+    :param search: Keyword arguments for CNA.search.  If omitted, all CNAs are
+                   returned.
     :return The CNA wrappers that represent the ClientNetworkAdapters on the VM
     """
-    cna_resp = adapter.read(pvm_lpar.LPAR.schema_type,
-                            root_id=get_pvm_uuid(instance),
-                            child_type=pvm_net.CNA.schema_type)
-    return pvm_net.CNA.wrap(cna_resp)
+    meth = pvm_net.CNA.search if search else pvm_net.CNA.get
+
+    return meth(adapter, parent_type=pvm_lpar.LPAR,
+                parent_uuid=get_pvm_uuid(instance), **search)
+
+
+def get_vnics(adapter, instance, **search):
+    """Returns the (possibly filtered) current vNICs on the instance.
+
+    :param adapter: The pypowervm adapter.
+    :param instance: The nova instance.
+    :param search: Keyword arguments for VNIC.search.  If omitted, all VNICs
+                   are returned.
+    :return The VNIC wrappers that represent the virtual NICs on the VM.
+    """
+    meth = pvm_card.VNIC.search if search else pvm_card.VNIC.get
+
+    return meth(adapter, parent_type=pvm_lpar.LPAR,
+                parent_uuid=get_pvm_uuid(instance), **search)
 
 
 def norm_mac(mac):

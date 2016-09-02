@@ -647,3 +647,45 @@ class TestVM(test.TestCase):
         boot_type = 'npiv'
         vm.update_ibmi_settings(self.apt, instance, boot_type)
         mock_ibmi.assert_called_once_with(self.apt, mock.ANY, 'npiv')
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.wrappers.network.CNA.search')
+    @mock.patch('pypowervm.wrappers.network.CNA.get')
+    def test_get_cnas(self, mock_get, mock_search, mock_uuid):
+        # No kwargs: get
+        self.assertEqual(mock_get.return_value, vm.get_cnas(self.apt, 'inst'))
+        mock_uuid.assert_called_once_with('inst')
+        mock_get.assert_called_once_with(self.apt, parent_type=pvm_lpar.LPAR,
+                                         parent_uuid=mock_uuid.return_value)
+        mock_search.assert_not_called()
+        # With kwargs: search
+        mock_get.reset_mock()
+        mock_uuid.reset_mock()
+        self.assertEqual(mock_search.return_value, vm.get_cnas(
+            self.apt, 'inst', one=2, three=4))
+        mock_uuid.assert_called_once_with('inst')
+        mock_search.assert_called_once_with(
+            self.apt, parent_type=pvm_lpar.LPAR,
+            parent_uuid=mock_uuid.return_value, one=2, three=4)
+        mock_get.assert_not_called()
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.search')
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.get')
+    def test_get_vnics(self, mock_get, mock_search, mock_uuid):
+        # No kwargs: get
+        self.assertEqual(mock_get.return_value, vm.get_vnics(self.apt, 'inst'))
+        mock_uuid.assert_called_once_with('inst')
+        mock_get.assert_called_once_with(self.apt, parent_type=pvm_lpar.LPAR,
+                                         parent_uuid=mock_uuid.return_value)
+        mock_search.assert_not_called()
+        # With kwargs: search
+        mock_get.reset_mock()
+        mock_uuid.reset_mock()
+        self.assertEqual(mock_search.return_value, vm.get_vnics(
+            self.apt, 'inst', one=2, three=4))
+        mock_uuid.assert_called_once_with('inst')
+        mock_search.assert_called_once_with(
+            self.apt, parent_type=pvm_lpar.LPAR,
+            parent_uuid=mock_uuid.return_value, one=2, three=4)
+        mock_get.assert_not_called()

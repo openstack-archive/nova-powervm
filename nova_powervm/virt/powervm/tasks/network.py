@@ -97,7 +97,9 @@ class PlugVifs(pvm_task.PowerVMTask):
                  slot_mgr):
         """Create the task.
 
-        Provides the 'vm_cnas' - the Virtual Machine's Client Network Adapters.
+        Provides 'vm_cnas' - the list of the Virtual Machine's Client Network
+        Adapters as they stand after all VIFs are plugged.  May be None, in
+        which case the Task requiring 'vm_cnas' should discover them afresh.
 
         :param virt_api: The VirtAPI for the operation.
         :param adapter: The pypowervm adapter.
@@ -110,25 +112,43 @@ class PlugVifs(pvm_task.PowerVMTask):
         """
         self.virt_api = virt_api
         self.adapter = adapter
-        self.network_infos = network_infos
+        self.network_infos = network_infos or []
         self.host_uuid = host_uuid
         self.slot_mgr = slot_mgr
         self.crt_network_infos, self.update_network_infos = [], []
+        self.cnas, self.vnics = None, None
 
         super(PlugVifs, self).__init__(
             instance, 'plug_vifs', provides='vm_cnas', requires=['lpar_wrap'])
 
-    def execute_impl(self, lpar_wrap):
-        # Get the current adapters on the system
-        cna_w_list = vm.get_cnas(self.adapter, self.instance)
+    def _vif_exists(self, network_info):
+        """Does the instance have a CNA/VNIC (as appropriate) for a given net?
 
+        :param network_info: A network information dict.  This method expects
+                             it to contain keys 'vnic_type' (value is 'direct'
+                             for VNIC; otherwise assume CNA); and 'address'
+                             (MAC address).
+        :return: True if a CNA/VNIC (as appropriate) with the network_info's
+                 MAC address exists on the instance.  False otherwise.
+        """
+        # Are we looking for a VNIC or a CNA?
+        if network_info['vnic_type'] == 'direct':
+            if self.vnics is None:
+                self.vnics = vm.get_vnics(self.adapter, self.instance)
+            vifs = self.vnics
+        else:
+            if self.cnas is None:
+                self.cnas = vm.get_cnas(self.adapter, self.instance)
+            vifs = self.cnas
+
+        return network_info['address'] in [vm.norm_mac(v.mac) for v in vifs]
+
+    def execute_impl(self, lpar_wrap):
         # We will have two types of network infos.  One is for newly created
         # vifs.  The others are those that exist, but should be re-'treated'
         for network_info in self.network_infos:
-            for cna_w in cna_w_list:
-                if vm.norm_mac(cna_w.mac) == network_info['address']:
-                    self.update_network_infos.append(network_info)
-                    break
+            if self._vif_exists(network_info):
+                self.update_network_infos.append(network_info)
             else:
                 self.crt_network_infos.append(network_info)
 
@@ -185,8 +205,11 @@ class PlugVifs(pvm_task.PowerVMTask):
                              {'mac': network_info['address'],
                               'sys': self.instance.name},
                              instance=self.instance)
-                    vif.plug(self.adapter, self.host_uuid, self.instance,
-                             network_info, self.slot_mgr, new_vif=True)
+                    new_vif = vif.plug(
+                        self.adapter, self.host_uuid, self.instance,
+                        network_info, self.slot_mgr, new_vif=True)
+                    if self.cnas is not None:
+                        self.cnas.append(new_vif)
         except eventlet.timeout.Timeout:
             LOG.error(_LE('Error waiting for VIF to be created for instance '
                           '%(sys)s'), {'sys': self.instance.name},
@@ -199,8 +222,7 @@ class PlugVifs(pvm_task.PowerVMTask):
                 self.instance.host = old_host
                 self.instance.save()
 
-        # Return the list of created VIFs.
-        return cna_w_list
+        return self.cnas
 
     def _vif_callback_failed(self, event_name, instance):
         LOG.error(_LE('VIF Plug failure for callback on event '
@@ -258,7 +280,8 @@ class PlugMgmtVif(pvm_task.PowerVMTask):
     def __init__(self, adapter, instance, host_uuid, slot_mgr):
         """Create the task.
 
-        Requires the 'vm_cnas'.
+        Requires 'vm_cnas' from PlugVifs.  If None, this Task will retrieve the
+        VM's list of CNAs.
 
         Provides the mgmt_cna.  This may be none if no management device was
         created.  This is the CNA of the mgmt vif for the VM.
@@ -291,8 +314,8 @@ class PlugMgmtVif(pvm_task.PowerVMTask):
                      '%s'), self.instance.name, instance=self.instance)
         # Determine if we need to create the secure RMC VIF.  This should only
         # be needed if there is not a VIF on the secure RMC vSwitch
-        vswitch_w = vif.get_secure_rmc_vswitch(self.adapter, self.host_uuid)
-        if vswitch_w is None:
+        vswitch = vif.get_secure_rmc_vswitch(self.adapter, self.host_uuid)
+        if vswitch is None:
             LOG.debug('No management VIF created for instance %s due to '
                       'lack of Management Virtual Switch',
                       self.instance.name)
@@ -300,11 +323,16 @@ class PlugMgmtVif(pvm_task.PowerVMTask):
 
         # This next check verifies that there are no existing NICs on the
         # vSwitch, so that the VM does not end up with multiple RMC VIFs.
-        for cna_w in vm_cnas:
-            if cna_w.vswitch_uri == vswitch_w.href:
-                LOG.debug('Management VIF already created for instance %s',
-                          self.instance.name)
-                return None
+        if vm_cnas is None:
+            has_mgmt_vif = vm.get_cnas(self.adapter, self.instance,
+                                       vswitch_uri=vswitch.href)
+        else:
+            has_mgmt_vif = vswitch.href in [cna.vswitch_uri for cna in vm_cnas]
+
+        if has_mgmt_vif:
+            LOG.debug('Management VIF already created for instance %s',
+                      self.instance.name)
+            return None
 
         # Return the created management CNA
         return vif.plug_secure_rmc_vif(

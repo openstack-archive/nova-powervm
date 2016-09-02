@@ -27,7 +27,7 @@ from nova_powervm.virt.powervm.tasks import network as tf_net
 
 
 def cna(mac):
-    """Builds a mock Client Network Adapter for unit tests."""
+    """Builds a mock Client Network Adapter (or VNIC) for unit tests."""
     nic = mock.MagicMock()
     nic.mac = mac
     nic.vswitch_uri = 'fake_href'
@@ -96,34 +96,48 @@ class TestNetwork(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    def test_plug_vifs_rmc(self, mock_vm_get, mock_plug):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vnics')
+    def test_plug_vifs_rmc(self, mock_vnic_get, mock_cna_get, mock_plug):
         """Tests that a crt vif can be done with secure RMC."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
         # Mock up the CNA response.  One should already exist, the other
         # should not.
-        mock_vm_get.return_value = [cna('AABBCCDDEEFF'), cna('AABBCCDDEE11')]
+        pre_cnas = [cna('AABBCCDDEEFF'), cna('AABBCCDDEE11')]
+        mock_cna_get.return_value = pre_cnas
+        # Ditto VNIC response.
+        mock_vnic_get.return_value = [cna('AABBCCDDEE33'), cna('AABBCCDDEE44')]
 
         # Mock up the network info.  This also validates that they will be
         # sanitized to upper case.
         net_info = [
-            {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:22'},
-            {'address': 'aa:bb:cc:dd:ee:33'}
+            {'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'},
+            {'address': 'aa:bb:cc:dd:ee:22', 'vnic_type': 'normal'},
+            {'address': 'aa:bb:cc:dd:ee:33', 'vnic_type': 'direct'}
         ]
+
+        # Two updates run first; then a create
+        mock_plug.side_effect = ['upd1', 'upd2', 'crt']
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
                                  'host_uuid', 'slot_mgr')
 
-        p_vifs.execute(self.mock_lpar_wrap)
+        all_cnas = p_vifs.execute(self.mock_lpar_wrap)
 
-        # new vif should be created twice.
+        # new vif should be created once.
         mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[0],
                                   'slot_mgr', new_vif=False)
         mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[1],
                                   'slot_mgr', new_vif=True)
         mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[2],
-                                  'slot_mgr', new_vif=True)
+                                  'slot_mgr', new_vif=False)
+
+        # The Task provides the list of original CNAs plus only CNAs that were
+        # created.
+        exp_cnas = pre_cnas
+        exp_cnas.append('crt')
+        self.assertEqual(exp_cnas, all_cnas)
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
@@ -135,9 +149,11 @@ class TestNetwork(test.TestCase):
         mock_vm_get.return_value = [cna('AABBCCDDEEFF'), cna('AABBCCDDEE11')]
 
         # Mock up the network info.  This also validates that they will be
-        # sanitized to upper case.
+        # sanitized to upper case.  This also validates that we don't call
+        # get_vnics if no nets have vnic_type 'direct'.
         net_info = [
-            {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:11'}
+            {'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'},
+            {'address': 'aa:bb:cc:dd:ee:11', 'vnic_type': 'normal'}
         ]
 
         # Run method
@@ -158,7 +174,7 @@ class TestNetwork(test.TestCase):
 
         # Mock up the CNA response.  Only doing one for simplicity
         mock_vm_get.return_value = []
-        net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
+        net_info = [{'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'}]
 
         # Mock that the state is incorrect
         self.mock_lpar_wrap.can_modify_io.return_value = False, 'bad'
@@ -182,7 +198,7 @@ class TestNetwork(test.TestCase):
         mock_vm_get.return_value = [cna('AABBCCDDEE11')]
 
         # Mock up the network info.
-        net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
+        net_info = [{'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'}]
 
         # Ensure that an exception is raised by a timeout.
         mock_plug.side_effect = eventlet.timeout.Timeout()
@@ -209,7 +225,7 @@ class TestNetwork(test.TestCase):
         mock_vm_get.return_value = [cna('AABBCCDDEE11')]
 
         # Mock up the network info.
-        net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
+        net_info = [{'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'}]
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
@@ -240,7 +256,7 @@ class TestNetwork(test.TestCase):
         mock_vm_get.return_value = [cna('AABBCCDDEE11')]
 
         # Mock up the network info.
-        net_info = [{'address': 'aa:bb:cc:dd:ee:ff'}]
+        net_info = [{'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'}]
 
         # Ensure that an exception is raised by a timeout.
         mock_plug.side_effect = eventlet.timeout.Timeout()
@@ -265,19 +281,19 @@ class TestNetwork(test.TestCase):
         """Tests that the revert flow works properly."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
 
-        # Make a fake CNA list.  No real data needed, as the thing it calls
-        # into is mocked.
-        cna_list = []
+        # Fake CNA list.  The one pre-existing VIF should *not* get reverted.
+        cna_list = [cna('AABBCCDDEEFF'), cna('FFEEDDCCBBAA')]
         mock_vm_get.return_value = cna_list
 
         # Mock up the network info.  Three roll backs.
         net_info = [
-            {'address': 'aa:bb:cc:dd:ee:ff'}, {'address': 'aa:bb:cc:dd:ee:22'},
-            {'address': 'aa:bb:cc:dd:ee:33'}
+            {'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'},
+            {'address': 'aa:bb:cc:dd:ee:22', 'vnic_type': 'normal'},
+            {'address': 'aa:bb:cc:dd:ee:33', 'vnic_type': 'normal'}
         ]
 
         # Make sure we test raising an exception
-        mock_unplug.side_effect = [None, exception.NovaException(), None]
+        mock_unplug.side_effect = [exception.NovaException(), None]
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
@@ -285,18 +301,17 @@ class TestNetwork(test.TestCase):
         p_vifs.execute(self.mock_lpar_wrap)
         p_vifs.revert(self.mock_lpar_wrap, mock.Mock(), mock.Mock())
 
-        # The unplug should be called three times.  The exception shouldn't
-        # stop the other calls.
-        self.assertEqual(3, mock_unplug.call_count)
+        # The unplug should be called twice.  The exception shouldn't stop the
+        # second call.
+        self.assertEqual(2, mock_unplug.call_count)
 
-        # Make sure each call is invoked correctly.
-        c1 = mock.call(self.apt, 'host_uuid', inst, net_info[0],
-                       'slot_mgr', cna_w_list=cna_list)
+        # Make sure each call is invoked correctly.  The first plug was not a
+        # new vif, so it should not be reverted.
         c2 = mock.call(self.apt, 'host_uuid', inst, net_info[1],
                        'slot_mgr', cna_w_list=cna_list)
         c3 = mock.call(self.apt, 'host_uuid', inst, net_info[2],
                        'slot_mgr', cna_w_list=cna_list)
-        mock_unplug.assert_has_calls([c1, c2, c3])
+        mock_unplug.assert_has_calls([c2, c3])
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch')
@@ -312,12 +327,45 @@ class TestNetwork(test.TestCase):
         vswitch_w.href = 'fake_mgmt_uri'
         mock_get_rmc_vswitch.return_value = vswitch_w
 
-        # Run method
+        # Run method such that it triggers a fresh CNA search
         p_vifs = tf_net.PlugMgmtVif(self.apt, inst, 'host_uuid', 'slot_mgr')
-        p_vifs.execute([])
+        p_vifs.execute(None)
 
-        # The create should have only been called once.
+        # With the default get_cnas mock (which returns a Mock()), we think we
+        # found an existing management CNA.
+        mock_plug_rmc_vif.assert_not_called()
+        mock_vm_get.assert_called_once_with(
+            self.apt, inst, vswitch_uri='fake_mgmt_uri')
+
+        # Now mock get_cnas to return no hits
+        mock_vm_get.reset_mock()
+        mock_vm_get.return_value = []
+        p_vifs.execute(None)
+
+        # Get was called; and since it didn't have the mgmt CNA, so was plug.
         self.assertEqual(1, mock_plug_rmc_vif.call_count)
+        mock_vm_get.assert_called_once_with(
+            self.apt, inst, vswitch_uri='fake_mgmt_uri')
+
+        # Now pass CNAs, but not the mgmt vif, "from PlugVifs"
+        cnas = [mock.Mock(vswitch_uri='uri1'), mock.Mock(vswitch_uri='uri2')]
+        mock_plug_rmc_vif.reset_mock()
+        mock_vm_get.reset_mock()
+        p_vifs.execute(cnas)
+
+        # Get wasn't called, since the CNAs were passed "from PlugVifs"; but
+        # since the mgmt vif wasn't included, plug was called.
+        mock_vm_get.assert_not_called()
+        mock_plug_rmc_vif.assert_called()
+
+        # Finally, pass CNAs including the mgmt.
+        cnas.append(mock.Mock(vswitch_uri='fake_mgmt_uri'))
+        mock_plug_rmc_vif.reset_mock()
+        p_vifs.execute(cnas)
+
+        # Neither get nor plug was called.
+        mock_vm_get.assert_not_called()
+        mock_plug_rmc_vif.assert_not_called()
 
     @mock.patch('nova.utils.is_neutron')
     def test_get_vif_events(self, mock_is_neutron):

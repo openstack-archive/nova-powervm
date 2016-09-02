@@ -100,6 +100,8 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
                     a brand new VIF.  If False, it indicates that the VIF
                     is already on the client but should be treated on the
                     bridge.
+    :return: The wrapper (CNA or VNIC) representing the plugged virtual
+             network.  None if the vnet was not created.
     """
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
 
@@ -114,6 +116,8 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
     # next rebuild
     if not slot_num and new_vif:
         slot_mgr.register_vnet(vnet_w)
+
+    return vnet_w
 
 
 def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
@@ -525,10 +529,8 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
 
     def unplug(self, vif, cna_w_list=None):
         mac = pvm_util.sanitize_mac_for_api(vif['address'])
-        vnic = pvm_card.VNIC.search(
-            self.adapter, parent_type=pvm_lpar.LPAR,
-            parent_uuid=vm.get_pvm_uuid(self.instance),
-            mac=mac, one_result=True)
+        vnic = vm.get_vnics(
+            self.adapter, self.instance, mac=mac, one_result=True)
         if not vnic:
             LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
                             'instance %(inst)s.  No matching vNIC was found '
@@ -642,9 +644,8 @@ class PvmOvsVifDriver(PvmLioVifDriver):
             self.adapter, parent_type=pvm_ms.System.schema_type,
             one_result=True, parent_uuid=self.host_uuid,
             name=CONF.powervm.pvm_vswitch_for_novalink_io)
-        cna = pvm_net.CNA.search(
-            self.adapter, mac=mac, one_result=True, parent_type=pvm_lpar.LPAR,
-            parent_uuid=vm.get_pvm_uuid(self.instance))
+        cna = vm.get_cnas(
+            self.adapter, self.instance, mac=mac, one_result=True)
 
         # Assigns a free vlan (which is returned) to the cna_list
         # also enable the cna
