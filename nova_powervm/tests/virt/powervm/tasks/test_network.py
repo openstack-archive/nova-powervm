@@ -94,7 +94,7 @@ class TestNetwork(test.TestCase):
         # Run method
         p_vifs = tf_net.UnplugVifs(self.apt, inst, mock.Mock(), 'host_uuid',
                                    'slot_mgr')
-        self.assertRaises(tf_net.VirtualInterfaceUnplugException,
+        self.assertRaises(exception.VirtualInterfaceUnplugException,
                           p_vifs.execute, self.mock_lpar_wrap)
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug')

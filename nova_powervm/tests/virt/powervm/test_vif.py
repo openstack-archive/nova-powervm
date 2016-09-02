@@ -18,6 +18,7 @@ import mock
 
 from nova import exception
 from nova import test
+from pypowervm import exceptions as pvm_ex
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm import util as pvm_util
 from pypowervm.wrappers import logical_partition as pvm_lpar
@@ -110,6 +111,24 @@ class TestVifFunctions(test.TestCase):
         mock_bld_drv.return_value.unplug.assert_called_once_with(
             'vif', cna_w_list='cnalist')
         slot_mgr.drop_vnet.assert_not_called()
+
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    def test_plug_raises(self, mock_vif_drv):
+        """HttpError is converted to VirtualInterfacePlugException."""
+        vif_drv = mock.Mock(plug=mock.Mock(side_effect=pvm_ex.HttpError(
+            resp=mock.Mock(status='status', reqmethod='method', reqpath='path',
+                           reason='reason'))))
+        mock_vif_drv.return_value = vif_drv
+        mock_slot_mgr = mock.Mock()
+        mock_vif = {'address': 'vifaddr'}
+        self.assertRaises(exception.VirtualInterfacePlugException,
+                          vif.plug, 'adap', 'huuid', 'inst', mock_vif,
+                          mock_slot_mgr, new_vif='new_vif')
+        mock_vif_drv.assert_called_once_with('adap', 'huuid', 'inst', mock_vif)
+        vif_drv.plug.assert_called_once_with(
+            mock_vif, mock_slot_mgr.build_map.get_vea_slot.return_value,
+            new_vif='new_vif')
+        mock_slot_mgr.build_map.get_vea_slot.assert_called_once_with('vifaddr')
 
     @mock.patch('pypowervm.wrappers.network.VSwitch.search')
     def test_get_secure_rmc_vswitch(self, mock_search):
