@@ -23,7 +23,6 @@ from oslo_log import log as logging
 from pypowervm.wrappers import network as pvm_net
 
 from nova_powervm import conf as cfg
-from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
@@ -33,14 +32,6 @@ from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
-
-
-class VirtualInterfaceUnplugException(exception.NovaException):
-
-    """Indicates that a VIF unplug failed."""
-    # TODO(thorst) symmetrical to the exception in base Nova.  Evaluate
-    # moving to Nova core.
-    msg_fmt = _("Virtual interface unplug failed")
 
 
 class UnplugVifs(pvm_task.PowerVMTask):
@@ -77,7 +68,7 @@ class UnplugVifs(pvm_task.PowerVMTask):
                           'The reason reported by the system is: %(reason)s'),
                       {'inst': self.instance.name, 'reason': reason},
                       instance=self.instance)
-            raise VirtualInterfaceUnplugException()
+            raise exception.VirtualInterfaceUnplugException(reason=reason)
 
         # Get all the current Client Network Adapters (CNA) on the VM itself.
         cna_w_list = vm.get_cnas(self.adapter, self.instance)

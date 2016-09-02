@@ -25,6 +25,7 @@ from nova import utils
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_utils import importutils
+from pypowervm import exceptions as pvm_ex
 from pypowervm.tasks import cna as pvm_cna
 from pypowervm.tasks import partition as pvm_par
 from pypowervm.tasks import sriov as sriovtask
@@ -52,13 +53,6 @@ VIF_MAPPING = {'pvm_sea': 'nova_powervm.virt.powervm.vif.PvmSeaVifDriver',
                'nova_powervm.virt.powervm.vif.PvmVnicSriovVifDriver'}
 
 CONF = cfg.CONF
-
-
-class VirtualInterfaceUnplugException(exception.NovaException):
-    """Indicates that a VIF unplug failed."""
-    # TODO(thorst) symmetrical to the exception in base Nova.  Evaluate
-    # moving to Nova core.
-    msg_fmt = _("Virtual interface unplug failed")
 
 
 def _build_vif_driver(adapter, host_uuid, instance, vif):
@@ -110,7 +104,14 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
     slot_num = slot_mgr.build_map.get_vea_slot(vif['address'])
 
     # Invoke the plug
-    vnet_w = vif_drv.plug(vif, slot_num, new_vif=new_vif)
+    try:
+        vnet_w = vif_drv.plug(vif, slot_num, new_vif=new_vif)
+    except pvm_ex.HttpError as he:
+        # Log the message constructed by HttpError
+        LOG.exception(he.args[0])
+        raise exception.VirtualInterfacePlugException()
+    # Other exceptions are (hopefully) custom VirtualInterfacePlugException
+    # generated lower in the call stack.
 
     # If the slot number hadn't been provided initially, save it for the
     # next rebuild
@@ -134,7 +135,13 @@ def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
                        allows for an improvement in operation speed.
     """
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
-    vnet_w = vif_drv.unplug(vif, cna_w_list=cna_w_list)
+    try:
+        vnet_w = vif_drv.unplug(vif, cna_w_list=cna_w_list)
+    except pvm_ex.HttpError as he:
+        # Log the message constructed by HttpError
+        LOG.exception(he.args[0])
+        raise exception.VirtualInterfaceUnplugException(reason=he.args[0])
+
     if vnet_w:
         slot_mgr.drop_vnet(vnet_w)
 
@@ -274,8 +281,7 @@ class PvmVifDriver(object):
             LOG.error(_LE('Unable to unplug VIF with mac %(mac)s for instance '
                           '%(inst)s.'), {'mac': vif['address'],
                                          'inst': self.instance.name})
-            LOG.exception(e)
-            raise VirtualInterfaceUnplugException()
+            raise exception.VirtualInterfaceUnplugException(reason=e.args[0])
         return cna_w
 
     def _find_cna_for_vif(self, cna_w_list, vif):
