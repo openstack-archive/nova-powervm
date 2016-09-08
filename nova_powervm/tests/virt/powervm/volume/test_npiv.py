@@ -19,6 +19,7 @@ import mock
 from nova.compute import task_states
 from oslo_serialization import jsonutils
 from pypowervm import const as pvm_const
+from pypowervm.tests.tasks import util as tju
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -29,6 +30,7 @@ from nova_powervm.virt.powervm import exception as exc
 from nova_powervm.virt.powervm.volume import npiv
 
 VIOS_FEED = 'fake_vios_feed2.txt'
+VIOS_FEED_2 = 'fake_vios_feed.txt'
 
 CONF = cfg.CONF
 
@@ -516,12 +518,15 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
             [('11', 'AA BB'), ('22', 'CC DD')],
             [('33', 'EE FF')]]
 
+        vios_wraps = pvm_vios.VIOS.wrap(tju.load_file(VIOS_FEED))
+        vios1_w = vios_wraps[0]
+
         def mock_client_adpt(slot):
             return mock.Mock(client_adapter=mock.Mock(lpar_slot_num=slot))
 
         mock_find_vios_for_vfc_wwpns.side_effect = [
-            (None, mock_client_adpt(1)), (None, mock_client_adpt(2)),
-            (None, mock_client_adpt(3))]
+            (vios1_w, mock_client_adpt(1)), (vios1_w, mock_client_adpt(2)),
+            (vios1_w, mock_client_adpt(3))]
 
         # Execute the test
         mig_data = {}
@@ -529,6 +534,65 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
 
         self.assertEqual('[1, 2]', mig_data.get('src_npiv_fabric_slots_A'))
         self.assertEqual('[3]', mig_data.get('src_npiv_fabric_slots_B'))
+        vios_peer_slots = jsonutils.loads(mig_data.get('src_vios_peer_slots'))
+        self.assertItemsEqual([[1, 2, 3]], vios_peer_slots)
+        # Ensure only string data is placed in the dict.
+        for key in mig_data:
+            self.assertEqual(str, type(mig_data[key]))
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.find_vios_for_vfc_wwpns')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_get_fabric_meta')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_fabric_names')
+    def test_pre_live_migration_on_source_dual_vios(
+            self, mock_fabric_names, mock_get_fabric_meta,
+            mock_find_vios_for_vfc_wwpns):
+        mock_fabric_names.return_value = ['A', 'B']
+        mock_get_fabric_meta.side_effect = [
+            [('11', 'AA BB'), ('22', 'CC DD')],
+            [('33', 'EE FF'), ('44', 'GG HH')]]
+
+        vios_wraps = pvm_vios.VIOS.wrap(tju.load_file(VIOS_FEED_2))
+        vios1_w = vios_wraps[0]
+        vios2_w = vios_wraps[1]
+
+        def mock_client_adpt(slot):
+            return mock.Mock(client_adapter=mock.Mock(lpar_slot_num=slot))
+
+        mock_find_vios_for_vfc_wwpns.side_effect = [
+            (vios1_w, mock_client_adpt(1)), (vios1_w, mock_client_adpt(2)),
+            (vios2_w, mock_client_adpt(3)), (vios2_w, mock_client_adpt(4))]
+
+        # Execute the test
+        mig_data = {}
+        self.vol_drv.pre_live_migration_on_source(mig_data)
+
+        self.assertEqual('[1, 2]', mig_data.get('src_npiv_fabric_slots_A'))
+        self.assertEqual('[3, 4]', mig_data.get('src_npiv_fabric_slots_B'))
+        vios_peer_slots = jsonutils.loads(mig_data.get('src_vios_peer_slots'))
+        self.assertItemsEqual([[1, 2], [3, 4]], vios_peer_slots)
+        # Ensure only string data is placed in the dict.
+        for key in mig_data:
+            self.assertEqual(str, type(mig_data[key]))
+
+        # test unequal mapping across 2 VIOS
+        mock_get_fabric_meta.side_effect = [
+            [('11', 'AA BB'), ('22', 'CC DD')],
+            [('33', 'EE FF')]]
+
+        mock_find_vios_for_vfc_wwpns.side_effect = [
+            (vios1_w, mock_client_adpt(1)), (vios2_w, mock_client_adpt(2)),
+            (vios1_w, mock_client_adpt(3))]
+
+        # Execute the test
+        mig_data = {}
+        self.vol_drv.pre_live_migration_on_source(mig_data)
+
+        self.assertEqual('[1, 2]', mig_data.get('src_npiv_fabric_slots_A'))
+        self.assertEqual('[3]', mig_data.get('src_npiv_fabric_slots_B'))
+        vios_peer_slots = jsonutils.loads(mig_data.get('src_vios_peer_slots'))
+        self.assertItemsEqual([[1, 3], [2]], vios_peer_slots)
         # Ensure only string data is placed in the dict.
         for key in mig_data:
             self.assertEqual(str, type(mig_data[key]))
@@ -537,7 +601,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
                 'build_migration_mappings_for_fabric')
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_fabric_names')
-    def test_pre_live_migration_on_destination(
+    def test_pre_live_migration_on_destination_legacy(
             self, mock_fabric_names, mock_build_mig_map):
         mock_fabric_names.return_value = ['A', 'B']
 
@@ -563,6 +627,29 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
 
         # Verify that on migration, the WWPNs are reversed.
         self.assertEqual(2, self.vol_drv.stg_ftsk.feed.reverse.call_count)
+
+    @mock.patch('pypowervm.tasks.vfc_mapper.'
+                'build_migration_mappings')
+    @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
+                '_fabric_names')
+    def test_pre_live_migration_on_destination(
+            self, mock_fabric_names, mock_build_mig_map):
+        mock_fabric_names.return_value = ['A', 'B']
+
+        mig_data = {'src_npiv_fabric_slots_A': jsonutils.dumps([1, 2]),
+                    'src_npiv_fabric_slots_B': jsonutils.dumps([3]),
+                    'src_vios_peer_slots': jsonutils.dumps([[1, 2, 3]])}
+
+        mock_build_mig_map.return_value = {'a', 'b'}
+        self.vol_drv.stg_ftsk = mock.MagicMock()
+
+        # Execute the test
+        self.vol_drv.pre_live_migration_on_destination(mig_data)
+
+        # Order of the mappings is not important.
+        self.assertEqual(
+            set({'b', 'a'}),
+            set(jsonutils.loads(mig_data.get('vfc_lpm_mappings'))))
 
     def test_set_fabric_meta(self):
         port_map = [('1', 'aa AA'), ('2', 'bb BB'),
