@@ -122,7 +122,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         fabrics = self._fabric_names()
         vios_wraps = self.stg_ftsk.feed
-
+        # This mapping contains the client slots used on a given vios.
+        # { vios_uuid: [slot_num, ...], vios2_uuid: [slot_num2,..] }
+        slot_peer_dict = dict()
         for fabric in fabrics:
             npiv_port_maps = self._get_fabric_meta(fabric)
             if not npiv_port_maps:
@@ -130,14 +132,24 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
             client_slots = []
             for port_map in npiv_port_maps:
-                vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
-                    vios_wraps, port_map[1].split())[1]
-                client_slots.append(vfc_map.client_adapter.lpar_slot_num)
+                vios_w, vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(
+                    vios_wraps, port_map[1].split())
+                slot_num = vfc_map.client_adapter.lpar_slot_num
+                vios_uuid = vios_w.partition_uuid
+                if vios_uuid not in slot_peer_dict:
+                    slot_peer_dict[vios_uuid] = []
+                slot_peer_dict[vios_uuid].append(slot_num)
+                client_slots.append(slot_num)
 
             # Set the client slots into the fabric data to pass to the
             # destination. Only strings can be stored.
             mig_data['src_npiv_fabric_slots_%s' % fabric] = (
                 jsonutils.dumps(client_slots))
+        # The target really doesn't care what the UUID is of the source VIOS
+        # it is on a different server.  So let's strip that out and just
+        # get the values.
+        mig_data['src_vios_peer_slots'] = (
+            jsonutils.dumps(list(slot_peer_dict.values())))
 
     def pre_live_migration_on_destination(self, mig_data):
         """Perform pre live migration steps for the volume on the target host.
@@ -158,7 +170,34 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                          should be added to this dictionary.
         """
         vios_wraps = self.stg_ftsk.feed
+        if 'src_vios_peer_slots' in mig_data:
+            self._pre_live_migration_on_dest_new(vios_wraps, mig_data)
+        else:
+            self._pre_live_migration_on_dest_legacy(vios_wraps, mig_data)
 
+    def _pre_live_migration_on_dest_new(self, vios_wraps, mig_data):
+        # Need to first derive the port mappings that can be passed back
+        # to the source system for the live migration call.  This tells
+        # the source system what 'vfc mappings' to pass in on the live
+        # migration command.
+        fabric_data = dict()
+        for fabric in self._fabric_names():
+            fab_slots = jsonutils.loads(
+                mig_data['src_npiv_fabric_slots_%s' % fabric])
+            ports = self._fabric_ports(fabric)
+            fabric_data[fabric] = {'slots': fab_slots,
+                                   'p_port_wwpns': ports}
+
+        slot_peers = jsonutils.loads(
+            mig_data['src_vios_peer_slots'])
+        fabric_mapping = pvm_vfcm.build_migration_mappings(
+            vios_wraps, fabric_data, slot_peers)
+        mig_data['vfc_lpm_mappings'] = jsonutils.dumps(fabric_mapping)
+
+    def _pre_live_migration_on_dest_legacy(self, vios_wraps, mig_data):
+        # Used in case the source server is running an old nova-compute (ex.
+        # Mitaka).  To be removed in Ocata or Pike.
+        #
         # Need to first derive the port mappings that can be passed back
         # to the source system for the live migration call.  This tells
         # the source system what 'vfc mappings' to pass in on the live
