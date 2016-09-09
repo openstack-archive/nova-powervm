@@ -59,6 +59,24 @@ class ConfigDrivePowerVM(object):
             self.adapter, CONF.powervm.vopt_media_volume_group,
             CONF.powervm.vopt_media_rep_size)
 
+    def _sanitize_network_info(self, network_info):
+        """Will sanitize the network info for the config drive.
+
+        Newer versions of cloud-init look at the vif type information in
+        the network info and utilize it to determine what to do.  There are
+        a limited number of vif types, and it seems to be built on the idea
+        that the neutron vif type is the cloud init vif type (which is not
+        quite right).
+
+        This sanitizes the network info that gets passed into the config
+        drive to work properly with cloud-inits.
+        """
+        network_info = copy.deepcopy(network_info)
+        for vif in network_info:
+            if vif.get('type') is not 'ovs':
+                vif['type'] = 'vif'
+        return network_info
+
     def _create_cfg_dr_iso(self, instance, injected_files, network_info,
                            admin_pass=None):
         """Creates an ISO file that contains the injected files.
@@ -77,6 +95,9 @@ class ConfigDrivePowerVM(object):
         extra_md = {}
         if admin_pass is not None:
             extra_md['admin_pass'] = admin_pass
+
+        # Sanitize the vifs for the network config
+        network_info = self._sanitize_network_info(network_info)
 
         inst_md = instance_metadata.InstanceMetadata(instance,
                                                      content=injected_files,

@@ -131,6 +131,17 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertEqual(1, mock_add_map.call_count)
         self.assertTrue(self.validate_vopt.called)
 
+    def test_sanitize_network_info(self):
+        network_info = [{'type': 'lbr'}, {'type': 'pvm_sea'},
+                        {'type': 'ovs'}]
+
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+
+        resp = cfg_dr_builder._sanitize_network_info(network_info)
+        expected_ret = [{'type': 'vif'}, {'type': 'vif'},
+                        {'type': 'ovs'}]
+        self.assertEqual(resp, expected_ret)
+
     def test_mgmt_cna_to_vif(self):
         mock_cna = mock.MagicMock()
         mock_cna.mac = "FAD4433ED120"
