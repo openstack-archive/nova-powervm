@@ -133,6 +133,33 @@ class DiskAdapter(object):
         """
         raise NotImplementedError()
 
+    def boot_disk_path_for_instance(self, instance, vios_uuid):
+        """Find scsi mappings on given vios for the instance.
+
+        This method finds all scsi mappings on a given vios that are associated
+        with the instance and disk_type.
+
+        :param instance: nova.objects.instance.Instance object owning the
+                         requested disk.
+        :param disk_type: The type of disk to find, one of the DiskType enum
+                          values.
+        :param lpar_wrap: pypowervm.wrappers.logical_partition.LPAR
+                          corresponding to the instance.  If not specified, it
+                          will be retrieved; i.e. specify this parameter to
+                          save on REST calls.
+        :return: Iterator of scsi mappings that are associated with the
+                 instance and disk_type.
+        """
+        vm_uuid = vm.get_pvm_uuid(instance)
+        match_func = self.disk_match_func(DiskType.BOOT, instance)
+        vios_wrap = pvm_vios.VIOS.get(self.adapter, uuid=vios_uuid,
+                                      xag=[pvm_const.XAG.VIO_SMAP])
+        maps = tsk_map.find_maps(vios_wrap.scsi_mappings,
+                                 client_lpar_id=vm_uuid, match_func=match_func)
+        if maps:
+            return maps[0].server_adapter.backing_dev_name
+        return None
+
     def instance_disk_iter(self, instance, disk_type=DiskType.BOOT,
                            lpar_wrap=None):
         """Return the instance's storage element wrapper of the specified type.
