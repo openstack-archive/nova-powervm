@@ -30,6 +30,8 @@ from pypowervm.tasks import partition
 from pypowervm.utils import transaction as tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+from taskflow import task
+
 import six
 
 LOG = logging.getLogger(__name__)
@@ -188,9 +190,12 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             with lockutils.lock(hash(self)):
                 self._add_remove_mapping(partition_id, vios_w.uuid,
                                          device_name, slot_mgr)
+                target_iqn = self.connection_info["data"]["target_iqn"]
 
-                # TODO(Taylor): Logout of iSCSI device
-
+                def logout():
+                    hdisk.remove_iscsi(self.adapter, target_iqn, vios_w.uuid)
+                self.stg_ftsk.add_post_execute(task.FunctorTask(
+                    logout, name='remove_iSCSI_%s' % target_iqn))
             # Found a valid element to remove
             return True
         try:

@@ -114,12 +114,12 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(1, mock_build_map.call_count)
 
-    @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
+    @mock.patch('pypowervm.tasks.hdisk.remove_iscsi')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_disconnect_volume(self, mock_get_vm_id, mock_remove_maps,
-                               mock_hdisk_from_uuid, mock_remove_hdisk):
+                               mock_hdisk_from_uuid, mock_remove_iscsi):
         # The mock return values
         mock_hdisk_from_uuid.return_value = 'device_name'
         mock_get_vm_id.return_value = 'partition_id'
@@ -136,6 +136,9 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(1, mock_remove_maps.call_count)
+        fake_iqn = self.vol_drv.connection_info['data']['target_iqn']
+        mock_remove_iscsi.assert_called_once_with(
+            self.adpt, fake_iqn, '3443DB77-AED1-47ED-9AA5-3DB9C6CF7089')
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
 
     def test_min_xags(self):
