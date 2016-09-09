@@ -79,6 +79,23 @@ class TestStorage(test.TestCase):
                                                               'stg_name')
         mock_rm.assert_called_with('/dev/disk')
 
+        # Management Partition is VIOS and Novalink hosted storage
+        reset_mocks()
+        disk_dvr.vios_uuids = ['mp_uuid']
+        dev_name = '/dev/vg/fake_name'
+        disk_dvr.boot_disk_path_for_instance.return_value = dev_name
+        tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
+        self.assertEqual((None, None, dev_name), tf.execute())
+
+        # Management Partition is VIOS and not Novalink hosted storage
+        reset_mocks()
+        disk_dvr.vios_uuids = ['mp_uuid']
+        disk_dvr.boot_disk_path_for_instance.return_value = None
+        tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
+        tf.execute()
+        disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
+            mock_instance)
+
         # Bad path - find_maps returns no results
         reset_mocks()
         mock_find.return_value = []
