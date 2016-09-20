@@ -45,8 +45,34 @@ class TestVifFunctions(test.TestCase):
             traits=pvm_fx.LocalPVMTraits)).adpt
         self.slot_mgr = mock.Mock()
 
+    @mock.patch('oslo_serialization.jsonutils.dumps')
+    @mock.patch('pypowervm.wrappers.event.Event')
+    def test_push_vif_event(self, mock_event, mock_dumps):
+        mock_vif = mock.Mock(mac='MAC', href='HREF')
+        vif._push_vif_event(self.adpt, 'action', mock_vif)
+        mock_dumps.assert_called_once_with(
+            {'provider': 'NOVA_PVM_VIF', 'action': 'action', 'mac': 'MAC'})
+        mock_event.bld.assert_called_once_with(self.adpt, 'HREF',
+                                               mock_dumps.return_value)
+        mock_event.bld.return_value.create.assert_called_once_with()
+
+        mock_dumps.reset_mock()
+        mock_event.bld.reset_mock()
+        mock_event.bld.return_value.create.reset_mock()
+
+        # Exception reraises
+        mock_event.bld.return_value.create.side_effect = IndexError
+        self.assertRaises(IndexError, vif._push_vif_event, self.adpt, 'action',
+                          mock_vif)
+        mock_dumps.assert_called_once_with(
+            {'provider': 'NOVA_PVM_VIF', 'action': 'action', 'mac': 'MAC'})
+        mock_event.bld.assert_called_once_with(self.adpt, 'HREF',
+                                               mock_dumps.return_value)
+        mock_event.bld.return_value.create.assert_called_once_with()
+
     @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
-    def test_plug(self, mock_bld_drv):
+    @mock.patch('nova_powervm.virt.powervm.vif._push_vif_event')
+    def test_plug(self, mock_event, mock_bld_drv):
         """Test the top-level plug method."""
         mock_vif = {'address': 'MAC'}
         slot_mgr = mock.Mock()
@@ -62,6 +88,7 @@ class TestVifFunctions(test.TestCase):
                                                                new_vif=True)
         slot_mgr.register_vnet.assert_called_once_with(
             mock_bld_drv.return_value.plug.return_value)
+        mock_event.assert_called_once_with(self.adpt, 'plug', vnet)
         self.assertEqual(mock_bld_drv.return_value.plug.return_value, vnet)
 
         # Clean up
@@ -69,9 +96,12 @@ class TestVifFunctions(test.TestCase):
         slot_mgr.build_map.get_vnet_slot.reset_mock()
         mock_bld_drv.return_value.plug.reset_mock()
         slot_mgr.register_vnet.reset_mock()
+        mock_event.reset_mock()
 
-        # 2) Without slot registration
+        # 2) Without slot registration; and plug returns None (which it should
+        # IRL whenever new_vif=False).
         slot_mgr.build_map.get_vnet_slot.return_value = 123
+        mock_bld_drv.return_value.plug.return_value = None
         vnet = vif.plug(self.adpt, 'host_uuid', 'instance', mock_vif, slot_mgr,
                         new_vif=False)
 
@@ -81,36 +111,43 @@ class TestVifFunctions(test.TestCase):
         mock_bld_drv.return_value.plug.assert_called_once_with(mock_vif, 123,
                                                                new_vif=False)
         slot_mgr.register_vnet.assert_not_called()
-        self.assertEqual(mock_bld_drv.return_value.plug.return_value, vnet)
+        mock_event.assert_not_called()
+        self.assertIsNone(vnet)
 
     @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
-    def test_unplug(self, mock_bld_drv):
+    @mock.patch('nova_powervm.virt.powervm.vif._push_vif_event')
+    def test_unplug(self, mock_event, mock_bld_drv):
         """Test the top-level unplug method."""
+        mock_vif = {'address': 'MAC'}
         slot_mgr = mock.Mock()
 
         # 1) With slot deregistration, default cna_w_list
         mock_bld_drv.return_value.unplug.return_value = 'vnet_w'
-        vif.unplug(self.adpt, 'host_uuid', 'instance', 'vif', slot_mgr)
+        vif.unplug(self.adpt, 'host_uuid', 'instance', mock_vif, slot_mgr)
         mock_bld_drv.assert_called_once_with(self.adpt, 'host_uuid',
-                                             'instance', 'vif')
+                                             'instance', mock_vif)
         mock_bld_drv.return_value.unplug.assert_called_once_with(
-            'vif', cna_w_list=None)
+            mock_vif, cna_w_list=None)
         slot_mgr.drop_vnet.assert_called_once_with('vnet_w')
+        mock_event.assert_called_once_with(self.adpt, 'unplug', 'vnet_w')
 
         # Clean up
         mock_bld_drv.reset_mock()
         mock_bld_drv.return_value.unplug.reset_mock()
         slot_mgr.drop_vnet.reset_mock()
+        mock_event.reset_mock()
 
         # 2) Without slot deregistration, specified cna_w_list
         mock_bld_drv.return_value.unplug.return_value = None
-        vif.unplug(self.adpt, 'host_uuid', 'instance', 'vif', slot_mgr,
+        vif.unplug(self.adpt, 'host_uuid', 'instance', mock_vif, slot_mgr,
                    cna_w_list='cnalist')
         mock_bld_drv.assert_called_once_with(self.adpt, 'host_uuid',
-                                             'instance', 'vif')
+                                             'instance', mock_vif)
         mock_bld_drv.return_value.unplug.assert_called_once_with(
-            'vif', cna_w_list='cnalist')
+            mock_vif, cna_w_list='cnalist')
         slot_mgr.drop_vnet.assert_not_called()
+        # When unplug doesn't find a vif, we don't push an event
+        mock_event.assert_not_called()
 
     @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
     def test_plug_raises(self, mock_vif_drv):
