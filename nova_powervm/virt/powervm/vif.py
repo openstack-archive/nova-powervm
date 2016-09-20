@@ -24,12 +24,14 @@ from nova.network import model as network_model
 from nova import utils
 from oslo_concurrency import lockutils
 from oslo_config import cfg
+from oslo_serialization import jsonutils
 from oslo_utils import importutils
 from pypowervm import exceptions as pvm_ex
 from pypowervm.tasks import cna as pvm_cna
 from pypowervm.tasks import partition as pvm_par
 from pypowervm.tasks import sriov as sriovtask
 from pypowervm import util as pvm_util
+from pypowervm.wrappers import event as pvm_evt
 from pypowervm.wrappers import iocard as pvm_card
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import managed_system as pvm_ms
@@ -45,6 +47,9 @@ LOG = logging.getLogger(__name__)
 
 SECURE_RMC_VSWITCH = 'MGMTSWITCH'
 SECURE_RMC_VLAN = 4094
+
+# Provider tag for custom events from this module
+EVENT_PROVIDER_ID = 'NOVA_PVM_VIF'
 
 VIF_MAPPING = {'pvm_sea': 'nova_powervm.virt.powervm.vif.PvmSeaVifDriver',
                'ovs': 'nova_powervm.virt.powervm.vif.PvmOvsVifDriver',
@@ -79,6 +84,27 @@ def _build_vif_driver(adapter, host_uuid, instance, vif):
         _("Unable to find appropriate PowerVM VIF Driver for VIF type "
           "%(vif_type)s on instance %(instance)s") %
         {'vif_type': vif['type'], 'instance': instance.name})
+
+
+def _push_vif_event(adapter, action, vif_w):
+    """Push a custom event to the REST server for a vif action (plug/unplug).
+
+    This event prompts the neutron agent to mark the port up or down.
+
+    :param adapter: The pypowervm adapter.
+    :param action: The action taken on the vif - either 'plug' or 'unplug'
+    :param vif_w: The pypowervm wrapper of the affected vif (CNA, VNIC, etc.)
+    """
+    data = vif_w.href
+    detail = jsonutils.dumps(dict(provider=EVENT_PROVIDER_ID, action=action,
+                                  mac=vif_w.mac))
+    event = pvm_evt.Event.bld(adapter, data, detail)
+    try:
+        event = event.create()
+        LOG.info(_LI('Custom event push: %s'), str(event))
+    except Exception:
+        LOG.error(_LE('Custom VIF event push failed.  %s'), str(event))
+        raise
 
 
 def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
@@ -118,6 +144,10 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
     if not slot_num and new_vif:
         slot_mgr.register_vnet(vnet_w)
 
+    # Push a custom event if we really plugged the vif
+    if vnet_w is not None:
+        _push_vif_event(adapter, 'plug', vnet_w)
+
     return vnet_w
 
 
@@ -137,6 +167,9 @@ def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
     vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
     try:
         vnet_w = vif_drv.unplug(vif, cna_w_list=cna_w_list)
+        # Push a custom event, but only if the vif existed in the first place
+        if vnet_w:
+            _push_vif_event(adapter, 'unplug', vnet_w)
     except pvm_ex.HttpError as he:
         # Log the message constructed by HttpError
         LOG.exception(he.args[0])
@@ -278,10 +311,11 @@ class PvmVifDriver(object):
         try:
             cna_w.delete()
         except Exception as e:
-            LOG.error(_LE('Unable to unplug VIF with mac %(mac)s for instance '
-                          '%(inst)s.'), {'mac': vif['address'],
-                                         'inst': self.instance.name})
-            raise exception.VirtualInterfaceUnplugException(reason=e.args[0])
+            LOG.exception(e)
+            raise exception.VirtualInterfaceUnplugException(
+                _LE('Unable to unplug VIF with mac %(mac)s for instance '
+                    '%(inst)s.') % {'mac': vif['address'],
+                                    'inst': self.instance.name})
         return cna_w
 
     def _find_cna_for_vif(self, cna_w_list, vif):
