@@ -224,7 +224,7 @@ class TestVifSriovDriver(test.TestCase):
             allowed_macs='NONE')
         mock_back_devs.assert_called_once_with(
             mock_vnic_bld.return_value, ['port1', 'port2'], min_redundancy=3,
-            max_redundancy=3, capacity=None)
+            max_redundancy=3, capacity=None, check_port_status=True)
         mock_pvm_uuid.assert_called_once_with(self.drv.instance)
         mock_vnic_bld.return_value.create.assert_called_once_with(
             parent_type=pvm_lpar.LPAR, parent_uuid=mock_pvm_uuid.return_value)
@@ -243,7 +243,7 @@ class TestVifSriovDriver(test.TestCase):
             allowed_macs='NONE')
         mock_back_devs.assert_called_once_with(
             mock_vnic_bld.return_value, ['port1', 'port2'], min_redundancy=3,
-            max_redundancy=3, capacity=0.08)
+            max_redundancy=3, capacity=0.08, check_port_status=True)
         mock_pvm_uuid.assert_called_once_with(self.drv.instance)
         mock_vnic_bld.return_value.create.assert_called_once_with(
             parent_type=pvm_lpar.LPAR, parent_uuid=mock_pvm_uuid.return_value)
