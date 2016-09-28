@@ -6,31 +6,35 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 2.0.0\n"
+"Project-Id-Version: nova_powervm 3.0.0.0b4.dev2\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2016-04-14 03:14-0400\n"
-"PO-Revision-Date: 2016-04-14 03:14-0400\n"
+"POT-Creation-Date: 2016-09-04 23:10-0400\n"
+"PO-Revision-Date: 2016-09-04 23:10-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.3.2\n"
+"Generated-By: Babel 2.3.4\n"
 
-#: nova_powervm/virt/powervm/driver.py:142
+#: nova_powervm/virt/powervm/driver.py:136
+msgid "Clearing stale I/O connections on driver init."
+msgstr "ドライバーを初期化したため、失効した入出力接続をクリアしています。"
+
+#: nova_powervm/virt/powervm/driver.py:154
 msgid "The compute driver has been initialized."
 msgstr "計算ドライバーが初期化されました。"
 
-#: nova_powervm/virt/powervm/driver.py:155
+#: nova_powervm/virt/powervm/driver.py:167
 msgid "The compute driver has been shutdown."
 msgstr "計算ドライバーがシャットダウンされました。"
 
-#: nova_powervm/virt/powervm/driver.py:209
+#: nova_powervm/virt/powervm/driver.py:221
 #, python-format
 msgid "Host UUID is:%s"
 msgstr "ホスト UUID: %s"
 
-#: nova_powervm/virt/powervm/driver.py:214
+#: nova_powervm/virt/powervm/driver.py:226
 #, python-format
 msgid ""
 "Operation: %(op)s. Virtual machine display name: %(display_name)s, name: "
@@ -39,79 +43,80 @@ msgstr ""
 "操作: %(op)s。仮想マシン表示名: %(display_name)s,、名前: "
 "%(name)s、UUID: %(uuid)s"
 
-#: nova_powervm/virt/powervm/driver.py:653
+#: nova_powervm/virt/powervm/driver.py:716
 msgid "Destroy called for migrated/resized instance."
 msgstr "マイグレーション/サイズ変更されたインスタンスに対して破棄が呼び出されました。"
 
-#: nova_powervm/virt/powervm/driver.py:666
+#: nova_powervm/virt/powervm/driver.py:729
 msgid "Ignoring destroy call during resize revert."
 msgstr "サイズ変更の復帰時には破棄呼び出しを無視します。"
 
-#: nova_powervm/virt/powervm/driver.py:720
+#: nova_powervm/virt/powervm/driver.py:787
 msgid "During volume detach, the instance was not found on this host."
 msgstr "ボリューム切り離し時に、インスタンスがこのホストに見つかりません"
 "でした。"
 
-#: nova_powervm/virt/powervm/driver.py:1379
+#: nova_powervm/virt/powervm/driver.py:1456
 msgid "Checking live migration capability on destination host."
 msgstr "宛先ホストでライブ・マイグレーション機能を検査中です。"
 
-#: nova_powervm/virt/powervm/driver.py:1394
+#: nova_powervm/virt/powervm/driver.py:1471
 msgid "Cleaning up from checking live migration capability on destination."
 msgstr "宛先でのライブ・マイグレーション機能の検査からの"
 "クリーンアップ中です。"
 
-#: nova_powervm/virt/powervm/driver.py:1410
+#: nova_powervm/virt/powervm/driver.py:1487
 msgid "Checking live migration capability on source host."
 msgstr "ソース・ホストでライブ・マイグレーション機能を検査中です。"
 
-#: nova_powervm/virt/powervm/driver.py:1432
+#: nova_powervm/virt/powervm/driver.py:1509
 msgid "Pre live migration processing."
 msgstr "ライブ・マイグレーション前処理中です。"
 
-#: nova_powervm/virt/powervm/driver.py:1596
+#: nova_powervm/virt/powervm/driver.py:1673
 msgid "Post live migration processing on source host."
 msgstr "ソース・ホストでのライブ・マイグレーション後処理中です。"
 
-#: nova_powervm/virt/powervm/driver.py:1612
+#: nova_powervm/virt/powervm/driver.py:1689
 msgid "Post live migration processing on destination host."
 msgstr "宛先ホストでのライブ・マイグレーション後処理中です。"
 
-#: nova_powervm/virt/powervm/driver.py:1861
+#: nova_powervm/virt/powervm/driver.py:1977
 #, python-format
 msgid "Sending life cycle event for instance state change to: %s"
 msgstr "インスタンス状態変更のライフサイクル・イベントを %s に送信しています"
 
-#: nova_powervm/virt/powervm/live_migration.py:153
+#: nova_powervm/virt/powervm/live_migration.py:154
 #, python-format
 msgid "Performing pre migration for volume %(volume)s"
 msgstr "ボリューム %(volume)s のマイグレーション前処理を実行中"
 
-#: nova_powervm/virt/powervm/live_migration.py:190
-#: nova_powervm/virt/powervm/live_migration.py:339
+#: nova_powervm/virt/powervm/live_migration.py:197
+#: nova_powervm/virt/powervm/live_migration.py:346
 #, python-format
 msgid "Performing post migration for volume %(volume)s"
 msgstr "ボリューム %(volume)s のマイグレーション後処理を実行中"
 
-#: nova_powervm/virt/powervm/live_migration.py:206
+#: nova_powervm/virt/powervm/live_migration.py:213
 #, python-format
 msgid "Performing detach for volume %(volume)s"
 msgstr "ボリューム %(volume)s の切り離しを実行しています"
 
-#: nova_powervm/virt/powervm/media.py:86
+#: nova_powervm/virt/powervm/media.py:76
 #, python-format
 msgid "Creating config drive for instance: %s"
 msgstr "インスタンス %s の構成ドライブを作成中"
 
-#: nova_powervm/virt/powervm/media.py:106
+#: nova_powervm/virt/powervm/media.py:96
 #, python-format
 msgid ""
 "Config drive ISO being built for instance %(inst)s building to path "
 "%(iso_path)s."
 msgstr ""
-"インスタンス %(inst)s の構成ドライブ ISO をパス %(iso_path)s に作成しています。"
+"インスタンス %(inst)s の構成ドライブ ISO をパス %(iso_path)s に作成して"
+"います。"
 
-#: nova_powervm/virt/powervm/media.py:176
+#: nova_powervm/virt/powervm/media.py:166
 #, python-format
 msgid ""
 "Adding cfg drive mapping for instance %(inst)s for Virtual I/O Server "
@@ -120,31 +125,22 @@ msgstr ""
 "Virtual I/O Server %(vios)s のインスタンス %(inst)s の構成ドライブ・"
 "マッピングを追加中"
 
-#: nova_powervm/virt/powervm/media.py:262
-msgid ""
-"An error occurred querying the virtual optical media repository.  "
-"Attempting to re-establish connection with a virtual optical media "
-"repository"
-msgstr ""
-"仮想光メディア・リポジトリーの照会中にエラーが発生しました。"
-"仮想光メディア・リポジトリーとの接続を再確立しようとしています。"
-
-#: nova_powervm/virt/powervm/media.py:421
+#: nova_powervm/virt/powervm/media.py:297
 #, python-format
 msgid "Removing virtual optical for VM with UUID %s."
 msgstr "UUID %s の VM の仮想光ディスクを削除中です。"
 
-#: nova_powervm/virt/powervm/vif.py:190
+#: nova_powervm/virt/powervm/vif.py:269
 #, python-format
 msgid "Deleting VIF with mac %(mac)s for instance %(inst)s."
 msgstr "インスタンス %(inst)s の VIF (mac %(mac)s) を削除中です。"
 
-#: nova_powervm/virt/powervm/vm.py:618
+#: nova_powervm/virt/powervm/vm.py:636
 #, python-format
 msgid "Deleting virtual machine. LPARID: %s"
 msgstr "仮想マシンを削除中です。LPARID: %s"
 
-#: nova_powervm/virt/powervm/vm.py:624
+#: nova_powervm/virt/powervm/vm.py:642
 #, python-format
 msgid "Virtual machine delete status: %d"
 msgstr "仮想マシン削除状況: %d"
@@ -155,12 +151,12 @@ msgid "Local Storage driver initialized: volume group: '%s'"
 msgstr "ローカル・ストレージ・ドライバーが初期化されました: "
 "ボリューム・グループ:「%s」"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:135
+#: nova_powervm/virt/powervm/disk/localdisk.py:134
 #, python-format
 msgid "Disconnecting instance %(inst)s from storage disks."
 msgstr "インスタンス %(inst)s をストレージ・ディスクから切断中です。"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:164
+#: nova_powervm/virt/powervm/disk/localdisk.py:163
 #, python-format
 msgid ""
 "Unmapped boot disk %(disk_name)s from the management partition from "
@@ -169,17 +165,17 @@ msgstr ""
 "Virtual I/O Server %(vios_name)s でブート・ディスク %(disk_name)s が"
 "管理区画からマップ解除されました。"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:185
+#: nova_powervm/virt/powervm/disk/localdisk.py:184
 msgid "Create disk."
 msgstr "ディスクを作成します。"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:229
+#: nova_powervm/virt/powervm/disk/localdisk.py:225
 #, python-format
 msgid "Adding logical volume disk connection between VM %(vm)s and VIOS %(vios)s."
 msgstr "VM %(vm)s と VIOS %(vios)s 間の論理ボリューム・ディスク接続を"
 "追加中です。"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:275
+#: nova_powervm/virt/powervm/disk/localdisk.py:271
 #, python-format
 msgid "Extending disk: %s"
 msgstr "ディスクの拡張中: %s"
@@ -188,17 +184,17 @@ msgstr "ディスクの拡張中: %s"
 #, python-format
 msgid ""
 "SSP Storage driver initialized. Cluster '%(clust_name)s'; SSP "
-"'%(ssp_name)s'"
+"'%(ssp_name)s'; Tier '%(tier_name)s"
 msgstr ""
-"SSP ストレージ・ドライバーが初期化されました。"
-"クラスター「%(clust_name)s」、SSP「%(ssp_name)s」"
+"SSP ストレージ・ドライバーが初期化されました。クラスター「%(clust_name)s」、"
+"SSP「%(ssp_name)s」、層「%(tier_name)s」"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:142
+#: nova_powervm/virt/powervm/disk/ssp.py:144
 #, python-format
 msgid "Removing SSP disk connection between VM %(vm)s and VIOS %(vios)s."
 msgstr "VM %(vm)s と VIOS %(vios)s 間の SSP ディスク接続を削除中です。"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:186
+#: nova_powervm/virt/powervm/disk/ssp.py:188
 #, python-format
 msgid ""
 "Unmapped boot disk %(disk_name)s from the management partition from "
@@ -207,57 +203,39 @@ msgstr ""
 "Virtual I/O Server %(vios_uuid)s でブート・ディスク %(disk_name)s が"
 "管理区画からマップ解除されました。"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:223
+#: nova_powervm/virt/powervm/disk/ssp.py:225
 #, python-format
 msgid ""
 "SSP: Create %(image_type)s disk from image %(image_id)s for instance "
 "%(instance_uuid)s."
 msgstr ""
-"SSP: インスタンス %(instance_uuid)s のイメージ %(image_id)s から %(image_type)s ディスクを作成します。"
+"SSP: インスタンス %(instance_uuid)s についてイメージ %(image_id)s から "
+"%(image_type)s ディスクを作成してください。"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:231
+#: nova_powervm/virt/powervm/disk/ssp.py:237
 #, python-format
 msgid "SSP: Disk name is %s"
 msgstr "SSP: ディスク名は %s です"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:302
-#, python-format
-msgid "Using already-uploaded image LU %s."
-msgstr "アップロード済みイメージ LU %s を使用しています。"
-
-#: nova_powervm/virt/powervm/disk/ssp.py:313
-#, python-format
-msgid "Waiting for in-progress upload(s) to complete.  Marker LU(s): %s"
-msgstr "進行中のアップロードが完了するまで待機しています。マーカー LU: %s"
-
-#: nova_powervm/virt/powervm/disk/ssp.py:326
-#, python-format
-msgid "Creating marker LU %s"
-msgstr "マーカー LU %s を作成しています"
-
-#: nova_powervm/virt/powervm/disk/ssp.py:339
-msgid "Abdicating in favor of in-progress upload."
-msgstr "対象が放棄されて、進行中のアップロードが選択されます。"
-
-#: nova_powervm/virt/powervm/disk/ssp.py:350
-#, python-format
-msgid "Abdicating upload in favor of marker %s."
-msgstr "アップロードが放棄されて、マーカー %s が選択されます。"
-
-#: nova_powervm/virt/powervm/disk/ssp.py:358
-#, python-format
-msgid "Uploading to image LU %(lu)s (marker %(mkr)s)."
-msgstr "イメージ LU %(lu)s (マーカー %(mkr)s) にアップロードしています。"
-
-#: nova_powervm/virt/powervm/disk/ssp.py:414
+#: nova_powervm/virt/powervm/disk/ssp.py:274
 #, python-format
 msgid "Adding SSP disk connection between VM %(vm)s and VIOS %(vios)s."
 msgstr "VM %(vm)s と VIOS %(vios)s 間の SSP ディスク接続を追加中です。"
 
-#: nova_powervm/virt/powervm/nvram/swift.py:148
+#: nova_powervm/virt/powervm/nvram/swift.py:216
 #, python-format
 msgid "NVRAM has not changed for instance: %s"
 msgstr "インスタンス %s について NVRAM は変更されていません"
+
+#: nova_powervm/virt/powervm/tasks/base.py:45
+#, python-format
+msgid "Running task %(task)s for instance %(inst)s"
+msgstr "インスタンス %(inst)s のタスク %(task)s を実行しています"
+
+#: nova_powervm/virt/powervm/tasks/base.py:53
+#, python-format
+msgid "Task %(task)s completed in %(seconds)d seconds for instance %(inst)s"
+msgstr "インスタンス %(inst)s のタスク %(task)s が %(seconds)d 秒で完了しました"
 
 #: nova_powervm/virt/powervm/tasks/image.py:77
 #, python-format
@@ -268,62 +246,36 @@ msgstr ""
 "Glance イメージ %(img_id)s に対するインスタンス %(inst)s (ローカル blockdev "
 "%(devpath)s) のブート・デバイスのストリームを開始中です。"
 
-#: nova_powervm/virt/powervm/tasks/image.py:84
+#: nova_powervm/virt/powervm/tasks/network.py:190
 #, python-format
-msgid ""
-"Completed stream of boot device for instance %(inst)s (local blockdev "
-"%(devpath)s) to glance image %(img_id)s."
-msgstr ""
-"Glance イメージ %(img_id)s に対するインスタンス %(inst)s (ローカル blockdev "
-"%(devpath)s) のブート・デバイスのストリームが完了しました。"
+msgid "Updating VIF with mac %(mac)s for instance %(sys)s"
+msgstr "インスタンス %(sys)s の VIF (mac %(mac)s) を更新しています"
 
-#: nova_powervm/virt/powervm/tasks/network.py:66
-#, python-format
-msgid "Unplugging the Network Interfaces to instance %s"
-msgstr "インスタンス %s に対するネットワーク・インターフェースをアンプラグ中"
-
-#: nova_powervm/virt/powervm/tasks/network.py:117
-#, python-format
-msgid "Plugging the Network Interfaces to instance %s"
-msgstr "インスタンス %s に対するネットワーク・インターフェースをプラグ中"
-
-#: nova_powervm/virt/powervm/tasks/network.py:154
+#: nova_powervm/virt/powervm/tasks/network.py:203
 #, python-format
 msgid "Creating VIF with mac %(mac)s for instance %(sys)s"
 msgstr "インスタンス %(sys)s の VIF (mac %(mac)s) を作成中"
 
-#: nova_powervm/virt/powervm/tasks/network.py:230
+#: nova_powervm/virt/powervm/tasks/network.py:220
+msgid "Undoing temporary host assignment to instance."
+msgstr "インスタンスへの一時ホスト割り当てを取り消しています。"
+
+#: nova_powervm/virt/powervm/tasks/network.py:313
 #, python-format
 msgid "Plugging the Management Network Interface to instance %s"
 msgstr "インスタンス %s に対する管理ネットワーク・インターフェースをプラグ中"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:50
+#: nova_powervm/virt/powervm/tasks/storage.py:53
 #, python-format
 msgid "Connecting volume %(vol)s to instance %(inst)s"
 msgstr "ボリューム %(vol)s をインスタンス %(inst)s に接続中"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:95
+#: nova_powervm/virt/powervm/tasks/storage.py:101
 #, python-format
 msgid "Disconnecting volume %(vol)s from instance %(inst)s"
 msgstr "ボリューム %(vol)s をインスタンス %(inst)s から切断中"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:155
-#, python-format
-msgid "Creating disk for instance: %s"
-msgstr "インスタンス %s のディスクを作成中"
-
-#: nova_powervm/virt/powervm/tasks/storage.py:206
-#, python-format
-msgid "Connecting disk to instance: %s"
-msgstr "ディスクをインスタンス %s に接続中"
-
-#: nova_powervm/virt/powervm/tasks/storage.py:251
-#, python-format
-msgid "Mapping boot disk of instance %(instance_name)s to management partition."
-msgstr "インスタンス %(instance_name)s のブート・ディスクを管理区画に"
-"マッピング中です。"
-
-#: nova_powervm/virt/powervm/tasks/storage.py:268
+#: nova_powervm/virt/powervm/tasks/storage.py:259
 #, python-format
 msgid ""
 "Discovering device and path for mapping of %(dev_name)s on the management"
@@ -332,7 +284,7 @@ msgstr ""
 "管理区画上の %(dev_name)s のマッピングのデバイスおよびパスを"
 "ディスカバー中です。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:337
+#: nova_powervm/virt/powervm/tasks/storage.py:327
 #, python-format
 msgid ""
 "Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
@@ -341,93 +293,61 @@ msgstr ""
 "インスタンス %(instance_name)s のブート・ディスク %(disk_name)s を "
 "Virtual I/O Server %(vios_name)s 経由で管理区画からマップ解除中です。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:344
+#: nova_powervm/virt/powervm/tasks/storage.py:334
 #, python-format
 msgid "Removing disk %(disk_path)s from the management partition."
 msgstr "ディスク %(disk_path)s を管理区画から削除中です。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:387
-#, python-format
-msgid "Creating Config Drive for instance: %s"
-msgstr "インスタンス %s の構成ドライブを作成中"
-
-#: nova_powervm/virt/powervm/tasks/storage.py:469
-#, python-format
-msgid "Detaching disk storage adapters for instance %s"
-msgstr "インスタンス %s のディスク・ストレージ・アダプターを切り離し中"
-
-#: nova_powervm/virt/powervm/tasks/storage.py:496
-#, python-format
-msgid "Deleting storage disk for instance %s."
-msgstr "インスタンス %s のストレージ・ディスクを削除中です。"
-
-#: nova_powervm/virt/powervm/tasks/storage.py:517
+#: nova_powervm/virt/powervm/tasks/storage.py:497
 #, python-format
 msgid "Saving block device mapping for volume id %(vol_id)s on instance %(inst)s."
 msgstr "インスタンス %(inst)s 上のボリューム ID %(vol_id)s のブロック・"
 "デバイス・マッピングを保存中です。"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:546
-#, python-format
-msgid "Finding disk for instance: %s"
-msgstr "インスタンス %s についてディスクを検索しています"
-
-#: nova_powervm/virt/powervm/tasks/storage.py:579
+#: nova_powervm/virt/powervm/tasks/storage.py:556
 #, python-format
 msgid "Extending disk size of disk: %(disk)s size: %(size)s."
 msgstr "ディスク %(disk)s のディスク・サイズを拡張しています。サイズ: %(size)s。"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:91
-#, python-format
-msgid "Creating instance: %s"
-msgstr "インスタンスの作成中: %s"
-
-#: nova_powervm/virt/powervm/tasks/vm.py:95
+#: nova_powervm/virt/powervm/tasks/vm.py:107
 #, python-format
 msgid "Fetching NVRAM for instance %s."
 msgstr "インスタンス %s について NVRAM を取り出しています。"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:140
+#: nova_powervm/virt/powervm/tasks/vm.py:123
 #, python-format
-msgid "Resizing instance: %s"
-msgstr "インスタンス %s のサイズを変更しています"
+msgid "Scrubbing storage for instance %s as part of rebuild."
+msgstr "再構築の一環としてインスタンス %s のストレージを修正しています。"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:170
+#: nova_powervm/virt/powervm/tasks/vm.py:135
+#, python-format
+msgid "Rebuild of instance %s failed. Deleting instance from destination."
+msgstr "インスタンス %s を再構築できませんでした。インスタンスを宛先から削除しています。"
+
+#: nova_powervm/virt/powervm/tasks/vm.py:189
 #, python-format
 msgid "Renaming instance to name: %s"
 msgstr "インスタンスの名前を %s に変更しています"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:206
-#, python-format
-msgid "Powering on instance: %s"
-msgstr "インスタンスの電源オン中: %s"
+#: nova_powervm/virt/powervm/tasks/vm.py:305
+msgid "No op for NVRAM delete."
+msgstr "NVRAM 削除に関する操作はありません。"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:211
-#, python-format
-msgid "Powering off instance: %s"
-msgstr "インスタンスの電源オフ中: %s"
-
-#: nova_powervm/virt/powervm/tasks/vm.py:243
-#, python-format
-msgid "Powering off instance %s."
-msgstr "インスタンス %s の電源オフ中です。"
-
-#: nova_powervm/virt/powervm/tasks/vm.py:296
+#: nova_powervm/virt/powervm/tasks/vm.py:308
 #, python-format
 msgid "Deleting NVRAM for instance: %s"
 msgstr "インスタンス %s について NVRAM を削除しています"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:325
+#: nova_powervm/virt/powervm/volume/iscsi.py:179
 #, python-format
-msgid "Deleting instance %s from system."
-msgstr "インスタンス %s をシステムから削除中です。"
+msgid ""
+"Disconnect Volume: Discovered the device %(hdisk)s on Virtual I/O Server "
+"%(vios_name)s for volume %(volume_id)s."
+msgstr ""
+"切断されたボリューム: ボリューム %(volume_id)s についてデバイス "
+"%(hdisk)s が Virtual I/O Server %(vios_name)s でディスカバーされました。"
 
-#: nova_powervm/virt/powervm/tasks/vm.py:350
-#, python-format
-msgid "Update settings of instance %s."
-msgstr "インスタンス %s の設定を更新します。"
-
-#: nova_powervm/virt/powervm/volume/npiv.py:248
+#: nova_powervm/virt/powervm/volume/npiv.py:266
 #, python-format
 msgid ""
 "Instance %(inst)s has not yet defined a WWPN on fabric %(fabric)s.  "
@@ -436,29 +356,29 @@ msgstr ""
 "インスタンス %(inst)s では、ファブリック %(fabric)s で WWPN がまだ定義されていません。"
 "適切な WWPN が生成されます。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:347
+#: nova_powervm/virt/powervm/volume/npiv.py:365
 #, python-format
 msgid "NPIV wwpns fabric state=%(st)s for instance %(inst)s"
 msgstr "インスタンス %(inst)s の NPIV wwpn ファブリック状態=%(st)s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:415
+#: nova_powervm/virt/powervm/volume/npiv.py:482
 #, python-format
 msgid "Adding NPIV mapping for instance %(inst)s for Virtual I/O Server %(vios)s."
 msgstr "Virtual I/O Server %(vios)s のインスタンス %(inst)s の "
 "NPIV マッピングを追加中です。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:443
+#: nova_powervm/virt/powervm/volume/npiv.py:536
 #, python-format
 msgid "Removing a NPIV mapping for instance %(inst)s for fabric %(fabric)s."
 msgstr "ファブリック %(fabric)s のインスタンス %(inst)s の NPIV マッピングを"
 "削除中です。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:478
+#: nova_powervm/virt/powervm/volume/npiv.py:571
 #, python-format
 msgid "Setting Fabric state=%(st)s for instance=%(inst)s"
 msgstr "インスタンス %(inst)s のファブリック状態 %(st)s を設定中"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:529
+#: nova_powervm/virt/powervm/volume/npiv.py:622
 #, python-format
 msgid ""
 "Fabric %(fabric)s wwpn metadata will be set to %(meta)s for instance "
@@ -467,17 +387,50 @@ msgstr ""
 "インスタンス %(inst)s に関しては、ファブリック %(fabric)s wwpn メタデータは "
 "%(meta)s に設定されます"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:131
+#: nova_powervm/virt/powervm/volume/volume.py:148
+#, python-format
+msgid "Adding vSCSI mapping to Physical Volume %(dev)s to VM %(vm)s"
+msgstr "vSCSI マッピングを VM %(vm)s に対する物理ボリューム %(dev)s に"
+"追加中"
+
+#: nova_powervm/virt/powervm/volume/volume.py:168
+#: nova_powervm/virt/powervm/volume/volume.py:189
+#, python-format
+msgid "Failed to retrieve device_id key from BDM for volume id %s"
+msgstr "device_id キーをボリューム ID %s の BDM から取得できませんでした"
+
+#: nova_powervm/virt/powervm/volume/volume.py:211
+#, python-format
+msgid "Removing vSCSI mapping from Physical Volume %(dev)s to VM %(vm)s"
+msgstr "vSCSI マッピングを VM %(vm)s に対する物理ボリューム %(dev)s から"
+"削除中"
+
+#: nova_powervm/virt/powervm/volume/volume.py:235
+#, python-format
+msgid "Running remove for hdisk: '%s'"
+msgstr "hdisk「%s」に対して削除が実行されています"
+
+#: nova_powervm/virt/powervm/volume/volume.py:253
+#, python-format
+msgid "hdisk %(disk)s is not removed because it has existing storage mappings"
+msgstr "ストレージ・マッピングがあるため、hdisk %(disk)s は削除されません"
+
+#: nova_powervm/virt/powervm/volume/volume.py:271
+#, python-format
+msgid "%(num)d Storage Mappings found for %(dev)s"
+msgstr "%(dev)s に対して %(num)d 個のストレージ・マッピングが見つかりました"
+
+#: nova_powervm/virt/powervm/volume/volume.py:285
 #, python-format
 msgid "Removing hdisk for udid: %s"
 msgstr "udid %s の hdisk を削除しています"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:137
+#: nova_powervm/virt/powervm/volume/volume.py:294
 #, python-format
 msgid "Removing %(hdisk)s from VIOS %(vios)s"
 msgstr "%(hdisk)s を VIOS %(vios)s から削除しています"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:201
+#: nova_powervm/virt/powervm/volume/vscsi.py:192
 #, python-format
 msgid ""
 "Discovered %(hdisk)s on vios %(vios)s for volume %(volume_id)s. Status "
@@ -486,7 +439,7 @@ msgstr ""
 "ボリューム %(volume_id)s の %(hdisk)s が vios %(vios)s で"
 "ディスカバーされました。状況コード: %(status)s."
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:354
+#: nova_powervm/virt/powervm/volume/vscsi.py:295
 #, python-format
 msgid ""
 "Disconnect Volume: Discovered the device %(hdisk)s on Virtual I/O Server "
@@ -496,39 +449,7 @@ msgstr ""
 "Virtual I/O Server %(vios_name)s でディスカバーされました。ボリューム UDID: "
 "%(volume_uid)s"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:415
-#, python-format
-msgid "%(num)d Storage Mappings found for %(dev)s"
-msgstr "%(dev)s に対して %(num)d 個のストレージ・マッピングが見つかりました"
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:435
-#, python-format
-msgid "Running remove for hdisk: '%s'"
-msgstr "hdisk「%s」に対して削除が実行されています"
-
-#: nova_powervm/virt/powervm/volume/vscsi.py:453
-#, python-format
-msgid "hdisk %(disk)s is not removed because it has existing storage mappings"
-msgstr "ストレージ・マッピングがあるため、hdisk %(disk)s は削除されません"
-
-#: nova_powervm/virt/powervm/volume/vscsi.py:484
-#, python-format
-msgid "Removing vSCSI mapping from Physical Volume %(dev)s to VM %(vm)s"
-msgstr "vSCSI マッピングを VM %(vm)s に対する物理ボリューム %(dev)s から"
-"削除中"
-
-#: nova_powervm/virt/powervm/volume/vscsi.py:498
-#, python-format
-msgid "Adding vSCSI mapping to Physical Volume %(dev)s to VM %(vm)s"
-msgstr "vSCSI マッピングを VM %(vm)s に対する物理ボリューム %(dev)s に"
-"追加中"
-
-#: nova_powervm/virt/powervm/volume/vscsi.py:550
-#, python-format
-msgid "Failed to retrieve device_id key from BDM for volume id %s"
-msgstr "device_id キーをボリューム ID %s の BDM から取得できませんでした"
-
-
-# ENGL1SH_VERS10N 46696_18 DO NOT REMOVE OR CHANGE THIS LINE
+# ENGL1SH_VERS10N 25457_16 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 54
-# T9N_SH1P_STR1NG PV131AAP001 3
+# T9N_SH1P_STR1NG PV132AAP001 1
