@@ -20,6 +20,7 @@ from nova import exception
 from nova import utils
 
 from oslo_log import log as logging
+from pypowervm.wrappers import network as pvm_net
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _
@@ -208,7 +209,8 @@ class PlugVifs(pvm_task.PowerVMTask):
                     new_vif = vif.plug(
                         self.adapter, self.host_uuid, self.instance,
                         network_info, self.slot_mgr, new_vif=True)
-                    if self.cnas is not None:
+                    if self.cnas is not None and isinstance(new_vif,
+                                                            pvm_net.CNA):
                         self.cnas.append(new_vif)
         except eventlet.timeout.Timeout:
             LOG.error(_LE('Error waiting for VIF to be created for instance '

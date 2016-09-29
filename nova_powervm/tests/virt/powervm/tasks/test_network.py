@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import eventlet
 import mock
 
@@ -21,6 +22,8 @@ from nova import exception
 from nova import objects
 from nova import test
 from pypowervm.tests import test_fixtures as pvm_fx
+from pypowervm.wrappers import iocard as pvm_card
+from pypowervm.wrappers import network as pvm_net
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.virt.powervm.tasks import network as tf_net
@@ -104,7 +107,7 @@ class TestNetwork(test.TestCase):
         # Mock up the CNA response.  One should already exist, the other
         # should not.
         pre_cnas = [cna('AABBCCDDEEFF'), cna('AABBCCDDEE11')]
-        mock_cna_get.return_value = pre_cnas
+        mock_cna_get.return_value = copy.deepcopy(pre_cnas)
         # Ditto VNIC response.
         mock_vnic_get.return_value = [cna('AABBCCDDEE33'), cna('AABBCCDDEE44')]
 
@@ -113,11 +116,16 @@ class TestNetwork(test.TestCase):
         net_info = [
             {'address': 'aa:bb:cc:dd:ee:ff', 'vnic_type': 'normal'},
             {'address': 'aa:bb:cc:dd:ee:22', 'vnic_type': 'normal'},
-            {'address': 'aa:bb:cc:dd:ee:33', 'vnic_type': 'direct'}
+            {'address': 'aa:bb:cc:dd:ee:33', 'vnic_type': 'direct'},
+            {'address': 'aa:bb:cc:dd:ee:55', 'vnic_type': 'direct'}
         ]
 
-        # Two updates run first; then a create
-        mock_plug.side_effect = ['upd1', 'upd2', 'crt']
+        # Both updates run first (one CNA, one VNIC); then the CNA create, then
+        # the VNIC create.
+        mock_new_cna = mock.Mock(spec=pvm_net.CNA)
+        mock_new_vnic = mock.Mock(spec=pvm_card.VNIC)
+        mock_plug.side_effect = ['upd_cna', 'upd_vnic',
+                                 mock_new_cna, mock_new_vnic]
 
         # Run method
         p_vifs = tf_net.PlugVifs(mock.MagicMock(), self.apt, inst, net_info,
@@ -125,19 +133,19 @@ class TestNetwork(test.TestCase):
 
         all_cnas = p_vifs.execute(self.mock_lpar_wrap)
 
-        # new vif should be created once.
+        # new vif should be created twice.
         mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[0],
                                   'slot_mgr', new_vif=False)
         mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[1],
                                   'slot_mgr', new_vif=True)
         mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[2],
                                   'slot_mgr', new_vif=False)
+        mock_plug.assert_any_call(self.apt, 'host_uuid', inst, net_info[3],
+                                  'slot_mgr', new_vif=True)
 
         # The Task provides the list of original CNAs plus only CNAs that were
         # created.
-        exp_cnas = pre_cnas
-        exp_cnas.append('crt')
-        self.assertEqual(exp_cnas, all_cnas)
+        self.assertEqual(pre_cnas + [mock_new_cna], all_cnas)
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
