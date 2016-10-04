@@ -46,6 +46,73 @@ class TestVifFunctions(test.TestCase):
         self.slot_mgr = mock.Mock()
 
     @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    def test_plug(self, mock_bld_drv):
+        """Test the top-level plug method."""
+        mock_vif = {'address': 'MAC'}
+        slot_mgr = mock.Mock()
+
+        # 1) With slot registration
+        slot_mgr.build_map.get_vnet_slot.return_value = None
+        vnet = vif.plug(self.adpt, 'host_uuid', 'instance', mock_vif, slot_mgr)
+
+        mock_bld_drv.assert_called_once_with(self.adpt, 'host_uuid',
+                                             'instance', mock_vif)
+        slot_mgr.build_map.get_vnet_slot.assert_called_once_with('MAC')
+        mock_bld_drv.return_value.plug.assert_called_once_with(mock_vif, None,
+                                                               new_vif=True)
+        slot_mgr.register_vnet.assert_called_once_with(
+            mock_bld_drv.return_value.plug.return_value)
+        self.assertEqual(mock_bld_drv.return_value.plug.return_value, vnet)
+
+        # Clean up
+        mock_bld_drv.reset_mock()
+        slot_mgr.build_map.get_vnet_slot.reset_mock()
+        mock_bld_drv.return_value.plug.reset_mock()
+        slot_mgr.register_vnet.reset_mock()
+
+        # 2) Without slot registration
+        slot_mgr.build_map.get_vnet_slot.return_value = 123
+        vnet = vif.plug(self.adpt, 'host_uuid', 'instance', mock_vif, slot_mgr,
+                        new_vif=False)
+
+        mock_bld_drv.assert_called_once_with(self.adpt, 'host_uuid',
+                                             'instance', mock_vif)
+        slot_mgr.build_map.get_vnet_slot.assert_called_once_with('MAC')
+        mock_bld_drv.return_value.plug.assert_called_once_with(mock_vif, 123,
+                                                               new_vif=False)
+        slot_mgr.register_vnet.assert_not_called()
+        self.assertEqual(mock_bld_drv.return_value.plug.return_value, vnet)
+
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    def test_unplug(self, mock_bld_drv):
+        """Test the top-level unplug method."""
+        slot_mgr = mock.Mock()
+
+        # 1) With slot deregistration, default cna_w_list
+        mock_bld_drv.return_value.unplug.return_value = 'vnet_w'
+        vif.unplug(self.adpt, 'host_uuid', 'instance', 'vif', slot_mgr)
+        mock_bld_drv.assert_called_once_with(self.adpt, 'host_uuid',
+                                             'instance', 'vif')
+        mock_bld_drv.return_value.unplug.assert_called_once_with(
+            'vif', cna_w_list=None)
+        slot_mgr.drop_vnet.assert_called_once_with('vnet_w')
+
+        # Clean up
+        mock_bld_drv.reset_mock()
+        mock_bld_drv.return_value.unplug.reset_mock()
+        slot_mgr.drop_vnet.reset_mock()
+
+        # 2) Without slot deregistration, specified cna_w_list
+        mock_bld_drv.return_value.unplug.return_value = None
+        vif.unplug(self.adpt, 'host_uuid', 'instance', 'vif', slot_mgr,
+                   cna_w_list='cnalist')
+        mock_bld_drv.assert_called_once_with(self.adpt, 'host_uuid',
+                                             'instance', 'vif')
+        mock_bld_drv.return_value.unplug.assert_called_once_with(
+            'vif', cna_w_list='cnalist')
+        slot_mgr.drop_vnet.assert_not_called()
+
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
     def test_plug_raises(self, mock_vif_drv):
         """HttpError is converted to VirtualInterfacePlugException."""
         vif_drv = mock.Mock(plug=mock.Mock(side_effect=pvm_ex.HttpError(
@@ -59,9 +126,10 @@ class TestVifFunctions(test.TestCase):
                           mock_slot_mgr, new_vif='new_vif')
         mock_vif_drv.assert_called_once_with('adap', 'huuid', 'inst', mock_vif)
         vif_drv.plug.assert_called_once_with(
-            mock_vif, mock_slot_mgr.build_map.get_vea_slot.return_value,
+            mock_vif, mock_slot_mgr.build_map.get_vnet_slot.return_value,
             new_vif='new_vif')
-        mock_slot_mgr.build_map.get_vea_slot.assert_called_once_with('vifaddr')
+        mock_slot_mgr.build_map.get_vnet_slot.assert_called_once_with(
+            'vifaddr')
 
     @mock.patch('pypowervm.wrappers.network.VSwitch.search')
     def test_get_secure_rmc_vswitch(self, mock_search):

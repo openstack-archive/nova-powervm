@@ -101,7 +101,7 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
 
     # Get the slot number to use for the VIF creation.  May be None
     # indicating usage of the next highest available.
-    slot_num = slot_mgr.build_map.get_vea_slot(vif['address'])
+    slot_num = slot_mgr.build_map.get_vnet_slot(vif['address'])
 
     # Invoke the plug
     try:
