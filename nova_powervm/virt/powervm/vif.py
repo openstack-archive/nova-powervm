@@ -526,9 +526,8 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
             allowed_vlans=pvm_util.VLANList.NONE,
             allowed_macs=pvm_util.MACList.NONE)
 
-        sriovtask.set_vnic_back_devs(
-            vnic, pports, min_redundancy=redundancy, max_redundancy=redundancy,
-            capacity=capacity, check_port_status=True)
+        sriovtask.set_vnic_back_devs(vnic, pports, redundancy=redundancy,
+                                     capacity=capacity, check_port_status=True)
 
         return vnic.create(parent_type=pvm_lpar.LPAR,
                            parent_uuid=vm.get_pvm_uuid(self.instance))
