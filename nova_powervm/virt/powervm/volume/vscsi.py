@@ -181,8 +181,8 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
         # Server (if any).
         itls = hdisk.build_itls(vio_wwpns, t_wwpns, lun)
         if len(itls) == 0:
-            LOG.debug('No ITLs for VIOS %(vios)s for volume %(volume_id)s.'
-                      % {'vios': vios_w.name, 'volume_id': volume_id})
+            LOG.debug('No ITLs for VIOS %(vios)s for volume %(volume_id)s.',
+                      {'vios': vios_w.name, 'volume_id': volume_id})
             return None, None, None
 
         status, device_name, udid = hdisk.discover_hdisk(self.adapter,

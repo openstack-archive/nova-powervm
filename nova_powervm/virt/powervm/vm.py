@@ -125,7 +125,7 @@ def translate_event(pvm_state, pwr_state):
     elif pvm_state in RESUMING_EVENTS and pwr_state != power_state.RUNNING:
         trans = event.EVENT_LIFECYCLE_RESUMED
 
-    LOG.debug('Transistion to %s' % trans)
+    LOG.debug('Translated Event to %s', trans)
     return trans
 
 

@@ -314,8 +314,8 @@ class PvmVifDriver(object):
             LOG.exception(e)
             raise exception.VirtualInterfaceUnplugException(
                 _LE('Unable to unplug VIF with mac %(mac)s for instance '
-                    '%(inst)s.') % {'mac': vif['address'],
-                                    'inst': self.instance.name})
+                    '%(inst)s.'), {'mac': vif['address'],
+                                   'inst': self.instance.name})
         return cna_w
 
     def _find_cna_for_vif(self, cna_w_list, vif):
@@ -382,7 +382,7 @@ class PvmSeaVifDriver(PvmVifDriver):
         if not vlan:
             vlan = int(vif['details']['vlan'])
 
-        LOG.debug("Creating SEA based VIF with VLAN %s" % str(vlan))
+        LOG.debug("Creating SEA based VIF with VLAN %s", str(vlan))
         cna_w = pvm_cna.crt_cna(self.adapter, self.host_uuid, lpar_uuid, vlan,
                                 mac_addr=vif['address'], slot_num=slot_num)
 

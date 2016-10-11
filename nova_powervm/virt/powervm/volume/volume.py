@@ -146,8 +146,8 @@ class VscsiVolumeAdapter(object):
         """
         def add_func(vios_w):
             LOG.info(_LI("Adding vSCSI mapping to Physical Volume %(dev)s "
-                         "to VM %(vm)s") % {'dev': device_name,
-                                            'vm': self.vm_uuid})
+                         "to VM %(vm)s"), {'dev': device_name,
+                                           'vm': self.vm_uuid})
             pv = pvm_stor.PV.bld(self.adapter, device_name, target_name)
             v_map = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, self.vm_uuid, pv,
@@ -209,7 +209,7 @@ class VscsiVolumeAdapter(object):
         """
         def rm_func(vios_w):
             LOG.info(_LI("Removing vSCSI mapping from Physical Volume %(dev)s "
-                         "to VM %(vm)s") % {'dev': device_name, 'vm': vm_uuid})
+                         "to VM %(vm)s"), {'dev': device_name, 'vm': vm_uuid})
             removed_maps = tsk_map.remove_maps(
                 vios_w, vm_uuid,
                 tsk_map.gen_match_func(pvm_stor.PV, names=[device_name]))
@@ -232,7 +232,7 @@ class VscsiVolumeAdapter(object):
         :param stg_ftsk: The feed task to add to. If None, then self.stg_ftsk
         """
         def rm_hdisk():
-            LOG.info(_LI("Running remove for hdisk: '%s'") % device_name)
+            LOG.info(_LI("Running remove for hdisk: '%s'"), device_name)
             try:
                 # Attempt to remove the hDisk
                 hdisk.remove_hdisk(self.adapter, CONF.host, device_name,
@@ -278,11 +278,11 @@ class VscsiVolumeAdapter(object):
         """Cleanup the hdisk associated with this udid."""
 
         if not udid and not devname:
-            LOG.warning(_LW('Could not remove hdisk for volume: %s')
-                        % self.volume_id)
+            LOG.warning(
+                _LW('Could not remove hdisk for volume: %s'), self.volume_id)
             return
 
-        LOG.info(_LI('Removing hdisk for udid: %s') % udid)
+        LOG.info(_LI('Removing hdisk for udid: %s'), udid)
 
         def find_hdisk_to_remove(vios_w):
             if devname is None:

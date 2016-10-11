@@ -1865,9 +1865,9 @@ class PowerVMDriver(driver.ComputeDriver):
         adp_type = VOLUME_DRIVER_MAPPINGS[CONF.powervm.volume_adapter]
         vol_cls = importutils.import_class(adp_type)
         if conn_info:
-            LOG.debug('Volume Adapter returned for connection_info=%s' %
+            LOG.debug('Volume Adapter returned for connection_info=%s',
                       conn_info)
-        LOG.debug('Volume Adapter class %(cls)s for instance %(inst)s' %
+        LOG.debug('Volume Adapter class %(cls)s for instance %(inst)s',
                   {'cls': vol_cls.__name__, 'inst': instance.name})
         return vol_cls(self.adapter, self.host_uuid,
                        instance, conn_info, stg_ftsk=stg_ftsk)
@@ -1936,13 +1936,12 @@ class NovaEventHandler(pvm_apt.RawEventHandler):
                 (self.inst_actions_handled & set(details))):
             if not inst:
                 LOG.debug('PowerVM Nova Event Handler: Getting inst '
-                          'for id %s' % pvm_uuid)
+                          'for id %s', pvm_uuid)
                 inst = vm.get_instance(ctx.get_admin_context(),
                                        pvm_uuid)
             if inst:
                 LOG.debug('Handle action "%(action)s" event for instance: '
-                          '%(inst)s' %
-                          dict(action=details, inst=inst.name))
+                          '%(inst)s', dict(action=details, inst=inst.name))
                 self._handle_inst_event(
                     inst, pvm_uuid, uri, etype, details, eid)
                 return inst
@@ -2032,8 +2031,8 @@ class NovaEventHandler(pvm_apt.RawEventHandler):
                 eid = pvm_event['EventID']
 
                 if etype not in ['NEW_CLIENT']:
-                    LOG.debug('PowerVM Event-Action: %s URI: %s Details %s' %
-                              (etype, uri, details))
+                    LOG.debug('PowerVM Event-Action: %s URI: %s Details %s',
+                              etype, uri, details)
                 inst_cache[uri] = self._handle_event(uri, etype, details, eid,
                                                      inst=inst_cache.get(uri,
                                                                          None))

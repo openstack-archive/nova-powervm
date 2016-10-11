@@ -131,8 +131,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Make sure the remove function will run within the transaction manager
         def rm_func(vios_w):
-            LOG.info(_LI("Disconnecting instance %(inst)s from storage disks.")
-                     % {'inst': instance.name})
+            LOG.info(_LI("Disconnecting instance %(inst)s from storage "
+                         "disks."), {'inst': instance.name})
             return tsk_map.remove_maps(vios_w, lpar_uuid,
                                        match_func=match_func)
 

@@ -238,7 +238,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # manager.  Given that, we need to update the order of the WWPNs.
         # The first WWPN is the one that is logged into the fabric and this
         # will now indicate that our WWPN is logged in.
-        LOG.debug('Post live migrate volume store: %s' % mig_vol_stor,
+        LOG.debug('Post live migrate volume store: %s', mig_vol_stor,
                   instance=self.instance)
         for fabric in self._fabric_names():
             # We check the mig_vol_stor to see if this fabric has already been
@@ -254,8 +254,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                 # Flip the WPWNs
                 c_wwpns = port_map[1].split()
                 c_wwpns.reverse()
-                LOG.debug('Flipping WWPNs, ports: %s wwpns: %s' %
-                          (port_map, c_wwpns), instance=self.instance)
+                LOG.debug('Flipping WWPNs, ports: %s wwpns: %s',
+                          port_map, c_wwpns, instance=self.instance)
                 # Get the new physical WWPN.
                 vfc_map = pvm_vfcm.find_vios_for_vfc_wwpns(vios_wraps,
                                                            c_wwpns)[1]
@@ -402,7 +402,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         for fabric in self._fabric_names():
             fc_state = self._get_fabric_state(fabric)
             LOG.info(_LI("NPIV wwpns fabric state=%(st)s for "
-                         "instance %(inst)s") %
+                         "instance %(inst)s"),
                      {'st': fc_state, 'inst': self.instance.name})
 
             if self._is_initial_wwpn(fc_state, fabric):
@@ -473,7 +473,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             return npiv_port_maps
 
         # If ANY of the VIOS ports were not there, rebuild the port maps
-        LOG.debug("Rebuild existing_npiv_port_maps=%s. Reset fabric state." %
+        LOG.debug("Rebuild existing_npiv_port_maps=%s. Reset fabric state.",
                   npiv_port_maps)
         v_wwpns = []
         for port_map in npiv_port_maps:
@@ -483,7 +483,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # Derive new maps and don't preserve existing maps
         npiv_port_maps = pvm_vfcm.derive_npiv_map(
             vios_wraps, self._fabric_ports(fabric), v_wwpns, preserve=False)
-        LOG.debug("Rebuilt port maps: %s" % npiv_port_maps)
+        LOG.debug("Rebuilt port maps: %s", npiv_port_maps)
         self._set_fabric_meta(fabric, npiv_port_maps)
         LOG.warning(_LW("Had to update the system metadata for the WWPNs "
                         "due to incorrect physical WWPNs on fabric "
@@ -607,7 +607,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
          FS_INST_MAPPED: Fabric is mapped with the nova instance.
         """
         meta_key = self._sys_fabric_state_key(fabric)
-        LOG.info(_LI("Setting Fabric state=%(st)s for instance=%(inst)s") %
+        LOG.info(_LI("Setting Fabric state=%(st)s for instance=%(inst)s"),
                  {'st': state, 'inst': self.instance.name})
         self.instance.system_metadata[meta_key] = state
 
