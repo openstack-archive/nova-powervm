@@ -305,7 +305,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         LOG.info(_LI("Instance %(inst)s has not yet defined a WWPN on "
                      "fabric %(fabric)s.  Appropriate WWPNs will be "
                      "generated."),
-                 {'inst': self.instance.name, 'fabric': fabric})
+                 {'inst': self.instance.name, 'fabric': fabric},
+                 instance=self.instance)
         return True
 
     def _hosts_wwpn(self, port_maps):
@@ -401,9 +402,10 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # were already configured.
         for fabric in self._fabric_names():
             fc_state = self._get_fabric_state(fabric)
-            LOG.info(_LI("NPIV wwpns fabric state=%(st)s for "
-                         "instance %(inst)s"),
-                     {'st': fc_state, 'inst': self.instance.name})
+            LOG.info(_LI(
+                "NPIV wwpns fabric state=%(st)s for instance %(inst)s"),
+                {'st': fc_state, 'inst': self.instance.name},
+                instance=self.instance)
 
             if self._is_initial_wwpn(fc_state, fabric):
                 # Get a set of WWPNs that are globally unique from the system.
@@ -513,7 +515,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
             if vios_w is None:
                 LOG.error(_LE("Mappings were not able to find a proper VIOS. "
-                              "The port mappings were %s."), npiv_port_maps)
+                              "The port mappings were %s."), npiv_port_maps,
+                          instance=self.instance)
                 raise exc.VolumeAttachFailed(
                     volume_id=volume_id, instance_name=self.instance.name,
                     reason=_("Unable to find a Virtual I/O Server that "
@@ -586,7 +589,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             else:
                 LOG.warning(_LW("No storage connections found between the "
                                 "Virtual I/O Servers and FC Fabric "
-                                "%(fabric)s."), {'fabric': fabric})
+                                "%(fabric)s."), {'fabric': fabric},
+                            instance=self.instance)
 
     def host_name(self):
         """Derives the host name that should be used for the storage device.
@@ -608,7 +612,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         """
         meta_key = self._sys_fabric_state_key(fabric)
         LOG.info(_LI("Setting Fabric state=%(st)s for instance=%(inst)s"),
-                 {'st': state, 'inst': self.instance.name})
+                 {'st': state, 'inst': self.instance.name},
+                 instance=self.instance)
         self.instance.system_metadata[meta_key] = state
 
     def _get_fabric_state(self, fabric):
@@ -661,7 +666,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         LOG.info(_LI("Fabric %(fabric)s wwpn metadata will be set to "
                      "%(meta)s for instance %(inst)s"),
                  {'fabric': fabric, 'meta': ",".join(meta_elems),
-                  'inst': self.instance.name})
+                  'inst': self.instance.name},
+                 instance=self.instance)
 
         # Clear out the original metadata.  We may be reducing the number of
         # keys (ex. reschedule) so we need to just delete what we had before
@@ -706,7 +712,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                             "fabric %(fabric)s.  May not have connected to "
                             "the fabric yet or fabric configuration was "
                             "recently modified."),
-                        {'inst': self.instance.name, 'fabric': fabric})
+                        {'inst': self.instance.name, 'fabric': fabric},
+                        instance=self.instance)
             return []
 
         wwpns = self.instance.system_metadata[meta_key]

@@ -179,7 +179,8 @@ class SwiftSlotManager(NovaSlotManager):
         except Exception:
             LOG.warning(_LW("Unable to delete the slot map from Swift backing "
                             "store with ID %(key)s.  Will require "
-                            "manual cleanup."), {'key': key}, self.instance)
+                            "manual cleanup."), {'key': key},
+                        instance=self.instance)
 
 
 class NoopSlotManager(NovaSlotManager):

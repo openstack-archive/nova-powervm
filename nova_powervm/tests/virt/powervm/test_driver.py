@@ -1528,13 +1528,11 @@ class TestPowerVMDriver(test.TestCase):
         """Validates the log_operations."""
         self.drv._log_operation('fake_op', self.inst)
         entry = (r'Operation: %(op)s. Virtual machine display '
-                 'name: %(display_name)s, name: %(name)s, '
-                 'UUID: %(uuid)s')
-        msg_dict = {'uuid': 'b3c04455-a435-499d-ac81-371d2a2d334f',
-                    'display_name': u'Fake Instance',
+                 'name: %(display_name)s, name: %(name)s')
+        msg_dict = {'display_name': u'Fake Instance',
                     'name': 'instance-00000001',
                     'op': 'fake_op'}
-        mock_log.info.assert_called_with(entry, msg_dict)
+        mock_log.info.assert_called_with(entry, msg_dict, instance=self.inst)
 
     @mock.patch('pypowervm.wrappers.managed_system.System.get',
                 new=mock.Mock(return_value=[mock.Mock()]))

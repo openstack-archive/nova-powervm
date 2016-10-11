@@ -144,7 +144,7 @@ class LiveMigrationDest(LiveMigration):
         """
         LOG.debug('Running pre live migration on destination.',
                   instance=self.instance)
-        LOG.debug('Migration data: %s', migrate_data)
+        LOG.debug('Migration data: %s', migrate_data, instance=self.instance)
 
         # Set the ssh auth key.
         mgmt_task.add_authorized_key(self.drvr.adapter,
@@ -162,12 +162,12 @@ class LiveMigrationDest(LiveMigration):
         # For each volume, make sure it's ready to migrate
         for vol_drv in vol_drvs:
             LOG.info(_LI('Performing pre migration for volume %(volume)s'),
-                     dict(volume=vol_drv.volume_id))
+                     dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
                 vol_drv.pre_live_migration_on_destination(
                     migrate_data.vol_data)
             except Exception as e:
-                LOG.exception(e)
+                LOG.exception(e, instance=self.instance)
                 # It failed.
                 vol_exc = LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
@@ -199,11 +199,11 @@ class LiveMigrationDest(LiveMigration):
         # For each volume, make sure it completes the migration
         for vol_drv in vol_drvs:
             LOG.info(_LI('Performing post migration for volume %(volume)s'),
-                     dict(volume=vol_drv.volume_id))
+                     dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
                 vol_drv.post_live_migration_at_destination(mig_vol_stor)
             except Exception as e:
-                LOG.exception(e)
+                LOG.exception(e, instance=self.instance)
                 # It failed.
                 raise LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
@@ -235,11 +235,11 @@ class LiveMigrationDest(LiveMigration):
         :param vol_drv: volume driver for the attached volume
         """
         LOG.info(_LI('Performing detach for volume %(volume)s'),
-                 dict(volume=vol_drv.volume_id))
+                 dict(volume=vol_drv.volume_id), instance=self.instance)
         try:
             vol_drv.cleanup_volume_at_destination(self.pre_live_vol_data)
         except Exception as e:
-            LOG.exception(e)
+            LOG.exception(e, instance=self.instance)
             # Log the exception but no need to raise one because
             # the VM is still on the source host.
 
@@ -302,7 +302,8 @@ class LiveMigrationSrc(LiveMigration):
             vol_drv.pre_live_migration_on_source(vol_data)
         self.mig_data.vol_data = vol_data
 
-        LOG.debug('Src Migration data: %s', self.mig_data)
+        LOG.debug('Src Migration data: %s', self.mig_data,
+                  instance=self.instance)
 
         # Create a FeedTask to scrub any orphaned mappings/storage associated
         # with this LPAR.  (Don't run it yet - we want to do the VOpt removal
@@ -328,7 +329,7 @@ class LiveMigrationSrc(LiveMigration):
         :param migrate_data: a PowerVMLiveMigrateData object
         """
         LOG.debug("Starting migration.", instance=self.instance)
-        LOG.debug("Migrate data: %s", migrate_data)
+        LOG.debug("Migrate data: %s", migrate_data, instance=self.instance)
 
         # The passed in mig data has more info (dest data added), so replace
         self.mig_data = migrate_data
@@ -394,11 +395,11 @@ class LiveMigrationSrc(LiveMigration):
         # For each volume, make sure the source is cleaned
         for vol_drv in vol_drvs:
             LOG.info(_LI('Performing post migration for volume %(volume)s'),
-                     dict(volume=vol_drv.volume_id))
+                     dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
                 vol_drv.post_live_migration_at_source(migrate_data.vol_data)
             except Exception as e:
-                LOG.exception(e)
+                LOG.exception(e, instance=self.instance)
                 # Log the exception but no need to raise one because
                 # the VM is already moved.  By raising an exception that
                 # results in the VM being on the new host but the instance
@@ -457,9 +458,9 @@ class LiveMigrationSrc(LiveMigration):
             mig.migrate_abort(self.lpar_w)
         except Exception as ex:
             LOG.error(_LE("Abort of live migration has failed. "
-                          "This is non-blocking. "
-                          "Exception is logged below."))
-            LOG.exception(ex)
+                          "This is non-blocking. Exception is logged below."),
+                      instance=self.instance)
+            LOG.exception(ex, instance=self.instance)
 
     def migration_recover(self):
         """Recover migration if the migration failed for any reason. """
