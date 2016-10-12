@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2016 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -283,11 +283,18 @@ class PowerVMInspector(virt_inspector.Inspector):
                 name=metric_cna.physical_location,
                 mac=mac, fref=None, parameters=None)
 
+            # PowerVM doesn't specify drops by receive vs. transmit.  Since we
+            # have the client adapter, we assume all are receive drops.
+            # There are no error metrics available.
             stats = virt_inspector.InterfaceStats(
                 rx_bytes=metric_cna.received_bytes,
                 rx_packets=metric_cna.received_packets,
+                rx_drop=metric_cna.dropped_packets,
+                rx_errors=0,
                 tx_bytes=metric_cna.sent_bytes,
-                tx_packets=metric_cna.sent_packets)
+                tx_packets=metric_cna.sent_packets,
+                tx_drop=0,
+                tx_errors=0)
 
             # Yield the stats up to the invoker
             yield (interface, stats)

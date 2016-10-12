@@ -187,17 +187,18 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.assertEqual(0.0, resp.util)
 
     @staticmethod
-    def _mock_vnic_metric(rec_bytes, tx_bytes, rec_pkts, tx_pkts, phys_loc):
+    def _mock_vnic_metric(rec_bytes, tx_bytes, rec_pkts, tx_pkts, phys_loc,
+                          drop_pkts):
         """Helper method to create a specific mock network metric."""
         return mock.Mock(received_bytes=rec_bytes, sent_bytes=tx_bytes,
                          received_packets=rec_pkts, sent_packets=tx_pkts,
-                         physical_location=phys_loc)
+                         dropped_packets=drop_pkts, physical_location=phys_loc)
 
     def _build_cur_mock_vnic_metrics(self):
         """Helper method to create mock network metrics."""
-        cna1 = self._mock_vnic_metric(1000, 1000, 10, 10, 'a')
-        cna2 = self._mock_vnic_metric(2000, 2000, 20, 20, 'b')
-        cna3 = self._mock_vnic_metric(3000, 3000, 30, 30, 'c')
+        cna1 = self._mock_vnic_metric(1000, 1000, 10, 10, 'a', 1)
+        cna2 = self._mock_vnic_metric(2000, 2000, 20, 20, 'b', 2)
+        cna3 = self._mock_vnic_metric(3000, 3000, 30, 30, 'c', 3)
 
         metric = mock.MagicMock()
         metric.network.cnas = [cna1, cna2, cna3]
@@ -205,8 +206,8 @@ class TestPowerVMInspector(base.BaseTestCase):
 
     def _build_prev_mock_vnic_metrics(self):
         """Helper method to create mock network metrics."""
-        cna1 = self._mock_vnic_metric(1000, 1000, 10, 10, 'a')
-        cna2 = self._mock_vnic_metric(200, 200, 20, 20, 'b')
+        cna1 = self._mock_vnic_metric(1000, 1000, 10, 10, 'a', 1)
+        cna2 = self._mock_vnic_metric(200, 200, 20, 20, 'b', 2)
 
         metric = mock.MagicMock()
         metric.network.cnas = [cna1, cna2]
@@ -258,6 +259,10 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.assertEqual(1000, stats1.tx_bytes)
         self.assertEqual(10, stats1.rx_packets)
         self.assertEqual(10, stats1.tx_packets)
+        self.assertEqual(1, stats1.rx_drop)
+        self.assertEqual(0, stats1.tx_drop)
+        self.assertEqual(0, stats1.rx_errors)
+        self.assertEqual(0, stats1.tx_errors)
 
     @mock.patch('pypowervm.wrappers.network.CNA.wrap')
     def test_inspect_vnic_rates(self, mock_wrap):
