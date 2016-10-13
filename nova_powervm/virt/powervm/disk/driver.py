@@ -21,7 +21,6 @@ import oslo_log.log as logging
 from oslo_utils import units
 import six
 
-from nova import image
 import pypowervm.const as pvm_const
 import pypowervm.tasks.scsi_mapper as tsk_map
 import pypowervm.util as pvm_util
@@ -42,31 +41,6 @@ class DiskType(object):
     IMAGE = 'image'
 
 
-class IterableToFileAdapter(object):
-    """A degenerate file-like so that an iterable could be read like a file.
-
-    As Glance client returns an iterable, but PowerVM requires a file,
-    this is the adapter between the two.
-
-    Taken from xenapi/image/apis.py
-    """
-
-    def __init__(self, iterable):
-        self.iterator = iterable.__iter__()
-        self.remaining_data = ''
-
-    def read(self, size):
-        chunk = self.remaining_data
-        try:
-            while not chunk:
-                chunk = next(self.iterator)
-        except StopIteration:
-            return ''
-        return_value = chunk[0:size]
-        self.remaining_data = chunk[size:]
-        return return_value
-
-
 @six.add_metaclass(abc.ABCMeta)
 class DiskAdapter(object):
 
@@ -83,7 +57,6 @@ class DiskAdapter(object):
         self.adapter = adapter
         self.host_uuid = host_uuid
         self.mp_uuid = mgmt.mgmt_uuid(self.adapter)
-        self.image_api = image.API()
 
     @property
     def vios_uuids(self):
@@ -228,21 +201,6 @@ class DiskAdapter(object):
         Default is to say none of it is used.
         """
         return 0
-
-    def _get_image_upload(self, context, image_meta):
-        """Returns the stream that can be sent to pypowervm.
-
-        The pypowervm API requires a File be sent up for the image.  This
-        method will get the appropriate file adapter (IterableToFileAdapter)
-        built for the invoker.
-
-        :param context: User context
-        :param nova.objects.ImageMeta image_meta:
-            The metadata of the image of the instance.
-        :return: The stream to send to pypowervm.
-        """
-        chunks = self.image_api.download(context, image_meta.id)
-        return IterableToFileAdapter(chunks)
 
     @staticmethod
     def _get_disk_name(disk_type, instance, short=False):

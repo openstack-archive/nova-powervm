@@ -24,6 +24,7 @@ from nova import test
 import pypowervm.adapter as pvm_adp
 from pypowervm import const
 import pypowervm.entities as pvm_ent
+from pypowervm.tasks import storage as tsk_stg
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import cluster as pvm_clust
@@ -324,26 +325,42 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.disk.driver.DiskAdapter.'
                 '_get_disk_name')
     @mock.patch('pypowervm.tasks.storage.crt_lu')
-    def test_create_disk_from_image(self, mock_crt_lu, mock_gdn, mock_vuuid,
-                                    mock_gin, mock_goru):
+    @mock.patch('nova.image.api.API.download')
+    def test_create_disk_from_image(self, mock_img_api, mock_crt_lu, mock_gdn,
+                                    mock_vuuid, mock_gin, mock_goru):
         context = mock.Mock()
         instance = mock.Mock()
-        img_meta = mock.Mock()
+        img_meta = mock.Mock(size=10)
         disk_size_gb = mock.Mock()
         image_type = mock.Mock()
         image_lu = mock.Mock()
         boot_lu = mock.Mock()
 
         ssp = self._get_ssp_stor()
-        mock_goru.return_value = image_lu
         mock_crt_lu.return_value = ssp._ssp_wrap, boot_lu
+
+        mock_gin.return_value = 'img_name'
+        mock_vuuid.return_value = 'vios_uuid'
+
+        def test_get_or_upload_image_lu(
+                tier, name, vio_uuid, upload, size, upload_type=None):
+            self.assertEqual(tier, ssp._tier)
+            self.assertEqual('img_name', name)
+            self.assertEqual('vios_uuid', vio_uuid)
+            self.assertEqual(10, size)
+            self.assertEqual(tsk_stg.UploadType.FUNC, upload_type)
+            upload('test_path')
+            return image_lu
+
+        mock_goru.side_effect = test_get_or_upload_image_lu
 
         # Default image_type
         self.assertEqual(boot_lu, ssp.create_disk_from_image(
             context, instance, img_meta, disk_size_gb))
         mock_goru.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gin.return_value,
-            mock_vuuid.return_value, mock.ANY, img_meta.size)
+            mock_vuuid.return_value, mock.ANY, img_meta.size,
+            upload_type=tsk_stg.UploadType.FUNC)
         mock_gdn.assert_called_once_with(disk_dvr.DiskType.BOOT, instance)
         mock_crt_lu.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gdn.return_value,
@@ -358,7 +375,8 @@ class TestSSPDiskAdapter(test.TestCase):
             context, instance, img_meta, disk_size_gb, image_type=image_type))
         mock_goru.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gin.return_value,
-            mock_vuuid.return_value, mock.ANY, img_meta.size)
+            mock_vuuid.return_value, mock.ANY, img_meta.size,
+            upload_type=tsk_stg.UploadType.FUNC)
         mock_gdn.assert_called_once_with(image_type, instance)
         mock_crt_lu.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gdn.return_value,

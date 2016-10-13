@@ -21,6 +21,7 @@ import copy
 from nova import exception as nova_exc
 from nova import test
 from pypowervm import const as pvm_const
+from pypowervm.tasks import storage as tsk_stor
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
@@ -58,8 +59,8 @@ class TestLocalDisk(test.TestCase):
                                          'localdisk.LocalStorage.'
                                          '_get_vg_uuid')
         self.mock_vg_uuid = self.mock_vg_uuid_p.start()
-        vg_uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
-        self.mock_vg_uuid.return_value = ('vios_uuid', vg_uuid)
+        self.vg_uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
+        self.mock_vg_uuid.return_value = ('vios_uuid', self.vg_uuid)
 
         # Return the mgmt uuid
         self.mgmt_uuid = self.useFixture(fixtures.MockPatch(
@@ -77,23 +78,35 @@ class TestLocalDisk(test.TestCase):
         return ld.LocalStorage(adpt, 'host_uuid')
 
     @mock.patch('pypowervm.tasks.storage.upload_new_vdisk')
-    @mock.patch('nova_powervm.virt.powervm.disk.driver.'
-                'IterableToFileAdapter')
-    @mock.patch('nova.image.API')
-    def test_create_disk_from_image(self, mock_img_api, mock_file_adpt,
-                                    mock_upload_vdisk):
+    @mock.patch('nova.image.api.API.download')
+    def test_create_disk_from_image(self, mock_img_api, mock_upload_vdisk):
         mock_upload_vdisk.return_value = ('vdisk', None)
         inst = mock.Mock()
         inst.name = 'Inst Name'
         inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
 
+        def test_upload_new_vdisk(adpt, vio_uuid, vg_uuid, upload, vol_name,
+                                  image_size, d_size=0, upload_type=None):
+            self.assertEqual(self.apt, adpt)
+            self.assertEqual('vios_uuid', vio_uuid)
+            self.assertEqual(self.vg_uuid, vg_uuid)
+            self.assertEqual('b_Inst_Nam_d506', vol_name)
+            self.assertEqual(powervm.TEST_IMAGE1.size, image_size)
+            self.assertEqual(21474836480, d_size)
+            self.assertEqual(tsk_stor.UploadType.FUNC, upload_type)
+            upload('test_path')
+            return 'vdisk', None
+
+        mock_upload_vdisk.side_effect = test_upload_new_vdisk
+
         vdisk = self.get_ls(self.apt).create_disk_from_image(
             None, inst, powervm.TEST_IMAGE1, 20)
-        mock_upload_vdisk.assert_called_with(mock.ANY, mock.ANY, mock.ANY,
-                                             mock.ANY, 'b_Inst_Nam_d506',
-                                             powervm.TEST_IMAGE1.size,
-                                             d_size=21474836480)
         self.assertEqual('vdisk', vdisk)
+
+        # Make sure the upload was invoked properly
+        mock_img_api.assert_called_once_with(
+            None, '3e865d14-8c1e-4615-b73f-f78eaecabfbd',
+            dest_path='test_path')
 
     @mock.patch('pypowervm.wrappers.storage.VG')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
