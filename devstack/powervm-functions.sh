@@ -4,7 +4,7 @@
 # Functions to control the installation and configuration of the PowerVM compute services
 
 GITREPO["pypowervm"]=${PYPOWERVM_REPO:-https://github.com/powervm/pypowervm}
-GITBRANCH["pypowervm"]=${PYPOWERVM_BRANCH:-master}
+GITBRANCH["pypowervm"]=${PYPOWERVM_BRANCH:-develop}
 GITDIR["pypowervm"]=$DEST/pypowervm
 
 # TODO (adreznec) Uncomment when public NovaLink PPA available
