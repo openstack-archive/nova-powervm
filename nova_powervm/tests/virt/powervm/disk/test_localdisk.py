@@ -311,6 +311,17 @@ class TestLocalDisk(test.TestCase):
         vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__d506'
         return inst, lpar_wrap, vios1, vios2
 
+    def test_boot_disk_path_for_instance(self):
+        local = self.get_ls(self.apt)
+        inst = mock.Mock()
+        inst.name = 'Name Of Instance'
+        inst.uuid = 'f921620A-EE30-440E-8C2D-9F7BA123F298'
+        vios1 = pvm_vios.VIOS.wrap(self.vio_to_vg)
+        vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__f921'
+        self.apt.read.return_value = vios1.entry
+        dev_name = local.boot_disk_path_for_instance(inst, vios1.uuid)
+        self.assertEqual('boot_7f81628b', dev_name)
+
     @mock.patch('pypowervm.wrappers.storage.VG')
     def test_instance_disk_iter(self, mock_vg):
         def assert_read_calls(num):

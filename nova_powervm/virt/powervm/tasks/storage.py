@@ -242,6 +242,14 @@ class InstanceDiskToMgmt(pvm_task.PowerVMTask):
 
     def execute_impl(self):
         """Map the instance's boot disk and discover it."""
+
+        # Search for boot disk on the Novalink partition
+        if self.disk_dvr.mp_uuid in self.disk_dvr.vios_uuids:
+            dev_name = self.disk_dvr.boot_disk_path_for_instance(
+                self.instance, self.disk_dvr.mp_uuid)
+            if dev_name is not None:
+                return None, None, dev_name
+
         self.stg_elem, self.vios_wrap = (
             self.disk_dvr.connect_instance_disk_to_mgmt(self.instance))
         new_maps = pvm_smap.find_maps(
@@ -324,6 +332,9 @@ class RemoveInstanceDiskFromMgmt(pvm_task.PowerVMTask):
         :param disk_path: The local path to the disk device to be removed, e.g.
                           '/dev/sde'
         """
+        # stg_elem is None if boot disk was not mapped to management partition
+        if stg_elem is None:
+            return
         LOG.info(_LI("Unmapping boot disk %(disk_name)s of instance "
                      "%(instance_name)s from management partition via Virtual "
                      "I/O Server %(vios_name)s."),
