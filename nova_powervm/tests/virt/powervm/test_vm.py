@@ -300,8 +300,8 @@ class TestVM(test.TestCase):
         self.assertEqual(inst_info.cpu_time_ns, 0)
 
         # Check that we raise an exception if the instance is gone.
-        exc = pvm_exc.Error('Not found', response=FakeAdapterResponse(404))
-        self.apt.read.side_effect = exc
+        self.apt.read.side_effect = pvm_exc.HttpError(
+            mock.MagicMock(status=404))
         self.assertRaises(exception.InstanceNotFound,
                           inst_info.__getattribute__, 'state')
 
@@ -615,13 +615,16 @@ class TestVM(test.TestCase):
 
         resp = mock.MagicMock()
         resp.status = 404
-        self.apt.read.side_effect = pvm_exc.Error('message', response=resp)
+        self.apt.read.side_effect = pvm_exc.HttpError(resp)
         self.assertRaises(exception.InstanceNotFound, vm.get_vm_qp, self.apt,
                           'lpar_uuid', log_errors=False)
 
-        resp.status = 500
+        self.apt.read.side_effect = pvm_exc.Error("message", response=None)
+        self.assertRaises(pvm_exc.Error, vm.get_vm_qp, self.apt,
+                          'lpar_uuid', log_errors=False)
 
-        self.apt.read.side_effect = pvm_exc.Error('message', response=resp)
+        resp.status = 500
+        self.apt.read.side_effect = pvm_exc.Error("message", response=resp)
         self.assertRaises(pvm_exc.Error, vm.get_vm_qp, self.apt,
                           'lpar_uuid', log_errors=False)
 

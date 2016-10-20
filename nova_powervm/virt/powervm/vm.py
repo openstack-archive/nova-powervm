@@ -529,11 +529,12 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
                 pass
             kwds['helpers'] = helpers
         resp = adapter.read(pvm_lpar.LPAR.schema_type, **kwds)
-    except pvm_exc.Error as e:
-        if e.response.status == 404:
+    except pvm_exc.HttpError as e:
+        # 404 error indicates the LPAR has been deleted (or moved to a
+        # different host)
+        if e.response and e.response.status == 404:
             raise exception.InstanceNotFound(instance_id=lpar_uuid)
         else:
-            LOG.exception(e)
             raise
 
     return jsonutils.loads(resp.body)
