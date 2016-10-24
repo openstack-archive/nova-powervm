@@ -6,14 +6,14 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 3.0.0.0b4.dev2\n"
+"Project-Id-Version: nova_powervm 3.0.0.0rc2.dev10\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2016-09-04 23:10-0400\n"
-"PO-Revision-Date: 2016-09-04 23:10-0400\n"
+"POT-Creation-Date: 2016-10-07 02:04-0400\n"
+"PO-Revision-Date: 2016-10-07 02:04-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.3.4\n"
 
@@ -38,7 +38,12 @@ msgstr ""
 "Сбой прерывания оперативной миграции. Это неблокирующая ситуация. Исключительная ситуация "
 "описана ниже."
 
-#: nova_powervm/virt/powervm/vif.py:274
+#: nova_powervm/virt/powervm/vif.py:106
+#, python-format
+msgid "Custom VIF event push failed.  %s"
+msgstr "Не удалось отправить пользовательское событие VIF. %s"
+
+#: nova_powervm/virt/powervm/vif.py:316
 #, python-format
 msgid "Unable to unplug VIF with mac %(mac)s for instance %(inst)s."
 msgstr "Не удалось отсоединить VIF с mac %(mac)s для экземпляра %(inst)s."
@@ -64,32 +69,30 @@ msgstr "Ошибка проверки общей памяти. Исключит�
 msgid "Could not update NVRAM: %s"
 msgstr "Не удалось обновить NVRAM: %s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:74
+#: nova_powervm/virt/powervm/tasks/network.py:66
 #, python-format
 msgid ""
-"Unable to remove VIFs from instance %(inst)s because the system is not in"
-" a correct state.  The reason reported by the system is: %(reason)s"
+"Unable to remove VIFs from instance %(inst)s because the system is not in a "
+"correct state.  The reason reported by the system is: %(reason)s"
 msgstr ""
-"Не удалось удалить VIF из экземпляра %(inst)s, так как система находится в"
-" неправильном состоянии. Причина, указанная системой: %(reason)s"
+"Не удалось удалить VIF из экземпляра %(inst)s, так как система находится в "
+"некорректном состоянии. Сообщенная системой причина: %(reason)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:162
+#: nova_powervm/virt/powervm/tasks/network.py:154
 #, python-format
 msgid ""
-"Unable to create VIF(s) for instance %(sys)s.  The VM was in a state "
-"where VIF plugging is not acceptable.  The reason from the system is: "
-"%(reason)s"
+"Unable to create VIF(s) for instance %(sys)s.  The VM was in a state where "
+"VIF plugging is not acceptable.  The reason from the system is: %(reason)s"
 msgstr ""
-"Не удалось создать VIF для экземпляра %(sys)s.  ВМ находится в состоянии, "
-"в котором подсоединение VIF не поддерживается. Причина, указанная системой: "
-"%(reason)s"
+"Не удалось создать VIF для экземпляра %(sys)s.  VM находится в том состоянии, "
+"в котором невозможно подсоединить VIF. Сообщенная системой причина: %(reason)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:214
+#: nova_powervm/virt/powervm/tasks/network.py:207
 #, python-format
 msgid "Error waiting for VIF to be created for instance %(sys)s"
 msgstr "Ошибка при ожидании создания VIF для экземпляра %(sys)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:228
+#: nova_powervm/virt/powervm/tasks/network.py:221
 #, python-format
 msgid "VIF Plug failure for callback on event %(event)s for instance %(uuid)s"
 msgstr "Сбой подключения VIF для обратного вызова по событию %(event)s для экземпляра %(uuid)s"
@@ -104,24 +107,25 @@ msgstr "Не удалось сохранить NVRAM для экземпляра
 msgid "Unable to delete NVRAM for instance %(name)s. Exception: %(reason)s"
 msgstr "Не удалось удалить NVRAM для экземпляра %(name)s. Исключительная ситуация: %(reason)s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:216
+#: nova_powervm/virt/powervm/volume/iscsi.py:221
 #: nova_powervm/virt/powervm/volume/vscsi.py:334
 #, python-format
 msgid "Cannot detach volumes from virtual machine: %s"
 msgstr "Не удалось отключить тома от виртуальной машины: %s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:218
+#: nova_powervm/virt/powervm/volume/iscsi.py:223
 #: nova_powervm/virt/powervm/volume/vscsi.py:336
 #, python-format
 msgid "Error: %s"
 msgstr "Ошибка: %s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:476
+#: nova_powervm/virt/powervm/volume/npiv.py:515
 #, python-format
-msgid "Mappings were not able to find a proper VIOS. The port mappings were %s."
-msgstr "Не удалось найти подходящий VIOS по связям. Связи порта: %s."
+msgid ""
+"Mappings were not able to find a proper VIOS. The port mappings were %s."
+msgstr ""
+"Не удалось найти подходящий VIOS по связям. Связи порта: %s."
 
-
-# ENGL1SH_VERS10N 12271_5 DO NOT REMOVE OR CHANGE THIS LINE
+# ENGL1SH_VERS10N 37135_5 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 44
-# T9N_SH1P_STR1NG PV132AAP001 1
+# T9N_SH1P_STR1NG PV132AAP001 2

@@ -6,14 +6,14 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 3.0.0.0b4.dev2\n"
+"Project-Id-Version: nova_powervm 3.0.0.0rc2.dev10\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2016-09-04 23:10-0400\n"
-"PO-Revision-Date: 2016-09-04 23:10-0400\n"
+"POT-Creation-Date: 2016-10-07 02:04-0400\n"
+"PO-Revision-Date: 2016-10-07 02:04-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.3.4\n"
 
@@ -100,12 +100,12 @@ msgstr "Se está realizando la migración posterior para el volumen %(volume)s"
 msgid "Performing detach for volume %(volume)s"
 msgstr "Realizando la desconexión del volumen %(volume)s"
 
-#: nova_powervm/virt/powervm/media.py:76
+#: nova_powervm/virt/powervm/media.py:94
 #, python-format
 msgid "Creating config drive for instance: %s"
 msgstr "Se está creando la unidad de configuración para la instancia: %s"
 
-#: nova_powervm/virt/powervm/media.py:96
+#: nova_powervm/virt/powervm/media.py:117
 #, python-format
 msgid ""
 "Config drive ISO being built for instance %(inst)s building to path "
@@ -114,7 +114,7 @@ msgstr ""
 "Creando unidad de configuración ISO para creación de instancia %(inst)s para vía de acceso "
 "%(iso_path)s."
 
-#: nova_powervm/virt/powervm/media.py:166
+#: nova_powervm/virt/powervm/media.py:187
 #, python-format
 msgid ""
 "Adding cfg drive mapping for instance %(inst)s for Virtual I/O Server "
@@ -123,12 +123,17 @@ msgstr ""
 "Añadiendo la correlación de unidad de configuración para la instancia %(inst)s para el servidor de E/S virtual "
 "%(vios)s"
 
-#: nova_powervm/virt/powervm/media.py:297
+#: nova_powervm/virt/powervm/media.py:318
 #, python-format
 msgid "Removing virtual optical for VM with UUID %s."
 msgstr "Se está eliminado el óptico virtual para la máquina virtual con UUID %s."
 
-#: nova_powervm/virt/powervm/vif.py:269
+#: nova_powervm/virt/powervm/vif.py:104
+#, python-format
+msgid "Custom event push: %s"
+msgstr "Envío de suceso personalizado: %s"
+
+#: nova_powervm/virt/powervm/vif.py:309
 #, python-format
 msgid "Deleting VIF with mac %(mac)s for instance %(inst)s."
 msgstr "Eliminando VIF con mac %(mac)s para la instancia %(inst)s."
@@ -156,8 +161,8 @@ msgstr "Se está desconectando la instancia %(inst)s de los discos de almacenami
 #: nova_powervm/virt/powervm/disk/localdisk.py:163
 #, python-format
 msgid ""
-"Unmapped boot disk %(disk_name)s from the management partition from "
-"Virtual I/O Server %(vios_name)s."
+"Unmapped boot disk %(disk_name)s from the management partition from Virtual "
+"I/O Server %(vios_name)s."
 msgstr ""
 "Disco de arranque descorrelacionado %(disk_name)s de la partición de gestión del "
 "servidor de E/S virtual %(vios_name)s."
@@ -168,8 +173,10 @@ msgstr "Crear disco."
 
 #: nova_powervm/virt/powervm/disk/localdisk.py:225
 #, python-format
-msgid "Adding logical volume disk connection between VM %(vm)s and VIOS %(vios)s."
-msgstr "Se está añadiendo la conexión de disco de volumen lógico entre la máquina virtual %(vm)s y el VIOS %(vios)s."
+msgid ""
+"Adding logical volume disk connection between VM %(vm)s and VIOS %(vios)s."
+msgstr ""
+"Se está añadiendo la conexión de disco de volumen lógico entre la máquina virtual %(vm)s y el VIOS %(vios)s."
 
 #: nova_powervm/virt/powervm/disk/localdisk.py:271
 #, python-format
@@ -193,8 +200,8 @@ msgstr "Eliminando la conexión de disco SSP entre la máquina virtual %(vm)s y 
 #: nova_powervm/virt/powervm/disk/ssp.py:188
 #, python-format
 msgid ""
-"Unmapped boot disk %(disk_name)s from the management partition from "
-"Virtual I/O Server %(vios_uuid)s."
+"Unmapped boot disk %(disk_name)s from the management partition from Virtual "
+"I/O Server %(vios_uuid)s."
 msgstr ""
 "Disco de arranque descorrelacionado %(disk_name)s de la partición de gestión del "
 "servidor de E/S virtual %(vios_uuid)s."
@@ -239,24 +246,24 @@ msgid ""
 "Starting stream of boot device for instance %(inst)s (local blockdev "
 "%(devpath)s) to glance image %(img_id)s."
 msgstr ""
-"Iniciando secuencia de dispositivo de arranque para la instancia %(inst)s (blockdev local"
+"Iniciando secuencia de dispositivo de arranque para la instancia %(inst)s (blockdev local "
 "%(devpath)s) para ver la imagen %(img_id)s."
 
-#: nova_powervm/virt/powervm/tasks/network.py:190
+#: nova_powervm/virt/powervm/tasks/network.py:182
 #, python-format
 msgid "Updating VIF with mac %(mac)s for instance %(sys)s"
 msgstr "Se está actualizando VIF con mac %(mac)s para la instancia %(sys)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:203
+#: nova_powervm/virt/powervm/tasks/network.py:195
 #, python-format
 msgid "Creating VIF with mac %(mac)s for instance %(sys)s"
 msgstr "Se está creando VIF con mac %(mac)s para la instancia %(sys)s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:220
+#: nova_powervm/virt/powervm/tasks/network.py:213
 msgid "Undoing temporary host assignment to instance."
 msgstr "Deshaciendo asignación de host temporal de instancia."
 
-#: nova_powervm/virt/powervm/tasks/network.py:313
+#: nova_powervm/virt/powervm/tasks/network.py:306
 #, python-format
 msgid "Plugging the Management Network Interface to instance %s"
 msgstr "Se está conectando la interfaz de red de gestión con la instancia %s"
@@ -274,11 +281,11 @@ msgstr "Se está desconectando el volumen %(vol)s de la instancia %(inst)s"
 #: nova_powervm/virt/powervm/tasks/storage.py:259
 #, python-format
 msgid ""
-"Discovering device and path for mapping of %(dev_name)s on the management"
-" partition."
+"Discovering device and path for mapping of %(dev_name)s on the management "
+"partition."
 msgstr ""
-"Se está descubriendo el dispositivo y la vía de acceso para la correlación de %(dev_name)s en la partición"
-" de gestión."
+"Se está descubriendo el dispositivo y la vía de acceso para la correlación de %(dev_name)s en la partición "
+"de gestión."
 
 #: nova_powervm/virt/powervm/tasks/storage.py:327
 #, python-format
@@ -296,8 +303,10 @@ msgstr "Se está eliminando el disco %(disk_path)s de la partición de gestión.
 
 #: nova_powervm/virt/powervm/tasks/storage.py:497
 #, python-format
-msgid "Saving block device mapping for volume id %(vol_id)s on instance %(inst)s."
-msgstr "Se está guardando la correlación del dispositivo de bloqueo para el id de volumen %(vol_id)s en la instancia %(inst)s."
+msgid ""
+"Saving block device mapping for volume id %(vol_id)s on instance %(inst)s."
+msgstr ""
+"Se está guardando la correlación del dispositivo de bloqueo para el id de volumen %(vol_id)s en la instancia %(inst)s."
 
 #: nova_powervm/virt/powervm/tasks/storage.py:556
 #, python-format
@@ -333,7 +342,7 @@ msgstr "Ninguna op. para supresión de NVRAM."
 msgid "Deleting NVRAM for instance: %s"
 msgstr "Suprimiendo la NVRAM para la instancia: %s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:179
+#: nova_powervm/virt/powervm/volume/iscsi.py:181
 #, python-format
 msgid ""
 "Disconnect Volume: Discovered the device %(hdisk)s on Virtual I/O Server "
@@ -342,7 +351,7 @@ msgstr ""
 "Desconectar volumen: Se ha descubierto el dispositivo %(hdisk)s en el servidor de E/S virtual "
 "%(vios_name)s para el volumen %(volume_id)s."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:266
+#: nova_powervm/virt/powervm/volume/npiv.py:305
 #, python-format
 msgid ""
 "Instance %(inst)s has not yet defined a WWPN on fabric %(fabric)s.  "
@@ -351,34 +360,34 @@ msgstr ""
 "La instancia %(inst)s aún no ha definido ningún WWPN en el entramado %(fabric)s.  "
 "Se generarán los WWPN correspondientes."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:365
+#: nova_powervm/virt/powervm/volume/npiv.py:404
 #, python-format
 msgid "NPIV wwpns fabric state=%(st)s for instance %(inst)s"
 msgstr "NPIV wwpns entramado estado=%(st)s para la instancia %(inst)s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:482
+#: nova_powervm/virt/powervm/volume/npiv.py:521
 #, python-format
-msgid "Adding NPIV mapping for instance %(inst)s for Virtual I/O Server %(vios)s."
-msgstr "Se está añadiendo la correlación de NPIV para la instancia %(inst)s para el servidor de E/S virtual %(vios)s."
+msgid ""
+"Adding NPIV mapping for instance %(inst)s for Virtual I/O Server %(vios)s."
+msgstr ""
+"Se está añadiendo la correlación de NPIV para la instancia %(inst)s para el servidor de E/S virtual %(vios)s."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:536
+#: nova_powervm/virt/powervm/volume/npiv.py:575
 #, python-format
 msgid "Removing a NPIV mapping for instance %(inst)s for fabric %(fabric)s."
 msgstr "Se está eliminado la correlación de NPIV para la instancia %(inst)s para el entramado %(fabric)s."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:571
+#: nova_powervm/virt/powervm/volume/npiv.py:610
 #, python-format
 msgid "Setting Fabric state=%(st)s for instance=%(inst)s"
 msgstr "Estableciendo el entramado estado=%(st)s para la instancia=%(inst)s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:622
+#: nova_powervm/virt/powervm/volume/npiv.py:661
 #, python-format
 msgid ""
-"Fabric %(fabric)s wwpn metadata will be set to %(meta)s for instance "
-"%(inst)s"
+"Fabric %(fabric)s wwpn metadata will be set to %(meta)s for instance %(inst)s"
 msgstr ""
-"Los metadatos del WWPN del entramado %(fabric)s se establecerán en %(meta)s para la instancia "
-"%(inst)sd"
+"Los metadatos del WWPN %(fabric)s del entramado se establecerán en %(meta)s para la instancia %(inst)s"
 
 #: nova_powervm/virt/powervm/volume/volume.py:148
 #, python-format
@@ -424,11 +433,11 @@ msgstr "Eliminando %(hdisk)s del servidor de E/S virtual %(vios)s"
 #: nova_powervm/virt/powervm/volume/vscsi.py:192
 #, python-format
 msgid ""
-"Discovered %(hdisk)s on vios %(vios)s for volume %(volume_id)s. Status "
-"code: %(status)s."
+"Discovered %(hdisk)s on vios %(vios)s for volume %(volume_id)s. Status code: "
+"%(status)s."
 msgstr ""
-"Se ha descubierto %(hdisk)s en el vios %(vios)s para el volumen %(volume_id)s. Código de "
-"estado: %(status)s."
+"Se ha descubierto %(hdisk)s en el servidor de E/S virtual %(vios)s para el volumen %(volume_id)s. Código de estado:"
+"%(status)s."
 
 #: nova_powervm/virt/powervm/volume/vscsi.py:295
 #, python-format
@@ -439,7 +448,6 @@ msgstr ""
 "Desconectar volumen: Se ha descubierto el dispositivo %(hdisk)s en el servidor de E/S virtual "
 "%(vios_name)s para el volumen %(volume_id)s. UDID de volumen: %(volume_uid)s."
 
-
-# ENGL1SH_VERS10N 25457_16 DO NOT REMOVE OR CHANGE THIS LINE
+# ENGL1SH_VERS10N 26273_16 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 54
-# T9N_SH1P_STR1NG PV132AAP001 1
+# T9N_SH1P_STR1NG PV132AAP001 2

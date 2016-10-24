@@ -6,25 +6,25 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 3.0.0.0b4.dev2\n"
+"Project-Id-Version: nova_powervm 3.0.0.0rc2.dev10\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2016-09-04 23:10-0400\n"
-"PO-Revision-Date: 2016-09-04 23:10-0400\n"
+"POT-Creation-Date: 2016-10-07 02:04-0400\n"
+"PO-Revision-Date: 2016-10-07 02:04-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.3.4\n"
 
 #: nova_powervm/virt/powervm/driver.py:634
 #, python-format
 msgid ""
-"Removing %(num_maps)d storage-less VSCSI mappings associated with LPAR ID"
-" %(lpar_uuid)s from VIOS %(vios_name)s."
+"Removing %(num_maps)d storage-less VSCSI mappings associated with LPAR ID "
+"%(lpar_uuid)s from VIOS %(vios_name)s."
 msgstr ""
-"Entfernen von %(num_maps)d speicherlosen VSCSI-Zuordnungen zu LPAR-ID"
-" %(lpar_uuid)s von VIOS %(vios_name)s."
+"Entfernen von %(num_maps)d speicherlosen Zuordnungen, die mit LPAR ID "
+"%(lpar_uuid)s verbunden sind, vom virtuellen E/A-Server %(vios_name)s."
 
 #: nova_powervm/virt/powervm/driver.py:674
 #: nova_powervm/virt/powervm/driver.py:684
@@ -32,17 +32,17 @@ msgid "VM was not found during destroy operation."
 msgstr "Die VM wurde während des Löschvorgangs nicht gefunden."
 
 #: nova_powervm/virt/powervm/driver.py:1082
-msgid "VM was not found during unplug operation as it is already possibly deleted"
-msgstr "Die VM wurde während des Trennvorgangs nicht gefunden, da sie möglicherweise bereits gelöscht ist."
+msgid ""
+"VM was not found during unplug operation as it is already possibly deleted"
+msgstr ""
+"Die VM wurde während des Trennvorgangs nicht gefunden, da sie möglicherweise bereits gelöscht ist."
 
 #: nova_powervm/virt/powervm/driver.py:1109
 #, python-format
 msgid ""
-"my_ip address (%(my_ip)s) was not found on any of the interfaces: "
-"%(ifaces)s"
+"my_ip address (%(my_ip)s) was not found on any of the interfaces: %(ifaces)s"
 msgstr ""
-"Die my_ip Adresse (%(my_ip)s) wurde auf keiner der folgenden Schnittstellen gefunden: "
-"%(ifaces)s"
+"Die my_ip Adresse (%(my_ip)s) wurde auf keiner der folgenden Schnittstellen gefunden: %(ifaces)s"
 
 #: nova_powervm/virt/powervm/driver.py:1588
 msgid "Rolling back live migration."
@@ -56,16 +56,16 @@ msgstr "Ereignis-URI kann nicht ausgewertet werden: %s von PowerVM."
 #: nova_powervm/virt/powervm/host.py:207
 #, python-format
 msgid ""
-"Host CPU Metrics determined that the total cycles reported was less than "
-"the used cycles.  This indicates an issue with the PCM data.  Please "
-"investigate the results.\n"
+"Host CPU Metrics determined that the total cycles reported was less than the "
+"used cycles.  This indicates an issue with the PCM data.  Please investigate "
+"the results.\n"
 "Total Delta Cycles: %(tot_cycles)d\n"
 "User Delta Cycles: %(user_cycles)d\n"
 "Firmware Delta Cycles: %(fw_cycles)d"
 msgstr ""
 "Anhand der Host-CPU-Metriken wurde festgestellt, dass die gemeldete Gesamtzahl Zyklen kleiner als "
-"die Anzahl der verwendeten Zyklen war. Dies weist auf ein Problem mit den PCM-Daten hin. "
-"Überprüfen Sie die Ergebnisse.\n"
+"die Anzahl der verwendeten Zyklen war. Dies weist auf ein Problem mit den PCM-Daten hin. Die "
+"Ergebnisse sollten überprüft werden.\n"
 "Gesamtzahl Deltazyklen: %(tot_cycles)d\n"
 "Benutzerdeltazyklen: %(user_cycles)d\n"
 "Firmwaredeltazyklen: %(fw_cycles)d"
@@ -79,39 +79,37 @@ msgstr ""
 "Die Steckplatzzuordnung im Swift-Sicherungsspeicher mit ID %(key)s konnte nicht gelöscht werden. "
 "Danach ist eine manuelle Bereinigung erforderlich."
 
-#: nova_powervm/virt/powervm/vif.py:263 nova_powervm/virt/powervm/vif.py:459
-#: nova_powervm/virt/powervm/vif.py:609
+#: nova_powervm/virt/powervm/vif.py:303 nova_powervm/virt/powervm/vif.py:499
+#: nova_powervm/virt/powervm/vif.py:649
 #, python-format
 msgid ""
-"Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  The VIF was"
-" not found on the instance."
+"Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  The VIF was "
+"not found on the instance."
 msgstr ""
-"Der VIF mit MAC %(mac)s für Instanz %(inst)s konnte nicht getrennt werden. Der VIF wurde"
-" nicht auf der Instanz gefunden."
+"Der VIF mit MAC %(mac)s für Instanz %(inst)s konnte nicht getrennt werden. Der VIF wurde "
+"nicht auf der Instanz gefunden."
 
-#: nova_powervm/virt/powervm/vif.py:474
+#: nova_powervm/virt/powervm/vif.py:514
 #, python-format
 msgid ""
-"Unable to delete device %(dev_name)s from bridge %(bridge)s. Error: "
-"%(error)s"
+"Unable to delete device %(dev_name)s from bridge %(bridge)s. Error: %(error)s"
 msgstr ""
-"Die Einheit %(dev_name)s in Brücke %(bridge)s konnte nicht gelöscht werden. Fehler: "
-"%(error)s"
+"Die Einheit %(dev_name)s in Brücke %(bridge)s konnte nicht gelöscht werden. Fehler: %(error)s"
 
-#: nova_powervm/virt/powervm/vif.py:535
+#: nova_powervm/virt/powervm/vif.py:575
 #, python-format
 msgid ""
-"Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  No matching"
-" vNIC was found on the instance.  VIF: %(vif)s"
+"Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  No matching "
+"vNIC was found on the instance.  VIF: %(vif)s"
 msgstr ""
-"Der VIF mit MAC %(mac)s für Instanz %(inst)s konnte nicht getrennt werden. Es"
-" wurde kein vNIC auf der Instanz gefunden. VIF: %(vif)s"
+"Der VIF mit MAC %(mac)s für Instanz %(inst)s konnte nicht getrennt werden. Es "
+"wurde kein vNIC auf der Instanz gefunden. VIF: %(vif)s"
 
 #: nova_powervm/virt/powervm/disk/driver.py:199
 #, python-format
 msgid ""
-"Failed to map boot disk %(disk_name)s of instance %(instance_name)s to "
-"the management partition from Virtual I/O Server %(vios_name)s: %(exc)s"
+"Failed to map boot disk %(disk_name)s of instance %(instance_name)s to the "
+"management partition from Virtual I/O Server %(vios_name)s: %(exc)s"
 msgstr ""
 "Fehler beim Zuordnen des Bootdatenträgers %(disk_name)s der Instanz %(instance_name)s zur "
 "Managementpartition des virtuellen E/A-Servers %(vios_name)s: %(exc)s"
@@ -139,23 +137,21 @@ msgstr "Zurücksetzen der Task %(task)s für Instanz %(inst)s"
 #: nova_powervm/virt/powervm/tasks/base.py:71
 #, python-format
 msgid ""
-"Revert task %(task)s completed in %(seconds)d seconds for instance "
-"%(inst)s"
+"Revert task %(task)s completed in %(seconds)d seconds for instance %(inst)s"
 msgstr ""
-"Zurücksetzen der Task %(task)s in %(seconds)d Sekunden für Instanz "
-"%(inst)s abgeschlossen"
+"Zurücksetzen der Task %(task)s in %(seconds)d für Instanz %(inst)s abgeschlossen"
 
-#: nova_powervm/virt/powervm/tasks/network.py:177
+#: nova_powervm/virt/powervm/tasks/network.py:169
 #, python-format
 msgid "Instance was not assigned to this host. It was assigned to: %s"
 msgstr "Instanz wurde nicht diesem Host zugewiesen. Wurde zugewiesen zu: %s"
 
-#: nova_powervm/virt/powervm/tasks/network.py:259
+#: nova_powervm/virt/powervm/tasks/network.py:252
 #, python-format
 msgid "VIF creation being rolled back for instance %(inst)s"
 msgstr "VIF-Erstellung wird für Instanz %(inst)s rückgängig gemacht"
 
-#: nova_powervm/virt/powervm/tasks/network.py:271
+#: nova_powervm/virt/powervm/tasks/network.py:264
 msgid "An exception occurred during an unplug in the vif rollback.  Ignoring."
 msgstr "Bei einer Trennoperation im VIF-Rollback ist eine Ausnahmebedingung aufgetreten. Wird ignoriert."
 
@@ -211,73 +207,71 @@ msgstr "Platte nicht gefunden: %(disk_name)s"
 msgid "Powering off instance: %s"
 msgstr "Instanz %s wird ausgeschaltet."
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:161
+#: nova_powervm/virt/powervm/volume/iscsi.py:163
 #, python-format
 msgid ""
-"Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual "
-"I/O Server %(vios)s is not in a valid state.  No disconnect actions to be"
-" taken as volume is not healthy."
+"Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual I/O "
+"Server %(vios)s is not in a valid state.  No disconnect actions to be taken "
+"as volume is not healthy."
 msgstr ""
 "Datenträger trennen: Die Sicherungs-HDisk für den Datenträger %(volume_id)s auf dem virtuellen "
-"E/A-Server %(vios)s befindet sich in einem nicht gültigen Zustand. Es sind keine Aktionen zur Trennung der Verbindung"
-" zu unternehmen, weil der Datenträger nicht in einwandfreiem Zustand ist."
+"E/A-Server %(vios)s befindet sich in einem nicht gültigen Zustand. Es sind keine Aktionen zur Trennung der Verbindung "
+"zu unternehmen, weil der Datenträger nicht in einwandfreiem Zustand ist."
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:170
+#: nova_powervm/virt/powervm/volume/iscsi.py:172
 #, python-format
 msgid ""
-"Disconnect Volume: Failed to find disk on Virtual I/O Server "
-"%(vios_name)s for volume %(volume_id)s. Error: %(error)s"
+"Disconnect Volume: Failed to find disk on Virtual I/O Server %(vios_name)s "
+"for volume %(volume_id)s. Error: %(error)s"
 msgstr ""
-"Datenträger trennen: Es wurde keine Platte auf dem virtuellen E/A-Server "
-"%(vios_name)s für Datenträger %(volume_id)s gefunden. Fehler: %(error)s"
+"Datenträger trennen: Es wurde keine Platte auf dem virtuellen E/A-Server %(vios_name)s "
+"für Datenträger %(volume_id)s gefunden. Fehler: %(error)s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:209
+#: nova_powervm/virt/powervm/volume/iscsi.py:214
 #: nova_powervm/virt/powervm/volume/vscsi.py:327
 #, python-format
 msgid ""
-"Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY "
-"of the Virtual I/O Servers for instance %(inst)s."
+"Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY of "
+"the Virtual I/O Servers for instance %(inst)s."
 msgstr ""
 "Datenträger trennen: Die Trennung des Datenträgers %(volume_id)s ist auf ALLEN "
 "virtuellen E/A-Servern für Instanz %(inst)s fehlgeschlagen."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:449
+#: nova_powervm/virt/powervm/volume/npiv.py:488
 #, python-format
 msgid ""
-"Had to update the system metadata for the WWPNs due to incorrect physical"
-" WWPNs on fabric %(fabric)s"
+"Had to update the system metadata for the WWPNs due to incorrect physical "
+"WWPNs on fabric %(fabric)s"
 msgstr ""
 "Es mussten die Systemmetadaten für die WWPNs wegen falscher physischer"
 " WWPNs auf Fabric %(fabric)s aktualisiert werden"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:548
+#: nova_powervm/virt/powervm/volume/npiv.py:587
 #, python-format
 msgid ""
-"No storage connections found between the Virtual I/O Servers and FC "
-"Fabric %(fabric)s."
+"No storage connections found between the Virtual I/O Servers and FC Fabric "
+"%(fabric)s."
 msgstr ""
-"Es wurden keine Speicherverbindungen gefunden zwischen den virtuellen E/A-Servern und FC "
-"Fabric %(fabric)s."
+"Es wurden keine Speicherverbindungen gefunden zwischen den virtuellen E/A-Servern und FC-Fabric "
+"%(fabric)s."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:666
+#: nova_powervm/virt/powervm/volume/npiv.py:705
 #, python-format
 msgid ""
-"No NPIV mappings exist for instance %(inst)s on fabric %(fabric)s.  May "
-"not have connected to the fabric yet or fabric configuration was recently"
-" modified."
+"No NPIV mappings exist for instance %(inst)s on fabric %(fabric)s.  May not "
+"have connected to the fabric yet or fabric configuration was recently "
+"modified."
 msgstr ""
 "Es sind keine NPIV-Zuordnungen für Instanz %(inst)s in Fabric %(fabric)s vorhanden. Möglicherweise "
-"wurden sie noch nicht mit dem Fabric verbunden oder die Fabric-Konfiguration wurde vor kurzem"
-" modifiziert."
+"wurden sie noch nicht mit dem Fabric verbunden oder die Fabric-Konfiguration wurde vor kurzem "
+"modifiziert."
 
 #: nova_powervm/virt/powervm/volume/volume.py:242
 #, python-format
 msgid ""
-"There was an error removing the hdisk %(disk)s from the Virtual I/O "
-"Server."
+"There was an error removing the hdisk %(disk)s from the Virtual I/O Server."
 msgstr ""
-"Bei der Entfernung der HDisk %(disk)s vom virtuellen E/A-Server "
-"ist ein Fehler aufgetreten."
+"Beim Entfernen der HDisk %(disk)s vom virtuellen E/A-Server ist ein Fehler aufgetreten."
 
 #: nova_powervm/virt/powervm/volume/volume.py:281
 #, python-format
@@ -287,18 +281,18 @@ msgstr "Die HDisk für den Datenträger: %s konnte nicht entfernt werden"
 #: nova_powervm/virt/powervm/volume/vscsi.py:197
 #, python-format
 msgid ""
-"Discovered device %(dev)s for volume %(volume)s on %(vios)s is in use. "
-"Error code: %(status)s."
+"Discovered device %(dev)s for volume %(volume)s on %(vios)s is in use. Error "
+"code: %(status)s."
 msgstr ""
-"Die erkannte Einheit %(dev)s für Datenträger %(volume)s auf %(vios)s wird bereits verwendet. "
-"Fehlercode: %(status)s."
+"Die erkannte Einheit %(dev)s für Datenträger %(volume)s auf %(vios)s wird bereits verwendet. Fehler"
+"%(status)s."
 
 #: nova_powervm/virt/powervm/volume/vscsi.py:277
 #, python-format
 msgid ""
-"Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual "
-"I/O Server %(vios)s is not in a valid state.  This may be the result of "
-"an evacuate."
+"Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual I/O "
+"Server %(vios)s is not in a valid state.  This may be the result of an "
+"evacuate."
 msgstr ""
 "Datenträger trennen: Die Sicherungs-HDisk für den Datenträger %(volume_id)s auf dem virtuellen "
 "E/A-Server %(vios)s befindet sich in einem nicht gültigen Zustand. Dies könnte das Ergebnis "
@@ -307,15 +301,12 @@ msgstr ""
 #: nova_powervm/virt/powervm/volume/vscsi.py:286
 #, python-format
 msgid ""
-"Disconnect Volume: Failed to find disk on Virtual I/O Server "
-"%(vios_name)s for volume %(volume_id)s. Volume UDID: %(volume_uid)s.  "
-"Error: %(error)s"
+"Disconnect Volume: Failed to find disk on Virtual I/O Server %(vios_name)s "
+"for volume %(volume_id)s. Volume UDID: %(volume_uid)s.  Error: %(error)s"
 msgstr ""
-"Datenträger trennen: Es wurde keine Platte auf dem virtuellen E/A-Server "
-"%(vios_name)s für Datenträger %(volume_id)s gefunden. Datenträger-UDID: %(volume_uid)s.  "
-"Fehler: %(error)s"
+"Datenträger trennen: Es wurde keine Platte auf dem virtuellen E/A-Server %(vios_name)s "
+"für Datenträger %(volume_id)s gefunden. Datenträger-UDID: %(volume_uid)s. Fehler: %(error)s"
 
-
-# ENGL1SH_VERS10N 33786_11 DO NOT REMOVE OR CHANGE THIS LINE
+# ENGL1SH_VERS10N 16692_11 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 49
-# T9N_SH1P_STR1NG PV132AAP001 1
+# T9N_SH1P_STR1NG PV132AAP001 2
