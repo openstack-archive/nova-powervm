@@ -6,14 +6,14 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 3.0.0.0b4.dev2\n"
+"Project-Id-Version: nova_powervm 3.0.0.0rc2.dev10\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2016-09-04 23:10-0400\n"
-"PO-Revision-Date: 2016-09-04 23:10-0400\n"
+"POT-Creation-Date: 2016-10-07 02:04-0400\n"
+"PO-Revision-Date: 2016-10-07 02:04-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.3.4\n"
 
@@ -100,21 +100,21 @@ msgstr "正在執行磁區 %(volume)s 的後置移轉"
 msgid "Performing detach for volume %(volume)s"
 msgstr "正在對磁區 %(volume)s 執行分離"
 
-#: nova_powervm/virt/powervm/media.py:76
+#: nova_powervm/virt/powervm/media.py:94
 #, python-format
 msgid "Creating config drive for instance: %s"
 msgstr "正在建立實例 %s 的配置磁碟機"
 
-#: nova_powervm/virt/powervm/media.py:96
+#: nova_powervm/virt/powervm/media.py:117
 #, python-format
 msgid ""
 "Config drive ISO being built for instance %(inst)s building to path "
 "%(iso_path)s."
 msgstr ""
 "針對實例 %(inst)s，將配置磁碟機 ISO 建置到路徑 "
-"%(iso_path)s。"
+"%(iso_path)s."
 
-#: nova_powervm/virt/powervm/media.py:166
+#: nova_powervm/virt/powervm/media.py:187
 #, python-format
 msgid ""
 "Adding cfg drive mapping for instance %(inst)s for Virtual I/O Server "
@@ -123,12 +123,17 @@ msgstr ""
 "正在為下列 Virtual I/O Server 新增實例 %(inst)s 的配置磁碟機對映："
 "%(vios)s"
 
-#: nova_powervm/virt/powervm/media.py:297
+#: nova_powervm/virt/powervm/media.py:318
 #, python-format
 msgid "Removing virtual optical for VM with UUID %s."
 msgstr "正在移除 UUID 為 %s 之 VM 的虛擬光學裝置。"
 
-#: nova_powervm/virt/powervm/vif.py:269
+#: nova_powervm/virt/powervm/vif.py:104
+#, python-format
+msgid "Custom event push: %s"
+msgstr "自訂事件推送：%s"
+
+#: nova_powervm/virt/powervm/vif.py:309
 #, python-format
 msgid "Deleting VIF with mac %(mac)s for instance %(inst)s."
 msgstr "正在刪除實例 %(inst)s 的 VIF（MAC 為 %(mac)s）。"
@@ -156,8 +161,8 @@ msgstr "正在斷開實例 %(inst)s 與儲存體磁碟的連線。"
 #: nova_powervm/virt/powervm/disk/localdisk.py:163
 #, python-format
 msgid ""
-"Unmapped boot disk %(disk_name)s from the management partition from "
-"Virtual I/O Server %(vios_name)s."
+"Unmapped boot disk %(disk_name)s from the management partition from Virtual "
+"I/O Server %(vios_name)s."
 msgstr ""
 "已透過下列 Virtual I/O Server 從管理分割區取消對映開機磁碟 %(disk_name)s："
 "%(vios_name)s。"
@@ -168,8 +173,10 @@ msgstr "建立磁碟。"
 
 #: nova_powervm/virt/powervm/disk/localdisk.py:225
 #, python-format
-msgid "Adding logical volume disk connection between VM %(vm)s and VIOS %(vios)s."
-msgstr "正在新增 VM %(vm)s 與 VIOS %(vios)s 之間的邏輯磁區磁碟連線。"
+msgid ""
+"Adding logical volume disk connection between VM %(vm)s and VIOS %(vios)s."
+msgstr ""
+"正在新增 VM %(vm)s 與 VIOS %(vios)s 之間的邏輯磁區磁碟連線。"
 
 #: nova_powervm/virt/powervm/disk/localdisk.py:271
 #, python-format
@@ -193,8 +200,8 @@ msgstr "正在移除 VM %(vm)s 與 VIOS %(vios)s 之間的 SSP 磁碟連線。"
 #: nova_powervm/virt/powervm/disk/ssp.py:188
 #, python-format
 msgid ""
-"Unmapped boot disk %(disk_name)s from the management partition from "
-"Virtual I/O Server %(vios_uuid)s."
+"Unmapped boot disk %(disk_name)s from the management partition from Virtual "
+"I/O Server %(vios_uuid)s."
 msgstr ""
 "已透過下列 Virtual I/O Server 從管理分割區取消對映開機磁碟 %(disk_name)s："
 "%(vios_uuid)s。"
@@ -206,7 +213,7 @@ msgid ""
 "%(instance_uuid)s."
 msgstr ""
 "SSP：從映像檔 %(image_id)s 建立下列實例的 %(image_type)s 磁碟："
-"%(instance_uuid)s。"
+"%(instance_uuid)s."
 
 #: nova_powervm/virt/powervm/disk/ssp.py:237
 #, python-format
@@ -242,21 +249,21 @@ msgstr ""
 "正在開始將實例 %(inst)s 的開機裝置（本端區塊裝置 "
 "%(devpath)s）串流至 Glance 映像檔 %(img_id)s。"
 
-#: nova_powervm/virt/powervm/tasks/network.py:190
+#: nova_powervm/virt/powervm/tasks/network.py:182
 #, python-format
 msgid "Updating VIF with mac %(mac)s for instance %(sys)s"
 msgstr "正在更新實例 %(sys)s 的 VIF（MAC 為 %(mac)s）"
 
-#: nova_powervm/virt/powervm/tasks/network.py:203
+#: nova_powervm/virt/powervm/tasks/network.py:195
 #, python-format
 msgid "Creating VIF with mac %(mac)s for instance %(sys)s"
 msgstr "正在建立實例 %(sys)s 的 VIF（MAC 為 %(mac)s）"
 
-#: nova_powervm/virt/powervm/tasks/network.py:220
+#: nova_powervm/virt/powervm/tasks/network.py:213
 msgid "Undoing temporary host assignment to instance."
 msgstr "正在復原對實例的暫時主機指派。"
 
-#: nova_powervm/virt/powervm/tasks/network.py:313
+#: nova_powervm/virt/powervm/tasks/network.py:306
 #, python-format
 msgid "Plugging the Management Network Interface to instance %s"
 msgstr "正在插入實例 %s 的管理網路介面"
@@ -274,8 +281,8 @@ msgstr "正在斷開磁區 %(vol)s 與實例 %(inst)s 的連線"
 #: nova_powervm/virt/powervm/tasks/storage.py:259
 #, python-format
 msgid ""
-"Discovering device and path for mapping of %(dev_name)s on the management"
-" partition."
+"Discovering device and path for mapping of %(dev_name)s on the management "
+"partition."
 msgstr ""
 "正在管理分割區上探索 %(dev_name)s 對映的"
 "裝置和路徑。"
@@ -296,8 +303,10 @@ msgstr "正在從管理分割區移除磁碟 %(disk_path)s。"
 
 #: nova_powervm/virt/powervm/tasks/storage.py:497
 #, python-format
-msgid "Saving block device mapping for volume id %(vol_id)s on instance %(inst)s."
-msgstr "正在儲存實例 %(inst)s 上 ID 為 %(vol_id)s 之磁區的區塊裝置對映。"
+msgid ""
+"Saving block device mapping for volume id %(vol_id)s on instance %(inst)s."
+msgstr ""
+"正在儲存實例 %(inst)s 上 ID 為 %(vol_id)s 之磁區的區塊裝置對映。"
 
 #: nova_powervm/virt/powervm/tasks/storage.py:556
 #, python-format
@@ -333,7 +342,7 @@ msgstr "沒有 OP 適用於 NVRAM 刪除作業。"
 msgid "Deleting NVRAM for instance: %s"
 msgstr "正在刪除實例的 NVRAM：%s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:179
+#: nova_powervm/virt/powervm/volume/iscsi.py:181
 #, python-format
 msgid ""
 "Disconnect Volume: Discovered the device %(hdisk)s on Virtual I/O Server "
@@ -342,7 +351,7 @@ msgstr ""
 "斷開磁區連線：已在 Virtual I/O Server %(vios_name)s 上探索到磁區 %(volume_id)s"
 "的裝置 %(hdisk)s。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:266
+#: nova_powervm/virt/powervm/volume/npiv.py:305
 #, python-format
 msgid ""
 "Instance %(inst)s has not yet defined a WWPN on fabric %(fabric)s.  "
@@ -351,34 +360,34 @@ msgstr ""
 "實例 %(inst)s 未在光纖 %(fabric)s 上定義 WWPN。"
 "將產生適當的 WWPN。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:365
+#: nova_powervm/virt/powervm/volume/npiv.py:404
 #, python-format
 msgid "NPIV wwpns fabric state=%(st)s for instance %(inst)s"
 msgstr "實例 %(inst)s 的 NPIV wwpn 光纖狀態為 %(st)s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:482
+#: nova_powervm/virt/powervm/volume/npiv.py:521
 #, python-format
-msgid "Adding NPIV mapping for instance %(inst)s for Virtual I/O Server %(vios)s."
-msgstr "正在新增 Virtual I/O Server %(vios)s 之實例 %(inst)s 的 NPIV 對映。"
+msgid ""
+"Adding NPIV mapping for instance %(inst)s for Virtual I/O Server %(vios)s."
+msgstr ""
+"正在新增 Virtual I/O Server %(vios)s 之實例 %(inst)s 的 NPIV 對映。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:536
+#: nova_powervm/virt/powervm/volume/npiv.py:575
 #, python-format
 msgid "Removing a NPIV mapping for instance %(inst)s for fabric %(fabric)s."
 msgstr "正在移除光纖 %(fabric)s 之實例 %(inst)s 的 NPIV 對映。"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:571
+#: nova_powervm/virt/powervm/volume/npiv.py:610
 #, python-format
 msgid "Setting Fabric state=%(st)s for instance=%(inst)s"
 msgstr "正在設定實例 %(inst)s 的光纖狀態 %(st)s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:622
+#: nova_powervm/virt/powervm/volume/npiv.py:661
 #, python-format
 msgid ""
-"Fabric %(fabric)s wwpn metadata will be set to %(meta)s for instance "
-"%(inst)s"
+"Fabric %(fabric)s wwpn metadata will be set to %(meta)s for instance %(inst)s"
 msgstr ""
-"針對下列實例，光纖 %(fabric)s WWPN meta 資料將設為 %(meta)s："
-"%(inst)s"
+"針對實例 %(inst)s，光纖 %(fabric)s WWPN meta 資料將設為 %(meta)s"
 
 #: nova_powervm/virt/powervm/volume/volume.py:148
 #, python-format
@@ -424,11 +433,11 @@ msgstr "正在從 VIOS %(vios)s 中移除 %(hdisk)s"
 #: nova_powervm/virt/powervm/volume/vscsi.py:192
 #, python-format
 msgid ""
-"Discovered %(hdisk)s on vios %(vios)s for volume %(volume_id)s. Status "
-"code: %(status)s."
+"Discovered %(hdisk)s on vios %(vios)s for volume %(volume_id)s. Status code: "
+"%(status)s."
 msgstr ""
-"已在 VIOS %(vios)s 上探索到磁區 %(volume_id)s 的 %(hdisk)s。"
-"狀態碼：%(status)s。"
+"針對磁區 %(volume_id)s，在 VIOS %(vios)s 上探索到 %(hdisk)s。狀態碼："
+"%(status)s."
 
 #: nova_powervm/virt/powervm/volume/vscsi.py:295
 #, python-format
@@ -439,7 +448,6 @@ msgstr ""
 "斷開磁區連線：已在 Virtual I/O Server %(vios_name)s 上探索到磁區 %(volume_id)s"
 "的裝置 %(hdisk)s。磁區 UDID：%(volume_uid)s。"
 
-
-# ENGL1SH_VERS10N 25457_16 DO NOT REMOVE OR CHANGE THIS LINE
+# ENGL1SH_VERS10N 26273_16 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 54
-# T9N_SH1P_STR1NG PV132AAP001 1
+# T9N_SH1P_STR1NG PV132AAP001 2
