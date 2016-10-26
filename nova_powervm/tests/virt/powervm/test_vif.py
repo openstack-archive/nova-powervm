@@ -51,7 +51,7 @@ class TestVifFunctions(test.TestCase):
     @mock.patch('pypowervm.wrappers.event.Event')
     def test_push_vif_event(self, mock_event, mock_dumps):
         mock_vif = mock.Mock(mac='MAC', href='HREF')
-        vif._push_vif_event(self.adpt, 'action', mock_vif)
+        vif._push_vif_event(self.adpt, 'action', mock_vif, mock.Mock())
         mock_dumps.assert_called_once_with(
             {'provider': 'NOVA_PVM_VIF', 'action': 'action', 'mac': 'MAC'})
         mock_event.bld.assert_called_once_with(self.adpt, 'HREF',
@@ -65,7 +65,7 @@ class TestVifFunctions(test.TestCase):
         # Exception reraises
         mock_event.bld.return_value.create.side_effect = IndexError
         self.assertRaises(IndexError, vif._push_vif_event, self.adpt, 'action',
-                          mock_vif)
+                          mock_vif, mock.Mock())
         mock_dumps.assert_called_once_with(
             {'provider': 'NOVA_PVM_VIF', 'action': 'action', 'mac': 'MAC'})
         mock_event.bld.assert_called_once_with(self.adpt, 'HREF',
@@ -90,7 +90,7 @@ class TestVifFunctions(test.TestCase):
                                                                new_vif=True)
         slot_mgr.register_vnet.assert_called_once_with(
             mock_bld_drv.return_value.plug.return_value)
-        mock_event.assert_called_once_with(self.adpt, 'plug', vnet)
+        mock_event.assert_called_once_with(self.adpt, 'plug', vnet, mock.ANY)
         self.assertEqual(mock_bld_drv.return_value.plug.return_value, vnet)
 
         # Clean up
@@ -131,7 +131,8 @@ class TestVifFunctions(test.TestCase):
         mock_bld_drv.return_value.unplug.assert_called_once_with(
             mock_vif, cna_w_list=None)
         slot_mgr.drop_vnet.assert_called_once_with('vnet_w')
-        mock_event.assert_called_once_with(self.adpt, 'unplug', 'vnet_w')
+        mock_event.assert_called_once_with(self.adpt, 'unplug', 'vnet_w',
+                                           mock.ANY)
 
         # Clean up
         mock_bld_drv.reset_mock()

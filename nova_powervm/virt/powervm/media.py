@@ -91,7 +91,8 @@ class ConfigDrivePowerVM(object):
         :return iso_path: The path to the ISO
         :return file_name: The file name for the ISO
         """
-        LOG.info(_LI("Creating config drive for instance: %s"), instance.name)
+        LOG.info(_LI("Creating config drive for instance: %s"), instance.name,
+                 instance=instance)
         extra_md = {}
         if admin_pass is not None:
             extra_md['admin_pass'] = admin_pass
@@ -116,7 +117,8 @@ class ConfigDrivePowerVM(object):
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
             LOG.info(_LI("Config drive ISO being built for instance %(inst)s "
                          "building to path %(iso_path)s."),
-                     {'inst': instance.name, 'iso_path': iso_path})
+                     {'inst': instance.name, 'iso_path': iso_path},
+                     instance=instance)
             cdb.make_drive(iso_path)
             return iso_path, file_name
 
@@ -186,7 +188,8 @@ class ConfigDrivePowerVM(object):
         def add_func(vios_w):
             LOG.info(_LI("Adding cfg drive mapping for instance %(inst)s for "
                          "Virtual I/O Server %(vios)s"),
-                     {'inst': instance.name, 'vios': vios_w.name})
+                     {'inst': instance.name, 'vios': vios_w.name},
+                     instance=instance)
             mapping = tsk_map.build_vscsi_mapping(self.host_uuid, vios_w,
                                                   lpar_uuid, vopt)
             return tsk_map.add_map(vios_w, mapping)
@@ -316,7 +319,7 @@ class ConfigDrivePowerVM(object):
 
         def rm_vopt():
             LOG.info(_LI("Removing virtual optical for VM with UUID %s."),
-                     lpar_uuid)
+                     lpar_uuid, instance=self.instance)
             vg_rsp = self.adapter.read(pvm_vios.VIOS.schema_type,
                                        root_id=self.vios_uuid,
                                        child_type=pvm_stg.VG.schema_type,

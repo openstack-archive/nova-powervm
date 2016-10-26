@@ -165,7 +165,8 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                         "%(volume_id)s on Virtual I/O Server %(vios)s is "
                         "not in a valid state.  No disconnect "
                         "actions to be taken as volume is not healthy."),
-                        {'volume_id': self.volume_id, 'vios': vios_w.name})
+                        {'volume_id': self.volume_id, 'vios': vios_w.name},
+                        instance=self.instance)
                     return False
 
             except Exception as e:
@@ -174,7 +175,7 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                     "Server %(vios_name)s for volume %(volume_id)s."
                     " Error: %(error)s"),
                     {'error': e, 'vios_name': vios_w.name,
-                     'volume_id': self.volume_id})
+                     'volume_id': self.volume_id}, instance=self.instance)
                 return False
 
             # We have found the device name
@@ -182,7 +183,8 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                          "on Virtual I/O Server %(vios_name)s for volume "
                          "%(volume_id)s."),
                      {'volume_id': self.volume_id,
-                      'vios_name': vios_w.name, 'hdisk': device_name})
+                      'vios_name': vios_w.name, 'hdisk': device_name},
+                     instance=self.instance)
 
             # Add the action to remove the mapping when the stg_ftsk is run.
             partition_id = vm.get_vm_id(self.adapter, self.vm_uuid)
@@ -211,16 +213,17 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             # Warn if no hdisks disconnected.
             if not any([result['vio_modified']
                         for result in ret['wrapper_task_rets'].values()]):
-                LOG.warning(_LW("Disconnect Volume: Failed to disconnect the "
-                                "volume %(volume_id)s on ANY of the Virtual "
-                                "I/O Servers for instance %(inst)s."),
-                            {'inst': self.instance.name,
-                             'volume_id': self.volume_id})
+                LOG.warning(_LW(
+                    "Disconnect Volume: Failed to disconnect the  volume "
+                    "%(volume_id)s on ANY of the Virtual I/O Servers for "
+                    "instance %(inst)s."),
+                    {'inst': self.instance.name, 'volume_id': self.volume_id},
+                    instance=self.instance)
 
         except Exception as e:
             LOG.error(_LE('Cannot detach volumes from virtual machine: %s'),
-                      self.vm_uuid)
-            LOG.exception(_LE('Error: %s'), e)
+                      self.vm_uuid, instance=self.instance)
+            LOG.exception(_LE('Error: %s'), e, instance=self.instance)
             ex_args = {'volume_id': self.volume_id, 'reason': six.text_type(e),
                        'instance_name': self.instance.name}
             raise p_exc.VolumeDetachFailed(**ex_args)

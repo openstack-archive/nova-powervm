@@ -224,9 +224,10 @@ class PowerVMDriver(driver.ComputeDriver):
     def _log_operation(op, instance):
         """Log entry point of driver operations."""
         LOG.info(_LI('Operation: %(op)s. Virtual machine display name: '
-                     '%(display_name)s, name: %(name)s, UUID: %(uuid)s'),
+                     '%(display_name)s, name: %(name)s'),
                  {'op': op, 'display_name': instance.display_name,
-                  'name': instance.name, 'uuid': instance.uuid})
+                  'name': instance.name},
+                 instance=instance)
 
     def get_info(self, instance):
         """Get the current status of an instance, by name (not ID!)

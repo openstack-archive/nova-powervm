@@ -42,7 +42,6 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
-
 LOG = log.getLogger(__name__)
 
 SECURE_RMC_VSWITCH = 'MGMTSWITCH'
@@ -86,7 +85,7 @@ def _build_vif_driver(adapter, host_uuid, instance, vif):
         {'vif_type': vif['type'], 'instance': instance.name})
 
 
-def _push_vif_event(adapter, action, vif_w):
+def _push_vif_event(adapter, action, vif_w, instance):
     """Push a custom event to the REST server for a vif action (plug/unplug).
 
     This event prompts the neutron agent to mark the port up or down.
@@ -94,6 +93,7 @@ def _push_vif_event(adapter, action, vif_w):
     :param adapter: The pypowervm adapter.
     :param action: The action taken on the vif - either 'plug' or 'unplug'
     :param vif_w: The pypowervm wrapper of the affected vif (CNA, VNIC, etc.)
+    :param instance: The nova instance for the event
     """
     data = vif_w.href
     detail = jsonutils.dumps(dict(provider=EVENT_PROVIDER_ID, action=action,
@@ -101,9 +101,10 @@ def _push_vif_event(adapter, action, vif_w):
     event = pvm_evt.Event.bld(adapter, data, detail)
     try:
         event = event.create()
-        LOG.info(_LI('Custom event push: %s'), str(event))
+        LOG.info(_LI('Custom event push: %s'), str(event), instance=instance)
     except Exception:
-        LOG.error(_LE('Custom VIF event push failed.  %s'), str(event))
+        LOG.error(_LE('Custom VIF event push failed.  %s'), str(event),
+                  instance=instance)
         raise
 
 
@@ -134,7 +135,7 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
         vnet_w = vif_drv.plug(vif, slot_num, new_vif=new_vif)
     except pvm_ex.HttpError as he:
         # Log the message constructed by HttpError
-        LOG.exception(he.args[0])
+        LOG.exception(he.args[0], instance=instance)
         raise exception.VirtualInterfacePlugException()
     # Other exceptions are (hopefully) custom VirtualInterfacePlugException
     # generated lower in the call stack.
@@ -146,7 +147,7 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
 
     # Push a custom event if we really plugged the vif
     if vnet_w is not None:
-        _push_vif_event(adapter, 'plug', vnet_w)
+        _push_vif_event(adapter, 'plug', vnet_w, instance)
 
     return vnet_w
 
@@ -169,10 +170,10 @@ def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
         vnet_w = vif_drv.unplug(vif, cna_w_list=cna_w_list)
         # Push a custom event, but only if the vif existed in the first place
         if vnet_w:
-            _push_vif_event(adapter, 'unplug', vnet_w)
+            _push_vif_event(adapter, 'unplug', vnet_w, instance)
     except pvm_ex.HttpError as he:
         # Log the message constructed by HttpError
-        LOG.exception(he.args[0])
+        LOG.exception(he.args[0], instance=instance)
         raise exception.VirtualInterfaceUnplugException(reason=he.args[0])
 
     if vnet_w:
@@ -330,11 +331,13 @@ class PvmVifDriver(object):
             LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
                             'instance %(inst)s.  The VIF was not found on '
                             'the instance.'),
-                        {'mac': vif['address'], 'inst': self.instance.name})
+                        {'mac': vif['address'], 'inst': self.instance.name},
+                        instance=self.instance)
             return None
 
         LOG.info(_LI('Deleting VIF with mac %(mac)s for instance %(inst)s.'),
-                 {'mac': vif['address'], 'inst': self.instance.name})
+                 {'mac': vif['address'], 'inst': self.instance.name},
+                 instance=self.instance)
         try:
             cna_w.delete()
         except Exception as e:
@@ -342,7 +345,8 @@ class PvmVifDriver(object):
             raise exception.VirtualInterfaceUnplugException(
                 _LE('Unable to unplug VIF with mac %(mac)s for instance '
                     '%(inst)s.'), {'mac': vif['address'],
-                                   'inst': self.instance.name})
+                                   'inst': self.instance.name},
+                instance=self.instance)
         return cna_w
 
     def _find_cna_for_vif(self, cna_w_list, vif):
@@ -547,7 +551,8 @@ class PvmLBVifDriver(PvmLioVifDriver):
             LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
                             'instance %(inst)s.  The VIF was not found on '
                             'the instance.'),
-                        {'mac': vif['address'], 'inst': self.instance.name})
+                        {'mac': vif['address'], 'inst': self.instance.name},
+                        instance=self.instance)
             return None
 
         # Find and delete the trunk adapters
@@ -563,7 +568,7 @@ class PvmLBVifDriver(PvmLioVifDriver):
                             '%(bridge)s. Error: %(error)s'),
                         {'dev_name': dev_name,
                          'bridge': vif['network']['bridge'],
-                         'error': e.message})
+                         'error': e.message}, instance=self.instance)
         for trunk in trunks:
             trunk.delete()
 
@@ -622,7 +627,8 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
             LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
                             'instance %(inst)s.  No matching vNIC was found '
                             'on the instance.  VIF: %(vif)s'),
-                        {'mac': mac, 'inst': self.instance.name, 'vif': vif})
+                        {'mac': mac, 'inst': self.instance.name, 'vif': vif},
+                        instance=self.instance)
             return None
         vnic.delete()
         return vnic
@@ -696,7 +702,8 @@ class PvmOvsVifDriver(PvmLioVifDriver):
             LOG.warning(_LW('Unable to unplug VIF with mac %(mac)s for '
                             'instance %(inst)s.  The VIF was not found on '
                             'the instance.'),
-                        {'mac': vif['address'], 'inst': self.instance.name})
+                        {'mac': vif['address'], 'inst': self.instance.name},
+                        instance=self.instance)
             return None
 
         # Find and delete the trunk adapters
