@@ -18,6 +18,7 @@
 from oslo_log import log as logging
 
 from nova import exception as nova_exc
+from nova import image
 from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import partition as pvm_tpar
@@ -37,6 +38,7 @@ from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
+IMAGE_API = image.API()
 
 
 class LocalStorage(disk_dvr.DiskAdapter):
@@ -184,11 +186,13 @@ class LocalStorage(disk_dvr.DiskAdapter):
         LOG.info(_LI('Create disk.'))
 
         # Transfer the image
-        stream = self._get_image_upload(context, image_meta)
         vol_name = self._get_disk_name(image_type, instance, short=True)
 
         # Disk size to API is in bytes.  Input from method is in Gb
         disk_bytes = self._disk_gb_to_bytes(disk_size, floor=image_meta.size)
+
+        def upload(path):
+            IMAGE_API.download(context, image_meta.id, dest_path=path)
 
         # This method will create a new disk at our specified size.  It will
         # then put the image in the disk.  If the disk is bigger, user can
@@ -196,8 +200,9 @@ class LocalStorage(disk_dvr.DiskAdapter):
         # If the image is bigger than disk, API should make the disk big
         # enough to support the image (up to 1 Gb boundary).
         return tsk_stg.upload_new_vdisk(
-            self.adapter, self._vios_uuid, self.vg_uuid, stream, vol_name,
-            image_meta.size, d_size=disk_bytes)[0]
+            self.adapter, self._vios_uuid, self.vg_uuid, upload, vol_name,
+            image_meta.size, d_size=disk_bytes,
+            upload_type=tsk_stg.UploadType.FUNC)[0]
 
     def connect_disk(self, context, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.
