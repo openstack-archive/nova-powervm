@@ -378,7 +378,7 @@ class PvmVifDriver(object):
         """
         pass
 
-    def rollback_live_migrate_at_destination(self, vif, vea_vlan_mappings):
+    def rollback_live_migration_at_destination(self, vif, vea_vlan_mappings):
         """Rolls back the pre live migrate on the destination host.
 
         :param vif: The virtual interface that was being migrated.  This may be
@@ -754,7 +754,7 @@ class PvmOvsVifDriver(PvmLioVifDriver):
                  {'mac': vif['address'], 'dev': dev, 'pvid': cna_w.pvid},
                  instance=self.instance)
 
-    def rollback_live_migrate_at_destination(self, vif, vea_vlan_mappings):
+    def rollback_live_migration_at_destination(self, vif, vea_vlan_mappings):
         """Rolls back the pre live migrate on the destination host.
 
         Will delete the TrunkAdapter that pre_live_migrate_at_destination
