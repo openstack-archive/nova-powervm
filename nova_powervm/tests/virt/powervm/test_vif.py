@@ -263,6 +263,18 @@ class TestVifFunctions(test.TestCase):
         mock_drv.pre_live_migrate_at_source.assert_called_once_with(mock_vif)
 
     @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    def test_rollback_live_migration_at_destination(self, mock_build_vif_drv):
+        mock_build_vif_drv.return_value = mock_drv = mock.MagicMock()
+        mock_vif, mappings = mock.MagicMock(), {}
+
+        vif.rollback_live_migration_at_destination(
+            self.adpt, 'host_uuid', mock.Mock(), mock_vif,
+            mappings)
+
+        rb = mock_drv.rollback_live_migration_at_destination
+        rb.assert_called_once_with(mock_vif, mappings)
+
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
     def test_pre_live_migrate_at_destination(self, mock_build_vif_drv):
         mock_drv = mock.MagicMock()
         mock_build_vif_drv.return_value = mock_drv
@@ -765,7 +777,7 @@ class TestVifOvsDriver(test.TestCase):
     @mock.patch('pypowervm.wrappers.network.CNA.search')
     @mock.patch('pypowervm.tasks.partition.get_this_partition')
     @mock.patch('pypowervm.wrappers.network.VSwitch.search')
-    def test_rollback_live_migrate_at_destination(
+    def test_rollback_live_migration_at_destination(
             self, mock_vs_search, mock_get_part, mock_cna_search):
         # All the fun mocking
         mock_vs_search.return_value = mock.MagicMock(switch_id=5)
@@ -777,7 +789,7 @@ class TestVifOvsDriver(test.TestCase):
         mock_cna_search.return_value = mock_trunk
 
         # Invoke
-        self.drv.rollback_live_migrate_at_destination(vif, vea_vlan_mappings)
+        self.drv.rollback_live_migration_at_destination(vif, vea_vlan_mappings)
 
         # Make sure the trunk was deleted
         mock_trunk.delete.assert_called_once()
