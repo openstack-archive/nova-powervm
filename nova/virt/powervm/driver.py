@@ -32,4 +32,3 @@ NVRAM_APIS = real_drv.NVRAM_APIS
 KEEP_NVRAM_STATES = real_drv.KEEP_NVRAM_STATES
 FETCH_NVRAM_STATES = real_drv.FETCH_NVRAM_STATES
 PowerVMDriver = real_drv.PowerVMDriver
-NovaEventHandler = real_drv.NovaEventHandler

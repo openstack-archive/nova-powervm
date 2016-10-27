@@ -27,7 +27,6 @@ from nova.objects import flavor as flavor_obj
 from nova import utils as n_utils
 from nova.virt import configdrive
 from nova.virt import driver
-from nova.virt import event
 from oslo_log import log as logging
 from oslo_utils import importutils
 import re
@@ -53,6 +52,7 @@ from pypowervm.wrappers import managed_system as pvm_ms
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
+from nova_powervm.virt.powervm import event
 from nova_powervm.virt.powervm import host as pvm_host
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
@@ -174,7 +174,7 @@ class PowerVMDriver(driver.ComputeDriver):
             self.session, helpers=[log_hlp.log_helper,
                                    vio_hlp.vios_busy_retry_helper])
         # Register the event handler
-        eh = NovaEventHandler(self)
+        eh = event.PowerVMNovaEventHandler(self)
         self.session.get_event_listener().subscribe(eh)
 
     def _setup_disk_adapter(self):
@@ -1908,143 +1908,3 @@ class PowerVMDriver(driver.ComputeDriver):
         elif 'driver_volume_type' in conn_info['data']:
             boot_conn_type = conn_info['data']['driver_volume_type']
         return boot_conn_type
-
-
-class NovaEventHandler(pvm_apt.RawEventHandler):
-    """Used to receive and handle events from PowerVM."""
-    inst_actions_handled = {'PartitionState', 'NVRAM'}
-
-    def __init__(self, driver):
-        self._driver = driver
-
-    def _handle_event(self, uri, etype, details, eid, inst=None):
-        """Handle an individual event.
-
-        :param uri: PowerVM event uri
-        :param etype: PowerVM event type
-        :param details: PowerVM event details
-        :param eid: PowerVM event id
-        :param inst: (Optional, Default: None) The pypowervm wrapper object
-                    that represents the VM instance.
-                    If None we try to look it up based on UUID.
-        :return: returns the instance object or None (when it's not an
-                 instance event or action is not partition state change
-                 or NVRAM change)
-        """
-
-        # See if this uri ends with a PowerVM UUID.
-        if not pvm_util.is_instance_path(uri):
-            return None
-
-        pvm_uuid = pvm_util.get_req_path_uuid(
-            uri, preserve_case=True)
-        # If a vm event and one we handle, call the inst handler.
-        if (uri.endswith('LogicalPartition/' + pvm_uuid) and
-                (self.inst_actions_handled & set(details))):
-            if not inst:
-                LOG.debug('PowerVM Nova Event Handler: Getting inst '
-                          'for id %s' % pvm_uuid)
-                inst = vm.get_instance(ctx.get_admin_context(),
-                                       pvm_uuid)
-            if inst:
-                LOG.debug('Handle action "%(action)s" event for instance: '
-                          '%(inst)s' %
-                          dict(action=details, inst=inst.name))
-                self._handle_inst_event(
-                    inst, pvm_uuid, uri, etype, details, eid)
-                return inst
-        return None
-
-    def _handle_inst_event(self, inst, pvm_uuid, uri, etype, details, eid):
-        """Handle an instance event.
-
-        This method will check if an instance event signals a change in the
-        state of the instance as known to OpenStack and if so, trigger an
-        event upward.
-
-        :param inst: the instance object.
-        :param pvm_uuid: the PowerVM uuid of the vm
-        :param uri: PowerVM event uri
-        :param etype: PowerVM event type
-        :param details: PowerVM event details
-        :param eid: PowerVM event id
-        """
-        # If the state of the vm changed see if it should be handled
-        if 'PartitionState' in details:
-            # Get the current state
-            pvm_state = vm.get_vm_qp(self._driver.adapter, pvm_uuid,
-                                     'PartitionState')
-            # See if it's really a change of state from what OpenStack knows
-            transition = vm.translate_event(pvm_state, inst.power_state)
-            if transition is not None:
-                LOG.debug('New state for instance: %s', pvm_state,
-                          instance=inst)
-                # Now create an event and sent it.
-                lce = event.LifecycleEvent(inst.uuid, transition)
-                LOG.info(_LI('Sending life cycle event for instance state '
-                             'change to: %s'), pvm_state, instance=inst)
-                self._driver.emit_event(lce)
-
-        # If the NVRAM has changed for this instance and a store is configured.
-        if 'NVRAM' in details and self._driver.nvram_mgr is not None:
-            # Schedule the NVRAM for the instance to be stored.
-            self._driver.nvram_mgr.store(inst)
-
-    def process(self, events):
-        """Process the event that comes back from PowerVM.
-
-        Example of event data:
-            <EventType kb="ROR" kxe="false">NEW_CLIENT</EventType>
-            <EventID kxe="false" kb="ROR">1452692619554</EventID>
-            <EventData kxe="false" kb="ROR"/>
-            <EventDetail kb="ROR" kxe="false"/>
-
-            <EventType kb="ROR" kxe="false">MODIFY_URI</EventType>
-            <EventID kxe="false" kb="ROR">1452692619557</EventID>
-            <EventData kxe="false" kb="ROR">http://localhost:12080/rest/api/
-                uom/ManagedSystem/c889bf0d-9996-33ac-84c5-d16727083a77
-            </EventData>
-            <EventDetail kb="ROR" kxe="false">Other</EventDetail>
-
-            <EventType kb="ROR" kxe="false">MODIFY_URI</EventType>
-            <EventID kxe="false" kb="ROR">1452692619566</EventID>
-            <EventData kxe="false" kb="ROR">http://localhost:12080/rest/api/
-                uom/ManagedSystem/c889bf0d-9996-33ac-84c5-d16727083a77/
-                LogicalPartition/794654F5-B6E9-4A51-BEC2-A73E41EAA938
-            </EventData>
-            <EventDetail kb="ROR" kxe="false">RMCState,PartitionState,Other
-            </EventDetail>
-
-        :param events: A sequence of event dicts that has come back from the
-                       system.
-
-                       Format:
-                       [
-                            {
-                               'EventType': <type>,
-                               'EventID': <id>,
-                               'EventData': <data>,
-                               'EventDetail': <detail>
-                            },
-                       ]
-        """
-        inst_cache = {}
-        for pvm_event in events:
-            try:
-                # Pull all the pieces of the event.
-                uri = pvm_event['EventData']
-                etype = pvm_event['EventType']
-                details = pvm_event['EventDetail']
-                details = details.split(',') if details else []
-                eid = pvm_event['EventID']
-
-                if etype not in ['NEW_CLIENT']:
-                    LOG.debug('PowerVM Event-Action: %s URI: %s Details %s' %
-                              (etype, uri, details))
-                inst_cache[uri] = self._handle_event(uri, etype, details, eid,
-                                                     inst=inst_cache.get(uri,
-                                                                         None))
-            except Exception as e:
-                LOG.exception(e)
-                LOG.warning(_LW('Unable to parse event URI: %s from PowerVM.'),
-                            uri)

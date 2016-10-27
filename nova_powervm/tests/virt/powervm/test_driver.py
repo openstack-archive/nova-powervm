@@ -69,7 +69,7 @@ class TestPowerVMDriverInit(test.TestCase):
         self.flags(disk_driver='localdisk', group='powervm')
         self.flags(host='host1', my_ip='127.0.0.1')
 
-    @mock.patch('nova_powervm.virt.powervm.driver.NovaEventHandler')
+    @mock.patch('nova_powervm.virt.powervm.event.PowerVMNovaEventHandler')
     @mock.patch('pypowervm.adapter.Adapter')
     @mock.patch('pypowervm.adapter.Session')
     def test_get_adapter(self, mock_session, mock_adapter, mock_evt_handler):
@@ -2051,68 +2051,3 @@ class TestPowerVMDriver(test.TestCase):
         mock_bk_dev.return_value = 'info'
         self.assertEqual('info',
                          self.drv._get_block_device_info('ctx', self.inst))
-
-
-class TestNovaEventHandler(test.TestCase):
-    def setUp(self):
-        super(TestNovaEventHandler, self).setUp()
-        self.mock_driver = mock.Mock()
-        self.handler = driver.NovaEventHandler(self.mock_driver)
-
-    @mock.patch('nova.context.get_admin_context', mock.MagicMock())
-    @mock.patch.object(vm, 'get_instance')
-    @mock.patch.object(vm, 'get_vm_qp')
-    def test_events(self, mock_qprops, mock_get_inst):
-        # Test events
-        event_data = [
-            {
-                'EventType': 'NEW_CLIENT',
-                'EventData': '',
-                'EventID': '1452692619554',
-                'EventDetail': '',
-            },
-            {
-                'EventType': 'MODIFY_URI',
-                'EventData': 'http://localhost:12080/rest/api/uom/Managed'
-                             'System/c889bf0d-9996-33ac-84c5-d16727083a77',
-                'EventID': '1452692619555',
-                'EventDetail': 'Other',
-            },
-            {
-                'EventType': 'MODIFY_URI',
-                'EventData': 'http://localhost:12080/rest/api/uom/Managed'
-                             'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
-                             'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
-                             'A73E41EAA938',
-                'EventID': '1452692619563',
-                'EventDetail': 'ReferenceCode,Other',
-            },
-            {
-                'EventType': 'MODIFY_URI',
-                'EventData': 'http://localhost:12080/rest/api/uom/Managed'
-                             'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
-                             'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
-                             'A73E41EAA938',
-                'EventID': '1452692619566',
-                'EventDetail': 'RMCState,PartitionState,Other',
-            },
-            {
-                'EventType': 'MODIFY_URI',
-                'EventData': 'http://localhost:12080/rest/api/uom/Managed'
-                             'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
-                             'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
-                             'A73E41EAA938',
-                'EventID': '1452692619566',
-                'EventDetail': 'NVRAM',
-            },
-        ]
-
-        mock_qprops.return_value = pvm_bp.LPARState.RUNNING
-        mock_get_inst.return_value = powervm.TEST_INST1
-
-        self.handler.process(event_data)
-        mock_get_inst.assert_called_once_with(mock.ANY, '794654F5-B6E9-'
-                                              '4A51-BEC2-A73E41EAA938')
-
-        self.assertTrue(self.mock_driver.emit_event.called)
-        self.assertTrue(self.mock_driver.nvram_mgr.store.called)
