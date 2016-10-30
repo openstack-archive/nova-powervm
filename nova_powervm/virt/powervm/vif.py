@@ -233,6 +233,19 @@ def pre_live_migrate_at_source(adapter, host_uuid, instance, vif):
     return vif_drv.pre_live_migrate_at_source(vif)
 
 
+def post_live_migrate_at_source(adapter, host_uuid, instance, vif):
+    """Performs the post live migrate on the source host.
+
+    :param adapter: The pypowervm adapter.
+    :param host_uuid: The host UUID for the PowerVM API.
+    :param instance: The nova instance object.
+    :param vif: The virtual interface of the instance.  This may be
+                called network_info in other portions of the code.
+    """
+    vif_drv = _build_vif_driver(adapter, host_uuid, instance, vif)
+    return vif_drv.post_live_migrate_at_source(vif)
+
+
 def get_secure_rmc_vswitch(adapter, host_uuid):
     """Returns the vSwitch that is used for secure RMC.
 
@@ -402,6 +415,14 @@ class PvmVifDriver(object):
                  deleted after the migration.
         """
         return []
+
+    def post_live_migrate_at_source(self, vif):
+        """Performs the post live migrate on the source host.
+
+        :param vif: The virtual interface of an instance.  This may be
+                    called network_info in other portions of the code.
+        """
+        pass
 
 
 class PvmSeaVifDriver(PvmVifDriver):
@@ -780,6 +801,10 @@ class PvmOvsVifDriver(PvmLioVifDriver):
             self.adapter, parent_type=pvm_ms.System, one_result=True,
             name=CONF.powervm.pvm_vswitch_for_novalink_io).switch_id
 
+        # Delete port from OVS
+        linux_net.delete_ovs_vif_port(vif['network']['bridge'],
+                                      self.get_trunk_dev_name(vif))
+
         # Find the trunk
         mgmt_wrap = pvm_par.get_this_partition(self.adapter)
         trunk = pvm_net.CNA.search(
@@ -815,3 +840,12 @@ class PvmOvsVifDriver(PvmLioVifDriver):
             mac=mac)
 
         return pvm_cna.find_trunks(self.adapter, cna_w)
+
+    def post_live_migrate_at_source(self, vif):
+        """Performs the post live migrate on the source host.
+
+        :param vif: The virtual interface of an instance.  This may be
+                    called network_info in other portions of the code.
+        """
+        linux_net.delete_ovs_vif_port(vif['network']['bridge'],
+                                      self.get_trunk_dev_name(vif))
