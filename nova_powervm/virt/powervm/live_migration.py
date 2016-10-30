@@ -412,6 +412,10 @@ class LiveMigrationSrc(LiveMigration):
         :param network_infos: instance network information
         """
         LOG.debug("Post live migration at source.", instance=self.instance)
+        for network_info in network_infos:
+            vif.post_live_migrate_at_source(
+                self.drvr.adapter, self.drvr.host_uuid, self.instance,
+                network_info)
 
     def rollback_live_migration(self, context):
         """Roll back a failed migration.

@@ -298,3 +298,15 @@ class TestLPM(test.TestCase):
         self.lpmsrc.lpar_w = mock.Mock()
         self.lpmsrc.migration_recover()
         mock_mig_recover.called_once_with(self.lpmsrc.lpar_w, force=True)
+
+    @mock.patch('nova_powervm.virt.powervm.vif.post_live_migrate_at_source')
+    def test_post_live_migration_at_source(self, mock_vif_post_lpm_at_source):
+        network_infos = [{'devname': 'tap-dev1', 'address': 'mac-addr1',
+                          'network': {'bridge': 'br-int'}, 'id': 'vif_id_1'},
+                         {'devname': 'tap-dev2', 'address': 'mac-addr2',
+                          'network': {'bridge': 'br-int'}, 'id': 'vif_id_2'}]
+        self.lpmsrc.post_live_migration_at_source(network_infos)
+        # Assertions
+        for network_info in network_infos:
+            mock_vif_post_lpm_at_source.assert_any_call(mock.ANY, mock.ANY,
+                                                        mock.ANY, network_info)
