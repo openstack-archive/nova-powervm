@@ -943,7 +943,7 @@ class TestPowerVMDriver(test.TestCase):
             [mock.call(mock_bld_slot_mgr.return_value)] * 2)
 
         # Post-scrub was invoked
-        mock_rm_maps.assert_called()
+        self.assertEqual(1, mock_rm_maps.call_count)
 
         # Delete LPAR was called
         mock_dlt.assert_called_with(self.apt, mock.ANY)

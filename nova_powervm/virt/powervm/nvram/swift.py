@@ -86,7 +86,7 @@ class SwiftNvramStore(api.NvramStore):
                     LOG.debug(str(r))
                 result = results
             else:
-                LOG.debug('SwiftOperation result: %s' % str(result))
+                LOG.debug('SwiftOperation result: %s', str(result))
             return result
         except swft_srv.SwiftError as e:
             LOG.exception(e)
@@ -218,7 +218,7 @@ class SwiftNvramStore(api.NvramStore):
                     return
 
         self._store(instance.uuid, instance.name, data, exists=exists)
-        LOG.debug('NVRAM updated for instance: %s' % instance.name)
+        LOG.debug('NVRAM updated for instance: %s', instance.name)
 
     def store_slot_map(self, inst_key, data):
         """Store the Slot Map to Swift.
@@ -292,7 +292,7 @@ class SwiftNvramStore(api.NvramStore):
         for result in self._run_operation('delete', container=self.container,
                                           objects=[inst_key]):
 
-            LOG.debug('Delete slot map result: %s' % str(result))
+            LOG.debug('Delete slot map result: %s', str(result))
             if not result['success']:
                 raise api.NVRAMDeleteException(reason=result,
                                                instance=inst_key)
@@ -305,7 +305,7 @@ class SwiftNvramStore(api.NvramStore):
         for result in self._run_operation('delete', container=self.container,
                                           objects=[instance.uuid]):
 
-            LOG.debug('Delete result: %s' % str(result), instance=instance)
+            LOG.debug('Delete result: %s', str(result), instance=instance)
             if not result['success']:
                 raise api.NVRAMDeleteException(instance=instance.name,
                                                reason=result)

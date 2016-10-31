@@ -126,7 +126,7 @@ class PowerVMDriver(driver.ComputeDriver):
         self._get_host_uuid()
         # Get the management partition's UUID
         self.mp_uuid = pvm_par.get_this_partition(self.adapter).uuid
-        LOG.debug("Driver found compute partition UUID of: %s" % self.mp_uuid)
+        LOG.debug("Driver found compute partition UUID of: %s", self.mp_uuid)
 
         # Make sure the Virtual I/O Server(s) are available.
         vios.validate_vios_ready(self.adapter, self.host_uuid)
@@ -1843,9 +1843,9 @@ class PowerVMDriver(driver.ComputeDriver):
             CONF.powervm.fc_attach_strategy]
         vol_cls = importutils.import_class(adp_type)
         if conn_info:
-            LOG.debug('Volume Adapter returned for connection_info=%s' %
+            LOG.debug('Volume Adapter returned for connection_info=%s',
                       conn_info)
-        LOG.debug('Volume Adapter class %(cls)s for instance %(inst)s' %
+        LOG.debug('Volume Adapter class %(cls)s for instance %(inst)s',
                   {'cls': vol_cls.__name__, 'inst': instance.name})
         return vol_cls(self.adapter, self.host_uuid,
                        instance, conn_info, stg_ftsk=stg_ftsk)
@@ -1908,12 +1908,12 @@ class NovaEventHandler(pvm_apt.RawEventHandler):
                 (self.inst_actions_handled & set(details))):
             if not inst:
                 LOG.debug('PowerVM Nova Event Handler: Getting inst '
-                          'for id %s' % pvm_uuid)
+                          'for id %s', pvm_uuid)
                 inst = vm.get_instance(ctx.get_admin_context(),
                                        pvm_uuid)
             if inst:
                 LOG.debug('Handle action "%(action)s" event for instance: '
-                          '%(inst)s' %
+                          '%(inst)s',
                           dict(action=details, inst=inst.name))
                 self._handle_inst_event(
                     inst, pvm_uuid, uri, etype, details, eid)
@@ -2004,8 +2004,8 @@ class NovaEventHandler(pvm_apt.RawEventHandler):
                 eid = pvm_event['EventID']
 
                 if etype not in ['NEW_CLIENT']:
-                    LOG.debug('PowerVM Event-Action: %s URI: %s Details %s' %
-                              (etype, uri, details))
+                    LOG.debug('PowerVM Event-Action: %s URI: %s Details %s',
+                              etype, uri, details)
                 inst_cache[uri] = self._handle_event(uri, etype, details, eid,
                                                      inst=inst_cache.get(uri,
                                                                          None))

@@ -425,9 +425,9 @@ class TestVSCSIAdapter(BaseVSCSITest):
         with mock.patch.object(self.vol_drv,
                                '_discover_volume_on_vios') as mock_dvov:
             self.vol_drv.disconnect_volume(self.slot_mgr)
-            mock_dvov.assert_called()
+            self.assertEqual(1, mock_dvov.call_count)
 
-        mock_hdisk_from_uuid.assert_called()
+        self.assertEqual(1, mock_hdisk_from_uuid.call_count)
 
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')

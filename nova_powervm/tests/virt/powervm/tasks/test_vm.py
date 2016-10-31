@@ -72,7 +72,7 @@ class TestVMTasks(test.TestCase):
         flow_test = tf_lf.Flow("test_revert")
         flow_test.add(crt)
         self.assertRaises(exception.NovaException, tf_eng.run, flow_test)
-        mock_vm_dlt.assert_called()
+        self.assertEqual(1, mock_vm_dlt.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     def test_resize(self, mock_vm_update):

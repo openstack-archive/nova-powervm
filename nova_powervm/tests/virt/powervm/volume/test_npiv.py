@@ -173,7 +173,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         maps = self.vol_drv._ensure_phys_ports_for_system(port_maps,
                                                           vios_wraps, fab)
         self.assertEqual(port_maps, maps)
-        find_vios_for_wwpn.assert_called_once()
+        self.assertEqual(1, find_vios_for_wwpn.call_count)
         derive_npiv_map.assert_not_called()
 
         # Now test the stale case - rebuild
@@ -184,7 +184,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         maps = self.vol_drv._ensure_phys_ports_for_system(port_maps,
                                                           vios_wraps, fab)
         self.assertEqual(expected_map, maps)
-        derive_npiv_map.assert_called_once()
+        self.assertEqual(1, derive_npiv_map.call_count)
 
     def _basic_system_metadata(self, fabric_state, p_wwpn='21000024FF649104'):
         meta_fb_key = self.vol_drv._sys_meta_fabric_key('A')
@@ -241,7 +241,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv.instance.host = 'not_host_in_conf'
 
         self.vol_drv.disconnect_volume(self.slot_mgr)
-        mock_names.assert_called_once()
+        mock_names.assert_called_once_with()
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_fabric_names')
@@ -251,7 +251,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv.instance.host = 'not_host_in_conf'
 
         self.vol_drv.disconnect_volume(self.slot_mgr)
-        mock_names.assert_called_once()
+        mock_names.assert_called_once_with()
 
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_remove_maps_for_fabric')

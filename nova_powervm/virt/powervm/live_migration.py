@@ -122,9 +122,9 @@ class LiveMigrationDest(LiveMigration):
         self.mig_data.dest_proc_compat = (
             ','.join(self.drvr.host_wrapper.proc_compat_modes))
 
-        LOG.debug('src_compute_info: %s' % src_compute_info)
-        LOG.debug('dst_compute_info: %s' % dst_compute_info)
-        LOG.debug('Migration data: %s' % self.mig_data)
+        LOG.debug('src_compute_info: %s', src_compute_info)
+        LOG.debug('dst_compute_info: %s', dst_compute_info)
+        LOG.debug('Migration data: %s', self.mig_data)
 
         return self.mig_data
 
@@ -142,7 +142,7 @@ class LiveMigrationDest(LiveMigration):
         """
         LOG.debug('Running pre live migration on destination.',
                   instance=self.instance)
-        LOG.debug('Migration data: %s' % migrate_data)
+        LOG.debug('Migration data: %s', migrate_data)
 
         # Set the ssh auth key.
         mgmt_task.add_authorized_key(self.drvr.adapter,
@@ -235,7 +235,7 @@ class LiveMigrationSrc(LiveMigration):
             self.drvr.adapter, self.instance, self.drvr.host_uuid)
         self.lpar_w = lpar_w
 
-        LOG.debug('Dest Migration data: %s' % self.mig_data)
+        LOG.debug('Dest Migration data: %s', self.mig_data)
 
         # Check proc compatibility modes
         if (lpar_w.proc_compat_mode and lpar_w.proc_compat_mode not in
@@ -272,7 +272,7 @@ class LiveMigrationSrc(LiveMigration):
             vol_drv.pre_live_migration_on_source(vol_data)
         self.mig_data.vol_data = vol_data
 
-        LOG.debug('Src Migration data: %s' % self.mig_data)
+        LOG.debug('Src Migration data: %s', self.mig_data)
 
         # Create a FeedTask to scrub any orphaned mappings/storage associated
         # with this LPAR.  (Don't run it yet - we want to do the VOpt removal
@@ -298,7 +298,7 @@ class LiveMigrationSrc(LiveMigration):
         :param migrate_data: a PowerVMLiveMigrateData object
         """
         LOG.debug("Starting migration.", instance=self.instance)
-        LOG.debug("Migrate data: %s" % migrate_data)
+        LOG.debug("Migrate data: %s", migrate_data)
 
         # The passed in mig data has more info (dest data added), so replace
         self.mig_data = migrate_data
