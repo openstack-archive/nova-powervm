@@ -319,7 +319,7 @@ class ConfigDrivePowerVM(object):
 
         def rm_vopt():
             LOG.info(_LI("Removing virtual optical for VM with UUID %s."),
-                     lpar_uuid, instance=self.instance)
+                     lpar_uuid)
             vg_rsp = self.adapter.read(pvm_vios.VIOS.schema_type,
                                        root_id=self.vios_uuid,
                                        child_type=pvm_stg.VG.schema_type,

@@ -341,12 +341,13 @@ class PvmVifDriver(object):
         try:
             cna_w.delete()
         except Exception as e:
-            LOG.exception(e)
+            LOG.error(_LE('Unable to unplug VIF with mac %(mac)s for instance '
+                          '%(inst)s.'),
+                      {'mac': vif['address'], 'inst': self.instance.name},
+                      instance=self.instance)
+            LOG.exception(e, instance=self.instance)
             raise exception.VirtualInterfaceUnplugException(
-                _LE('Unable to unplug VIF with mac %(mac)s for instance '
-                    '%(inst)s.'), {'mac': vif['address'],
-                                   'inst': self.instance.name},
-                instance=self.instance)
+                reason=six.text_type(e))
         return cna_w
 
     def _find_cna_for_vif(self, cna_w_list, vif):
