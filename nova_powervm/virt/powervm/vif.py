@@ -789,7 +789,7 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         # We know that we just attached the VIF to the NovaLink VM.  Search
         # for a trunk adapter with the PVID and vSwitch that we specified
         # above.  This is guaranteed to be unique.
-        vlan = vea_vlan_mappings[vif['address']]
+        vlan = int(vea_vlan_mappings[vif['address']])
         vswitch_id = pvm_net.VSwitch.search(
             self.adapter, parent_type=pvm_ms.System, one_result=True,
             name=CONF.powervm.pvm_vswitch_for_novalink_io).switch_id
@@ -800,10 +800,15 @@ class PvmOvsVifDriver(PvmLioVifDriver):
 
         # Find the trunk
         mgmt_wrap = pvm_par.get_this_partition(self.adapter)
-        trunk = pvm_net.CNA.search(
-            self.adapter, parent_type=mgmt_wrap.schema_type,
-            parent_uuid=mgmt_wrap.uuid, pvid=vlan, vswitch_id=vswitch_id,
-            one_result=True)
+        child_adpts = pvm_net.CNA.get(self.adapter, parent=mgmt_wrap)
+        trunk = None
+        for adpt in child_adpts:
+            # We need a trunk adapter (so check trunk_pri).  Then the trunk
+            # is unique by PVID and PowerVM vSwitch ID.
+            if (adpt.pvid == vlan and adpt.vswitch_id == vswitch_id and
+                    adpt.trunk_pri):
+                trunk = adpt
+                break
 
         if trunk:
             # Delete the peer'd trunk adapter.

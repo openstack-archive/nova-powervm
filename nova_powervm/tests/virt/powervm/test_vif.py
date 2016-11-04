@@ -785,21 +785,30 @@ class TestVifOvsDriver(test.TestCase):
             'br-int', 'tap-dev', 'vif_id', 'aa:bb:cc:dd:ee:ff', self.inst.uuid)
 
     @mock.patch('nova.network.linux_net.delete_ovs_vif_port')
-    @mock.patch('pypowervm.wrappers.network.CNA.search')
+    @mock.patch('pypowervm.wrappers.network.CNA.get')
     @mock.patch('pypowervm.tasks.partition.get_this_partition')
     @mock.patch('pypowervm.wrappers.network.VSwitch.search')
     def test_rollback_live_migration_at_destination(
-            self, mock_vs_search, mock_get_part, mock_cna_search,
+            self, mock_vs_search, mock_get_part, mock_cna_get,
             mock_delete_ovs_port):
         # All the fun mocking
         mock_vs_search.return_value = mock.MagicMock(switch_id=5)
-        vea_vlan_mappings = {'aa:bb:cc:dd:ee:ff': 3, 'aa:bb:cc:dd:ee:ee': 4}
+
+        # Since this gets passed through conductor, the VLAN's switch to string
+        # format.
+        vea_vlan_mappings = {'aa:bb:cc:dd:ee:ff': '3',
+                             'aa:bb:cc:dd:ee:ee': '4'}
         vif = {'devname': 'tap-dev', 'address': 'aa:bb:cc:dd:ee:ee',
                'network': {'bridge': 'br-int'}, 'id': 'vif_id'}
-        mock_get_part.return_value = mock.MagicMock(schema_type='VIO',
-                                                    uuid='uuid')
-        mock_trunk = mock.MagicMock()
-        mock_cna_search.return_value = mock_trunk
+
+        mock_vio = mock.MagicMock(schema_type='VIO', uuid='uuid')
+        mock_get_part.return_value = mock_vio
+
+        trunk1 = mock.Mock(pvid=2, vswitch_id=3, trunk_pri=1)
+        trunk2 = mock.Mock(pvid=3, vswitch_id=5, trunk_pri=1)
+        trunk3 = mock.Mock(pvid=4, vswitch_id=5, trunk_pri=None)
+        trunk4 = mock.Mock(pvid=4, vswitch_id=5, trunk_pri=1)
+        mock_cna_get.return_value = [trunk1, trunk2, trunk3, trunk4]
 
         # Invoke
         self.drv.rollback_live_migration_at_destination(vif, vea_vlan_mappings)
@@ -808,7 +817,7 @@ class TestVifOvsDriver(test.TestCase):
         mock_delete_ovs_port.assert_called_once_with('br-int', 'tap-dev')
 
         # Make sure the trunk was deleted
-        mock_trunk.delete.assert_called_once()
+        trunk4.delete.assert_called_once()
 
         # Now make sure the calls were done correctly to actually produce a
         # trunk adapter
@@ -816,9 +825,8 @@ class TestVifOvsDriver(test.TestCase):
             self.drv.adapter, parent_type=pvm_ms.System, one_result=True,
             name=CONF.powervm.pvm_vswitch_for_novalink_io)
         mock_get_part.assert_called_once_with(self.drv.adapter)
-        mock_cna_search.assert_called_once_with(
-            self.drv.adapter, parent_type='VIO', parent_uuid='uuid',
-            vswitch_id=5, pvid=4, one_result=True)
+        mock_cna_get.assert_called_once_with(
+            self.drv.adapter, parent=mock_vio)
 
     @mock.patch('nova.network.linux_net.delete_ovs_vif_port')
     def test_post_live_migrate_at_source(self, mock_delete_ovs_port):
