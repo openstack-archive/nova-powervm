@@ -42,7 +42,7 @@ class TestPowerVMInspectorInit(base.BaseTestCase):
         mock_get_host_uuid.return_value = 'host_uuid'
 
         # Invoke
-        inspector = p_inspect.PowerVMInspector()
+        inspector = p_inspect.PowerVMInspector(None)
 
         # Validate
         mock_session.assert_called_once_with(conn_tries=300)
@@ -76,7 +76,7 @@ class TestPowerVMInspector(base.BaseTestCase):
         with mock.patch('ceilometer_powervm.compute.virt.powervm.inspector.'
                         'PowerVMInspector._get_host_uuid'):
             # Create the inspector
-            self.inspector = p_inspect.PowerVMInspector()
+            self.inspector = p_inspect.PowerVMInspector(None)
             self.inspector.vm_metrics = self.mock_metrics
 
     def test_inspect_cpus(self):

@@ -40,8 +40,8 @@ class PowerVMInspector(virt_inspector.Inspector):
     Utilizes the pypowervm library to gather the instance metrics.
     """
 
-    def __init__(self):
-        super(PowerVMInspector, self).__init__()
+    def __init__(self, conf):
+        super(PowerVMInspector, self).__init__(conf)
 
         # Build the adapter.  May need to attempt the connection multiple times
         # in case the REST server is starting.
