@@ -51,9 +51,11 @@ class TestVifFunctions(test.TestCase):
     @mock.patch('pypowervm.wrappers.event.Event')
     def test_push_vif_event(self, mock_event, mock_dumps):
         mock_vif = mock.Mock(mac='MAC', href='HREF')
-        vif._push_vif_event(self.adpt, 'action', mock_vif, mock.Mock())
+        vif._push_vif_event(self.adpt, 'action', mock_vif, mock.Mock(),
+                            'pvm_sea')
         mock_dumps.assert_called_once_with(
-            {'provider': 'NOVA_PVM_VIF', 'action': 'action', 'mac': 'MAC'})
+            {'provider': 'NOVA_PVM_VIF', 'action': 'action', 'mac': 'MAC',
+             'type': 'pvm_sea'})
         mock_event.bld.assert_called_once_with(self.adpt, 'HREF',
                                                mock_dumps.return_value)
         mock_event.bld.return_value.create.assert_called_once_with()
@@ -65,9 +67,10 @@ class TestVifFunctions(test.TestCase):
         # Exception reraises
         mock_event.bld.return_value.create.side_effect = IndexError
         self.assertRaises(IndexError, vif._push_vif_event, self.adpt, 'action',
-                          mock_vif, mock.Mock())
+                          mock_vif, mock.Mock(), 'pvm_sea')
         mock_dumps.assert_called_once_with(
-            {'provider': 'NOVA_PVM_VIF', 'action': 'action', 'mac': 'MAC'})
+            {'provider': 'NOVA_PVM_VIF', 'action': 'action', 'mac': 'MAC',
+             'type': 'pvm_sea'})
         mock_event.bld.assert_called_once_with(self.adpt, 'HREF',
                                                mock_dumps.return_value)
         mock_event.bld.return_value.create.assert_called_once_with()
@@ -76,7 +79,7 @@ class TestVifFunctions(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vif._push_vif_event')
     def test_plug(self, mock_event, mock_bld_drv):
         """Test the top-level plug method."""
-        mock_vif = {'address': 'MAC'}
+        mock_vif = {'address': 'MAC', 'type': 'pvm_sea'}
         slot_mgr = mock.Mock()
 
         # 1) With slot registration
@@ -90,7 +93,8 @@ class TestVifFunctions(test.TestCase):
                                                                new_vif=True)
         slot_mgr.register_vnet.assert_called_once_with(
             mock_bld_drv.return_value.plug.return_value)
-        mock_event.assert_called_once_with(self.adpt, 'plug', vnet, mock.ANY)
+        mock_event.assert_called_once_with(self.adpt, 'plug', vnet, mock.ANY,
+                                           'pvm_sea')
         self.assertEqual(mock_bld_drv.return_value.plug.return_value, vnet)
 
         # Clean up
@@ -120,7 +124,7 @@ class TestVifFunctions(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vif._push_vif_event')
     def test_unplug(self, mock_event, mock_bld_drv):
         """Test the top-level unplug method."""
-        mock_vif = {'address': 'MAC'}
+        mock_vif = {'address': 'MAC', 'type': 'pvm_sea'}
         slot_mgr = mock.Mock()
 
         # 1) With slot deregistration, default cna_w_list
@@ -132,7 +136,7 @@ class TestVifFunctions(test.TestCase):
             mock_vif, cna_w_list=None)
         slot_mgr.drop_vnet.assert_called_once_with('vnet_w')
         mock_event.assert_called_once_with(self.adpt, 'unplug', 'vnet_w',
-                                           mock.ANY)
+                                           mock.ANY, 'pvm_sea')
 
         # Clean up
         mock_bld_drv.reset_mock()

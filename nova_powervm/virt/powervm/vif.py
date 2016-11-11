@@ -50,10 +50,18 @@ SECURE_RMC_VLAN = 4094
 # Provider tag for custom events from this module
 EVENT_PROVIDER_ID = 'NOVA_PVM_VIF'
 
-VIF_MAPPING = {'pvm_sea': 'nova_powervm.virt.powervm.vif.PvmSeaVifDriver',
-               'ovs': 'nova_powervm.virt.powervm.vif.PvmOvsVifDriver',
-               'bridge': 'nova_powervm.virt.powervm.vif.PvmLBVifDriver',
-               'pvm_sriov':
+VIF_TYPE_PVM_SEA = 'pvm_sea'
+VIF_TYPE_PVM_OVS = 'ovs'
+VIF_TYPE_PVM_BRIDGE = 'bridge'
+VIF_TYPE_PVM_SRIOV = 'pvm_sriov'
+
+VIF_MAPPING = {VIF_TYPE_PVM_SEA:
+               'nova_powervm.virt.powervm.vif.PvmSeaVifDriver',
+               VIF_TYPE_PVM_OVS:
+               'nova_powervm.virt.powervm.vif.PvmOvsVifDriver',
+               VIF_TYPE_PVM_BRIDGE:
+               'nova_powervm.virt.powervm.vif.PvmLBVifDriver',
+               VIF_TYPE_PVM_SRIOV:
                'nova_powervm.virt.powervm.vif.PvmVnicSriovVifDriver'}
 
 CONF = cfg.CONF
@@ -85,7 +93,7 @@ def _build_vif_driver(adapter, host_uuid, instance, vif):
         {'vif_type': vif['type'], 'instance': instance.name})
 
 
-def _push_vif_event(adapter, action, vif_w, instance):
+def _push_vif_event(adapter, action, vif_w, instance, vif_type):
     """Push a custom event to the REST server for a vif action (plug/unplug).
 
     This event prompts the neutron agent to mark the port up or down.
@@ -94,10 +102,12 @@ def _push_vif_event(adapter, action, vif_w, instance):
     :param action: The action taken on the vif - either 'plug' or 'unplug'
     :param vif_w: The pypowervm wrapper of the affected vif (CNA, VNIC, etc.)
     :param instance: The nova instance for the event
+    :param vif_type: The type of event source (pvm_sea, ovs, bridge,
+                     pvm_sriov etc)
     """
     data = vif_w.href
     detail = jsonutils.dumps(dict(provider=EVENT_PROVIDER_ID, action=action,
-                                  mac=vif_w.mac))
+                                  mac=vif_w.mac, type=vif_type))
     event = pvm_evt.Event.bld(adapter, data, detail)
     try:
         event = event.create()
@@ -147,7 +157,7 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
 
     # Push a custom event if we really plugged the vif
     if vnet_w is not None:
-        _push_vif_event(adapter, 'plug', vnet_w, instance)
+        _push_vif_event(adapter, 'plug', vnet_w, instance, vif['type'])
 
     return vnet_w
 
@@ -170,7 +180,7 @@ def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
         vnet_w = vif_drv.unplug(vif, cna_w_list=cna_w_list)
         # Push a custom event, but only if the vif existed in the first place
         if vnet_w:
-            _push_vif_event(adapter, 'unplug', vnet_w, instance)
+            _push_vif_event(adapter, 'unplug', vnet_w, instance, vif['type'])
     except pvm_ex.HttpError as he:
         # Log the message constructed by HttpError
         LOG.exception(he.args[0], instance=instance)
