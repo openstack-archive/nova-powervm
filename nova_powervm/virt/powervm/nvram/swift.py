@@ -133,7 +133,6 @@ class SwiftNvramStore(api.NvramStore):
                        or None.  If left as None, the method will look up
                        whether or not it exists.
         """
-        source = six.StringIO(data)
 
         # If the object doesn't exist, we tell it to 'leave_segments'.  This
         # prevents a lookup and saves the logs from an ERROR in the swift
@@ -143,7 +142,6 @@ class SwiftNvramStore(api.NvramStore):
         if exists is None:
             exists = self._exists(inst_key)
         options = dict(leave_segments=True) if not exists else None
-        obj = swft_srv.SwiftUploadObject(source, object_name=inst_key)
 
         # The swift client already has a retry opertaion. The retry method
         # takes a 'reset' function as a parameter. This parameter is 'None'
@@ -168,6 +166,9 @@ class SwiftNvramStore(api.NvramStore):
             as the number of attempts for retry is reached.
 
             """
+            source = six.StringIO(data)
+            obj = swft_srv.SwiftUploadObject(source, object_name=inst_key)
+
             results = self._run_operation('upload', self.container,
                                           [obj], options=options)
             for result in results:
@@ -175,9 +176,11 @@ class SwiftNvramStore(api.NvramStore):
                     # TODO(arun-mani - Bug 1611011): Filed for updating swift
                     # client to return http status code in case of failure
                     if isinstance(result['error'], swft_exc.ClientException):
-                        # Upload operation failed due to expired Keystone
-                        # token. Retry SwiftClient operation to allow
-                        # regeneration of token.
+                        # If upload failed during nvram/slot_map update due to
+                        # expired keystone token, retry swift-client operation
+                        # to allow regeneration of token
+                        LOG.warning(_LW('NVRAM upload failed due to invalid '
+                                        'token. Retrying upload.'))
                         return True
                     # The upload failed.
                     raise api.NVRAMUploadException(instance=inst_name,

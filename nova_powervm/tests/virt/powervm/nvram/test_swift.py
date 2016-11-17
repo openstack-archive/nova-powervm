@@ -120,9 +120,10 @@ class TestSwiftStore(test.TestCase):
             # Second run should not increment the call count here
             self.assertEqual(mock_container_names.call_count, 2)
 
+    @mock.patch('swiftclient.service.SwiftUploadObject')
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
                 '_exists')
-    def test_underscore_store(self, mock_exists):
+    def test_underscore_store(self, mock_exists, mock_swiftuploadobj):
         mock_exists.return_value = True
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
@@ -141,19 +142,25 @@ class TestSwiftStore(test.TestCase):
 
             # Test retry upload
             mock_run.reset_mock()
-            mock_res_obj = [{'success': False,
-                             'error': swft_exc.
-                             ClientException('Error Message.')}]
-            mock_run.side_effect = [mock_res_obj, self._build_results(['obj'])]
+            mock_swiftuploadobj.reset_mock()
+            mock_res_obj = {'success': False,
+                            'error': swft_exc.
+                            ClientException('Error Message.'),
+                            'object': '6ecb1386-53ab-43da-9e04-54e986ad4a9d'}
+            mock_run.side_effect = [mock_res_obj,
+                                    self._build_results(['obj'])]
             self.swift_store._store(powervm.TEST_INST1.uuid,
                                     powervm.TEST_INST1.name, 'data')
             mock_run.assert_called_with('upload', 'powervm_nvram',
                                         mock.ANY, options=None)
             self.assertEqual(mock_run.call_count, 2)
+            self.assertEqual(mock_swiftuploadobj.call_count, 2)
 
+    @mock.patch('swiftclient.service.SwiftUploadObject')
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
                 '_exists')
-    def test_underscore_store_not_exists(self, mock_exists):
+    def test_underscore_store_not_exists(self, mock_exists,
+                                         mock_swiftuploadobj):
         mock_exists.return_value = False
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
@@ -164,14 +171,20 @@ class TestSwiftStore(test.TestCase):
                 options={'leave_segments': True})
 
             # Test retry upload
-            mock_res_obj = [{'success': False,
-                             'error': swft_exc.
-                            ClientException('Error Message.')}]
-            mock_run.side_effect = [mock_res_obj, self._build_results(['obj'])]
+            mock_run.reset_mock()
+            mock_swiftuploadobj.reset_mock()
+            mock_res_obj = {'success': False,
+                            'error': swft_exc.
+                            ClientException('Error Message.'),
+                            'object': '6ecb1386-53ab-43da-9e04-54e986ad4a9d'}
+            mock_run.side_effect = [mock_res_obj,
+                                    self._build_results(['obj'])]
             self.swift_store._store(powervm.TEST_INST1.uuid,
                                     powervm.TEST_INST1.name, 'data')
             mock_run.assert_called_with('upload', 'powervm_nvram', mock.ANY,
                                         options={'leave_segments': True})
+            self.assertEqual(mock_run.call_count, 2)
+            self.assertEqual(mock_swiftuploadobj.call_count, 2)
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
                 '_exists')
