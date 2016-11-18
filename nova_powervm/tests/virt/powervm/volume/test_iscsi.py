@@ -91,7 +91,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         mock_lua_recovery.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
         mock_get_vm_id.return_value = '2'
-        mock_discover.return_value = '/dev/fake'
+        mock_discover.return_value = '/dev/fake', 'fake_udid'
 
         def build_map_func(host_uuid, vios_w, lpar_uuid, pv,
                            lpar_slot_num=None, lua=None, target_name=None):
