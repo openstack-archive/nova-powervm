@@ -15,7 +15,6 @@
 #    under the License.
 
 import math
-from nova.compute import arch
 from nova.compute import hv_type
 from nova.compute import vm_mode
 from nova.objects import fields
@@ -42,8 +41,8 @@ IBM_POWERVM_HYPERVISOR_VERSION = 8
 
 # The types of LPARS that are supported.
 POWERVM_SUPPORTED_INSTANCES = [
-    (arch.PPC64, hv_type.PHYP, vm_mode.HVM),
-    (arch.PPC64LE, hv_type.PHYP, vm_mode.HVM),
+    (fields.Architecture.PPC64, hv_type.PHYP, vm_mode.HVM),
+    (fields.Architecture.PPC64LE, hv_type.PHYP, vm_mode.HVM),
 ]
 
 # cpu_info that will be returned by build_host_stats_from_entry()
