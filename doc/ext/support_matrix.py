@@ -128,8 +128,10 @@ class SupportMatrixDirective(rst.Directive):
 
         :returns: SupportMatrix instance
         """
-
-        cfg = configparser.SafeConfigParser()
+        if six.PY3:
+            cfg = configparser.ConfigParser()
+        else:
+            cfg = configparser.SafeConfigParser()
         env = self.state.document.settings.env
         fname = self.arguments[0]
         rel_fpath, fpath = env.relfn2path(fname)
