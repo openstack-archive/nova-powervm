@@ -1357,7 +1357,7 @@ class PowerVMDriver(driver.ComputeDriver):
         except Exception as e:
             raise exception.InstanceFaultRollback(e)
 
-    def confirm_migration(self, migration, instance, network_info):
+    def confirm_migration(self, context, migration, instance, network_info):
         """Confirms a resize, destroying the source VM.
 
         :param migration: the migrate/resize information
@@ -1378,7 +1378,6 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Destroy the old VM.
         destroy_disks = not self.disk_dvr.capabilities['shared_storage']
-        context = ctx.get_admin_context()
         self._destroy(context, instance, block_device_info=None,
                       destroy_disks=destroy_disks, shutdown=False)
 

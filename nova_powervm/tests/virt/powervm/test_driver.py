@@ -1951,6 +1951,23 @@ class TestPowerVMDriver(test.TestCase):
         self.lpm.post_live_migration_at_source.assert_called_once_with(
             'network_info')
 
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._destroy')
+    def test_confirm_migration_diff_host(self, mock_destroy):
+        mock_mig = mock.Mock(source_compute='host1', dest_compute='host2')
+        self.drv.confirm_migration('context', mock_mig, self.lpm_inst,
+                                   'network_info')
+        mock_destroy.assert_called_once_with(
+            'context', self.lpm_inst, block_device_info=None,
+            destroy_disks=False, shutdown=False)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.rename')
+    def test_confirm_migration_same_host(self, mock_rename):
+        mock_mig = mock.Mock(source_compute='host1', dest_compute='host1')
+        self.drv.confirm_migration('context', mock_mig, self.lpm_inst,
+                                   'network_info')
+        mock_rename.assert_called_once_with(
+            self.drv.adapter, self.lpm_inst, self.lpm_inst.name)
+
     def test_post_live_mig_dest(self):
         self.drv.post_live_migration_at_destination(
             'context', self.lpm_inst, 'network_info')
