@@ -108,6 +108,14 @@ class TestLocalDisk(test.TestCase):
             None, '3e865d14-8c1e-4615-b73f-f78eaecabfbd',
             dest_path='test_path')
 
+        mock_img_api.reset_mock()
+        exception = Exception
+        mock_img_api.side_effect = exception
+        self.assertRaises(exception,
+                          self.get_ls(self.apt).create_disk_from_image,
+                          None, inst, powervm.TEST_IMAGE1, 20)
+        self.assertEqual(mock_img_api.call_count, 4)
+
     @mock.patch('pypowervm.wrappers.storage.VG')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg')

@@ -19,7 +19,9 @@ import abc
 
 import oslo_log.log as logging
 from oslo_utils import units
+import random
 import six
+import time
 
 import pypowervm.const as pvm_const
 import pypowervm.tasks.scsi_mapper as tsk_map
@@ -303,6 +305,42 @@ class DiskAdapter(object):
     def create_disk_from_image(self, context, instance, image_meta, disk_size,
                                image_type=DiskType.BOOT):
         """Creates a disk and copies the specified image to it.
+
+        :param context: nova context used to retrieve image from glance
+        :param instance: instance to create the disk for.
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
+        :param disk_size: The size of the disk to create in GB.  If smaller
+                          than the image, it will be ignored (as the disk
+                          must be at least as big as the image).  Must be an
+                          int.
+        :param image_type: the image type. See disk constants above.
+        :return: The backing pypowervm storage object that was created.
+        """
+
+        # Retry 3 times on exception
+        for attempt in range(1, 5):
+            try:
+                return self._create_disk_from_image(
+                    context, instance, image_meta,
+                    disk_size, image_type=image_type)
+            except Exception as error:
+                if attempt < 4:
+                    LOG.exception(error)
+                    LOG.warning(_LW("Instance %(inst)s Disk Upload attempt "
+                                    "#%(attempt)d failed. Retrying the "
+                                    "upload."),
+                                {"attempt": attempt,
+                                "inst": instance.name}, instance=instance)
+                    time.sleep(random.randint(1, 5))
+                else:
+                    raise
+
+    def _create_disk_from_image(self, context, instance, image_meta, disk_size,
+                                image_type=DiskType.BOOT):
+        """Creates a disk and copies the specified image to it.
+
+        Cleans up created disk if an error occurs.
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
