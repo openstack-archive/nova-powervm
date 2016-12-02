@@ -15,8 +15,6 @@
 #    under the License.
 
 import math
-from nova.compute import hv_type
-from nova.compute import vm_mode
 from nova.objects import fields
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
@@ -41,8 +39,8 @@ IBM_POWERVM_HYPERVISOR_VERSION = 8
 
 # The types of LPARS that are supported.
 POWERVM_SUPPORTED_INSTANCES = [
-    (fields.Architecture.PPC64, hv_type.PHYP, vm_mode.HVM),
-    (fields.Architecture.PPC64LE, hv_type.PHYP, vm_mode.HVM),
+    (fields.Architecture.PPC64, fields.HVType.PHYP, fields.VMMode.HVM),
+    (fields.Architecture.PPC64LE, fields.HVType.PHYP, fields.VMMode.HVM),
 ]
 
 # cpu_info that will be returned by build_host_stats_from_entry()
@@ -70,7 +68,7 @@ def build_host_resource_from_ms(ms_wrapper):
     data['memory_mb_used'] = (ms_wrapper.memory_configurable -
                               ms_wrapper.memory_free)
 
-    data["hypervisor_type"] = hv_type.PHYP
+    data["hypervisor_type"] = fields.HVType.PHYP
     data["hypervisor_version"] = IBM_POWERVM_HYPERVISOR_VERSION
     data["hypervisor_hostname"] = ms_wrapper.mtms.mtms_str
     data["cpu_info"] = HOST_STATS_CPU_INFO
