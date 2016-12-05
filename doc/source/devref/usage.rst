@@ -43,6 +43,10 @@ configured ahead of time.
 
 Configuration File Options
 --------------------------
+After nova-powervm has been installed the user must enable PowerVM as the
+compute driver. To do so, set the ``compute_driver`` value in the ``nova.conf``
+file to ``compute_driver = powervm.driver.PowerVMDriver``.
+
 The standard nova configuration options are supported.  In particular, to use
 PowerVM SR-IOV vNIC for networking, the ``pci_passthrough_whitelist`` option
 must be set.  See the `networking-powervm usage devref`_ for details.
