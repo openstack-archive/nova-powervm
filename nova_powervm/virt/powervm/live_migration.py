@@ -17,6 +17,7 @@
 
 import abc
 from nova import exception
+from nova.objects import migrate_data as mig_obj
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from pypowervm.tasks import management_console as mgmt_task
@@ -27,7 +28,6 @@ from pypowervm import util
 import six
 
 from nova_powervm import conf as cfg
-from nova_powervm.objects import migrate_data as mig_obj
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
