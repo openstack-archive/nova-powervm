@@ -15,8 +15,7 @@
 #    under the License.
 #
 
-from __future__ import absolute_import
-
+from eventlet import greenthread
 import logging
 import mock
 from nova import test
@@ -78,3 +77,117 @@ class TestPowerVMNovaEventHandler(test.TestCase):
 
         self.assertTrue(self.mock_driver.emit_event.called)
         self.assertTrue(self.mock_driver.nvram_mgr.store.called)
+
+
+class TestPowerVMLifecycleEventHandler(test.TestCase):
+    def setUp(self):
+        super(TestPowerVMLifecycleEventHandler, self).setUp()
+        self.mock_driver = mock.MagicMock()
+        self.handler = event.PowerVMLifecycleEventHandler(self.mock_driver)
+
+    def test_is_delay_event(self):
+        non_delay_evts = [
+            pvm_bp.LPARState.ERROR,
+            pvm_bp.LPARState.OPEN_FIRMWARE,
+            pvm_bp.LPARState.RUNNING,
+            pvm_bp.LPARState.MIGRATING_NOT_ACTIVE,
+            pvm_bp.LPARState.MIGRATING_RUNNING,
+            pvm_bp.LPARState.HARDWARE_DISCOVERY,
+            pvm_bp.LPARState.STARTING,
+            pvm_bp.LPARState.UNKNOWN
+        ]
+
+        delay_evts = [
+            pvm_bp.LPARState.NOT_ACTIVATED,
+            pvm_bp.LPARState.SHUTTING_DOWN,
+            pvm_bp.LPARState.SUSPENDING,
+            pvm_bp.LPARState.RESUMING,
+            pvm_bp.LPARState.NOT_AVAILBLE
+        ]
+
+        for non_delay_evt in non_delay_evts:
+            self.assertFalse(self.handler._is_delay_event(non_delay_evt),
+                             msg=non_delay_evt)
+
+        for delay_evt in delay_evts:
+            self.assertTrue(self.handler._is_delay_event(delay_evt),
+                            msg=delay_evt)
+
+    @mock.patch('nova_powervm.virt.powervm.event.'
+                'PowerVMLifecycleEventHandler._register_delayed_event')
+    @mock.patch('nova_powervm.virt.powervm.event.'
+                'PowerVMLifecycleEventHandler._emit_event')
+    def test_process(self, mock_emit, mock_reg_delay_evt):
+        non_delay_evts = [
+            pvm_bp.LPARState.ERROR,
+            pvm_bp.LPARState.OPEN_FIRMWARE
+        ]
+
+        delay_evts = [
+            pvm_bp.LPARState.NOT_ACTIVATED,
+            pvm_bp.LPARState.SHUTTING_DOWN,
+            pvm_bp.LPARState.RESUMING,
+        ]
+
+        for state in non_delay_evts + delay_evts:
+            self.handler.process(mock.Mock(), state)
+
+        self.assertEqual(mock_emit.call_count, 2)
+        self.assertEqual(mock_reg_delay_evt.call_count, 3)
+
+    @mock.patch('nova_powervm.virt.powervm.event.vm.translate_event')
+    def test_emit_event_immed(self, mock_translate):
+        mock_translate.return_value = 'test'
+        mock_delayed = mock.MagicMock()
+        mock_inst = mock.Mock()
+        mock_inst.uuid = 'inst_uuid'
+        self.handler._delayed_event_threads = {'inst_uuid': mock_delayed}
+
+        self.handler._emit_event(pvm_bp.LPARState.RUNNING, mock_inst, True)
+
+        self.assertEqual({}, self.handler._delayed_event_threads)
+        self.mock_driver.emit_event.assert_called_once()
+        mock_delayed.cancel.assert_called_once()
+
+    @mock.patch('nova_powervm.virt.powervm.event.vm.translate_event')
+    def test_emit_event_delayed(self, mock_translate):
+        mock_translate.return_value = 'test'
+        mock_delayed = mock.MagicMock()
+        mock_inst = mock.Mock()
+        mock_inst.uuid = 'inst_uuid'
+        self.handler._delayed_event_threads = {'inst_uuid': mock_delayed}
+
+        self.handler._emit_event(pvm_bp.LPARState.NOT_ACTIVATED, mock_inst,
+                                 False)
+
+        self.assertEqual({}, self.handler._delayed_event_threads)
+        self.mock_driver.emit_event.assert_called_once()
+
+    def test_emit_event_delayed_no_queue(self):
+        mock_inst = mock.Mock()
+        mock_inst.uuid = 'inst_uuid'
+        self.handler._delayed_event_threads = {}
+
+        self.handler._emit_event(pvm_bp.LPARState.NOT_ACTIVATED, mock_inst,
+                                 False)
+
+        self.assertFalse(self.mock_driver.emit_event.called)
+
+    @mock.patch.object(greenthread, 'spawn_after')
+    def test_register_delay_event(self, mock_spawn):
+        mock_old_delayed, mock_new_delayed = mock.Mock(), mock.Mock()
+        mock_spawn.return_value = mock_new_delayed
+
+        mock_inst = mock.Mock()
+        mock_inst.uuid = 'inst_uuid'
+        self.handler._delayed_event_threads = {'inst_uuid': mock_old_delayed}
+
+        self.handler._register_delayed_event(pvm_bp.LPARState.NOT_ACTIVATED,
+                                             mock_inst)
+
+        mock_old_delayed.cancel.assert_called_once()
+        mock_spawn.assert_called_once_with(
+            15, self.handler._emit_event, pvm_bp.LPARState.NOT_ACTIVATED,
+            mock_inst, False)
+        self.assertEqual({'inst_uuid': mock_new_delayed},
+                         self.handler._delayed_event_threads)
