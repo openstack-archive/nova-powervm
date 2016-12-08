@@ -48,6 +48,7 @@ class DiskAdapter(object):
 
     capabilities = {
         'shared_storage': False,
+        'has_imagecache': False,
     }
 
     def __init__(self, adapter, host_uuid):
@@ -79,6 +80,16 @@ class DiskAdapter(object):
         :return: returns a dict of disk information
         """
         return {}
+
+    def manage_image_cache(self, context, all_instances):
+        """Update the image cache.
+
+        Only called if implentation has the capability: has_imagecache.
+
+        :param context: nova context
+        :param all_instances: List of all instances on the node
+        """
+        pass
 
     def validate(self, disk_info):
         """Validate the disk information is compatible with this driver.
@@ -246,6 +257,21 @@ class DiskAdapter(object):
                 else instance.name)
         return pvm_util.sanitize_file_name_for_api(
             base, prefix=prefix, max_len=pvm_const.MaxLen.VDISK_NAME if short
+            else pvm_const.MaxLen.FILENAME_DEFAULT)
+
+    @staticmethod
+    def get_name_by_uuid(disk_type, uuid, short=False):
+        """Generate a name for a DiskType using a given uuid.
+
+        :param disk_type: One of the DiskType enum values.
+        :param uuid: The uuid to use for the name
+        :param short: If True the generate name will be limited to 15
+                      characters.  If False it will be limited by the API.
+        :return: A name base off of disk_type and uuid.
+        """
+        prefix = '%s_' % (disk_type[0] if short else disk_type)
+        return pvm_util.sanitize_file_name_for_api(
+            uuid, prefix=prefix, max_len=pvm_const.MaxLen.VDISK_NAME if short
             else pvm_const.MaxLen.FILENAME_DEFAULT)
 
     @staticmethod

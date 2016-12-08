@@ -15,10 +15,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_concurrency import lockutils
 from oslo_log import log as logging
 
 from nova import exception as nova_exc
 from nova import image
+
 from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import partition as pvm_tpar
@@ -29,6 +31,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
+from nova_powervm.virt.powervm.disk import imagecache
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
@@ -41,12 +44,21 @@ IMAGE_API = image.API()
 
 
 class LocalStorage(disk_dvr.DiskAdapter):
+
+    capabilities = {
+        'shared_storage': False,
+        'has_imagecache': True,
+    }
+
     def __init__(self, adapter, host_uuid):
         super(LocalStorage, self).__init__(adapter, host_uuid)
 
         # Query to get the Volume Group UUID
         self.vg_name = CONF.powervm.volume_group_name
         self._vios_uuid, self.vg_uuid = self._get_vg_uuid(self.vg_name)
+        self.image_cache_mgr = imagecache.ImageManager(self._vios_uuid,
+                                                       self.vg_uuid, adapter)
+        self.cache_lock = lockutils.ReaderWriterLock()
         LOG.info(_LI("Local Storage driver initialized: volume group: '%s'"),
                  self.vg_name)
 
@@ -89,6 +101,15 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Subtract available from capacity
         return float(vg_wrap.capacity) - float(vg_wrap.available_size)
+
+    def manage_image_cache(self, context, all_instances):
+        """Update the image cache
+
+        :param context: nova context
+        :param all_instances: List of all instances on the node
+        """
+        with self.cache_lock.write_lock():
+            self.image_cache_mgr.update(context, all_instances)
 
     def delete_disks(self, context, instance, storage_elems):
         """Removes the specified disks.
@@ -186,24 +207,47 @@ class LocalStorage(disk_dvr.DiskAdapter):
         """
         LOG.info(_LI('Create disk.'))
 
-        # Transfer the image
-        vol_name = self._get_disk_name(image_type, instance, short=True)
-
         # Disk size to API is in bytes.  Input from method is in Gb
         disk_bytes = self._disk_gb_to_bytes(disk_size, floor=image_meta.size)
+        vol_name = self._get_disk_name(image_type, instance, short=True)
 
-        def upload(path):
-            IMAGE_API.download(context, image_meta.id, dest_path=path)
+        with self.cache_lock.read_lock():
+            img_udid = self._get_or_upload_image(context, image_meta)
+            # Transfer the image
+            return tsk_stg.crt_copy_vdisk(
+                self.adapter, self._vios_uuid, self.vg_uuid, img_udid,
+                image_meta.size, vol_name, disk_bytes)
 
-        # This method will create a new disk at our specified size.  It will
-        # then put the image in the disk.  If the disk is bigger, user can
-        # resize the disk, create a new partition, etc...
-        # If the image is bigger than disk, API should make the disk big
-        # enough to support the image (up to 1 Gb boundary).
-        return tsk_stg.upload_new_vdisk(
-            self.adapter, self._vios_uuid, self.vg_uuid, upload, vol_name,
-            image_meta.size, d_size=disk_bytes,
-            upload_type=tsk_stg.UploadType.FUNC)[0]
+    def _get_or_upload_image(self, context, image_meta):
+        """Return a cached image name
+
+        Attempt to find a cached copy of the image. If there is no cached copy
+        of the image, create one.
+
+        :param context: nova context used to retrieve image from glance
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
+        :return: The name of the virtual disk containing the image
+        """
+
+        # Check for cached image
+        with lockutils.lock(image_meta.id):
+            vg_wrap = self._get_vg_wrap()
+            cache_name = self.get_name_by_uuid(disk_dvr.DiskType.IMAGE,
+                                               image_meta.id, short=True)
+            image = [disk for disk in vg_wrap.virtual_disks
+                     if disk.name == cache_name]
+            if len(image) == 1:
+                return image[0].udid
+
+            def upload(path):
+                IMAGE_API.download(context, image_meta.id, dest_path=path)
+
+            image = tsk_stg.upload_new_vdisk(
+                self.adapter, self._vios_uuid, self.vg_uuid, upload,
+                cache_name, image_meta.size, d_size=image_meta.size,
+                upload_type=tsk_stg.UploadType.FUNC)[0]
+            return image.udid
 
     def connect_disk(self, context, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.

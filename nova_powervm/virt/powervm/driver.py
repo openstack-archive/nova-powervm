@@ -172,6 +172,10 @@ class PowerVMDriver(driver.ComputeDriver):
         self.disk_dvr = importutils.import_object_ns(
             DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.powervm.disk_driver.lower()],
             self.adapter, self.host_uuid)
+        self.capabilities.update(self.disk_dvr.capabilities)
+
+    def manage_image_cache(self, context, all_instances):
+        self.disk_dvr.manage_image_cache(context, all_instances)
 
     def _setup_rebuild_store(self):
         """Set up the store for remote restart objects."""
