@@ -204,9 +204,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         tsk_stg.rm_tier_storage(storage_elems, tier=self._tier)
 
-    def create_disk_from_image(self, context, instance, image_meta,
-                               disk_size_gb,
-                               image_type=disk_drv.DiskType.BOOT):
+    def _create_disk_from_image(self, context, instance, image_meta,
+                                disk_size_gb,
+                                image_type=disk_drv.DiskType.BOOT):
         """Creates a boot disk and links the specified image to it.
 
         If the specified image has not already been uploaded, an Image LU is

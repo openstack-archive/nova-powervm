@@ -168,9 +168,11 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
                 'vios_name': vios_uuid})
 
-    def create_disk_from_image(self, context, instance, image_meta, disk_size,
-                               image_type=disk_dvr.DiskType.BOOT):
+    def _create_disk_from_image(self, context, instance, image_meta, disk_size,
+                                image_type=disk_dvr.DiskType.BOOT):
         """Creates a disk and copies the specified image to it.
+
+        Cleans up created disk if an error occurs.
 
         :param context: nova context used to retrieve image from glance
         :param instance: instance to create the disk for.
