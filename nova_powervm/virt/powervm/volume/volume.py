@@ -130,7 +130,7 @@ class VscsiVolumeAdapter(object):
         raise p_exc.VolumeAttachFailed(**ex_args)
 
     def _add_append_mapping(self, vios_uuid, device_name, lpar_slot_num=None,
-                            lua=None, target_name=None):
+                            lua=None, target_name=None, udid=None):
         """Update the stg_ftsk to append the mapping to the VIOS.
 
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
@@ -148,7 +148,7 @@ class VscsiVolumeAdapter(object):
             LOG.info(_LI("Adding vSCSI mapping to Physical Volume %(dev)s "
                          "to VM %(vm)s"), {'dev': device_name,
                                            'vm': self.vm_uuid})
-            pv = pvm_stor.PV.bld(self.adapter, device_name, target_name)
+            pv = pvm_stor.PV.bld(self.adapter, device_name, udid)
             v_map = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, self.vm_uuid, pv,
                 lpar_slot_num=lpar_slot_num, lua=lua, target_name=target_name)

@@ -107,22 +107,22 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
         password = self.connection_info["data"]["auth_password"]
         user = self.connection_info["data"]["auth_username"]
         target_name = "ISCSI-" + iqn.split(":")[1]
-        device_name = hdisk.discover_iscsi(
+        device_name, udid = hdisk.discover_iscsi(
             self.adapter, host_ip, user, password, iqn, vios_w.uuid)
         slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, device_name)
-        if device_name is not None:
+        if device_name is not None and udid is not None:
             device_name = '/dev/' + device_name
             # Found a hdisk on this Virtual I/O Server.  Add the action to
             # map it to the VM when the stg_ftsk is executed.
             with lockutils.lock(hash(self)):
                 self._add_append_mapping(
                     vios_w.uuid, device_name, lpar_slot_num=slot, lua=lua,
-                    target_name=target_name)
+                    target_name=target_name, udid=udid)
 
             # Save the devname for the disk in the connection info.  It is
             # used for the detach.
             self._set_devname(device_name)
-            self._set_udid(target_name)
+            self._set_udid(udid)
 
             LOG.debug('Device attached: %s', device_name)
 
