@@ -22,10 +22,10 @@ import mock
 
 from nova import exception
 from nova import objects
+from nova.objects import migrate_data as mig_obj
 from nova import test
 from nova.tests.unit import fake_network
 
-from nova_powervm.objects import migrate_data as mig_obj
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import live_migration as lpm
