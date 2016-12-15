@@ -17,6 +17,7 @@
 import mock
 
 from nova import exception
+from nova.network import model
 from nova import test
 from oslo_config import cfg
 from pypowervm import exceptions as pvm_ex
@@ -398,6 +399,7 @@ class TestVifSriovDriver(test.TestCase):
 
 
 class FakeDirectVif(dict):
+
     def __init__(self, physnet, pports=None, cap=None):
         self._physnet = physnet
         super(FakeDirectVif, self).__init__(
@@ -656,14 +658,16 @@ class TestVifOvsDriver(test.TestCase):
         mock_p2p_cna.return_value = cna_w, trunk_wraps
 
         # Run the plug
-        mock_vif = {'network': {'bridge': 'br0'},
-                    'address': 'aa:bb:cc:dd:ee:ff', 'id': 'vif_id'}
+        network_model = model.Model({'bridge': 'br0', 'meta': {'mtu': 1450}})
+        mock_vif = model.VIF(address='aa:bb:cc:dd:ee:ff', id='vif_id',
+                             network=network_model)
         slot_num = 5
         self.drv.plug(mock_vif, slot_num)
 
         # Validate the calls
         mock_crt_ovs_vif_port.assert_called_once_with(
-            'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff', 'inst_uuid')
+            'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff',
+            'inst_uuid', mtu=1450)
         mock_p2p_cna.assert_called_once_with(
             self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'],
             'NovaLinkVEABridge', crt_vswitch=True,
@@ -680,14 +684,16 @@ class TestVifOvsDriver(test.TestCase):
         # Mock the data
         mock_trunk_dev_name.return_value = 'device'
         # Run the plug
-        mock_vif = {'network': {'bridge': 'br0'},
-                    'address': 'aa:bb:cc:dd:ee:ff', 'id': 'vif_id'}
+        network_model = model.Model({'bridge': 'br0', 'meta': {'mtu': 1500}})
+        mock_vif = model.VIF(address='aa:bb:cc:dd:ee:ff', id='vif_id',
+                             network=network_model)
         slot_num = 5
         resp = self.drv.plug(mock_vif, slot_num, new_vif=False)
 
         # Validate the calls
         mock_crt_ovs_vif_port.assert_called_once_with(
-            'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff', 'inst_uuid')
+            'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff',
+            'inst_uuid', mtu=1500)
         mock_exec.assert_called_with('ip', 'link', 'set', 'device', 'up',
                                      run_as_root=True)
         self.assertIsNone(resp)

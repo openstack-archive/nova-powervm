@@ -690,14 +690,15 @@ class PvmOvsVifDriver(PvmLioVifDriver):
             cna_w = super(PvmOvsVifDriver, self).plug(vif, slot_num)
         else:
             cna_w = None
-
+        dev_name = self.get_trunk_dev_name(vif)
         # There will only be one trunk wrap, as we have created with just the
         # mgmt lpar.  Next step is to set the device up and connect to the OVS
-        dev_name = self.get_trunk_dev_name(vif)
         utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
+        mtu = vif['network'].get_meta('mtu')
         linux_net.create_ovs_vif_port(vif['network']['bridge'], dev_name,
                                       self.get_ovs_interfaceid(vif),
-                                      vif['address'], self.instance.uuid)
+                                      vif['address'], self.instance.uuid,
+                                      mtu=mtu)
 
         return cna_w
 
