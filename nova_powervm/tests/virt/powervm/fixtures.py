@@ -20,7 +20,7 @@ from __future__ import absolute_import
 import fixtures
 import mock
 
-from nova.virt.powervm import driver
+from nova.virt.powervm_ext import driver
 
 from nova.virt import fake
 from pypowervm.tests import test_fixtures as pvm_fx

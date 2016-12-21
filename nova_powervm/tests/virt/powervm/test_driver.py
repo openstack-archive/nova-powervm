@@ -44,7 +44,7 @@ from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova.virt.powervm import driver
+from nova.virt.powervm_ext import driver
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -300,7 +300,7 @@ class TestPowerVMDriver(test.TestCase):
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -378,7 +378,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -433,7 +433,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -494,7 +494,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -548,7 +548,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectDisk')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.FindDisk')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs')
@@ -660,7 +660,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg.'
                 'execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -668,7 +668,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.UpdateIBMiSettings.'
                 'execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_get_boot_connectivity_type')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_ibmi(self, mock_pwron, mock_boot_conn_type,
@@ -718,7 +718,7 @@ class TestPowerVMDriver(test.TestCase):
                 '.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.CreateDiskForImg'
                 '.execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
@@ -726,7 +726,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.UpdateIBMiSettings'
                 '.execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_get_boot_connectivity_type')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_ibmi_without_bdms(self, mock_pwron, mock_boot_conn_type,
@@ -945,7 +945,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('pypowervm.wrappers.entry_wrapper.EntryWrapper.update',
                 new=mock.Mock())
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
@@ -1108,7 +1108,7 @@ class TestPowerVMDriver(test.TestCase):
         assert_not_called()
 
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
-    @mock.patch('nova.virt.powervm.driver.PowerVMDriver.'
+    @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
@@ -1683,7 +1683,7 @@ class TestPowerVMDriver(test.TestCase):
     def test_get_host_ip_addr(self):
         self.assertEqual(self.drv.get_host_ip_addr(), '127.0.0.1')
 
-    @mock.patch('nova.virt.powervm.driver.LOG.warning')
+    @mock.patch('nova.virt.powervm_ext.driver.LOG.warning')
     @mock.patch('nova.compute.utils.get_machine_ips')
     def test_get_host_ip_addr_failure(self, mock_ips, mock_log):
         mock_ips.return_value = ['1.1.1.1']

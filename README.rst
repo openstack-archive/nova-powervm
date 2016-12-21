@@ -85,9 +85,14 @@ The driver enables the following:
 * Thorough unit, syntax, and style testing is provided and enforced for the
   driver.
 
-The intention is that this driver follows the OpenStack Nova model and will
-be a candidate for promotion (via a subsequent blueprint) into the nova core
-project.
+The intention is that this driver follows the OpenStack Nova model.
+
+The driver is being promoted into the nova core project in stages, the first of
+which is represented by blueprint `powervm-nova-compute-driver`_.  The
+coexistence of these two incarnations of the driver raises some `Dual Driver
+Considerations`_.
+
+.. _`powervm-nova-compute-driver`: https://blueprints.launchpad.net/nova/+spec/powervm-nova-compute-driver
 
 
 Data Model Impact
@@ -159,7 +164,7 @@ Developer Impact
 ----------------
 
 The code for this driver is currently contained within a powervm project.
-The driver is within the /nova_powervm/virt/powervm/ package and extends the
+The driver is within the /nova/virt/powervm_ext/ package and extends the
 nova.virt.driver.ComputeDriver class.
 
 The code interacts with PowerVM through the pypowervm library.  This python
@@ -229,6 +234,35 @@ Dependencies
 
 .. _pypowervm library: https://github.com/powervm/pypowervm
 
+
+Upgrade Considerations
+======================
+
+Prior to Ocata, only the out-of-tree nova_powervm driver existed.  The in-tree
+driver is introduced in Ocata.
+
+Namespaces
+----------
+
+In Liberty and Mitaka, the namespace of the out-of-tree driver is
+``nova_powervm.virt.powervm``.  In Newton, it was moved to
+``nova.virt.powervm``.  In Ocata, the new in-tree driver occupies the
+``nova.virt.powervm`` namespace, and the out-of-tree driver is moved to
+``nova.virt.powervm_ext``.  Ocata consumers have the option of using the
+in-tree driver, which will provide limited functionality until it is fully
+integrated; or the out-of-tree driver, which provides full functionality.
+Refer to the documentation for the ``nova.conf`` settings required to load
+the desired driver.
+
+Live Migrate Data Object
+------------------------
+
+In order to use live migration prior to Ocata, it was necessary to run the
+customized nova_powervm conductor to bring in the ``PowerVMLiveMigrateData``
+object.  In Ocata, this object is included in core nova, so no custom conductor
+is necessary.
+
+
 Testing
 =======
 
@@ -242,12 +276,12 @@ Tempest tests that require function that the platform does not yet support
 (e.g. iSCSI or Floating IPs) will not pass.  These should be ommitted from
 the Tempest test suite.
 
-A `sample Tempest test configuration` for the PowerVM driver has been provided.
+A `sample Tempest test configuration`_ for the PowerVM driver has been provided.
 
 Thorough unit tests exist within the project to validate specific functions
 within this implementation.
 
-.. _sample Tempest test configuration: https://github.com/powervm/powervm-ci/tree/master/tempest
+.. _`sample Tempest test configuration`: https://github.com/powervm/powervm-ci/tree/master/tempest
 
 
 Functional Tests
