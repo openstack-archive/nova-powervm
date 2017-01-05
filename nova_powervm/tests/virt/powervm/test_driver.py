@@ -336,7 +336,7 @@ class TestPowerVMDriver(test.TestCase):
             self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor(),
             nvram=None, slot_mgr=self.slot_mgr)
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
@@ -371,7 +371,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Power on was called
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
         self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
                                           lpars_exist=True)
 
@@ -419,7 +419,7 @@ class TestPowerVMDriver(test.TestCase):
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -483,7 +483,7 @@ class TestPowerVMDriver(test.TestCase):
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -532,7 +532,7 @@ class TestPowerVMDriver(test.TestCase):
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -652,7 +652,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Power on was called
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
 
         # Validate the rollbacks were called
         self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
@@ -704,7 +704,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Power on was called
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -758,7 +758,7 @@ class TestPowerVMDriver(test.TestCase):
             self.inst_ibmi.get_flavor(), nvram=None, slot_mgr=self.slot_mgr)
         self.assertTrue(mock_update_lod_src.called)
         self.assertTrue(mock_pwron.called)
-        self.assertFalse(mock_pwron.call_args[1]['synchronous'])
+        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
@@ -1506,7 +1506,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_disk_dvr.create_disk_from_image.called)
         self.assertTrue(mock_disk_dvr.connect_disk.called)
         self.assertTrue(mock_task_pwr.power_on.called)
-        self.assertFalse(mock_task_pwr.power_on.call_args[1]['synchronous'])
+        self.assertTrue(mock_task_pwr.power_on.call_args[1]['synchronous'])
 
     @mock.patch('nova_powervm.virt.powervm.vm')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')
@@ -1521,7 +1521,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_disk_dvr.disconnect_image_disk.called)
         self.assertTrue(mock_disk_dvr.delete_disks.called)
         self.assertTrue(mock_task_pwr.power_on.called)
-        self.assertFalse(mock_task_pwr.power_on.call_args[1]['synchronous'])
+        self.assertTrue(mock_task_pwr.power_on.call_args[1]['synchronous'])
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):
