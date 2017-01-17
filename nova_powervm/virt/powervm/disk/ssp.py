@@ -376,8 +376,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             else:
                 # Otherwise, pull the entire feed of Clusters and, if
                 # exactly one result, use it.
-                resp = self.adapter.read(pvm_clust.Cluster.schema_type)
-                wraps = pvm_clust.Cluster.wrap(resp)
+                wraps = pvm_clust.Cluster.get(self.adapter)
                 if len(wraps) == 0:
                     raise npvmex.NoConfigNoClusterFound()
                 if len(wraps) > 1:

@@ -119,7 +119,8 @@ class TestPowerVMDriver(test.TestCase):
         self.build_tx_feed = self.useFixture(fixtures.MockPatch(
             'pypowervm.tasks.partition.build_active_vio_feed_task')).mock
 
-        self.stg_ftsk = pvm_tx.FeedTask('fake', pvm_vios.VIOS.getter(self.apt))
+        self.stg_ftsk = pvm_tx.FeedTask('fake',
+                                        [mock.Mock(spec=pvm_vios.VIOS)])
         self.build_tx_feed.return_value = self.stg_ftsk
 
         self.scrub_stg = self.useFixture(fixtures.MockPatch(
@@ -1107,6 +1108,7 @@ class TestPowerVMDriver(test.TestCase):
                           [], block_device_info=mock_bdms)
         assert_not_called()
 
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
     @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
@@ -1121,12 +1123,13 @@ class TestPowerVMDriver(test.TestCase):
     def test_destroy_internal_no_nvram_cleanup(
             self, mock_bld_slot_mgr, mock_get_flv, mock_cfg, mock_pvmuuid,
             mock_dlt_vopt, mock_pwroff, mock_dlt, mock_boot_from_vol,
-            mock_unplug_vifs):
+            mock_unplug_vifs, mock_rm_maps):
         """Validates the basic PowerVM destroy, without NVRAM cleanup.
 
         Used to validate the behavior when destroying evacuated instances.
         It should not clean up NVRAM as the instance is still on another host.
         """
+        mock_rm_maps.return_value = []
         # NVRAM Manager
         self.drv.nvram_mgr = mock.Mock()
         self.inst.host = 'other'
@@ -1268,6 +1271,7 @@ class TestPowerVMDriver(test.TestCase):
         # Verify the disconnect volume was not invoked
         self.assertEqual(0, self.vol_drv.disconnect_volume.call_count)
 
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
@@ -1276,9 +1280,11 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     def test_destroy_rollback(self, mock_get_flv, mock_cfg, mock_dlt_vopt,
-                              mock_pwroff, mock_dlt, mock_unplug_vifs):
+                              mock_pwroff, mock_dlt, mock_unplug_vifs,
+                              mock_rm_maps):
         """Validates the basic PowerVM destroy rollback mechanism works."""
         # Set up the mocks to the tasks.
+        mock_rm_maps.return_value = []
         mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg.return_value = True
 

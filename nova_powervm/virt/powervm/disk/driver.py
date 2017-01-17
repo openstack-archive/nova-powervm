@@ -157,9 +157,8 @@ class DiskAdapter(object):
             lpar_wrap = vm.get_instance_wrapper(self.adapter, instance)
         match_func = self.disk_match_func(disk_type, instance)
         for vios_uuid in self.vios_uuids:
-            vios_wrap = pvm_vios.VIOS.wrap(self.adapter.read(
-                pvm_vios.VIOS.schema_type, root_id=vios_uuid,
-                xag=[pvm_const.XAG.VIO_SMAP]))
+            vios_wrap = pvm_vios.VIOS.get(
+                self.adapter, uuid=vios_uuid, xag=[pvm_const.XAG.VIO_SMAP])
             for scsi_map in tsk_map.find_maps(
                     vios_wrap.scsi_mappings, client_lpar_id=lpar_wrap.id,
                     match_func=match_func):

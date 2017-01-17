@@ -65,17 +65,17 @@ class TestLPM(test.TestCase):
             'pypowervm.tasks.management_console.get_public_key')).mock
         self.get_key.return_value = 'PublicKey'
 
+        # Short path to the host's migration_data
+        self.host_mig_data = self.drv.host_wrapper.migration_data
+
     @mock.patch('pypowervm.tasks.storage.ScrubOrphanStorageForLpar')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('pypowervm.tasks.vterm.close_vterm')
-    @mock.patch('pypowervm.wrappers.managed_system.System.migration_data',
-                new_callable=mock.PropertyMock, name='MigDataProp')
-    def test_lpm_source(self, mock_migrdata, mock_vterm_close, mock_get_wrap,
+    def test_lpm_source(self, mock_vterm_close, mock_get_wrap,
                         mock_cd, mock_scrub):
-        migr_data = {'active_migrations_supported': 4,
-                     'active_migrations_in_progress': 2}
-        mock_migrdata.return_value = migr_data
+        self.host_mig_data['active_migrations_supported'] = 4
+        self.host_mig_data['active_migrations_in_progress'] = 2
 
         with mock.patch.object(
             self.lpmsrc, '_check_migration_ready', return_value=None):
@@ -117,7 +117,7 @@ class TestLPM(test.TestCase):
                 {})
 
             # Ensure migration counts are validated
-            migr_data['active_migrations_in_progress'] = 4
+            self.host_mig_data['active_migrations_in_progress'] = 4
             self.assertRaises(exception.MigrationPreCheckError,
                               self.lpmsrc.check_source, 'context',
                               'block_device_info', [])
@@ -126,29 +126,25 @@ class TestLPM(test.TestCase):
             mock_vterm_close.assert_called_once_with(
                 self.apt, mock_wrap.uuid)
 
-    @mock.patch('pypowervm.wrappers.managed_system.System.migration_data',
-                new_callable=mock.PropertyMock, name='MigDataProp')
-    def test_lpm_dest(self, mock_migrdata):
+    def test_lpm_dest(self):
         src_compute_info = {'stats': {'memory_region_size': 1}}
         dst_compute_info = {'stats': {'memory_region_size': 1}}
 
-        migr_data = {'active_migrations_supported': 4,
-                     'active_migrations_in_progress': 2}
-        mock_migrdata.return_value = migr_data
+        self.host_mig_data['active_migrations_supported'] = 4
+        self.host_mig_data['active_migrations_in_progress'] = 2
         with mock.patch.object(self.drv.host_wrapper, 'refresh') as mock_rfh:
 
             self.lpmdst.check_destination(
                 'context', src_compute_info, dst_compute_info)
             mock_rfh.assert_called_once_with()
-            self.assertEqual(2, mock_migrdata.call_count)
 
             # Ensure migration counts are validated
-            migr_data['active_migrations_in_progress'] = 4
+            self.host_mig_data['active_migrations_in_progress'] = 4
             self.assertRaises(exception.MigrationPreCheckError,
                               self.lpmdst.check_destination, 'context',
                               src_compute_info, dst_compute_info)
             # Repair the stat
-            migr_data['active_migrations_in_progress'] = 2
+            self.host_mig_data['active_migrations_in_progress'] = 2
 
             # Ensure diff memory sizes raises an exception
             dst_compute_info['stats']['memory_region_size'] = 2

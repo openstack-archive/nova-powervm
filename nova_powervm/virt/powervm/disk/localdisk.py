@@ -24,7 +24,6 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import partition as pvm_tpar
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.tasks import storage as tsk_stg
-from pypowervm.wrappers import managed_system as pvm_ms
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -297,18 +296,12 @@ class LocalStorage(disk_dvr.DiskAdapter):
             vios_wraps = pvm_vios.VIOS.search(
                 self.adapter, name=CONF.powervm.volume_group_vios_name)
         else:
-            vios_resp = self.adapter.read(pvm_ms.System.schema_type,
-                                          root_id=self.host_uuid,
-                                          child_type=pvm_vios.VIOS.schema_type)
-            vios_wraps = pvm_vios.VIOS.wrap(vios_resp)
+            vios_wraps = pvm_vios.VIOS.get(self.adapter)
 
         # Loop through each vios to find the one with the appropriate name.
         for vios_wrap in vios_wraps:
             # Search the feed for the volume group
-            resp = self.adapter.read(pvm_vios.VIOS.schema_type,
-                                     root_id=vios_wrap.uuid,
-                                     child_type=pvm_stg.VG.schema_type)
-            vol_grps = pvm_stg.VG.wrap(resp)
+            vol_grps = pvm_stg.VG.get(self.adapter, parent=vios_wrap)
             for vol_grp in vol_grps:
                 LOG.debug('Volume group: %s', vol_grp.name)
                 if name == vol_grp.name:
@@ -316,11 +309,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         raise npvmex.VGNotFound(vg_name=name)
 
-    def _get_vg(self):
-        vg_rsp = self.adapter.read(
-            pvm_vios.VIOS.schema_type, root_id=self._vios_uuid,
-            child_type=pvm_stg.VG.schema_type, child_id=self.vg_uuid)
-        return vg_rsp
-
     def _get_vg_wrap(self):
-        return pvm_stg.VG.wrap(self._get_vg())
+        return pvm_stg.VG.get(self.adapter, uuid=self.vg_uuid,
+                              parent_type=pvm_vios.VIOS,
+                              parent_uuid=self._vios_uuid)
