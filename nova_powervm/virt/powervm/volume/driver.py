@@ -265,10 +265,3 @@ class FibreChannelVolumeAdapter(PowerVMVolumeAdapter):
         :return: The list of WWPNs that need to be included in the zone set.
         """
         raise NotImplementedError()
-
-    def host_name(self):
-        """Derives the host name that should be used for the storage device.
-
-        :return: The host name.
-        """
-        raise NotImplementedError()

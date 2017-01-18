@@ -56,9 +56,6 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
         """The type of volume supported by this type."""
         return 'iscsi'
 
-    def host_name(self):
-        return CONF.host
-
     @classmethod
     def min_xags(cls):
         """List of pypowervm XAGs needed to support this adapter."""

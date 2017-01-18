@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2016, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -24,7 +24,6 @@ import nova_powervm.virt.powervm.driver as real_drv
 
 LOG = real_drv.LOG
 CONF = real_drv.CONF
-VOLUME_DRIVER_MAPPINGS = real_drv.VOLUME_DRIVER_MAPPINGS
 DISK_ADPT_NS = real_drv.DISK_ADPT_NS
 DISK_ADPT_MAPPINGS = real_drv.DISK_ADPT_MAPPINGS
 NVRAM_NS = real_drv.NVRAM_NS
