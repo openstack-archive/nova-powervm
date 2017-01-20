@@ -74,9 +74,10 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.getter')
         @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
         def init_vol_adpt(mock_pvm_uuid, mock_getter):
-            con_info = {'data': {'initiator_target_map': {'i1': ['t1'],
+            con_info = {'serial': 'id',
+                        'data': {'initiator_target_map': {'i1': ['t1'],
                                                           'i2': ['t2', 't3']},
-                        'target_lun': '1', 'volume_id': 'id'}}
+                                 'target_lun': '1'}}
             mock_inst = mock.MagicMock()
             mock_pvm_uuid.return_value = '1234'
 

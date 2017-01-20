@@ -55,13 +55,13 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
                           mock_getter):
 
             con_info = {
+                'serial': 'f042c68a-c5a5-476a-ba34-2f6d43f4226c',
                 'data': {
                     'target_iqn': 'iqn.2016-08.bar.foo:target',
                     'target_lun': '1',
                     'target_portal': '10.0.0.1',
                     'auth_username': 'user',
-                    'auth_password': 'password',
-                    'volume_id': 'f042c68a-c5a5-476a-ba34-2f6d43f4226c'
+                    'auth_password': 'password'
                 },
             }
             mock_inst = mock.MagicMock()

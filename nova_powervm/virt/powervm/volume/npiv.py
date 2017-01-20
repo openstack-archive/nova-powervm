@@ -506,7 +506,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # host (stale). If so, rebuild the maps with current info.
         npiv_port_maps = self._ensure_phys_ports_for_system(
             self._get_fabric_meta(fabric), vios_wraps, fabric)
-        volume_id = self.connection_info['data']['volume_id']
+        volume_id = self.connection_info['serial']
 
         # This loop adds the maps from the appropriate VIOS to the client VM
         slot_ids = copy.deepcopy(slot_mgr.build_map.get_vfc_slots(

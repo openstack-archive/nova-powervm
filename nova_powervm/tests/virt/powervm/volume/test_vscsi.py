@@ -63,13 +63,13 @@ class BaseVSCSITest(test_vol.TestVolumeAdapter):
         @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
         def init_vol_adpt(mock_pvm_uuid, mock_getter):
             con_info = {
+                'serial': 'id',
                 'data': {
                     'initiator_target_map': {
                         p_wwpn1: ['t1'],
                         p_wwpn2: ['t2', 't3']
                     },
-                    'target_lun': '1',
-                    'volume_id': 'id'
+                    'target_lun': '1'
                 },
             }
             mock_inst = mock.MagicMock()
