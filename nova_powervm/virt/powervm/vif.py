@@ -17,7 +17,9 @@
 import abc
 import six
 
+from nova import context as ctx
 from nova import exception
+from nova import network as net_api
 from nova.network import linux_net
 from nova.network import model as network_model
 from nova import utils
@@ -616,12 +618,30 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
             return None
 
         physnet = vif.get_physical_network()
+        if not physnet:
+            # Get physnet from neutron network if not present in vif
+            # TODO(svenkat): This section of code will be eliminated in
+            # pike release. Design will be in place to fix any vif
+            # that has physical_network missing. The fix will be in
+            # compute startup code.
+            net_id = vif['network']['id']
+            admin_context = ctx.get_admin_context()
+            napi = net_api.API()
+            network = napi.get(admin_context, net_id)
+            physnet = network.physical_network
+
         LOG.debug("Plugging vNIC SR-IOV vif for physical network "
                   "'%(physnet)s' into instance %(inst)s.",
-                  {'physnet': physnet, 'inst': self.instance.name})
+                  {'physnet': physnet, 'inst': self.instance.name},
+                  instance=self.instance)
 
-        # Physical ports for the given physical network
-        pports = vif['details']['physical_ports']
+        # Get the msys
+        msys = pvm_ms.System.get(self.adapter)[0]
+        # Physical ports for the given port label
+        pports_w = sriovtask.find_pports_for_portlabel(physnet, self.adapter,
+                                                       msys)
+        pports = [pport.loc_code for pport in pports_w]
+
         if not pports:
             raise exception.VirtualInterfacePlugException(
                 _("Unable to find SR-IOV physical ports for physical "
@@ -645,7 +665,8 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
             allowed_vlans=pvm_util.VLANList.NONE,
             allowed_macs=pvm_util.MACList.NONE)
 
-        sriovtask.set_vnic_back_devs(vnic, pports, redundancy=redundancy,
+        sriovtask.set_vnic_back_devs(vnic, pports, sys_w=msys,
+                                     redundancy=redundancy,
                                      capacity=capacity, check_port_status=True)
 
         return vnic.create(parent_type=pvm_lpar.LPAR,

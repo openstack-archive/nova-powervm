@@ -18,6 +18,7 @@ import mock
 
 from nova import exception
 from nova.network import model
+from nova.network.neutronv2 import api as netapi
 from nova import test
 from oslo_config import cfg
 from pypowervm import exceptions as pvm_ex
@@ -37,6 +38,16 @@ def cna(mac):
     nic.mac = mac
     nic.vswitch_uri = 'fake_href'
     return nic
+
+
+class FakeNetworkAPI(object):
+    def __init__(self, physnet):
+        self.physical_network = physnet
+
+    def get(self, context, netid):
+        physnet = mock.MagicMock()
+        physnet.physical_network = self.physical_network
+        return physnet
 
 
 class TestVifFunctions(test.TestCase):
@@ -312,19 +323,115 @@ class TestVifSriovDriver(test.TestCase):
         self.inst = mock.MagicMock()
         self.drv = vif.PvmVnicSriovVifDriver(self.adpt, 'host_uuid', self.inst)
 
-    def test_plug_no_pports(self):
+    @mock.patch('pypowervm.wrappers.managed_system.System.get')
+    def test_plug_no_pports(self, mock_sysget):
         """Raise when plug is called with a network with no physical ports."""
+        sriov_adaps = [
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='loc1', label='foo'),
+                mock.Mock(loc_code='loc2', label='')]),
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='loc3', label='bar'),
+                mock.Mock(loc_code='loc4', label='foo')])]
+        sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
+        mock_sysget.return_value = [sys]
         self.assertRaises(exception.VirtualInterfacePlugException,
                           self.drv.plug, FakeDirectVif('net2', pports=[]), 1)
 
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
+    @mock.patch('pypowervm.wrappers.managed_system.System.get')
+    def test_plug_no_physnet(self, mock_sysget, mock_back_devs, mock_pvm_uuid,
+                             mock_vnic_bld):
+        slot = 10
+        pports = ['port1', 'port2']
+        sriov_adaps = [
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port11', label='default'),
+                mock.Mock(loc_code='port3', label='data1')]),
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port4', label='data2'),
+                mock.Mock(loc_code='port22', label='default')])]
+        sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
+        mock_sysget.return_value = [sys]
+        netapi.API = mock.Mock(return_value=FakeNetworkAPI('default'))
+        self.drv.plug(FakeDirectVif('', pports=pports), slot)
+        # Ensure back devs are created with pports from sriov_adaps and
+        # not with what pports passed into plug method
+        mock_back_devs.assert_called_once_with(
+            mock_vnic_bld.return_value, ['port11', 'port22'], redundancy=3,
+            capacity=None, check_port_status=True,
+            sys_w=sys)
+
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
+    @mock.patch('pypowervm.wrappers.managed_system.System.get')
+    def test_plug_no_matching_pports(self, mock_sysget, mock_back_devs,
+                                     mock_pvm_uuid, mock_vnic_bld):
+        slot = 10
+        pports = ['port1', 'port2']
+        sriov_adaps = [
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port1', label='data1'),
+                mock.Mock(loc_code='port3', label='data1')]),
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port4', label='data2'),
+                mock.Mock(loc_code='port2', label='data2')])]
+        sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
+        mock_sysget.return_value = [sys]
+        netapi.API = mock.Mock(return_value=FakeNetworkAPI('default'))
+        # Ensure Plug exception is raised when there are no matching pports
+        # for physical network of corresponding neutron network
+        self.assertRaises(exception.VirtualInterfacePlugException,
+                          self.drv.plug,
+                          FakeDirectVif('default', pports=pports), slot)
+
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
+    @mock.patch('pypowervm.wrappers.managed_system.System.get')
+    def test_plug_bad_pports(self, mock_sysget, mock_back_devs, mock_pvm_uuid,
+                             mock_vnic_bld):
+        slot = 10
+        pports = ['bad1', 'bad2']
+        sriov_adaps = [
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port1', label='default'),
+                mock.Mock(loc_code='port3', label='data1')]),
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port4', label='data2'),
+                mock.Mock(loc_code='port2', label='default')])]
+        sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
+        mock_sysget.return_value = [sys]
+        netapi.API = mock.Mock(return_value=FakeNetworkAPI('default'))
+        self.drv.plug(FakeDirectVif('', pports=pports), slot)
+        # Ensure back devs are created with correct pports belonging to same
+        # physical network corresonding to neutron network
+        mock_back_devs.assert_called_once_with(
+            mock_vnic_bld.return_value, ['port1', 'port2'], redundancy=3,
+            capacity=None, check_port_status=True,
+            sys_w=sys)
+
+    @mock.patch('pypowervm.wrappers.managed_system.System.get')
     @mock.patch('pypowervm.util.sanitize_mac_for_api')
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
     @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_plug(self, mock_pvm_uuid, mock_back_devs, mock_vnic_bld,
-                  mock_san_mac):
+                  mock_san_mac, mock_sysget):
         slot = 10
         pports = ['port1', 'port2']
+        sriov_adaps = [
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port1', label='default'),
+                mock.Mock(loc_code='port3', label='data1')]),
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port4', label='data2'),
+                mock.Mock(loc_code='port2', label='default')])]
+        sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
+        mock_sysget.return_value = [sys]
         self.drv.plug(FakeDirectVif('default', pports=pports),
                       slot)
         mock_san_mac.assert_called_once_with('ab:ab:ab:ab:ab:ab')
@@ -334,7 +441,8 @@ class TestVifSriovDriver(test.TestCase):
             allowed_macs='NONE')
         mock_back_devs.assert_called_once_with(
             mock_vnic_bld.return_value, ['port1', 'port2'], redundancy=3,
-            capacity=None, check_port_status=True)
+            capacity=None, check_port_status=True,
+            sys_w=sys)
         mock_pvm_uuid.assert_called_once_with(self.drv.instance)
         mock_vnic_bld.return_value.create.assert_called_once_with(
             parent_type=pvm_lpar.LPAR, parent_uuid=mock_pvm_uuid.return_value)
@@ -353,7 +461,8 @@ class TestVifSriovDriver(test.TestCase):
             allowed_macs='NONE')
         mock_back_devs.assert_called_once_with(
             mock_vnic_bld.return_value, ['port1', 'port2'],
-            redundancy=3, capacity=0.08, check_port_status=True)
+            redundancy=3, capacity=0.08, check_port_status=True,
+            sys_w=sys)
         mock_pvm_uuid.assert_called_once_with(self.drv.instance)
         mock_vnic_bld.return_value.create.assert_called_once_with(
             parent_type=pvm_lpar.LPAR, parent_uuid=mock_pvm_uuid.return_value)
