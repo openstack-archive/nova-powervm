@@ -181,17 +181,20 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(
             self.drv.session.get_event_listener.return_value.shutdown.called)
 
-    def test_get_volume_connector(self):
+    @mock.patch('nova_powervm.virt.powervm.volume.get_iscsi_initiator')
+    def test_get_volume_connector(self, mock_initiator):
         """Tests that a volume connector can be built."""
+        mock_initiator.return_value = 'iscsi_initiator'
 
         self.flags(volume_adapter='fibre_channel', group='powervm')
         vol_connector = self.drv.get_volume_connector(mock.Mock())
         self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
+        self.assertEqual('iscsi_initiator', vol_connector['initiator'])
 
         self.flags(volume_adapter='iscsi', group='powervm')
         vol_connector = self.drv.get_volume_connector(mock.Mock())
-        self.assertIsNotNone(vol_connector['initiator'])
+        self.assertEqual('iscsi_initiator', vol_connector['initiator'])
 
     def test_setup_disk_adapter(self):
         # Ensure we can handle upper case option and we instantiate the class

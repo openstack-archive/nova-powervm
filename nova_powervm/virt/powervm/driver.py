@@ -1128,11 +1128,9 @@ class PowerVMDriver(driver.ComputeDriver):
         # The host ID
         connector = {'host': CONF.host}
 
-        # The WWPNs in case of FC connection.
+        # Get the contents from the volume driver
         vol_drv = self._get_inst_vol_adpt(ctx.get_admin_context(),
                                           instance)
-
-        # The WWPNs in case of FC connection.
         if vol_drv is not None:
 
             if CONF.powervm.volume_adapter.lower() == "fibre_channel":
@@ -1141,7 +1139,8 @@ class PowerVMDriver(driver.ComputeDriver):
                 if wwpn_list is not None:
                     connector["wwpns"] = wwpn_list
             connector['host'] = vol_drv.host_name()
-            connector['initiator'] = vol_drv.host_name()
+            connector['initiator'] = vol_attach.get_iscsi_initiator(
+                self.adapter)
         return connector
 
     def migrate_disk_and_power_off(self, context, instance, dest,

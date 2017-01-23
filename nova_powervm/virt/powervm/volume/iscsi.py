@@ -26,7 +26,6 @@ from nova_powervm.virt.powervm.volume import driver as v_driver
 from nova_powervm.virt.powervm.volume import volume as volume
 from pypowervm import const as pvm_const
 from pypowervm.tasks import hdisk
-from pypowervm.tasks import partition
 from pypowervm.utils import transaction as tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -52,19 +51,13 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
         super(IscsiVolumeAdapter, self).__init__(
             adapter, host_uuid, instance, connection_info, stg_ftsk=stg_ftsk)
 
-        # iSCSI volumes are assumed to be on the novalink partition
-        mgmt_part = partition.get_mgmt_partition(adapter)
-        vios_uuid = mgmt_part.uuid
-        self.initiator_name = hdisk.discover_iscsi_initiator(
-            adapter, vios_uuid)
-
     @classmethod
     def vol_type(cls):
         """The type of volume supported by this type."""
         return 'iscsi'
 
     def host_name(self):
-        return self.initiator_name
+        return CONF.host
 
     @classmethod
     def min_xags(cls):
