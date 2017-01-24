@@ -1951,6 +1951,20 @@ class TestPowerVMDriver(test.TestCase):
         self.lpm.post_live_migration_at_source.assert_called_once_with(
             'network_info')
 
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    def test_power_off(self, mock_power_off):
+        self.drv.power_off(self.inst)
+        mock_power_off.assert_called_once_with(
+            self.drv.adapter, self.inst, self.drv.host_uuid,
+            force_immediate=True, timeout=None)
+
+        # Long timeout (retry interval means nothing on powervm)
+        mock_power_off.reset_mock()
+        self.drv.power_off(self.inst, timeout=500, retry_interval=10)
+        mock_power_off.assert_called_once_with(
+            self.drv.adapter, self.inst, self.drv.host_uuid,
+            force_immediate=False, timeout=500)
+
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._destroy')
     def test_confirm_migration_diff_host(self, mock_destroy):
         mock_mig = mock.Mock(source_compute='host1', dest_compute='host2')
