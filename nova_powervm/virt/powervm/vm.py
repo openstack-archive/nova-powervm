@@ -663,7 +663,24 @@ def power_on(adapter, instance, host_uuid, entry=None):
 
 
 def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
-              force_immediate=False):
+              force_immediate=False, timeout=None):
+    """Powers Off a VM.
+
+    :param instance: The nova instance.
+    :param host_uuid: The uuid of the host.
+    :param entry: (Optional) The pypowervm wrapper for the entry.  If not
+                  provided, will be looked up.
+    :param add_parms: (Optional) Additional parameters to the pypowervm
+                      power_off method.  See that method's docstring for
+                      details.
+    :param force_immediate: (Optional, Default False) Should it be immediately
+                            shut down.
+    :param timeout: (Optional, Default None) How long to wait for the job
+                    to complete.  By default, is None which indicates it should
+                    use the default from pypowervm's power off method.
+    :return: True if it was stopped.  False if it was not in a stoppable state.
+    :raises: InstancePowerOffFailure
+    """
     if entry is None:
         entry = get_instance_wrapper(adapter, instance)
 
@@ -677,8 +694,10 @@ def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
         try:
             LOG.debug("Power off executing for instance %(inst)s.",
                       {'inst': instance.name})
-            power.power_off(entry, host_uuid, force_immediate=force_immediate,
-                            add_parms=add_parms)
+            kwargs = {'timeout': timeout} if timeout else {}
+            power.power_off(
+                entry, host_uuid, force_immediate=force_immediate,
+                add_parms=add_parms, **kwargs)
         except Exception as e:
             LOG.exception(e)
             raise exception.InstancePowerOffFailure(reason=six.text_type(e))

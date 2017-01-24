@@ -524,10 +524,10 @@ class TestVM(test.TestCase):
                                                    add_parms=None)
             mock_power_off.reset_mock()
             self.assertTrue(vm.power_off(None, instance, 'host_uuid', entry,
-                                         force_immediate=True))
+                                         force_immediate=True, timeout=5))
             mock_power_off.assert_called_once_with(entry, 'host_uuid',
                                                    force_immediate=True,
-                                                   add_parms=None)
+                                                   add_parms=None, timeout=5)
 
     @mock.patch('pypowervm.tasks.power.power_off')
     def test_power_off_negative(self, mock_power_off):

@@ -942,7 +942,10 @@ class PowerVMDriver(driver.ComputeDriver):
                                waiting for it to shutdown
         """
         self._log_operation('power_off', instance)
-        vm.power_off(self.adapter, instance, self.host_uuid)
+        force_immediate = (timeout == 0)
+        timeout = timeout or None
+        vm.power_off(self.adapter, instance, self.host_uuid,
+                     force_immediate=force_immediate, timeout=timeout)
 
     def power_on(self, context, instance, network_info,
                  block_device_info=None):
