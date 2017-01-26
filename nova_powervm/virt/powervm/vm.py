@@ -695,8 +695,10 @@ def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
             LOG.debug("Power off executing for instance %(inst)s.",
                       {'inst': instance.name})
             kwargs = {'timeout': timeout} if timeout else {}
+            force_flag = (power.Force.TRUE if force_immediate
+                          else power.Force.ON_FAILURE)
             power.power_off(
-                entry, host_uuid, force_immediate=force_immediate,
+                entry, host_uuid, force_immediate=force_flag,
                 add_parms=add_parms, **kwargs)
         except Exception as e:
             LOG.exception(e)
