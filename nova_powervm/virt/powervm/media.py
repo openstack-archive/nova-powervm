@@ -42,6 +42,9 @@ CONF = cfg.CONF
 
 _LLA_SUBNET = "fe80::/64"
 
+CFG_DRV_PREFIX = "cfg_"
+CFG_DRV_SUFFIX = ".iso"
+
 
 class ConfigDrivePowerVM(object):
 
@@ -111,7 +114,7 @@ class ConfigDrivePowerVM(object):
             os.mkdir(im_path)
 
         file_name = pvm_util.sanitize_file_name_for_api(
-            instance.name, prefix='cfg_', suffix='.iso',
+            instance.name, prefix=CFG_DRV_PREFIX, suffix=CFG_DRV_SUFFIX,
             max_len=pvm_const.MaxLen.VOPT_NAME)
         iso_path = os.path.join(im_path, file_name)
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
