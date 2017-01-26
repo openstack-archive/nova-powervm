@@ -16,6 +16,8 @@
 #
 
 import abc
+import six
+
 from nova import exception
 from nova.objects import migrate_data as mig_obj
 from oslo_log import log as logging
@@ -25,7 +27,6 @@ from pypowervm.tasks import migration as mig
 from pypowervm.tasks import storage as stor_task
 from pypowervm.tasks import vterm
 from pypowervm import util
-import six
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _

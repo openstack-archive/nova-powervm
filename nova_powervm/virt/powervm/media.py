@@ -259,10 +259,8 @@ class ConfigDrivePowerVM(object):
         # immediately
         if stg_ftsk is None:
             built_stg_ftsk = True
-            vio_resp = self.adapter.read(
-                pvm_vios.VIOS.schema_type, root_id=self.vios_uuid,
-                xag=[pvm_const.XAG.VIO_SMAP])
-            vio_w = pvm_vios.VIOS.wrap(vio_resp)
+            vio_w = pvm_vios.VIOS.get(self.adapter, root_id=self.vios_uuid,
+                                      xag=[pvm_const.XAG.VIO_SMAP])
             stg_ftsk = pvm_tx.FeedTask('media_detach', [vio_w])
         else:
             built_stg_ftsk = False
@@ -320,11 +318,10 @@ class ConfigDrivePowerVM(object):
         def rm_vopt():
             LOG.info(_LI("Removing virtual optical for VM with UUID %s."),
                      lpar_uuid)
-            vg_rsp = self.adapter.read(pvm_vios.VIOS.schema_type,
-                                       root_id=self.vios_uuid,
-                                       child_type=pvm_stg.VG.schema_type,
-                                       child_id=self.vg_uuid)
-            tsk_stg.rm_vg_storage(pvm_stg.VG.wrap(vg_rsp), vopts=media_elems)
+            vg_wrap = pvm_stg.VG.get(self.adapter, uuid=self.vg_uuid,
+                                     parent_type=pvm_vios.VIOS,
+                                     parent_uuid=self.vios_uuid)
+            tsk_stg.rm_vg_storage(vg_wrap, vopts=media_elems)
 
         # Don't add this task if there is no media to delete (eg. config drive)
         if media_elems:

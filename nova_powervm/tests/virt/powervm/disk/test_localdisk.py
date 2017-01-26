@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -17,13 +17,11 @@
 import fixtures
 import mock
 
-import copy
 from nova import exception as nova_exc
 from nova import test
 from pypowervm import const as pvm_const
 from pypowervm.tasks import storage as tsk_stor
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -34,10 +32,6 @@ from nova_powervm.virt.powervm.disk import localdisk as ld
 from nova_powervm.virt.powervm import exception as npvmex
 
 
-VOL_GRP_WITH_VIOS = 'fake_volume_group_with_vio_data.txt'
-VIOS_WITH_VOL_GRP = 'fake_vios_with_volume_group_data.txt'
-
-
 class TestLocalDisk(test.TestCase):
     """Unit Tests for the LocalDisk storage driver."""
 
@@ -46,19 +40,23 @@ class TestLocalDisk(test.TestCase):
 
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
-        def resp(file_name):
-            return pvmhttp.load_pvm_resp(
-                file_name, adapter=self.apt).get_response()
-
-        self.vg_to_vio = resp(VOL_GRP_WITH_VIOS)
-        self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
+        # Set up mock for internal VIOS.get()s
+        self.mock_vios_get = self.useFixture(fixtures.MockPatch(
+            'pypowervm.wrappers.virtual_io_server.VIOS.get')).mock
+        # The mock VIOS needs to have scsi_mappings as a list.  Internals are
+        # set by individual test cases as needed.
+        smaps = [mock.Mock()]
+        self.vio_to_vg = mock.Mock(spec=pvm_vios.VIOS, scsi_mappings=smaps)
+        # For our tests, we want find_maps to return the mocked list of scsi
+        # mappings in our mocked VIOS.
+        self.mock_find_maps = self.useFixture(fixtures.MockPatch(
+            'pypowervm.tasks.scsi_mapper.find_maps')).mock
+        self.mock_find_maps.return_value = smaps
 
         # Set up for the mocks for get_ls
-
-        self.mock_vg_uuid_p = mock.patch('nova_powervm.virt.powervm.disk.'
-                                         'localdisk.LocalStorage.'
-                                         '_get_vg_uuid')
-        self.mock_vg_uuid = self.mock_vg_uuid_p.start()
+        self.mock_vg_uuid = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
+            '_get_vg_uuid')).mock
         self.vg_uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
         self.mock_vg_uuid.return_value = ('vios_uuid', self.vg_uuid)
 
@@ -66,12 +64,6 @@ class TestLocalDisk(test.TestCase):
         self.mgmt_uuid = self.useFixture(fixtures.MockPatch(
             'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
         self.mgmt_uuid.return_value = 'mp_uuid'
-
-    def tearDown(self):
-        test.TestCase.tearDown(self)
-
-        # Tear down mocks
-        self.mock_vg_uuid_p.stop()
 
     @staticmethod
     def get_ls(adpt):
@@ -82,8 +74,8 @@ class TestLocalDisk(test.TestCase):
     def test_create_disk_from_image(self, mock_img_api, mock_upload_vdisk):
         mock_upload_vdisk.return_value = ('vdisk', None)
         inst = mock.Mock()
-        inst.name = 'Inst Name'
-        inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
+        inst.configure_mock(name='Inst Name',
+                            uuid='d5065c2c-ac43-3fa6-af32-ea84a3960291')
 
         def test_upload_new_vdisk(adpt, vio_uuid, vg_uuid, upload, vol_name,
                                   image_size, d_size=0, upload_type=None):
@@ -116,10 +108,8 @@ class TestLocalDisk(test.TestCase):
                           None, inst, powervm.TEST_IMAGE1, 20)
         self.assertEqual(mock_img_api.call_count, 4)
 
-    @mock.patch('pypowervm.wrappers.storage.VG')
-    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
-                '_get_vg')
-    def test_capacity(self, mock_get_vg, mock_vg):
+    @mock.patch('pypowervm.wrappers.storage.VG.get')
+    def test_capacity(self, mock_vg):
         """Tests the capacity methods."""
 
         # Set up the mock data.  This will simulate our vg wrapper
@@ -128,7 +118,7 @@ class TestLocalDisk(test.TestCase):
         type(mock_vg_wrap).available_size = mock.PropertyMock(
             return_value='2048')
 
-        mock_vg.wrap.return_value = mock_vg_wrap
+        mock_vg.return_value = mock_vg_wrap
         local = self.get_ls(self.apt)
 
         self.assertEqual(5120.0, local.capacity)
@@ -139,10 +129,8 @@ class TestLocalDisk(test.TestCase):
     def test_disconnect_image_disk(self, mock_active_vioses, mock_rm_maps):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
         # to act as the feed for FeedTaskFx and FeedTask.
-        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        feed = [self.vio_to_vg]
         mock_active_vioses.return_value = feed
-        ft_fx = pvm_fx.FeedTaskFx(feed)
-        self.useFixture(ft_fx)
 
         # The mock return values
         mock_rm_maps.return_value = True
@@ -159,7 +147,7 @@ class TestLocalDisk(test.TestCase):
         local.disconnect_image_disk(mock.MagicMock(), inst, stg_ftsk=None,
                                     disk_type=[disk_dvr.DiskType.BOOT])
         self.assertEqual(1, mock_rm_maps.call_count)
-        self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
+        self.assertEqual(1, self.vio_to_vg.update.call_count)
         mock_rm_maps.assert_called_once_with(feed[0], fx.FAKE_INST_UUID_PVM,
                                              match_func=mock.ANY)
 
@@ -169,10 +157,8 @@ class TestLocalDisk(test.TestCase):
                                              mock_rm_maps):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
         # to act as the feed for FeedTaskFx and FeedTask.
-        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        feed = [self.vio_to_vg]
         mock_active_vioses.return_value = feed
-        ft_fx = pvm_fx.FeedTaskFx(feed)
-        self.useFixture(ft_fx)
 
         # The mock return values
         mock_rm_maps.return_value = False
@@ -189,14 +175,12 @@ class TestLocalDisk(test.TestCase):
         local.disconnect_image_disk(mock.MagicMock(), inst, stg_ftsk=None,
                                     disk_type=[disk_dvr.DiskType.BOOT])
         self.assertEqual(1, mock_rm_maps.call_count)
-        self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)
+        self.vio_to_vg.update.assert_not_called()
         mock_rm_maps.assert_called_once_with(feed[0], fx.FAKE_INST_UUID_PVM,
                                              match_func=mock.ANY)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.gen_match_func')
-    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
-    def test_disconnect_image_disk_disktype(self, mock_find_maps,
-                                            mock_match_func):
+    def test_disconnect_image_disk_disktype(self, mock_match_func):
         """Ensures that the match function passes in the right prefix."""
         # Set up the mock data.
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
@@ -209,7 +193,7 @@ class TestLocalDisk(test.TestCase):
                                     disk_type=[disk_dvr.DiskType.BOOT])
 
         # Make sure the find maps is invoked once.
-        mock_find_maps.assert_called_once_with(
+        self.mock_find_maps.assert_called_once_with(
             mock.ANY, client_lpar_id=fx.FAKE_INST_UUID_PVM, match_func='test')
 
         # Make sure the matching function is generated with the right disk type
@@ -222,11 +206,9 @@ class TestLocalDisk(test.TestCase):
     def test_connect_image_disk(self, mock_active_vioses, mock_add_map,
                                 mock_build_map):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
-        # to act as the feed for FeedTaskFx and FeedTask.
-        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        # to act as the feed for FeedTask.
+        feed = [self.vio_to_vg]
         mock_active_vioses.return_value = feed
-        ft_fx = pvm_fx.FeedTaskFx(feed)
-        self.useFixture(ft_fx)
 
         # The mock return values
         mock_add_map.return_value = True
@@ -243,7 +225,7 @@ class TestLocalDisk(test.TestCase):
                            stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
-        self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
+        self.assertEqual(1, self.vio_to_vg.update.call_count)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
@@ -251,11 +233,9 @@ class TestLocalDisk(test.TestCase):
     def test_connect_image_disk_no_update(self, mock_active_vioses,
                                           mock_add_map, mock_build_map):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
-        # to act as the feed for FeedTaskFx and FeedTask.
-        feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
+        # to act as the feed for FeedTask.
+        feed = [self.vio_to_vg]
         mock_active_vioses.return_value = feed
-        ft_fx = pvm_fx.FeedTaskFx(feed)
-        self.useFixture(ft_fx)
 
         # The mock return values
         mock_add_map.return_value = False
@@ -272,14 +252,14 @@ class TestLocalDisk(test.TestCase):
                            stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
-        self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)
+        self.vio_to_vg.update.assert_not_called()
 
-    @mock.patch('pypowervm.wrappers.storage.VG.update')
+    @mock.patch('pypowervm.wrappers.storage.VG.update', new=mock.Mock())
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_wrap')
-    def test_delete_disks(self, mock_vg, mock_update):
+    def test_delete_disks(self, mock_vg):
         # Mocks
-        self.apt.side_effect = [self.vg_to_vio]
+        self.apt.side_effect = [mock.Mock()]
 
         mock_remove = mock.MagicMock()
         mock_remove.name = 'disk'
@@ -297,7 +277,7 @@ class TestLocalDisk(test.TestCase):
         self.assertEqual(1, mock_wrapper.update.call_count)
         self.assertEqual(0, len(mock_wrapper.virtual_disks))
 
-    @mock.patch('pypowervm.wrappers.storage.VG')
+    @mock.patch('pypowervm.wrappers.storage.VG.get')
     def test_extend_disk_not_found(self, mock_vg):
         local = self.get_ls(self.apt)
 
@@ -310,7 +290,7 @@ class TestLocalDisk(test.TestCase):
 
         resp = mock.Mock(name='response')
         resp.virtual_disks = [vdisk]
-        mock_vg.wrap.return_value = resp
+        mock_vg.return_value = resp
 
         self.assertRaises(nova_exc.DiskNotFound, local.extend_disk,
                           'context', inst, dict(type='boot'), 10)
@@ -327,85 +307,71 @@ class TestLocalDisk(test.TestCase):
         inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
         lpar_wrap = mock.Mock()
         lpar_wrap.id = 2
-        vios1 = pvm_vios.VIOS.wrap(self.vio_to_vg)
-        vios2 = copy.deepcopy(vios1)
+        vios1 = self.vio_to_vg
         vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__d506'
-        return inst, lpar_wrap, vios1, vios2
+        return inst, lpar_wrap, vios1
 
     def test_boot_disk_path_for_instance(self):
         local = self.get_ls(self.apt)
         inst = mock.Mock()
         inst.name = 'Name Of Instance'
         inst.uuid = 'f921620A-EE30-440E-8C2D-9F7BA123F298'
-        vios1 = pvm_vios.VIOS.wrap(self.vio_to_vg)
+        vios1 = self.vio_to_vg
+        vios1.scsi_mappings[0].server_adapter.backing_dev_name = 'boot_7f81628'
         vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__f921'
-        self.apt.read.return_value = vios1.entry
+        self.mock_vios_get.return_value = vios1
         dev_name = local.boot_disk_path_for_instance(inst, vios1.uuid)
-        self.assertEqual('boot_7f81628b', dev_name)
+        self.assertEqual('boot_7f81628', dev_name)
 
-    @mock.patch('pypowervm.wrappers.storage.VG')
-    def test_instance_disk_iter(self, mock_vg):
-        def assert_read_calls(num):
-            self.assertEqual(num, self.apt.read.call_count)
-            self.apt.read.assert_has_calls(
-                [mock.call(pvm_vios.VIOS.schema_type, root_id='vios_uuid',
-                           xag=[pvm_const.XAG.VIO_SMAP])
-                 for i in range(num)])
+    @mock.patch('pypowervm.wrappers.storage.VG.get', new=mock.Mock())
+    def test_instance_disk_iter(self):
         local = self.get_ls(self.apt)
-        inst, lpar_wrap, vios1, vios2 = self._bld_mocks_for_instance_disk()
+        inst, lpar_wrap, vios1 = self._bld_mocks_for_instance_disk()
 
         # Good path
-        self.apt.read.return_value = vios1.entry
+        self.mock_vios_get.return_value = vios1
         for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
-            self.assertEqual('0300025d4a00007a000000014b36d9deaf.1',
-                             vdisk.udid)
-            self.assertEqual('3443DB77-AED1-47ED-9AA5-3DB9C6CF7089', vios.uuid)
-        assert_read_calls(1)
+            self.assertEqual(vios1.scsi_mappings[0].backing_storage, vdisk)
+            self.assertEqual(vios1.uuid, vios.uuid)
+        self.mock_vios_get.assert_called_once_with(
+            self.apt, uuid='vios_uuid', xag=[pvm_const.XAG.VIO_SMAP])
 
         # Not found because no storage of that name
-        self.apt.reset_mock()
-        self.apt.read.return_value = vios2.entry
+        self.mock_vios_get.reset_mock()
+        self.mock_find_maps.return_value = []
         for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
             self.fail()
-        assert_read_calls(1)
-
-        # Not found because LPAR ID doesn't match
-        self.apt.reset_mock()
-        self.apt.read.return_value = vios1.entry
-        lpar_wrap.id = 3
-        for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
-            self.fail()
-        assert_read_calls(1)
+        self.mock_vios_get.assert_called_once_with(
+            self.apt, uuid='vios_uuid', xag=[pvm_const.XAG.VIO_SMAP])
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_vscsi_mapping')
     def test_connect_instance_disk_to_mgmt_partition(self, mock_add, mock_lw):
         local = self.get_ls(self.apt)
-        inst, lpar_wrap, vios1, vios2 = self._bld_mocks_for_instance_disk()
+        inst, lpar_wrap, vios1 = self._bld_mocks_for_instance_disk()
         mock_lw.return_value = lpar_wrap
 
         # Good path
-        self.apt.read.return_value = vios1.entry
+        self.mock_vios_get.return_value = vios1
         vdisk, vios = local.connect_instance_disk_to_mgmt(inst)
-        self.assertEqual('0300025d4a00007a000000014b36d9deaf.1', vdisk.udid)
-        self.assertIs(vios1.entry, vios.entry)
+        self.assertEqual(vios1.scsi_mappings[0].backing_storage, vdisk)
+        self.assertIs(vios1, vios)
         self.assertEqual(1, mock_add.call_count)
         mock_add.assert_called_with('host_uuid', vios, 'mp_uuid', vdisk)
 
-        # Not found
-        mock_add.reset_mock()
-        self.apt.read.return_value = vios2.entry
-        self.assertRaises(npvmex.InstanceDiskMappingFailed,
-                          local.connect_instance_disk_to_mgmt, inst)
-        self.assertEqual(0, mock_add.call_count)
-
         # add_vscsi_mapping raises.  Show-stopper since only one VIOS.
         mock_add.reset_mock()
-        self.apt.read.return_value = vios1.entry
         mock_add.side_effect = Exception("mapping failed")
         self.assertRaises(npvmex.InstanceDiskMappingFailed,
                           local.connect_instance_disk_to_mgmt, inst)
         self.assertEqual(1, mock_add.call_count)
+
+        # Not found
+        mock_add.reset_mock()
+        self.mock_find_maps.return_value = []
+        self.assertRaises(npvmex.InstanceDiskMappingFailed,
+                          local.connect_instance_disk_to_mgmt, inst)
+        mock_add.assert_not_called()
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_vdisk_mapping')
     def test_disconnect_disk_from_mgmt_partition(self, mock_rm_vdisk_map):
@@ -427,48 +393,40 @@ class TestLocalDiskFindVG(test.TestCase):
 
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
-        def resp(file_name):
-            return pvmhttp.load_pvm_resp(
-                file_name, adapter=self.apt).get_response()
+        self.vg_to_vio = mock.Mock()
+        self.vg_to_vio.configure_mock(name='rootvg')
+        self.vio_to_vg = mock.Mock()
 
-        self.vg_to_vio = resp(VOL_GRP_WITH_VIOS)
-        self.vio_to_vg = resp(VIOS_WITH_VOL_GRP)
-
-        self.mock_vios_feed = [pvm_vios.VIOS.wrap(self.vio_to_vg)]
-        self.mock_vg_feed = [pvm_stor.VG.wrap(self.vg_to_vio)]
+        self.mock_vios_feed = [self.vio_to_vg]
+        self.mock_vg_feed = [self.vg_to_vio]
 
         # Return the mgmt uuid
         self.mgmt_uuid = self.useFixture(fixtures.MockPatch(
             'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
         self.mgmt_uuid.return_value = 'mp_uuid'
 
-    @mock.patch('pypowervm.wrappers.storage.VG.wrap')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.wrap')
-    def test_get_vg_uuid(self, mock_vio_wrap, mock_vg_wrap):
-        # The read is first the VIOS, then the Volume Group.  The reads
-        # aren't really used as the wrap function is what we use to pass
-        # back the proper data (as we're simulating feeds).
-        self.apt.read.side_effect = [self.vio_to_vg, self.vg_to_vio]
-        mock_vio_wrap.return_value = self.mock_vios_feed
-        mock_vg_wrap.return_value = self.mock_vg_feed
+    @mock.patch('pypowervm.wrappers.storage.VG.get')
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
+    def test_get_vg_uuid(self, mock_vio_get, mock_vg_get):
+        mock_vio_get.return_value = self.mock_vios_feed
+        mock_vg_get.return_value = self.mock_vg_feed
         self.flags(volume_group_name='rootvg', group='powervm')
 
         storage = ld.LocalStorage(self.apt, 'host_uuid')
 
         # Make sure the uuids match
-        self.assertEqual('d5065c2c-ac43-3fa6-af32-ea84a3960291',
-                         storage.vg_uuid)
+        self.assertEqual(self.vg_to_vio.uuid, storage.vg_uuid)
 
-    @mock.patch('pypowervm.wrappers.storage.VG.wrap')
+    @mock.patch('pypowervm.wrappers.storage.VG.get')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.search')
-    def test_get_vg_uuid_on_vios(self, mock_vio_search, mock_vg_wrap):
+    def test_get_vg_uuid_on_vios(self, mock_vio_search, mock_vg_get):
         # Return no VIOSes.
         mock_vio_search.return_value = []
 
         # Similar to test_get_vg_uuid, the read isn't what is useful.  The
         # wrap is used to simulate a feed.
         self.apt.read.return_value = self.vg_to_vio
-        mock_vg_wrap.return_value = self.mock_vg_feed
+        mock_vg_get.return_value = self.mock_vg_feed
 
         # Override that we need a specific VIOS...that won't be found.
         self.flags(volume_group_name='rootvg',

@@ -211,8 +211,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def _get_host_uuid(self):
         """Get the System wrapper and its UUID for the (single) host."""
-        syswraps = pvm_ms.System.wrap(
-            self.adapter.read(pvm_ms.System.schema_type))
+        syswraps = pvm_ms.System.get(self.adapter)
         if len(syswraps) != 1:
             raise Exception(
                 _("Expected exactly one host; found %d"), len(syswraps))

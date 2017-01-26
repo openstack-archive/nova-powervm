@@ -24,9 +24,6 @@ from nova.virt.powervm_ext import driver
 
 from nova.virt import fake
 from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.tests.test_utils import pvmhttp
-
-MS_HTTPRESP_FILE = "fake_managedsystem.txt"
 
 FAKE_INST_UUID = 'b6513403-fd7f-4ad0-ab27-f73bacbd3929'
 FAKE_INST_UUID_PVM = '36513403-FD7F-4AD0-AB27-F73BACBD3929'
@@ -97,10 +94,15 @@ class PowerVMComputeDriver(fixtures.Fixture):
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._get_adapter')
     @mock.patch('pypowervm.tasks.partition.get_this_partition')
     def _init_host(self, *args):
-        ms_http = pvmhttp.load_pvm_resp(
-            MS_HTTPRESP_FILE, adapter=mock.Mock()).get_response()
-        # Pretend it just returned one host
-        ms_http.feed.entries = [ms_http.feed.entries[0]]
+
+        self.mock_sys = self.useFixture(fixtures.MockPatch(
+            'pypowervm.wrappers.managed_system.System.get')).mock
+        self.mock_sys.return_value = [mock.Mock(
+            uuid='host_uuid',
+            system_name='Server-8247-21L-SN9999999',
+            proc_compat_modes=('default', 'POWER7', 'POWER8'),
+            migration_data={'active_migrations_supported': 16,
+                            'active_migrations_in_progress': 0})]
 
         # Mock active vios
         self.get_active_vios = self.useFixture(fixtures.MockPatch(
@@ -110,7 +112,6 @@ class PowerVMComputeDriver(fixtures.Fixture):
         self.useFixture(fixtures.MockPatch(
             'pypowervm.tasks.partition.validate_vios_ready'))
 
-        self.drv.adapter.read.return_value = ms_http
         self.drv.session = self.drv.adapter.session
         self.drv.init_host('FakeHost')
 

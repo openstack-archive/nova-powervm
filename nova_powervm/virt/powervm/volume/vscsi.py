@@ -107,9 +107,8 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
 
         # See the connect_volume for why this is a direct call instead of
         # using the tx_mgr.feed
-        vios_feed = self.adapter.read(pvm_vios.VIOS.schema_type,
-                                      xag=[pvm_const.XAG.VIO_STOR])
-        vios_wraps = pvm_vios.VIOS.wrap(vios_feed)
+        vios_wraps = pvm_vios.VIOS.get(self.adapter,
+                                       xag=[pvm_const.XAG.VIO_STOR])
 
         # Iterate through host vios list to find valid hdisks.
         for vios_w in vios_wraps:

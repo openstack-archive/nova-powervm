@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import fixtures
 import mock
 
 from nova import test
@@ -23,6 +24,122 @@ from nova_powervm.virt.powervm.tasks import storage as tf_stg
 
 
 class TestStorage(test.TestCase):
+
+    def setUp(self):
+        super(TestStorage, self).setUp()
+
+        self.adapter = mock.Mock()
+        self.disk_dvr = mock.MagicMock()
+        self.mock_cfg_drv = self.useFixture(fixtures.MockPatch(
+            'nova_powervm.virt.powervm.media.ConfigDrivePowerVM')).mock
+        self.mock_mb = self.mock_cfg_drv.return_value
+        self.instance = mock.MagicMock()
+        self.context = 'context'
+
+    def test_create_and_connect_cfg_drive(self):
+        lpar_w = mock.Mock()
+
+        # Test with no FeedTask
+        task = tf_stg.CreateAndConnectCfgDrive(
+            self.adapter, 'host_uuid', self.instance, 'injected_files',
+            'network_info', 'admin_pass')
+        task.execute(lpar_w, 'mgmt_cna')
+        self.mock_cfg_drv.assert_called_once_with(self.adapter, 'host_uuid')
+        self.mock_mb.create_cfg_drv_vopt.assert_called_once_with(
+            self.instance, 'injected_files', 'network_info', lpar_w.uuid,
+            admin_pass='admin_pass', mgmt_cna='mgmt_cna', stg_ftsk=None)
+
+        self.mock_cfg_drv.reset_mock()
+        self.mock_mb.reset_mock()
+
+        # Normal revert
+        task.revert(lpar_w, 'mgmt_cna', 'result', 'flow_failures')
+        self.mock_mb.dlt_vopt.assert_called_once_with(lpar_w.uuid)
+
+        self.mock_mb.reset_mock()
+
+        # With a specified FeedTask
+        task = tf_stg.CreateAndConnectCfgDrive(
+            self.adapter, 'host_uuid', self.instance, 'injected_files',
+            'network_info', 'admin_pass', stg_ftsk='stg_ftsk')
+        task.execute(lpar_w, 'mgmt_cna')
+        self.mock_cfg_drv.assert_called_once_with(self.adapter, 'host_uuid')
+        self.mock_mb.create_cfg_drv_vopt.assert_called_once_with(
+            self.instance, 'injected_files', 'network_info', lpar_w.uuid,
+            admin_pass='admin_pass', mgmt_cna='mgmt_cna', stg_ftsk='stg_ftsk')
+
+        # Revert when media builder not created
+        task.mb = None
+        task.revert(lpar_w, 'mgmt_cna', 'result', 'flow_failures')
+        self.mock_mb.assert_not_called()
+
+    def test_delete_vopt(self):
+        # Test with no FeedTask
+        task = tf_stg.DeleteVOpt(self.adapter, 'huuid', self.instance, 'luuid')
+        task.execute()
+        self.mock_cfg_drv.assert_called_once_with(self.adapter, 'huuid')
+        self.mock_mb.dlt_vopt.assert_called_once_with('luuid', stg_ftsk=None)
+
+        self.mock_cfg_drv.reset_mock()
+        self.mock_mb.reset_mock()
+
+        # With a specified FeedTask
+        task = tf_stg.DeleteVOpt(self.adapter, 'huuid', self.instance, 'luuid',
+                                 stg_ftsk='ftsk')
+        task.execute()
+        self.mock_cfg_drv.assert_called_once_with(self.adapter, 'huuid')
+        self.mock_mb.dlt_vopt.assert_called_once_with('luuid', stg_ftsk='ftsk')
+
+    def test_delete_disk(self):
+        stor_adpt_mappings = mock.Mock()
+
+        task = tf_stg.DeleteDisk(self.disk_dvr, self.context, self.instance)
+        task.execute(stor_adpt_mappings)
+        self.disk_dvr.delete_disks.assert_called_once_with(
+            self.context, self.instance, stor_adpt_mappings)
+
+    def test_detach_disk(self):
+        disk_type = 'disk_type'
+        stg_ftsk = mock.Mock()
+
+        task = tf_stg.DetachDisk(
+            self.disk_dvr, self.context, self.instance, stg_ftsk=stg_ftsk,
+            disk_type=disk_type)
+        task.execute()
+        self.disk_dvr.disconnect_image_disk.assert_called_once_with(
+            self.context, self.instance, stg_ftsk=stg_ftsk,
+            disk_type=disk_type)
+
+    def test_connect_disk(self):
+        stg_ftsk = mock.Mock()
+        disk_dev_info = mock.Mock()
+
+        task = tf_stg.ConnectDisk(
+            self.disk_dvr, self.context, self.instance, stg_ftsk=stg_ftsk)
+        task.execute(disk_dev_info)
+        self.disk_dvr.connect_disk.assert_called_once_with(
+            self.context, self.instance, disk_dev_info, stg_ftsk=stg_ftsk)
+
+        task.revert(disk_dev_info, 'result', 'flow failures')
+        self.disk_dvr.disconnect_image_disk.assert_called_once_with(
+            self.context, self.instance)
+
+    def test_create_disk_for_img(self):
+        image_meta = mock.Mock()
+        disk_size = 10
+        image_type = mock.Mock()
+
+        task = tf_stg.CreateDiskForImg(
+            self.disk_dvr, self.context, self.instance, image_meta,
+            disk_size=disk_size, image_type=image_type)
+        task.execute()
+        self.disk_dvr.create_disk_from_image.assert_called_once_with(
+            self.context, self.instance, image_meta, disk_size,
+            image_type=image_type)
+
+        task.revert('result', 'flow failures')
+        self.disk_dvr.delete_disks.assert_called_once_with(
+            self.context, self.instance, ['result'])
 
     @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
     @mock.patch('nova_powervm.virt.powervm.mgmt.discover_vscsi_disk')
