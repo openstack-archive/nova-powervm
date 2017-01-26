@@ -27,6 +27,7 @@ from nova import test
 from nova.virt import event
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
+from pypowervm.tasks import power
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.utils import lpar_builder as lpar_bld
@@ -519,9 +520,9 @@ class TestVM(test.TestCase):
             entry = mock.Mock(state=stop_state)
             mock_power_off.reset_mock()
             self.assertTrue(vm.power_off(None, instance, 'host_uuid', entry))
-            mock_power_off.assert_called_once_with(entry, 'host_uuid',
-                                                   force_immediate=False,
-                                                   add_parms=None)
+            mock_power_off.assert_called_once_with(
+                entry, 'host_uuid', force_immediate=power.Force.ON_FAILURE,
+                add_parms=None)
             mock_power_off.reset_mock()
             self.assertTrue(vm.power_off(None, instance, 'host_uuid', entry,
                                          force_immediate=True, timeout=5))
