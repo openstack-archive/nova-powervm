@@ -16,10 +16,17 @@
 
 import mock
 from pypowervm.wrappers import virtual_io_server as pvm_vios
+import six
 
 from nova import test
 
 from nova_powervm.virt.powervm import volume
+from nova_powervm.virt.powervm.volume import gpfs
+from nova_powervm.virt.powervm.volume import iscsi
+from nova_powervm.virt.powervm.volume import local
+from nova_powervm.virt.powervm.volume import nfs
+from nova_powervm.virt.powervm.volume import npiv
+from nova_powervm.virt.powervm.volume import vscsi
 
 
 class TestVolumeAdapter(test.TestCase):
@@ -38,6 +45,14 @@ class TestVolumeAdapter(test.TestCase):
 
 
 class TestInitMethods(test.TestCase):
+
+    # Volume driver types to classes
+    volume_drivers = {
+        'iscsi': iscsi.IscsiVolumeAdapter,
+        'local': local.LocalVolumeAdapter,
+        'nfs': nfs.NFSVolumeAdapter,
+        'gpfs': gpfs.GPFSVolumeAdapter,
+    }
 
     @mock.patch('pypowervm.tasks.hdisk.discover_iscsi_initiator')
     @mock.patch('pypowervm.tasks.partition.get_mgmt_partition')
@@ -61,3 +76,58 @@ class TestInitMethods(test.TestCase):
         self.assertEqual('test_initiator',
                          volume.get_iscsi_initiator(mock_adpt))
         self.assertEqual(1, mock_mgmt.call_count)
+
+    def test_get_volume_class(self):
+        for vol_type, class_type in six.iteritems(self.volume_drivers):
+            self.assertEqual(class_type, volume.get_volume_class(vol_type))
+
+        # Try the fibre as vscsi
+        self.flags(fc_attach_strategy='vscsi', group='powervm')
+        self.assertEqual(vscsi.PVVscsiFCVolumeAdapter,
+                         volume.get_volume_class('fibre_channel'))
+
+        # Try the fibre as npiv
+        self.flags(fc_attach_strategy='npiv', group='powervm')
+        self.assertEqual(npiv.NPIVVolumeAdapter,
+                         volume.get_volume_class('fibre_channel'))
+
+    def test_build_volume_driver(self):
+        for vol_type, class_type in six.iteritems(self.volume_drivers):
+            vdrv = volume.build_volume_driver(
+                mock.Mock(), "abc123", mock.Mock(uuid='abc1'),
+                {'driver_volume_type': vol_type})
+            self.assertIsInstance(vdrv, class_type)
+
+        # Try the fibre as vscsi
+        self.flags(fc_attach_strategy='vscsi', group='powervm')
+        vdrv = volume.build_volume_driver(
+            mock.Mock(), "abc123", mock.Mock(uuid='abc1'),
+            {'driver_volume_type': 'fibre_channel'})
+        self.assertIsInstance(vdrv, vscsi.PVVscsiFCVolumeAdapter)
+
+        # Try the fibre as npiv
+        self.flags(fc_attach_strategy='npiv', group='powervm')
+        vdrv = volume.build_volume_driver(
+            mock.Mock(), "abc123", mock.Mock(uuid='abc1'),
+            {'driver_volume_type': 'fibre_channel'})
+        self.assertIsInstance(vdrv, npiv.NPIVVolumeAdapter)
+
+    def test_hostname_for_volume(self):
+        self.flags(host='test_host')
+        mock_instance = mock.Mock()
+        mock_instance.name = 'instance'
+
+        # Try the fibre as vscsi
+        self.flags(fc_attach_strategy='vscsi', group='powervm')
+        self.assertEqual("test_host",
+                         volume.get_hostname_for_volume(mock_instance))
+
+        # Try the fibre as npiv
+        self.flags(fc_attach_strategy='npiv', group='powervm')
+        self.assertEqual("test_host_instance",
+                         volume.get_hostname_for_volume(mock_instance))
+
+        # NPIV with long host name
+        self.flags(host='really_long_host_name_too_long')
+        self.assertEqual("really_long_host_nam_instance",
+                         volume.get_hostname_for_volume(mock_instance))

@@ -116,7 +116,7 @@ ssp_opts = [
 vol_adapter_opts = [
     cfg.StrOpt('fc_attach_strategy',
                choices=['vscsi', 'npiv'], ignore_case=True,
-               default='vscsi',
+               default='vscsi', mutable=True,
                help='The Fibre Channel Volume Strategy defines how FC Cinder '
                     'volumes should be attached to the Virtual Machine.  The '
                     'options are: npiv or vscsi. If npiv is selected then '

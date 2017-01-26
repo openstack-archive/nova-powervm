@@ -354,13 +354,6 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
             _vscsi_pfc_wwpns = pvm_tpar.get_physical_wwpns(self.adapter)
         return _vscsi_pfc_wwpns
 
-    def host_name(self):
-        """Derives the host name that should be used for the storage device.
-
-        :return: The host name.
-        """
-        return CONF.host
-
     def _get_hdisk_itls(self, vios_w):
         """Returns the mapped ITLs for the hdisk for the given VIOS.
 

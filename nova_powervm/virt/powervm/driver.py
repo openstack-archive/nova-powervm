@@ -1,4 +1,4 @@
-# Copyright 2014, 2016 IBM Corp.
+# Copyright 2014, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -72,16 +72,6 @@ from nova_powervm.virt.powervm import volume as vol_attach
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
-
-# Defines, for all cinder volume types, which volume driver to use.  Currently
-# only supports Fibre Channel, which has multiple options for connections, and
-# iSCSI.
-VOLUME_DRIVER_MAPPINGS = {
-    'fibre_channel': vol_attach.FC_STRATEGY_MAPPING[
-        CONF.powervm.fc_attach_strategy.lower()],
-    'iscsi': vol_attach.NETWORK_STRATEGY_MAPPING[
-        CONF.powervm.network_attach_strategy.lower()],
-}
 
 DISK_ADPT_NS = 'nova_powervm.virt.powervm.disk'
 DISK_ADPT_MAPPINGS = {
@@ -751,8 +741,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
         slot_mgr = slot.build_slot_mgr(instance, self.store_api)
-        vol_drv = self._get_inst_vol_adpt(context, instance,
-                                          conn_info=connection_info)
+        vol_drv = vol_attach.build_volume_driver(
+            self.adapter, self.host_uuid, instance, connection_info)
         flow.add(tf_stg.ConnectVolume(vol_drv, slot_mgr))
 
         # Save the new slot info
@@ -775,8 +765,8 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('detach_volume', instance)
 
         # Get a volume adapter for this volume
-        vol_drv = self._get_inst_vol_adpt(ctx.get_admin_context(), instance,
-                                          conn_info=connection_info)
+        vol_drv = vol_attach.build_volume_driver(
+            self.adapter, self.host_uuid, instance, connection_info)
 
         # Before attempting to detach a volume, ensure the instance exists
         # If a live migration fails, the compute manager will call detach
@@ -1128,22 +1118,14 @@ class PowerVMDriver(driver.ComputeDriver):
             }
 
         """
-        # The host ID
-        connector = {'host': CONF.host}
-
-        # Get the contents from the volume driver
-        vol_drv = self._get_inst_vol_adpt(ctx.get_admin_context(),
-                                          instance)
-        if vol_drv is not None:
-
-            if CONF.powervm.volume_adapter.lower() == "fibre_channel":
-                # Set the WWPNs
-                wwpn_list = vol_drv.wwpns()
-                if wwpn_list is not None:
-                    connector["wwpns"] = wwpn_list
-            connector['host'] = vol_drv.host_name()
-            connector['initiator'] = vol_attach.get_iscsi_initiator(
-                self.adapter)
+        # Put the values in the connector
+        connector = {}
+        wwpn_list = vol_attach.get_wwpns_for_volume_connector(
+            self.adapter, self.host_uuid, instance)
+        if wwpn_list is not None:
+            connector["wwpns"] = wwpn_list
+        connector['host'] = vol_attach.get_hostname_for_volume(instance)
+        connector['initiator'] = vol_attach.get_iscsi_initiator(self.adapter)
         return connector
 
     def migrate_disk_and_power_off(self, context, instance, dest,
@@ -1719,9 +1701,9 @@ class PowerVMDriver(driver.ComputeDriver):
             if not conn_info:
                 continue
 
-            vol_drv = self._get_inst_vol_adpt(context, instance,
-                                              conn_info=conn_info,
-                                              stg_ftsk=stg_ftsk)
+            vol_drv = vol_attach.build_volume_driver(
+                self.adapter, self.host_uuid, instance, conn_info,
+                stg_ftsk=stg_ftsk)
             yield bdm, vol_drv
 
     def _build_vol_drivers(self, context, instance, block_device_info=None,
@@ -1835,50 +1817,19 @@ class PowerVMDriver(driver.ComputeDriver):
         # All operations for deploy/destroy require scsi by default.  This is
         # either vopt, local/SSP disks, etc...
         xags = {pvm_const.XAG.VIO_SMAP}
-        if not bdms:
-            LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',
-                      {'inst': instance.name,
-                       'xags': ','.join(xags)})
-            return list(xags)
+
+        # BDMs could be none, if there are no cinder volumes.
+        bdms = bdms if bdms else []
+
         # If we have any volumes, add the volumes required mapping XAGs.
-        adp_type = VOLUME_DRIVER_MAPPINGS[CONF.powervm.volume_adapter]
-        vol_cls = importutils.import_class(adp_type)
-        xags.update(set(vol_cls.min_xags()))
+        for bdm in bdms:
+            driver_type = bdm.get('connection_info').get('driver_volume_type')
+            vol_cls = vol_attach.get_volume_class(driver_type)
+            xags.update(set(vol_cls.min_xags()))
+
         LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',
-                  {'inst': instance.name,
-                   'xags': ','.join(xags)})
+                  {'inst': instance.name, 'xags': ','.join(xags)})
         return list(xags)
-
-    def _get_inst_vol_adpt(self, context, instance, conn_info=None,
-                           stg_ftsk=None):
-        """Returns the appropriate volume driver based on connection type.
-
-        Checks the connection info for connection-type and return the
-        connector, if no connection info is provided returns the default
-        connector.
-        :param context: security context
-        :param instance: Nova instance for which the volume adapter is needed.
-        :param conn_info: BDM connection information of the instance to
-                          get the volume adapter type (vSCSI/NPIV) requested.
-        :param stg_ftsk: (Optional) The FeedTask that can be used to defer the
-                         mapping actions against the Virtual I/O Server for. If
-                         not provided, then the connect/disconnect actions will
-                         be immediate.
-        :return: Returns the volume adapter, if conn_info is not passed then
-                 returns the volume adapter based on the CONF
-                 fc_attach_strategy property (npiv/vscsi). Otherwise returns
-                 the adapter based on the connection-type of
-                 connection_info.
-        """
-        adp_type = VOLUME_DRIVER_MAPPINGS[CONF.powervm.volume_adapter]
-        vol_cls = importutils.import_class(adp_type)
-        if conn_info:
-            LOG.debug('Volume Adapter returned for connection_info=%s',
-                      conn_info)
-        LOG.debug('Volume Adapter class %(cls)s for instance %(inst)s',
-                  {'cls': vol_cls.__name__, 'inst': instance.name})
-        return vol_cls(self.adapter, self.host_uuid,
-                       instance, conn_info, stg_ftsk=stg_ftsk)
 
     def _get_boot_connectivity_type(self, context, bdms, block_device_info):
         """Get connectivity information for the instance.

@@ -592,14 +592,6 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                                 "%(fabric)s."), {'fabric': fabric},
                             instance=self.instance)
 
-    def host_name(self):
-        """Derives the host name that should be used for the storage device.
-
-        :return: The host name.
-        """
-        host = CONF.host if len(CONF.host) < 20 else CONF.host[:20]
-        return host + '_' + self.instance.name
-
     def _set_fabric_state(self, fabric, state):
         """Sets the fabric state into the instance's system metadata.
 
