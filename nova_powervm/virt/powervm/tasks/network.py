@@ -309,9 +309,9 @@ class PlugMgmtVif(pvm_task.PowerVMTask):
         # be needed if there is not a VIF on the secure RMC vSwitch
         vswitch = vif.get_secure_rmc_vswitch(self.adapter, self.host_uuid)
         if vswitch is None:
-            LOG.debug('No management VIF created for instance %s due to '
-                      'lack of Management Virtual Switch',
-                      self.instance.name)
+            LOG.warning(_LW('No management VIF created for instance %s due to '
+                        'lack of Management Virtual Switch'),
+                        self.instance.name)
             return None
 
         # This next check verifies that there are no existing NICs on the

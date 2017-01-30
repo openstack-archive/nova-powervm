@@ -113,7 +113,8 @@ def _push_vif_event(adapter, action, vif_w, instance, vif_type):
     event = pvm_evt.Event.bld(adapter, data, detail)
     try:
         event = event.create()
-        LOG.info(_LI('Custom event push: %s'), str(event), instance=instance)
+        LOG.debug(_LI('Pushed custom event for consumption by neutron agent: '
+                      '%s'), str(event), instance=instance)
     except Exception:
         LOG.error(_LE('Custom VIF event push failed.  %s'), str(event),
                   instance=instance)
@@ -375,7 +376,8 @@ class PvmVifDriver(object):
                 reason=six.text_type(e))
         return cna_w
 
-    def _find_cna_for_vif(self, cna_w_list, vif):
+    @staticmethod
+    def _find_cna_for_vif(cna_w_list, vif):
         """Finds the PowerVM CNA for a given Nova VIF.
 
         :param cna_w_list: The list of Client Network Adapter wrappers from
@@ -479,7 +481,8 @@ class PvmSeaVifDriver(PvmVifDriver):
 class PvmLioVifDriver(PvmVifDriver):
     """An abstract VIF driver that uses Linux I/O to host."""
 
-    def get_trunk_dev_name(self, vif):
+    @staticmethod
+    def get_trunk_dev_name(vif):
         """Returns the device name for the trunk adapter.
 
         A given VIF in the Linux I/O model will have a trunk adapter and a
@@ -706,15 +709,11 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         :return: The new vif that was created.  Only returned if new_vif is
                  set to True.  Otherwise None is expected.
         """
-        # Only call the parent if it is truly a new VIF
-        if new_vif:
-            cna_w = super(PvmOvsVifDriver, self).plug(vif, slot_num)
-        else:
-            cna_w = None
+        cna_w = super(PvmOvsVifDriver, self).plug(vif, slot_num,
+                                                  new_vif=new_vif)
         dev_name = self.get_trunk_dev_name(vif)
         # There will only be one trunk wrap, as we have created with just the
-        # mgmt lpar.  Next step is to set the device up and connect to the OVS
-        utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
+        # mgmt lpar.  Next step is to connect to the OVS.
         mtu = vif['network'].get_meta('mtu')
         linux_net.create_ovs_vif_port(vif['network']['bridge'], dev_name,
                                       self.get_ovs_interfaceid(vif),
@@ -723,7 +722,8 @@ class PvmOvsVifDriver(PvmLioVifDriver):
 
         return cna_w
 
-    def get_ovs_interfaceid(self, vif):
+    @staticmethod
+    def get_ovs_interfaceid(vif):
         """Returns the interface id to set for a given VIF.
 
         When a VIF is plugged for an Open vSwitch, it needs to have the
