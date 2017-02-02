@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -41,7 +41,8 @@ class TestConfigDrivePowerVM(test.NoDBTestCase):
 
     @mock.patch('nova.api.metadata.base.InstanceMetadata')
     @mock.patch('nova.virt.configdrive.ConfigDriveBuilder.make_drive')
-    def test_crt_cfg_dr_iso(self, mock_mkdrv, mock_meta):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_crt_cfg_dr_iso(self, mock_pvm_uuid, mock_mkdrv, mock_meta):
         """Validates that the image creation method works."""
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
         mock_instance = mock.MagicMock()
@@ -54,6 +55,7 @@ class TestConfigDrivePowerVM(test.NoDBTestCase):
                                                                 mock_net)
         self.assertEqual('cfg_fake_instance.iso', file_name)
         self.assertEqual('/tmp/cfgdrv/cfg_fake_instance.iso', iso_path)
+        self.assertTrue(mock_pvm_uuid.called)
         # Make sure the length is limited properly
         mock_instance.name = 'fake-instance-with-name-that-is-too-long'
         iso_path, file_name = cfg_dr_builder._create_cfg_dr_iso(mock_instance,
