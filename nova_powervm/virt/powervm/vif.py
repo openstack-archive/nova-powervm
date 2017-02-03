@@ -144,8 +144,8 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
         vnet_w = vif_drv.plug(vif, slot_num, new_vif=new_vif)
     except pvm_ex.HttpError as he:
         # Log the message constructed by HttpError
-        LOG.exception(he.args[0])
-        raise exception.VirtualInterfacePlugException()
+        LOG.exception(he.args[0], instance=instance)
+        raise exception.VirtualInterfacePlugException(reason=he.args[0])
     # Other exceptions are (hopefully) custom VirtualInterfacePlugException
     # generated lower in the call stack.
 
@@ -618,9 +618,11 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
         pports = vif['details']['physical_ports']
         if not pports:
             raise exception.VirtualInterfacePlugException(
-                _("Unable to find SR-IOV physical ports for physical "
-                  "network '%(physnet)s' (instance %(inst)s).  VIF: %(vif)s") %
-                {'physnet': physnet, 'inst': self.instance.name, 'vif': vif})
+                _("Unable to find acceptable Ethernet ports on physical "
+                  "network '%(physnet)s' for instance %(inst)s for SRIOV "
+                  "based VIF with MAC address %(vif_mac)s.") %
+                {'physnet': physnet, 'inst': self.instance.name,
+                 'vif_mac': vif['address']})
 
         # MAC
         mac_address = pvm_util.sanitize_mac_for_api(vif['address'])
