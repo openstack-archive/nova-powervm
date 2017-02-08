@@ -113,6 +113,19 @@ class PowerVMVolumeAdapter(object):
         """The type of volume supported by this driver."""
         raise NotImplementedError()
 
+    def is_volume_on_vios(self, vios_w):
+        """Returns whether or not the volume is on VIOS.
+
+        This method is used in the NovaSlotManager to build slot map.
+        Needs to be implemented within the subclass to support rebuild.
+
+        :param vios_w: The Virtual I/O Server wrapper
+        :return: True if the volume is available on the VIOS.  False
+                 otherwise.
+        :return: The unique identification of the volume.
+        """
+        raise NotImplementedError()
+
     def pre_live_migration_on_destination(self, mig_data):
         """Perform pre live migration steps for the volume on the target host.
 

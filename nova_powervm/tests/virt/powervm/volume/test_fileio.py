@@ -15,12 +15,15 @@
 #    under the License.
 
 import mock
-from pypowervm import const as pvm_const
-from pypowervm.tests import test_fixtures as pvm_fx
-from pypowervm.wrappers import storage as pvm_stg
 
 from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
+from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.volume import fileio as v_drv
+from pypowervm import const as pvm_const
+from pypowervm.tests import test_fixtures as pvm_fx
+from pypowervm.wrappers import base_partition as pvm_bp
+from pypowervm.wrappers import storage as pvm_stg
+from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 
 class FakeFileIOVolAdapter(v_drv.FileIOVolumeAdapter):
@@ -46,57 +49,116 @@ class TestFileIOVolumeAdapter(test_vol.TestVolumeAdapter):
         mock_inst = mock.MagicMock(uuid='2BC123')
 
         self.vol_drv = FakeFileIOVolAdapter(self.adpt, 'host_uuid', mock_inst,
-                                            None)
+                                            dict(serial='volid1'))
 
-        self.mock_vio_task = mock.MagicMock()
-        self.mock_stg_ftsk = mock.MagicMock(
-            wrapper_tasks={'vios_uuid': self.mock_vio_task})
-        self.vol_drv.stg_ftsk = self.mock_stg_ftsk
+        self.fake_vios = pvm_vios.VIOS.bld(
+            self.adpt, 'vios1',
+            pvm_bp.PartitionMemoryConfiguration.bld(self.adpt, 1024),
+            pvm_bp.PartitionMemoryConfiguration.bld(self.adpt, 0.1, 1))
+        self.feed = [pvm_vios.VIOS.wrap(self.fake_vios.entry)]
+        ftskfx = pvm_fx.FeedTaskFx(self.feed)
+        self.useFixture(ftskfx)
 
     def test_min_xags(self):
         """Ensures xag's only returns SCSI Mappings."""
         self.assertEqual([pvm_const.XAG.VIO_SMAP], self.vol_drv.min_xags())
 
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('pypowervm.entities.Entry.uuid',
+                new_callable=mock.PropertyMock)
+    @mock.patch('pypowervm.tasks.slot_map.SlotMapStore.register_vscsi_mapping')
+    @mock.patch('pypowervm.tasks.client_storage.udid_to_scsi_mapping')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     @mock.patch('pypowervm.tasks.partition.get_mgmt_partition')
     @mock.patch('pypowervm.wrappers.storage.FileIO.bld')
-    def test_connect_volume(self, mock_file_bld, mock_get_mgmt_partition):
+    def test_connect_volume(self, mock_file_bld, mock_get_mgmt_partition,
+                            mock_get_vm_id, mock_udid_to_map, mock_reg_map,
+                            mock_get_vios_uuid, mock_build_map, mock_add_map):
         # Mockups
         mock_file = mock.Mock()
         mock_file_bld.return_value = mock_file
         mock_slot_mgr = mock.MagicMock()
+        mock_slot_mgr.build_map.get_vscsi_slot.return_value = 4, 'fake_path'
 
-        mock_vios = mock.Mock(uuid='vios_uuid')
+        mock_vios = mock.Mock(uuid='uuid1')
         mock_get_mgmt_partition.return_value = mock_vios
+        mock_get_vios_uuid.return_value = 'uuid1'
+        mock_get_vm_id.return_value = 'partition_id'
+
+        mock_udid_to_map.return_value = mock.Mock()
+        mock_add_map.return_value = None
 
         # Invoke
-        self.vol_drv._connect_volume(mock_slot_mgr)
+        self.vol_drv.connect_volume(mock_slot_mgr)
 
         # Validate
         mock_file_bld.assert_called_once_with(
             self.adpt, 'fake_path',
             backstore_type=pvm_stg.BackStoreType.USER_QCOW)
+        self.assertEqual(1, mock_build_map.call_count)
+        self.assertEqual(1, mock_udid_to_map.call_count)
 
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
+    @mock.patch('pypowervm.entities.Entry.uuid',
+                new_callable=mock.PropertyMock)
+    @mock.patch('pypowervm.tasks.slot_map.SlotMapStore.register_vscsi_mapping')
+    @mock.patch('pypowervm.tasks.client_storage.udid_to_scsi_mapping')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    @mock.patch('pypowervm.tasks.partition.get_mgmt_partition')
+    @mock.patch('pypowervm.wrappers.storage.FileIO.bld')
+    def test_connect_volume_rebuild_no_slot(
+        self, mock_file_bld, mock_get_mgmt_partition, mock_get_vm_id,
+        mock_udid_to_map, mock_reg_map, mock_get_vios_uuid, mock_build_map):
+        # Mockups
+        mock_file = mock.Mock()
+        mock_file_bld.return_value = mock_file
+        mock_slot_mgr = mock.MagicMock()
+        mock_slot_mgr.is_rebuild = True
+        mock_slot_mgr.build_map.get_vscsi_slot.return_value = None, None
+
+        mock_vios = mock.Mock(uuid='uuid1')
+        mock_get_mgmt_partition.return_value = mock_vios
+        mock_get_vios_uuid.return_value = 'uuid1'
+
+        # Invoke
+        self.vol_drv.connect_volume(mock_slot_mgr)
+
+        # Validate
+        mock_file_bld.assert_called_once_with(
+            self.adpt, 'fake_path',
+            backstore_type=pvm_stg.BackStoreType.USER_QCOW)
+        self.assertEqual(0, mock_build_map.call_count)
+
+    @mock.patch('pypowervm.entities.Entry.uuid',
+                new_callable=mock.PropertyMock)
     @mock.patch('pypowervm.tasks.partition.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.scsi_mapper.gen_match_func')
     @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
     def test_disconnect_volume(self, mock_find_maps, mock_gen_match_func,
-                               mock_get_mgmt_partition):
+                               mock_get_mgmt_partition, mock_entry_uuid):
         # Mockups
         mock_slot_mgr = mock.MagicMock()
 
-        mock_vios = mock.Mock(uuid='vios_uuid')
+        mock_vios = mock.Mock(uuid='uuid1')
         mock_get_mgmt_partition.return_value = mock_vios
 
         mock_match_func = mock.Mock()
         mock_gen_match_func.return_value = mock_match_func
-
+        mock_entry_uuid.return_value = 'uuid1'
         # Invoke
         self.vol_drv._disconnect_volume(mock_slot_mgr)
 
         # Validate
         mock_gen_match_func.assert_called_once_with(
             pvm_stg.VDisk, names=['fake_path'])
-        mock_stg_ftsk_wrap = self.mock_stg_ftsk.wrapper_tasks['vios_uuid']
         mock_find_maps.assert_called_once_with(
-            mock_stg_ftsk_wrap.wrapper.scsi_mappings,
+            mock.ANY,
             client_lpar_id='2BC123', match_func=mock_match_func)
+
+    @mock.patch('os.path.exists')
+    def test_pre_live_migration_on_destination(self, mock_path_exists):
+        mock_path_exists.return_value = False
+        self.assertRaises(
+            p_exc.VolumePreMigrationFailed,
+            self.vol_drv.pre_live_migration_on_destination, mock.ANY)

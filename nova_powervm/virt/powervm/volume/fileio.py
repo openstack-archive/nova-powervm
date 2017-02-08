@@ -15,13 +15,19 @@
 #    under the License.
 
 import abc
+import os
 import six
+from taskflow import task
 
 from nova_powervm import conf as cfg
+from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.i18n import _LI
+from nova_powervm.virt.powervm.i18n import _LW
+from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 from oslo_log import log as logging
 from pypowervm import const as pvm_const
+from pypowervm.tasks import client_storage as pvm_c_stor
 from pypowervm.tasks import partition
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.wrappers import storage as pvm_stg
@@ -38,19 +44,47 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     def min_xags(cls):
         return [pvm_const.XAG.VIO_SMAP]
 
+    @classmethod
+    def vol_type(cls):
+        """The type of volume supported by this type."""
+        return 'fileio'
+
     @abc.abstractmethod
     def _get_path(self):
         """Return the path to the file to connect."""
         pass
 
+    def pre_live_migration_on_destination(self, mig_data):
+        """Perform pre live migration steps for the volume on the target host.
+
+        This method performs any pre live migration that is needed.
+
+        This method will be called after the pre_live_migration_on_source
+        method.  The data from the pre_live call will be passed in via the
+        mig_data.  This method should put its output into the dest_mig_data.
+
+        :param mig_data: Dict of migration data for the destination server.
+                         If the volume connector needs to provide
+                         information to the live_migration command, it
+                         should be added to this dictionary.
+        """
+        LOG.debug("Incoming mig_data=%s" % mig_data)
+        # Check if volume is available in destination.
+        vol_path = self._get_path()
+        if not os.path.exists(vol_path):
+            LOG.warning(_LW("File not found at path %s"), vol_path,
+                        instance=self.instance)
+            raise p_exc.VolumePreMigrationFailed(
+                volume_id=self.volume_id, instance_name=self.instance.name)
+
     def _connect_volume(self, slot_mgr):
         # Get the hosting UUID
         nl_vios_wrap = partition.get_mgmt_partition(self.adapter)
         vios_uuid = nl_vios_wrap.uuid
-
+        path = self._get_path()
         # Get the File Path
         fio = pvm_stg.FileIO.bld(
-            self.adapter, self._get_path(),
+            self.adapter, path,
             backstore_type=pvm_stg.BackStoreType.USER_QCOW)
 
         def add_func(vios_w):
@@ -62,11 +96,34 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                          "%(vm)s and VIOS %(vios)s."),
                      {'vm': self.instance.name, 'vios': vios_w.name},
                      instance=self.instance)
+            slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, path)
+            if slot_mgr.is_rebuild and not slot:
+                LOG.debug('Detected a device with path %s on VIOS %s on the '
+                          'rebuild that did not exist on the source.  '
+                          'Ignoring.', path, vios_w.uuid)
+                return None
+
             mapping = tsk_map.build_vscsi_mapping(
-                self.host_uuid, vios_w, self.vm_uuid, fio)
+                self.host_uuid, vios_w, self.vm_uuid, fio, lpar_slot_num=slot,
+                lua=lua)
             return tsk_map.add_map(vios_w, mapping)
 
         self.stg_ftsk.add_functor_subtask(add_func)
+
+        # Run after all the deferred tasks the query to save the slots in the
+        # slot map.
+        def set_slot_info():
+            vios_wraps = self.stg_ftsk.feed
+            partition_id = vm.get_vm_id(self.adapter, self.vm_uuid)
+            for vios_w in vios_wraps:
+                scsi_map = pvm_c_stor.udid_to_scsi_mapping(
+                    vios_w, path, partition_id)
+                if not scsi_map:
+                    continue
+                slot_mgr.register_vscsi_mapping(scsi_map)
+
+        self.stg_ftsk.add_post_execute(task.FunctorTask(
+            set_slot_info, name='file_io_slot_%s' % path))
 
     def _disconnect_volume(self, slot_mgr):
         # Get the hosting UUID
@@ -85,11 +142,12 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
             LOG.info(_LI("Disconnecting instance %(inst)s from storage "
                          "disks."), {'inst': self.instance.name},
                      instance=self.instance)
-            return tsk_map.remove_maps(vios_w, self.vm_uuid,
-                                       match_func=match_func)
+            removed_maps = tsk_map.remove_maps(vios_w, self.vm_uuid,
+                                               match_func=match_func)
+            for rm_map in removed_maps:
+                slot_mgr.drop_vscsi_mapping(rm_map)
 
         self.stg_ftsk.add_functor_subtask(rm_func)
-
         # Find the disk directly.
         vios_w = self.stg_ftsk.wrapper_tasks[vios_uuid].wrapper
         mappings = tsk_map.find_maps(vios_w.scsi_mappings,
@@ -97,3 +155,18 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                                      match_func=match_func)
 
         return [x.backing_storage for x in mappings]
+
+    def is_volume_on_vios(self, vios_w):
+        """Returns whether or not the volume file is on a VIOS.
+
+        This method is used during live-migration and rebuild to
+        check if the volume is available on the target host.
+
+        :param vios_w: The Virtual I/O Server wrapper.
+        :return: True if the file is on the VIOS.  False
+                 otherwise.
+        :return: The file path.
+        """
+        vol_path = self._get_path()
+        vol_found = os.path.exists(vol_path)
+        return vol_found, vol_path
