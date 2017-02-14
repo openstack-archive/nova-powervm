@@ -17,7 +17,6 @@
 from oslo_log import log as logging
 from pypowervm import const as pvm_const
 from pypowervm.tasks import partition as pvm_tpar
-from pypowervm.tasks import power
 from pypowervm.tasks import storage as pvm_stg
 import six
 from taskflow.types import failure as task_fail
@@ -195,8 +194,7 @@ class PowerOn(pvm_task.PowerVMTask):
 
     """The task to power on the instance."""
 
-    def __init__(self, adapter, host_uuid, instance, pwr_opts=None,
-                 synchronous=True):
+    def __init__(self, adapter, instance, pwr_opts=None):
         """Create the Task for the power on of the LPAR.
 
         Obtains LPAR info through requirement of lpar_wrap (provided by
@@ -206,21 +204,16 @@ class PowerOn(pvm_task.PowerVMTask):
         :param host_uuid: The host UUID.
         :param instance: The nova instance.
         :param pwr_opts: Additional parameters for the pypowervm PowerOn Job.
-        :param synchronous: (Optional) If False, the Task completes as soon as
-                            the pypowervm PowerOn Job has successfully started.
-                            If True (the default), the Task waits for the
-                            pypowervm PowerOn Job to complete.
         """
         super(PowerOn, self).__init__(
             instance, 'pwr_vm', requires=['lpar_wrap'])
         self.adapter = adapter
-        self.host_uuid = host_uuid
+        self.instance = instance
         self.pwr_opts = pwr_opts
-        self.synchronous = synchronous
 
     def execute_impl(self, lpar_wrap):
-        power.power_on(lpar_wrap, self.host_uuid, add_parms=self.pwr_opts,
-                       synchronous=self.synchronous)
+        vm.power_on(self.adapter, self.instance, entry=lpar_wrap,
+                    opts=self.pwr_opts)
 
     def revert_impl(self, lpar_wrap, result, flow_failures):
         LOG.warning(_LW('Powering off instance: %s'), self.instance.name)
@@ -230,31 +223,28 @@ class PowerOn(pvm_task.PowerVMTask):
             LOG.debug('Power on failed.  Not performing power off.')
             return
 
-        power.power_off(lpar_wrap, self.host_uuid, force_immediate=True)
+        vm.power_off(self.adapter, self.instance, entry=lpar_wrap,
+                     force_immediate=True)
 
 
 class PowerOff(pvm_task.PowerVMTask):
 
     """The task to power off a VM."""
 
-    def __init__(self, adapter, host_uuid, lpar_uuid, instance,
-                 force_immediate=False):
+    def __init__(self, adapter, instance, force_immediate=False):
         """Creates the Task to power off an LPAR.
 
         :param adapter: The adapter for the pypowervm API
-        :param host_uuid: The host UUID
         :param lpar_uuid: The UUID of the lpar that has media.
         :param instance: The nova instance.
         :param force_immediate: Boolean. Perform a VSP hard power off.
         """
         super(PowerOff, self).__init__(instance, 'pwr_off_vm')
         self.adapter = adapter
-        self.host_uuid = host_uuid
-        self.lpar_uuid = lpar_uuid
         self.force_immediate = force_immediate
 
     def execute_impl(self):
-        vm.power_off(self.adapter, self.instance, self.host_uuid,
+        vm.power_off(self.adapter, self.instance,
                      force_immediate=self.force_immediate)
 
 

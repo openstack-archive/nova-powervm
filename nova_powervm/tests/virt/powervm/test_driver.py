@@ -39,7 +39,6 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.utils import transaction as pvm_tx
-from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -301,7 +300,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._vol_drv_iter')
     def test_spawn_ops(self, mock_vdi, mock_pwron, mock_get_flv, mock_cfg_drv,
                        mock_plug_vifs, mock_plug_mgmt_vif, mock_boot_from_vol,
@@ -332,9 +331,9 @@ class TestPowerVMDriver(test.TestCase):
         self.crt_lpar.assert_called_with(
             self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor(),
             nvram=None, slot_mgr=self.slot_mgr)
-        self.assertTrue(mock_pwron.called)
-        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
-        self.assertEqual('fake-opts', mock_pwron.call_args[1]['add_parms'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst, entry=self.crt_lpar.return_value,
+            opts='fake-opts')
         mock_sanitize.assert_not_called()
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
@@ -350,7 +349,7 @@ class TestPowerVMDriver(test.TestCase):
                 'create_cfg_drv_vopt')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     def test_spawn_with_cfg(self, mock_pwron, mock_get_flv, mock_cfg_drv,
                             mock_cfg_vopt, mock_plug_vifs, mock_plug_mgmt_vif,
                             mock_sanitize, mock_pwron_opts):
@@ -376,9 +375,9 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(self.validate_vopt.called)
 
         # Power on was called
-        self.assertTrue(mock_pwron.called)
-        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
-        self.assertEqual(mock_opts, mock_pwron.call_args[1]['add_parms'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst, entry=self.crt_lpar.return_value,
+            opts=mock_opts)
         mock_opts.remove_optical.assert_called_with('fake-name', time=60)
         mock_sanitize.assert_called_with(
             self.inst.name, prefix='cfg_', suffix='.iso', max_len=37)
@@ -394,7 +393,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     def test_spawn_with_bdms(self, mock_pwron, mock_get_flv, mock_cfg_drv,
                              mock_plug_vifs, mock_plug_mgmt_vif,
                              mock_boot_from_vol, mock_crt_img, mock_save):
@@ -428,8 +427,9 @@ class TestPowerVMDriver(test.TestCase):
                                          self.inst, self.inst.get_flavor(),
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
-        self.assertTrue(mock_pwron.called)
-        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst, entry=self.crt_lpar.return_value,
+            opts=mock.ANY)
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -449,7 +449,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     def test_spawn_with_image_meta_root_bdm(self, mock_pwron, mock_get_flv,
                                             mock_cfg_drv, mock_plug_vifs,
                                             mock_plug_mgmt_vif,
@@ -492,8 +492,9 @@ class TestPowerVMDriver(test.TestCase):
                                          self.inst, self.inst.get_flavor(),
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
-        self.assertTrue(mock_pwron.called)
-        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst, entry=self.crt_lpar.return_value,
+            opts=mock.ANY)
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -510,7 +511,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     def test_spawn_with_root_bdm(self, mock_pwron, mock_get_flv, mock_cfg_drv,
                                  mock_plug_vifs, mock_plug_mgmt_vif,
                                  mock_boot_from_vol, mock_crt_img, mock_save):
@@ -541,8 +542,9 @@ class TestPowerVMDriver(test.TestCase):
                                          self.inst, self.inst.get_flavor(),
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
-        self.assertTrue(mock_pwron.called)
-        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst, entry=self.crt_lpar.return_value,
+            opts=mock.ANY)
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -635,8 +637,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
-    @mock.patch('pypowervm.tasks.power.power_on')
-    @mock.patch('pypowervm.tasks.power.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     def test_spawn_ops_rollback(self, mock_pwroff, mock_pwron, mock_get_flv,
                                 mock_cfg_drv, mock_dlt, mock_plug_vifs,
                                 mock_plug_mgmt_vifs, mock_save):
@@ -661,8 +663,9 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
         # Power on was called
-        self.assertTrue(mock_pwron.called)
-        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst, entry=self.crt_lpar.return_value,
+            opts=mock.ANY)
 
         # Validate the rollbacks were called
         self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
@@ -680,7 +683,7 @@ class TestPowerVMDriver(test.TestCase):
                 'execute')
     @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_get_boot_connectivity_type')
-    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     def test_spawn_ibmi(self, mock_pwron, mock_boot_conn_type,
                         mock_update_lod_src, mock_get_flv, mock_cfg_drv,
                         mock_plug_vifs, mock_plug_mgmt_vif, mock_boot_from_vol,
@@ -713,8 +716,9 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_update_lod_src.called)
 
         # Power on was called
-        self.assertTrue(mock_pwron.called)
-        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst_ibmi, entry=self.crt_lpar.return_value,
+            opts=mock.ANY)
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -738,7 +742,7 @@ class TestPowerVMDriver(test.TestCase):
                 '.execute')
     @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_get_boot_connectivity_type')
-    @mock.patch('pypowervm.tasks.power.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     def test_spawn_ibmi_without_bdms(self, mock_pwron, mock_boot_conn_type,
                                      mock_update_lod_src, mock_get_flv,
                                      mock_cfg_drv, mock_plug_vifs,
@@ -767,8 +771,9 @@ class TestPowerVMDriver(test.TestCase):
             self.apt, self.drv.host_wrapper, self.inst_ibmi,
             self.inst_ibmi.get_flavor(), nvram=None, slot_mgr=self.slot_mgr)
         self.assertTrue(mock_update_lod_src.called)
-        self.assertTrue(mock_pwron.called)
-        self.assertTrue(mock_pwron.call_args[1]['synchronous'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst_ibmi, entry=self.crt_lpar.return_value,
+            opts=mock.ANY)
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
@@ -984,7 +989,6 @@ class TestPowerVMDriver(test.TestCase):
 
         # Power off was called
         mock_pwroff.assert_called_with(self.drv.adapter, self.inst,
-                                       self.drv.host_uuid,
                                        force_immediate=True)
 
         mock_bld_slot_mgr.assert_called_once_with(self.inst,
@@ -1066,7 +1070,6 @@ class TestPowerVMDriver(test.TestCase):
                          block_device_info=mock_bdms, destroy_disks=False)
 
         mock_pwroff.assert_called_with(self.drv.adapter, self.inst,
-                                       self.drv.host_uuid,
                                        force_immediate=False)
 
         # Start negative tests
@@ -1150,7 +1153,6 @@ class TestPowerVMDriver(test.TestCase):
 
         # Power off was called
         mock_pwroff.assert_called_with(self.drv.adapter, self.inst,
-                                       self.drv.host_uuid,
                                        force_immediate=True)
 
         mock_bld_slot_mgr.assert_called_once_with(self.inst,
@@ -1476,12 +1478,10 @@ class TestPowerVMDriver(test.TestCase):
         self.drv.finish_revert_migration('context', mock_instance, None)
 
         # Asserts
-        mock_off.assert_called_once_with(
-            self.apt, mock_instance, self.drv.host_uuid)
+        mock_off.assert_called_once_with(self.apt, mock_instance)
         mock_update.assert_called_once_with(
             self.apt, self.drv.host_wrapper, mock_instance, mock_flavor)
-        mock_on.assert_called_once_with(
-            self.apt, mock_instance, self.drv.host_uuid)
+        mock_on.assert_called_once_with(self.apt, mock_instance)
 
     @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     @mock.patch('nova_powervm.virt.powervm.vm.update')
@@ -1497,42 +1497,45 @@ class TestPowerVMDriver(test.TestCase):
             'context', mock_instance, None, power_on=False)
 
         # Asserts
-        mock_off.assert_called_once_with(
-            self.apt, mock_instance, self.drv.host_uuid)
+        mock_off.assert_called_once_with(self.apt, mock_instance)
         mock_update.assert_called_once_with(
             self.apt, self.drv.host_wrapper, mock_instance, mock_flavor)
-        self.assertFalse(mock_on.called)
+        mock_on.assert_not_called()
 
-    @mock.patch('nova_powervm.virt.powervm.vm')
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.power')
-    def test_rescue(self, mock_task_pwr, mock_task_vm, mock_dvr_vm):
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    def test_rescue(self, mock_pwron, mock_pwroff):
         """Validates the PowerVM driver rescue operation."""
         with mock.patch.object(self.drv, 'disk_dvr') as mock_disk_dvr:
             # Invoke the method.
             self.drv.rescue('context', self.inst, mock.MagicMock(),
                             powervm.TEST_IMAGE1, 'rescue_psswd')
 
-        self.assertTrue(mock_task_vm.power_off.called)
+        mock_pwroff.assert_called_once_with(self.apt, self.inst,
+                                            force_immediate=False)
         self.assertTrue(mock_disk_dvr.create_disk_from_image.called)
         self.assertTrue(mock_disk_dvr.connect_disk.called)
-        self.assertTrue(mock_task_pwr.power_on.called)
-        self.assertTrue(mock_task_pwr.power_on.call_args[1]['synchronous'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst, entry=self.get_inst_wrap.return_value,
+            opts=mock.ANY)
+        self.assertEqual('PowerOn(bootmode=sms)',
+                         str(mock_pwron.call_args[1]['opts']))
 
-    @mock.patch('nova_powervm.virt.powervm.vm')
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.vm')
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.power')
-    def test_unrescue(self, mock_task_pwr, mock_task_vm, mock_dvr_vm):
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    def test_unrescue(self, mock_pwron, mock_pwroff):
         """Validates the PowerVM driver rescue operation."""
         with mock.patch.object(self.drv, 'disk_dvr') as mock_disk_dvr:
             # Invoke the method.
             self.drv.unrescue(self.inst, 'network_info')
 
-        self.assertTrue(mock_task_vm.power_off.called)
+        mock_pwroff.assert_called_once_with(
+            self.apt, self.inst, force_immediate=False)
         self.assertTrue(mock_disk_dvr.disconnect_image_disk.called)
         self.assertTrue(mock_disk_dvr.delete_disks.called)
-        self.assertTrue(mock_task_pwr.power_on.called)
-        self.assertTrue(mock_task_pwr.power_on.call_args[1]['synchronous'])
+        mock_pwron.assert_called_once_with(
+            self.apt, self.inst, entry=self.get_inst_wrap.return_value,
+            opts=None)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):
@@ -1718,54 +1721,14 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(
             self.drv.disk_dvr.check_instance_shared_storage_cleanup.called)
 
-    @mock.patch('pypowervm.tasks.power.power_on')
-    @mock.patch('pypowervm.tasks.power.power_off')
-    def test_reboot(self, mock_pwroff, mock_pwron):
-        entry = mock.Mock()
-        self.get_inst_wrap.return_value = entry
-
-        # VM is in 'not activated' state
-        # Validate SOFT vs HARD and power_on called with each.
-        entry.state = pvm_bp.LPARState.NOT_ACTIVATED
-        self.assertTrue(self.drv.reboot('context', self.inst, None, 'SOFT'))
-        # Make sure power off is not called
-        self.assertEqual(0, mock_pwroff.call_count)
-        mock_pwron.assert_called_with(entry, self.drv.host_uuid)
-        self.assertTrue(self.drv.reboot('context', self.inst, None, 'HARD'))
-        # Make sure power off is not called
-        self.assertEqual(0, mock_pwroff.call_count)
-        self.assertEqual(2, mock_pwron.call_count)
-        mock_pwron.assert_called_with(entry, self.drv.host_uuid)
-
-        # VM is not in 'not activated' state
-        # reset mock_pwron
-        mock_pwron.reset_mock()
-        entry.state = 'whatever'
-        self.assertTrue(self.drv.reboot('context', self.inst, None, 'SOFT'))
-        mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
-                                       restart=True,
-                                       force_immediate=False)
-        self.assertEqual(0, mock_pwron.call_count)
-        self.assertTrue(self.drv.reboot('context', self.inst, None, 'HARD'))
-        mock_pwroff.assert_called_with(entry, self.drv.host_uuid,
-                                       restart=True,
-                                       force_immediate=True)
-        self.assertEqual(0, mock_pwron.call_count)
-
-        # If power_off raises an exception, power_on is not called, and the
-        # exception percolates up.
-        entry.state = 'whatever'
-        mock_pwroff.side_effect = pvm_exc.VMPowerOffFailure(lpar_nm='lpar',
-                                                            reason='reason')
-        self.assertRaises(pvm_exc.VMPowerOffFailure, self.drv.reboot,
-                          'context', self.inst, None, 'HARD')
-
-        # If power_on raises an exception, it percolates up.
-        entry.state = pvm_bp.LPARState.NOT_ACTIVATED
-        mock_pwron.side_effect = pvm_exc.VMPowerOnFailure(lpar_nm='lpar',
-                                                          reason='reason')
-        self.assertRaises(pvm_exc.VMPowerOnFailure, self.drv.reboot, 'context',
-                          self.inst, None, 'SOFT')
+    @mock.patch('nova_powervm.virt.powervm.vm.reboot')
+    def test_reboot(self, mock_reboot):
+        inst = mock.Mock()
+        self.drv.reboot('context', inst, 'network_info', 'SOFT')
+        mock_reboot.assert_called_once_with(self.apt, inst, False)
+        mock_reboot.reset_mock()
+        self.drv.reboot('context', inst, 'network_info', 'HARD')
+        mock_reboot.assert_called_once_with(self.apt, inst, True)
 
     @mock.patch('pypowervm.tasks.vterm.open_remotable_vnc_vterm')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
@@ -1966,15 +1929,13 @@ class TestPowerVMDriver(test.TestCase):
     def test_power_off(self, mock_power_off):
         self.drv.power_off(self.inst)
         mock_power_off.assert_called_once_with(
-            self.drv.adapter, self.inst, self.drv.host_uuid,
-            force_immediate=True, timeout=None)
+            self.drv.adapter, self.inst, force_immediate=True, timeout=None)
 
         # Long timeout (retry interval means nothing on powervm)
         mock_power_off.reset_mock()
         self.drv.power_off(self.inst, timeout=500, retry_interval=10)
         mock_power_off.assert_called_once_with(
-            self.drv.adapter, self.inst, self.drv.host_uuid,
-            force_immediate=False, timeout=500)
+            self.drv.adapter, self.inst, force_immediate=False, timeout=500)
 
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._destroy')
     def test_confirm_migration_diff_host(self, mock_destroy):

@@ -42,13 +42,11 @@ from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks import memory as pvm_mem
 from pypowervm.tasks import partition as pvm_par
-from pypowervm.tasks import power as pvm_pwr
-from pypowervm.tasks import power_opts
+from pypowervm.tasks import power_opts as pvm_popts
 from pypowervm.tasks import scsi_mapper as pvm_smap
 from pypowervm.tasks import storage as pvm_stor
 from pypowervm.tasks import vterm as pvm_vterm
 from pypowervm import util as pvm_util
-from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import managed_system as pvm_ms
 
 from nova_powervm import conf as cfg
@@ -466,7 +464,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # Save the slot map information
         flow_spawn.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
-        pwr_opts = power_opts.PowerOnOpts()
+        pwr_opts = pvm_popts.PowerOnOpts()
         if CONF.powervm.remove_vopt_media_on_boot:
             # Get the cfgdrive media name for the vopt removal task in PowerOn.
             media_name = pvm_util.sanitize_file_name_for_api(
@@ -477,8 +475,8 @@ class PowerVMDriver(driver.ComputeDriver):
                 media_name, time=CONF.powervm.remove_vopt_media_time)
 
         # Last step is to power on the system.
-        flow_spawn.add(tf_vm.PowerOn(
-            self.adapter, self.host_uuid, instance, pwr_opts=pwr_opts))
+        flow_spawn.add(tf_vm.PowerOn(self.adapter, instance,
+                                     pwr_opts=pwr_opts))
 
         # Run the flow.
         tf_eng.run(flow_spawn)
@@ -586,8 +584,7 @@ class PowerVMDriver(driver.ComputeDriver):
             if shutdown:
                 # Power Off the LPAR. If its disks are about to be deleted,
                 # VSP hard shutdown it.
-                flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
-                                        pvm_inst_uuid, instance,
+                flow.add(tf_vm.PowerOff(self.adapter, instance,
                                         force_immediate=destroy_disks))
 
             # Create the transaction manager (FeedTask) for Storage I/O.
@@ -878,7 +875,6 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         self._log_operation('rescue', instance)
 
-        pvm_inst_uuid = vm.get_pvm_uuid(instance)
         # Define the flow
         flow = tf_lf.Flow("rescue")
 
@@ -886,8 +882,7 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
 
         # Power Off the LPAR
-        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
-                                pvm_inst_uuid, instance))
+        flow.add(tf_vm.PowerOff(self.adapter, instance))
 
         # Creates the boot image.
         flow.add(tf_stg.CreateDiskForImg(
@@ -899,8 +894,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Last step is to power on the system.
         flow.add(tf_vm.PowerOn(
-            self.adapter, self.host_uuid, instance,
-            pwr_opts={pvm_pwr.BootMode.KEY: pvm_pwr.BootMode.SMS}))
+            self.adapter, instance,
+            pwr_opts=pvm_popts.PowerOnOpts().bootmode(pvm_popts.BootMode.SMS)))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
@@ -913,7 +908,6 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         self._log_operation('unrescue', instance)
 
-        pvm_inst_uuid = vm.get_pvm_uuid(instance)
         context = ctx.get_admin_context()
 
         # Define the flow
@@ -923,8 +917,7 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
 
         # Power Off the LPAR
-        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
-                                pvm_inst_uuid, instance))
+        flow.add(tf_vm.PowerOff(self.adapter, instance))
 
         # Detach the disk adapter for the rescue image
         flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
@@ -934,7 +927,7 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_stg.DeleteDisk(self.disk_dvr, context, instance))
 
         # Last step is to power on the system.
-        flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
+        flow.add(tf_vm.PowerOn(self.adapter, instance))
 
         # Build the engine & run!
         engine = tf_eng.load(flow)
@@ -951,8 +944,8 @@ class PowerVMDriver(driver.ComputeDriver):
         self._log_operation('power_off', instance)
         force_immediate = (timeout == 0)
         timeout = timeout or None
-        vm.power_off(self.adapter, instance, self.host_uuid,
-                     force_immediate=force_immediate, timeout=timeout)
+        vm.power_off(self.adapter, instance, force_immediate=force_immediate,
+                     timeout=timeout)
 
     def power_on(self, context, instance, network_info,
                  block_device_info=None):
@@ -961,7 +954,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: nova.objects.instance.Instance
         """
         self._log_operation('power_on', instance)
-        vm.power_on(self.adapter, instance, self.host_uuid)
+        vm.power_on(self.adapter, instance)
 
     def reboot(self, context, instance, network_info, reboot_type,
                block_device_info=None, bad_volumes_callback=None):
@@ -982,19 +975,8 @@ class PowerVMDriver(driver.ComputeDriver):
             encountered
         """
         self._log_operation(reboot_type + ' reboot', instance)
-        force_immediate = reboot_type == 'HARD'
-        entry = vm.get_instance_wrapper(self.adapter, instance)
-        if entry.state != pvm_bp.LPARState.NOT_ACTIVATED:
-            pvm_pwr.power_off(entry, self.host_uuid, restart=True,
-                              force_immediate=force_immediate)
-        else:
-            # pypowervm does NOT throw an exception if "already down".
-            # Any other exception from pypowervm is a legitimate failure;
-            # let it raise up.
-            # If we get here, pypowervm thinks the instance is down.
-            pvm_pwr.power_on(entry, self.host_uuid)
-
-        # Again, pypowervm exceptions are sufficient to indicate real failure.
+        vm.reboot(self.adapter, instance, reboot_type == 'HARD')
+        # pypowervm exceptions are sufficient to indicate real failure.
         # Otherwise, pypowervm thinks the instance is up.
         return True
 
@@ -1173,14 +1155,11 @@ class PowerVMDriver(driver.ComputeDriver):
                 # Get disk info from disk driver.
                 disk_info = dict(disk_info, **self.disk_dvr.get_info())
 
-        pvm_inst_uuid = vm.get_pvm_uuid(instance)
-
         # Define the migrate flow
         flow = tf_lf.Flow("migrate_vm")
 
         # Power off the VM
-        flow.add(tf_vm.PowerOff(self.adapter, self.host_uuid,
-                                pvm_inst_uuid, instance))
+        flow.add(tf_vm.PowerOff(self.adapter, instance))
 
         if not same_host:
             # If VM is moving to a new host make sure the NVRAM is at the very
@@ -1350,7 +1329,7 @@ class PowerVMDriver(driver.ComputeDriver):
         if power_on:
             # Get the lpar wrapper (required by power-on), then power-on
             flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
-            flow.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
+            flow.add(tf_vm.PowerOn(self.adapter, instance))
 
         try:
             tf_eng.run(flow)
@@ -1402,12 +1381,12 @@ class PowerVMDriver(driver.ComputeDriver):
         # makes it easy to handle both resize and migrate.
         #
         # The flavor should be the 'old' flavor now.
-        vm.power_off(self.adapter, instance, self.host_uuid)
+        vm.power_off(self.adapter, instance)
         vm.update(self.adapter, self.host_wrapper, instance,
                   instance.flavor)
 
         if power_on:
-            vm.power_on(self.adapter, instance, self.host_uuid)
+            vm.power_on(self.adapter, instance)
 
     def ensure_filtering_rules_for_instance(self, instance, network_info):
         """Setting up filtering rules and waiting for its completion.

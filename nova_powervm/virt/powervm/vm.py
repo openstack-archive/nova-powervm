@@ -28,6 +28,7 @@ from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
 from pypowervm.tasks import ibmi
 from pypowervm.tasks import power
+from pypowervm.tasks import power_opts as popts
 from pypowervm.tasks import vterm
 from pypowervm import util as pvm_util
 from pypowervm.utils import lpar_builder as lpar_bldr
@@ -649,36 +650,48 @@ def dlt_lpar(adapter, lpar_uuid):
         raise
 
 
-def power_on(adapter, instance, host_uuid, entry=None):
+def power_on(adapter, instance, entry=None, opts=None):
+    """Powers on a VM.
+
+    :param adapter: A pypowervm.adapter.Adapter.
+    :param instance: The nova instance to power on.
+    :param entry: (Optional) The pypowervm wrapper for the entry.  If not
+                  provided, will be looked up.
+    :param opts: (Optional) Additional parameters to the pypowervm power_on
+                 method.  See that method's docstring for details.
+    :return: True if the instance was powered on.  False if it was not in a
+             startable state.
+    :raises: InstancePowerOnFailure
+    """
     if entry is None:
         entry = get_instance_wrapper(adapter, instance)
 
     # Get the current state and see if we can start the VM
     if entry.state in POWERVM_STARTABLE_STATE:
         # Now start the lpar
-        power.power_on(entry, host_uuid)
+        power.power_on(entry, None, add_parms=opts)
         return True
 
     return False
 
 
-def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
-              force_immediate=False, timeout=None):
-    """Powers Off a VM.
+def power_off(adapter, instance, entry=None, opts=None, force_immediate=False,
+              timeout=None):
+    """Powers off a VM.
 
-    :param instance: The nova instance.
-    :param host_uuid: The uuid of the host.
+    :param adapter: A pypowervm.adapter.Adapter.
+    :param instance: The nova instance to power off.
     :param entry: (Optional) The pypowervm wrapper for the entry.  If not
                   provided, will be looked up.
-    :param add_parms: (Optional) Additional parameters to the pypowervm
-                      power_off method.  See that method's docstring for
-                      details.
+    :param opts: (Optional) Additional parameters to the pypowervm power_off
+                 method.  See that method's docstring for details.
     :param force_immediate: (Optional, Default False) Should it be immediately
                             shut down.
     :param timeout: (Optional, Default None) How long to wait for the job
                     to complete.  By default, is None which indicates it should
                     use the default from pypowervm's power off method.
-    :return: True if it was stopped.  False if it was not in a stoppable state.
+    :return: True if the instance was stopped.  False if it was not in a
+             stoppable state.
     :raises: InstancePowerOffFailure
     """
     if entry is None:
@@ -697,18 +710,42 @@ def power_off(adapter, instance, host_uuid, entry=None, add_parms=None,
             kwargs = {'timeout': timeout} if timeout else {}
             force_flag = (power.Force.TRUE if force_immediate
                           else power.Force.ON_FAILURE)
-            power.power_off(
-                entry, host_uuid, force_immediate=force_flag,
-                add_parms=add_parms, **kwargs)
+            power.power_off(entry, None, force_immediate=force_flag,
+                            add_parms=opts, **kwargs)
         except Exception as e:
             LOG.exception(e)
-            raise exception.InstancePowerOffFailure(reason=six.text_type(e))
+            raise exception.InstancePowerOffFailure(
+                reason=six.text_type(e))
         return True
     else:
         LOG.debug("Power off not required for instance %(inst)s.",
                   {'inst': instance.name})
 
     return False
+
+
+def reboot(adapter, instance, hard):
+    """Reboots a VM.
+
+    :param adapter: A pypowervm.adapter.Adapter.
+    :param instance: The nova instance to reboot.
+    :param hard: Boolean True if hard reboot, False otherwise.
+    :raises: InstanceRebootFailure
+    """
+    try:
+        entry = get_instance_wrapper(adapter, instance)
+        if entry.state != pvm_bp.LPARState.NOT_ACTIVATED:
+            power.power_off(entry, None, force_immediate=hard,
+                            add_parms=popts.PowerOffOpts().restart())
+        else:
+            # pypowervm does NOT throw an exception if "already down".
+            # Any other exception from pypowervm is a legitimate failure;
+            # let it raise up.
+            # If we get here, pypowervm thinks the instance is down.
+            power.power_on(entry, None)
+    except Exception as e:
+        LOG.exception(e)
+        raise exception.InstanceRebootFailure(reason=six.text_type(e))
 
 
 def get_pvm_uuid(instance):
