@@ -878,9 +878,6 @@ class PowerVMDriver(driver.ComputeDriver):
         # Define the flow
         flow = tf_lf.Flow("rescue")
 
-        # Get the LPAR Wrapper
-        flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
-
         # Power Off the LPAR
         flow.add(tf_vm.PowerOff(self.adapter, instance))
 
@@ -912,9 +909,6 @@ class PowerVMDriver(driver.ComputeDriver):
 
         # Define the flow
         flow = tf_lf.Flow("unrescue")
-
-        # Get the LPAR Wrapper
-        flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
 
         # Power Off the LPAR
         flow.add(tf_vm.PowerOff(self.adapter, instance))
@@ -1327,8 +1321,6 @@ class PowerVMDriver(driver.ComputeDriver):
             flow.add(stg_ftsk)
 
         if power_on:
-            # Get the lpar wrapper (required by power-on), then power-on
-            flow.add(tf_vm.Get(self.adapter, self.host_uuid, instance))
             flow.add(tf_vm.PowerOn(self.adapter, instance))
 
         try:

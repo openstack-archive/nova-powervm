@@ -197,25 +197,19 @@ class PowerOn(pvm_task.PowerVMTask):
     def __init__(self, adapter, instance, pwr_opts=None):
         """Create the Task for the power on of the LPAR.
 
-        Obtains LPAR info through requirement of lpar_wrap (provided by
-        tf_crt_vm).
-
         :param adapter: The pypowervm adapter.
-        :param host_uuid: The host UUID.
         :param instance: The nova instance.
         :param pwr_opts: Additional parameters for the pypowervm PowerOn Job.
         """
-        super(PowerOn, self).__init__(
-            instance, 'pwr_vm', requires=['lpar_wrap'])
+        super(PowerOn, self).__init__(instance, 'pwr_vm')
         self.adapter = adapter
         self.instance = instance
         self.pwr_opts = pwr_opts
 
-    def execute_impl(self, lpar_wrap):
-        vm.power_on(self.adapter, self.instance, entry=lpar_wrap,
-                    opts=self.pwr_opts)
+    def execute_impl(self):
+        vm.power_on(self.adapter, self.instance, opts=self.pwr_opts)
 
-    def revert_impl(self, lpar_wrap, result, flow_failures):
+    def revert_impl(self, result, flow_failures):
         LOG.warning(_LW('Powering off instance: %s'), self.instance.name)
 
         if isinstance(result, task_fail.Failure):
@@ -223,8 +217,7 @@ class PowerOn(pvm_task.PowerVMTask):
             LOG.debug('Power on failed.  Not performing power off.')
             return
 
-        vm.power_off(self.adapter, self.instance, entry=lpar_wrap,
-                     force_immediate=True)
+        vm.power_off(self.adapter, self.instance, force_immediate=True)
 
 
 class PowerOff(pvm_task.PowerVMTask):

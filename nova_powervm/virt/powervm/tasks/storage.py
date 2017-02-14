@@ -179,8 +179,6 @@ class ConnectDisk(pvm_task.PowerVMTask):
     def __init__(self, disk_dvr, context, instance, stg_ftsk=None):
         """Create the Task for the connect disk to instance method.
 
-        Requires LPAR info through requirement of lpar_wrap.
-
         Requires disk info through requirement of disk_dev_info (provided by
         crt_disk_from_img)
 
@@ -200,7 +198,7 @@ class ConnectDisk(pvm_task.PowerVMTask):
         self.context = context
         self.stg_ftsk = stg_ftsk
 
-    def execute_impl(self, disk_dev_info,):
+    def execute_impl(self, disk_dev_info):
         self.disk_dvr.connect_disk(self.context, self.instance, disk_dev_info,
                                    stg_ftsk=self.stg_ftsk)
 

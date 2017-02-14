@@ -331,9 +331,8 @@ class TestPowerVMDriver(test.TestCase):
         self.crt_lpar.assert_called_with(
             self.apt, self.drv.host_wrapper, self.inst, self.inst.get_flavor(),
             nvram=None, slot_mgr=self.slot_mgr)
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst, entry=self.crt_lpar.return_value,
-            opts='fake-opts')
+        mock_pwron.assert_called_once_with(self.apt, self.inst,
+                                           opts='fake-opts')
         mock_sanitize.assert_not_called()
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
@@ -375,9 +374,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(self.validate_vopt.called)
 
         # Power on was called
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst, entry=self.crt_lpar.return_value,
-            opts=mock_opts)
+        mock_pwron.assert_called_once_with(self.apt, self.inst, opts=mock_opts)
         mock_opts.remove_optical.assert_called_with('fake-name', time=60)
         mock_sanitize.assert_called_with(
             self.inst.name, prefix='cfg_', suffix='.iso', max_len=37)
@@ -427,9 +424,7 @@ class TestPowerVMDriver(test.TestCase):
                                          self.inst, self.inst.get_flavor(),
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst, entry=self.crt_lpar.return_value,
-            opts=mock.ANY)
+        mock_pwron.assert_called_once_with(self.apt, self.inst, opts=mock.ANY)
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -492,9 +487,7 @@ class TestPowerVMDriver(test.TestCase):
                                          self.inst, self.inst.get_flavor(),
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst, entry=self.crt_lpar.return_value,
-            opts=mock.ANY)
+        mock_pwron.assert_called_once_with(self.apt, self.inst, opts=mock.ANY)
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -542,9 +535,7 @@ class TestPowerVMDriver(test.TestCase):
                                          self.inst, self.inst.get_flavor(),
                                          nvram=None, slot_mgr=self.slot_mgr)
         # Power on was called
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst, entry=self.crt_lpar.return_value,
-            opts=mock.ANY)
+        mock_pwron.assert_called_once_with(self.apt, self.inst, opts=mock.ANY)
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -663,9 +654,7 @@ class TestPowerVMDriver(test.TestCase):
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
         # Power on was called
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst, entry=self.crt_lpar.return_value,
-            opts=mock.ANY)
+        mock_pwron.assert_called_once_with(self.apt, self.inst, opts=mock.ANY)
 
         # Validate the rollbacks were called
         self.assertEqual(2, self.vol_drv.disconnect_volume.call_count)
@@ -716,9 +705,8 @@ class TestPowerVMDriver(test.TestCase):
         self.assertTrue(mock_update_lod_src.called)
 
         # Power on was called
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst_ibmi, entry=self.crt_lpar.return_value,
-            opts=mock.ANY)
+        mock_pwron.assert_called_once_with(self.apt, self.inst_ibmi,
+                                           opts=mock.ANY)
 
         # Check that the connect volume was called
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
@@ -771,9 +759,8 @@ class TestPowerVMDriver(test.TestCase):
             self.apt, self.drv.host_wrapper, self.inst_ibmi,
             self.inst_ibmi.get_flavor(), nvram=None, slot_mgr=self.slot_mgr)
         self.assertTrue(mock_update_lod_src.called)
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst_ibmi, entry=self.crt_lpar.return_value,
-            opts=mock.ANY)
+        mock_pwron.assert_called_once_with(self.apt, self.inst_ibmi,
+                                           opts=mock.ANY)
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
@@ -1404,7 +1391,6 @@ class TestPowerVMDriver(test.TestCase):
             'connect_vol_*',
             'save_bdm_fake_vol2',
             'fake',
-            'get_vm',
             'pwr_vm',
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
@@ -1432,7 +1418,6 @@ class TestPowerVMDriver(test.TestCase):
             'connect_vol_*',
             'save_bdm_fake_vol2',
             'fake',
-            'get_vm',
             'pwr_vm',
         ]
         with fx.DriverTaskFlow() as taskflow_fix:
@@ -1515,9 +1500,7 @@ class TestPowerVMDriver(test.TestCase):
                                             force_immediate=False)
         self.assertTrue(mock_disk_dvr.create_disk_from_image.called)
         self.assertTrue(mock_disk_dvr.connect_disk.called)
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst, entry=self.get_inst_wrap.return_value,
-            opts=mock.ANY)
+        mock_pwron.assert_called_once_with(self.apt, self.inst, opts=mock.ANY)
         self.assertEqual('PowerOn(bootmode=sms)',
                          str(mock_pwron.call_args[1]['opts']))
 
@@ -1533,9 +1516,7 @@ class TestPowerVMDriver(test.TestCase):
             self.apt, self.inst, force_immediate=False)
         self.assertTrue(mock_disk_dvr.disconnect_image_disk.called)
         self.assertTrue(mock_disk_dvr.delete_disks.called)
-        mock_pwron.assert_called_once_with(
-            self.apt, self.inst, entry=self.get_inst_wrap.return_value,
-            opts=None)
+        mock_pwron.assert_called_once_with(self.apt, self.inst, opts=None)
 
     @mock.patch('nova_powervm.virt.powervm.driver.LOG')
     def test_log_op(self, mock_log):
