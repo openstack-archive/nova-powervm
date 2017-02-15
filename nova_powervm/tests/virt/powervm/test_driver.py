@@ -287,6 +287,8 @@ class TestPowerVMDriver(test.TestCase):
 
         inst_on_disk()
 
+    @mock.patch('pypowervm.tasks.power_opts.PowerOnOpts')
+    @mock.patch('pypowervm.util.sanitize_file_name_for_api')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
                 'CreateAndConnectCfgDrive.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume'
@@ -303,7 +305,8 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._vol_drv_iter')
     def test_spawn_ops(self, mock_vdi, mock_pwron, mock_get_flv, mock_cfg_drv,
                        mock_plug_vifs, mock_plug_mgmt_vif, mock_boot_from_vol,
-                       mock_crt_disk_img, mock_conn_vol, mock_crt_cfg_drv):
+                       mock_crt_disk_img, mock_conn_vol, mock_crt_cfg_drv,
+                       mock_sanitize, mock_pwron_opts):
         """Validates the 'typical' spawn flow of the spawn of an instance.
 
         Uses a basic disk image, attaching networks and powering on.
@@ -312,6 +315,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = False
         mock_boot_from_vol.return_value = False
+        mock_pwron_opts.return_value = 'fake-opts'
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.IMAGE1,
                        'injected_files', 'admin_password')
@@ -330,12 +334,16 @@ class TestPowerVMDriver(test.TestCase):
             nvram=None, slot_mgr=self.slot_mgr)
         self.assertTrue(mock_pwron.called)
         self.assertTrue(mock_pwron.call_args[1]['synchronous'])
+        self.assertEqual('fake-opts', mock_pwron.call_args[1]['add_parms'])
+        mock_sanitize.assert_not_called()
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
         self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
                                           lpars_exist=True)
 
+    @mock.patch('pypowervm.tasks.power_opts.PowerOnOpts')
+    @mock.patch('pypowervm.util.sanitize_file_name_for_api')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
@@ -344,11 +352,16 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.objects.flavor.Flavor.get_by_id')
     @mock.patch('pypowervm.tasks.power.power_on')
     def test_spawn_with_cfg(self, mock_pwron, mock_get_flv, mock_cfg_drv,
-                            mock_cfg_vopt, mock_plug_vifs, mock_plug_mgmt_vif):
+                            mock_cfg_vopt, mock_plug_vifs, mock_plug_mgmt_vif,
+                            mock_sanitize, mock_pwron_opts):
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
         mock_get_flv.return_value = self.inst.get_flavor()
         mock_cfg_drv.return_value = True
+        mock_sanitize.return_value = 'fake-name'
+        self.flags(remove_vopt_media_on_boot=True, group='powervm')
+        mock_opts = mock.MagicMock()
+        mock_pwron_opts.return_value = mock_opts
 
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.IMAGE1,
@@ -365,6 +378,10 @@ class TestPowerVMDriver(test.TestCase):
         # Power on was called
         self.assertTrue(mock_pwron.called)
         self.assertTrue(mock_pwron.call_args[1]['synchronous'])
+        self.assertEqual(mock_opts, mock_pwron.call_args[1]['add_parms'])
+        mock_opts.remove_optical.assert_called_with('fake-name', time=60)
+        mock_sanitize.assert_called_with(
+            self.inst.name, prefix='cfg_', suffix='.iso', max_len=37)
         self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
                                           lpars_exist=True)
 

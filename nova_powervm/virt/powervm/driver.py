@@ -43,6 +43,7 @@ from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks import memory as pvm_mem
 from pypowervm.tasks import partition as pvm_par
 from pypowervm.tasks import power as pvm_pwr
+from pypowervm.tasks import power_opts
 from pypowervm.tasks import scsi_mapper as pvm_smap
 from pypowervm.tasks import storage as pvm_stor
 from pypowervm.tasks import vterm as pvm_vterm
@@ -60,6 +61,7 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import image as img
 from nova_powervm.virt.powervm import live_migration as lpm
+from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm.nvram import manager as nvram_manager
 from nova_powervm.virt.powervm import slot
 from nova_powervm.virt.powervm.tasks import image as tf_img
@@ -464,8 +466,19 @@ class PowerVMDriver(driver.ComputeDriver):
         # Save the slot map information
         flow_spawn.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
+        pwr_opts = power_opts.PowerOnOpts()
+        if CONF.powervm.remove_vopt_media_on_boot:
+            # Get the cfgdrive media name for the vopt removal task in PowerOn.
+            media_name = pvm_util.sanitize_file_name_for_api(
+                instance.name, prefix=media.CFG_DRV_PREFIX,
+                suffix=media.CFG_DRV_SUFFIX,
+                max_len=pvm_const.MaxLen.VOPT_NAME)
+            pwr_opts.remove_optical(
+                media_name, time=CONF.powervm.remove_vopt_media_time)
+
         # Last step is to power on the system.
-        flow_spawn.add(tf_vm.PowerOn(self.adapter, self.host_uuid, instance))
+        flow_spawn.add(tf_vm.PowerOn(
+            self.adapter, self.host_uuid, instance, pwr_opts=pwr_opts))
 
         # Run the flow.
         tf_eng.run(flow_spawn)

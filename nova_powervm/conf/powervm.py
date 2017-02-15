@@ -65,6 +65,16 @@ powervm_opts = [
                help="Name of the PowerVM virtual switch to be used when "
                     "mapping Linux based network ports to PowerVM virtual "
                     "Ethernet devices"),
+    cfg.BoolOpt('remove_vopt_media_on_boot',
+                default=False,
+                help="If enabled, tells the PowerVM driver to trigger the "
+                     "removal of the media from the virtual optical device "
+                     "used for initialization of VMs on spawn after "
+                     "'remove_vopt_media_time' minutes."),
+    cfg.IntOpt('remove_vopt_media_time',
+               default=60, min=0,
+               help="The amount of time in minutes after a VM has been "
+                    "created for the virtual optical media to be removed."),
     cfg.BoolOpt('use_rmc_mgmt_vif',
                 default=True,
                 help="If enabled, tells the PowerVM Driver to create an RMC "
