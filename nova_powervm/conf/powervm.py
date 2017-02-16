@@ -98,11 +98,10 @@ powervm_opts = [
 localdisk_opts = [
     cfg.StrOpt('volume_group_name',
                default='',
-               help='Volume Group to use for block device operations.  Must '
-                    'not be rootvg.  If disk_driver is localdisk, and more '
-                    'than one non-rootvg volume group exists across the '
-                    'Virtual I/O Servers, then this attribute must be '
-                    'specified.'),
+               help='Volume Group to use for block device operations.  If '
+                    'disk_driver is localdisk, then this attribute must be '
+                    'specified.  It is strongly recommended NOT to use '
+                    'rootvg.'),
     cfg.StrOpt('volume_group_vios_name',
                default='',
                help='(Optional) The name of the Virtual I/O Server hosting '
@@ -110,8 +109,8 @@ localdisk_opts = [
                     'will query through the Virtual I/O Servers looking for '
                     'one that matches the volume_group_vios_name.  This is '
                     'only needed if the system has multiple Virtual I/O '
-                    'Servers with a non-rootvg volume group whose name is '
-                    'duplicated.')
+                    'Servers with a volume group whose name matches the '
+                    '`volume_group_name` option.')
 ]
 
 ssp_opts = [

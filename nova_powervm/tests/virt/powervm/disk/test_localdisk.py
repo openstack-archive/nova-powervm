@@ -65,6 +65,8 @@ class TestLocalDisk(test.TestCase):
             'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
         self.mgmt_uuid.return_value = 'mp_uuid'
 
+        self.flags(volume_group_name='rootvg', group='powervm')
+
     @staticmethod
     def get_ls(adpt):
         return ld.LocalStorage(adpt, 'host_uuid')
@@ -463,3 +465,7 @@ class TestLocalDiskFindVG(test.TestCase):
 
         self.assertRaises(npvmex.VGNotFound, ld.LocalStorage,
                           self.apt, 'host_uuid')
+
+    def test_bad_config(self):
+        self.assertRaises(npvmex.OptRequiredIfOtherOptValue,
+                          ld.LocalStorage, self.apt, 'host_uuid')

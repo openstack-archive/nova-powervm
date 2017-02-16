@@ -54,6 +54,10 @@ class LocalStorage(disk_dvr.DiskAdapter):
         super(LocalStorage, self).__init__(adapter, host_uuid)
 
         # Query to get the Volume Group UUID
+        if not CONF.powervm.volume_group_name:
+            raise npvmex.OptRequiredIfOtherOptValue(
+                if_opt='disk_driver', if_value='localdisk',
+                then_opt='volume_group_name')
         self.vg_name = CONF.powervm.volume_group_name
         self._vios_uuid, self.vg_uuid = self._get_vg_uuid(self.vg_name)
         self.image_cache_mgr = imagecache.ImageManager(self._vios_uuid,
@@ -205,7 +209,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         :param image_type: the image type. See disk constants above.
         :return: The backing pypowervm storage object that was created.
         """
-        LOG.info(_LI('Create disk.'))
+        LOG.info(_LI('Create disk.'), instance=instance)
 
         # Disk size to API is in bytes.  Input from method is in Gb
         disk_bytes = self._disk_gb_to_bytes(disk_size, floor=image_meta.size)
