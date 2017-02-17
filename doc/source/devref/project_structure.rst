@@ -60,7 +60,10 @@ Two disk implementations exist currently.
 
 * localdisk - supports Virtual I/O Server Volume Groups.  This configuration
   uses any Volume Group on the system, allowing operators to make use of the
-  physical disks local to their system.
+  physical disks local to their system.  Images will be cached on the same
+  volume group as the VMs.  The cached images will be periodically cleaned up
+  by the Nova imagecache manager, at a rate determined by the ``nova.conf``
+  setting: image_cache_manager_interval.
 
 * Shared Storage Pool - utilizes PowerVM's distributed storage.  As such this
   implementation allows operators to make use of live migration capabilities.
