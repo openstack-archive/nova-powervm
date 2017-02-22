@@ -443,8 +443,7 @@ class TestSSPDiskAdapter(test.TestCase):
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
         # As initialized above, remove_maps returns True to trigger update.
-        ssp.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
-                         stg_ftsk=None)
+        ssp.connect_disk(inst, mock.Mock(), stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)
@@ -474,8 +473,7 @@ class TestSSPDiskAdapter(test.TestCase):
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
         # As initialized above, remove_maps returns True to trigger update.
-        ssp.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
-                         stg_ftsk=None)
+        ssp.connect_disk(inst, mock.Mock(), stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.assertEqual(0, ft_fx.patchers['update'].mock.call_count)
@@ -483,7 +481,7 @@ class TestSSPDiskAdapter(test.TestCase):
     @mock.patch('pypowervm.tasks.storage.rm_tier_storage')
     def test_delete_disks(self, mock_rm_tstor):
         sspdrv = self._get_ssp_stor()
-        sspdrv.delete_disks(None, None, ['disk1', 'disk2'])
+        sspdrv.delete_disks(['disk1', 'disk2'])
         mock_rm_tstor.assert_called_once_with(['disk1', 'disk2'],
                                               tier=sspdrv._tier)
 
@@ -528,8 +526,7 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_find_maps.side_effect = remove_resp
 
         # As initialized above, remove_maps returns True to trigger update.
-        lu_list = ssp.disconnect_image_disk(mock.Mock(), self.instance,
-                                            stg_ftsk=None)
+        lu_list = ssp.disconnect_disk(self.instance, stg_ftsk=None)
         self.assertEqual({lu1, lu2}, set(lu_list))
         self.assertEqual(1, mock_remove_maps.call_count)
         self.assertEqual(1, ft_fx.patchers['update'].mock.call_count)

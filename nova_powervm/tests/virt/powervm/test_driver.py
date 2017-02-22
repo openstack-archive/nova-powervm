@@ -1001,7 +1001,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Validate disk driver detach and delete disk methods were called.
         self.assertTrue(self.drv.disk_dvr.delete_disks.called)
-        self.assertTrue(self.drv.disk_dvr.disconnect_image_disk.called)
+        self.assertTrue(self.drv.disk_dvr.disconnect_disk.called)
 
         # NVRAM was deleted
         self.drv.nvram_mgr.remove.assert_called_once_with(self.inst)
@@ -1032,7 +1032,7 @@ class TestPowerVMDriver(test.TestCase):
         reset_mocks()
         mock_boot_from_vol.return_value = True
         self.drv.disk_dvr.delete_disks.reset_mock()
-        self.drv.disk_dvr.disconnect_image_disk.reset_mock()
+        self.drv.disk_dvr.disconnect_disk.reset_mock()
 
         # Invoke the method.
         self.drv.destroy('context', self.inst, None,
@@ -1043,13 +1043,13 @@ class TestPowerVMDriver(test.TestCase):
 
         # Validate disk driver detach and delete disk methods were called.
         self.assertFalse(self.drv.disk_dvr.delete_disks.called)
-        self.assertFalse(self.drv.disk_dvr.disconnect_image_disk.called)
+        self.assertFalse(self.drv.disk_dvr.disconnect_disk.called)
 
         # Test when destroy_disks set to False.
         reset_mocks()
         mock_boot_from_vol.return_value = True
         self.drv.disk_dvr.delete_disks.reset_mock()
-        self.drv.disk_dvr.disconnect_image_disk.reset_mock()
+        self.drv.disk_dvr.disconnect_disk.reset_mock()
 
         # Invoke the method.
         self.drv.destroy('context', self.inst, None,
@@ -1161,7 +1161,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Validate disk driver detach and delete disk methods were called.
         self.assertTrue(self.drv.disk_dvr.delete_disks.called)
-        self.assertTrue(self.drv.disk_dvr.disconnect_image_disk.called)
+        self.assertTrue(self.drv.disk_dvr.disconnect_disk.called)
 
         # NVRAM was NOT deleted
         self.assertFalse(self.drv.nvram_mgr.remove.called)
@@ -1513,7 +1513,7 @@ class TestPowerVMDriver(test.TestCase):
 
         mock_pwroff.assert_called_once_with(
             self.apt, self.inst, force_immediate=False)
-        self.assertTrue(mock_disk_dvr.disconnect_image_disk.called)
+        self.assertTrue(mock_disk_dvr.disconnect_disk.called)
         self.assertTrue(mock_disk_dvr.delete_disks.called)
         mock_pwron.assert_called_once_with(self.apt, self.inst, opts=None)
 

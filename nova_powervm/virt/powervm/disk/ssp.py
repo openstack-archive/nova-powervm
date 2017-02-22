@@ -47,9 +47,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
     Shared Storage Pools are a clustered file system technology that can link
     together Virtual I/O Servers.
 
-    This adapter provides the connection for nova based storage (not Cinder)
-    to connect to virtual machines.  A separate Cinder driver for SSPs may
-    exist in the future.
+    This adapter provides the connection for nova ephemeral storage (not
+    Cinder) to connect to virtual machines.
     """
 
     capabilities = {
@@ -59,7 +58,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
     def __init__(self, adapter, host_uuid):
         """Initialize the SSPDiskAdapter.
 
-        :param connection: connection information for the underlying driver
+        :param adapter: pypowervm.adapter.Adapter for the PowerVM REST API.
+        :param host_uuid: PowerVM UUID of the managed system.
         """
         super(SSPDiskAdapter, self).__init__(adapter, host_uuid)
 
@@ -117,11 +117,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                      'source_ssp_name': disk_info.get('ssp_name')}
                     )
 
-    def disconnect_image_disk(self, context, instance, stg_ftsk=None,
-                              disk_type=None):
+    def disconnect_disk(self, instance, stg_ftsk=None, disk_type=None):
         """Disconnects the storage adapters from the image disk.
 
-        :param context: nova context for operation
         :param instance: instance to disconnect the image for.
         :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for
                          the I/O Operations.  If provided, the Virtual I/O
@@ -193,14 +191,12 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                 'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
                 'vios_uuid': vios_uuid})
 
-    def delete_disks(self, context, instance, storage_elems):
+    def delete_disks(self, storage_elems):
         """Removes the disks specified by the mappings.
 
-        :param context: nova context for operation
-        :param instance: instance to delete the disk for.
         :param storage_elems: A list of the storage elements (LU
                               ElementWrappers) that are to be deleted.  Derived
-                              from the return value from disconnect_image_disk.
+                              from the return value from disconnect_disk.
         """
         tsk_stg.rm_tier_storage(storage_elems, tier=self._tier)
 
@@ -250,10 +246,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             self.adapter, parent=self._tier, name=lu_name,
             lu_type=pvm_stg.LUType.DISK, one_result=True)
 
-    def connect_disk(self, context, instance, disk_info, stg_ftsk=None):
+    def connect_disk(self, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.
 
-        :param context: nova context for the transaction.
         :param instance: nova instance to connect the disk to.
         :param disk_info: The pypowervm storage element returned from
                           create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
@@ -294,16 +289,6 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         # If the FeedTask was built locally, then run it immediately
         if stg_ftsk.name == 'ssp':
             stg_ftsk.execute()
-
-    def extend_disk(self, context, instance, disk_info, size):
-        """Extends the disk.
-
-        :param context: nova context for operation.
-        :param instance: instance to extend the disk for.
-        :param disk_info: dictionary with disk info.
-        :param size: the new size in gb.
-        """
-        raise NotImplementedError()
 
     def check_instance_shared_storage_local(self, context, instance):
         """Check if instance files located on shared storage.

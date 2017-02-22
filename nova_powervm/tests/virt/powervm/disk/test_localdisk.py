@@ -157,7 +157,7 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('pypowervm.tasks.partition.get_active_vioses')
-    def test_disconnect_image_disk(self, mock_active_vioses, mock_rm_maps):
+    def test_disconnect_disk(self, mock_active_vioses, mock_rm_maps):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
         # to act as the feed for FeedTaskFx and FeedTask.
         feed = [self.vio_to_vg]
@@ -175,8 +175,8 @@ class TestLocalDisk(test.TestCase):
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
         # As initialized above, remove_maps returns True to trigger update.
-        local.disconnect_image_disk(mock.MagicMock(), inst, stg_ftsk=None,
-                                    disk_type=[disk_dvr.DiskType.BOOT])
+        local.disconnect_disk(inst, stg_ftsk=None,
+                              disk_type=[disk_dvr.DiskType.BOOT])
         self.assertEqual(1, mock_rm_maps.call_count)
         self.assertEqual(1, self.vio_to_vg.update.call_count)
         mock_rm_maps.assert_called_once_with(feed[0], fx.FAKE_INST_UUID_PVM,
@@ -184,8 +184,7 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('pypowervm.tasks.partition.get_active_vioses')
-    def test_disconnect_image_disk_no_update(self, mock_active_vioses,
-                                             mock_rm_maps):
+    def test_disconnect_disk_no_update(self, mock_active_vioses, mock_rm_maps):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
         # to act as the feed for FeedTaskFx and FeedTask.
         feed = [self.vio_to_vg]
@@ -203,15 +202,15 @@ class TestLocalDisk(test.TestCase):
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
         # As initialized above, remove_maps returns True to trigger update.
-        local.disconnect_image_disk(mock.MagicMock(), inst, stg_ftsk=None,
-                                    disk_type=[disk_dvr.DiskType.BOOT])
+        local.disconnect_disk(inst, stg_ftsk=None,
+                              disk_type=[disk_dvr.DiskType.BOOT])
         self.assertEqual(1, mock_rm_maps.call_count)
         self.vio_to_vg.update.assert_not_called()
         mock_rm_maps.assert_called_once_with(feed[0], fx.FAKE_INST_UUID_PVM,
                                              match_func=mock.ANY)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.gen_match_func')
-    def test_disconnect_image_disk_disktype(self, mock_match_func):
+    def test_disconnect_disk_disktype(self, mock_match_func):
         """Ensures that the match function passes in the right prefix."""
         # Set up the mock data.
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
@@ -219,9 +218,8 @@ class TestLocalDisk(test.TestCase):
 
         # Invoke
         local = self.get_ls(self.apt)
-        local.disconnect_image_disk(mock.MagicMock(), inst,
-                                    stg_ftsk=mock.MagicMock(),
-                                    disk_type=[disk_dvr.DiskType.BOOT])
+        local.disconnect_disk(inst, stg_ftsk=mock.MagicMock(),
+                              disk_type=[disk_dvr.DiskType.BOOT])
 
         # Make sure the find maps is invoked once.
         self.mock_find_maps.assert_called_once_with(
@@ -234,8 +232,8 @@ class TestLocalDisk(test.TestCase):
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.partition.get_active_vioses')
-    def test_connect_image_disk(self, mock_active_vioses, mock_add_map,
-                                mock_build_map):
+    def test_connect_disk(self, mock_active_vioses, mock_add_map,
+                          mock_build_map):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
         # to act as the feed for FeedTask.
         feed = [self.vio_to_vg]
@@ -252,8 +250,7 @@ class TestLocalDisk(test.TestCase):
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
         # As initialized above, remove_maps returns True to trigger update.
-        local.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
-                           stg_ftsk=None)
+        local.connect_disk(inst, mock.Mock(), stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.assertEqual(1, self.vio_to_vg.update.call_count)
@@ -261,8 +258,8 @@ class TestLocalDisk(test.TestCase):
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.partition.get_active_vioses')
-    def test_connect_image_disk_no_update(self, mock_active_vioses,
-                                          mock_add_map, mock_build_map):
+    def test_connect_disk_no_update(self, mock_active_vioses, mock_add_map,
+                                    mock_build_map):
         # vio_to_vg is a single-entry response.  Wrap it and put it in a list
         # to act as the feed for FeedTask.
         feed = [self.vio_to_vg]
@@ -279,8 +276,7 @@ class TestLocalDisk(test.TestCase):
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
 
         # As initialized above, remove_maps returns True to trigger update.
-        local.connect_disk(mock.MagicMock(), inst, mock.MagicMock(),
-                           stg_ftsk=None)
+        local.connect_disk(inst, mock.Mock(), stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.vio_to_vg.update.assert_not_called()
@@ -301,8 +297,7 @@ class TestLocalDisk(test.TestCase):
 
         # Invoke the call
         local = self.get_ls(self.apt)
-        local.delete_disks(mock.MagicMock(), mock.MagicMock(),
-                           [mock_remove])
+        local.delete_disks([mock_remove])
 
         # Validate the call
         self.assertEqual(1, mock_wrapper.update.call_count)
@@ -324,10 +319,10 @@ class TestLocalDisk(test.TestCase):
         mock_vg.return_value = resp
 
         self.assertRaises(nova_exc.DiskNotFound, local.extend_disk,
-                          'context', inst, dict(type='boot'), 10)
+                          inst, dict(type='boot'), 10)
 
         vdisk.name = 'b_Name_Of__d506'
-        local.extend_disk('context', inst, dict(type='boot'), 1000)
+        local.extend_disk(inst, dict(type='boot'), 1000)
         # Validate the call
         self.assertEqual(1, resp.update.call_count)
         self.assertEqual(vdisk.capacity, 1000)

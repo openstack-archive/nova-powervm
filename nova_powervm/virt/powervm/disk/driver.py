@@ -120,19 +120,14 @@ class DiskAdapter(object):
         raise NotImplementedError()
 
     def boot_disk_path_for_instance(self, instance, vios_uuid):
-        """Find scsi mappings on given vios for the instance.
+        """Find scsi mappings on given VIOS for the instance.
 
         This method finds all scsi mappings on a given vios that are associated
         with the instance and disk_type.
 
         :param instance: nova.objects.instance.Instance object owning the
                          requested disk.
-        :param disk_type: The type of disk to find, one of the DiskType enum
-                          values.
-        :param lpar_wrap: pypowervm.wrappers.logical_partition.LPAR
-                          corresponding to the instance.  If not specified, it
-                          will be retrieved; i.e. specify this parameter to
-                          save on REST calls.
+        :param vios_uuid: PowerVM UUID of the VIOS to search for mappings.
         :return: Iterator of scsi mappings that are associated with the
                  instance and disk_type.
         """
@@ -276,7 +271,13 @@ class DiskAdapter(object):
 
     @staticmethod
     def _get_image_name(image_meta, max_len=pvm_const.MaxLen.FILENAME_DEFAULT):
-        """Generate a name for a virtual storage copy of an image."""
+        """Generate a name for a virtual storage copy of an image.
+
+        :param nova.objects.ImageMeta image_meta:
+            The metadata of the image of the instance.
+        :param max_len: Maximum string length for the resulting image name.
+        :return: String name for the image on the server.
+        """
         return pvm_util.sanitize_file_name_for_api(
             image_meta.name, prefix=DiskType.IMAGE + '_',
             suffix='_' + image_meta.checksum, max_len=max_len)
@@ -297,11 +298,9 @@ class DiskAdapter(object):
                 disk_bytes = floor
         return disk_bytes
 
-    def disconnect_image_disk(self, context, instance, stg_ftsk=None,
-                              disk_type=None):
+    def disconnect_disk(self, instance, stg_ftsk=None, disk_type=None):
         """Disconnects the storage adapters from the image disk.
 
-        :param context: nova context for operation
         :param instance: instance to disconnect the image for.
         :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
                          I/O Operations.  If provided, the Virtual I/O Server
@@ -316,14 +315,12 @@ class DiskAdapter(object):
         """
         pass
 
-    def delete_disks(self, context, instance, storage_elems):
+    def delete_disks(self, storage_elems):
         """Removes the disks specified by the mappings.
 
-        :param context: nova context for operation
-        :param instance: instance to delete the disk for.
         :param storage_elems: A list of the storage elements that are to be
                               deleted.  Derived from the return value from
-                              disconnect_image_disk.
+                              disconnect_disk.
         """
         pass
 
@@ -380,10 +377,9 @@ class DiskAdapter(object):
         """
         pass
 
-    def connect_disk(self, context, instance, disk_info, stg_ftsk=None):
+    def connect_disk(self, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.
 
-        :param context: nova context for the transaction.
         :param instance: nova instance to connect the disk to.
         :param disk_info: The pypowervm storage element returned from
                           create_disk_from_image.  Ex. VOptMedia, VDisk, LU,
@@ -397,10 +393,9 @@ class DiskAdapter(object):
         """
         pass
 
-    def extend_disk(self, context, instance, disk_info, size):
+    def extend_disk(self, instance, disk_info, size):
         """Extends the disk.
 
-        :param context: nova context for operation.
         :param instance: instance to extend the disk for.
         :param disk_info: dictionary with disk info.
         :param size: the new size in gb.
