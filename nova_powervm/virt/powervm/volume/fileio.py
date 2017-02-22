@@ -70,9 +70,8 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         # Get the hosting UUID
         nl_vios_wrap = partition.get_mgmt_partition(self.adapter)
         vios_uuid = nl_vios_wrap.uuid
-
         # Build the match function
-        match_func = tsk_map.gen_match_func(pvm_stg.FileIO,
+        match_func = tsk_map.gen_match_func(pvm_stg.VDisk,
                                             names=[self._get_path()])
 
         # Make sure the remove function will run within the transaction manager
@@ -90,7 +89,8 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         self.stg_ftsk.add_functor_subtask(rm_func)
 
         # Find the disk directly.
-        mappings = tsk_map.find_maps(nl_vios_wrap.scsi_mappings,
+        vios_w = self.stg_ftsk.wrapper_tasks[vios_uuid].wrapper
+        mappings = tsk_map.find_maps(vios_w.scsi_mappings,
                                      client_lpar_id=self.vm_uuid,
                                      match_func=match_func)
 

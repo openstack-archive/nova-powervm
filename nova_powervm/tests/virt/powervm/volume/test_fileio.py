@@ -93,7 +93,8 @@ class TestFileIOVolumeAdapter(test_vol.TestVolumeAdapter):
 
         # Validate
         mock_gen_match_func.assert_called_once_with(
-            pvm_stg.FileIO, names=['fake_path'])
+            pvm_stg.VDisk, names=['fake_path'])
+        mock_stg_ftsk_wrap = self.mock_stg_ftsk.wrapper_tasks['vios_uuid']
         mock_find_maps.assert_called_once_with(
-            mock_vios.scsi_mappings, client_lpar_id='2BC123',
-            match_func=mock_match_func)
+            mock_stg_ftsk_wrap.wrapper.scsi_mappings,
+            client_lpar_id='2BC123', match_func=mock_match_func)
