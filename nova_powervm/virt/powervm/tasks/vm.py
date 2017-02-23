@@ -304,7 +304,7 @@ class Delete(pvm_task.PowerVMTask):
 
     """The task to delete the instance from the system."""
 
-    def __init__(self, adapter, lpar_uuid, instance):
+    def __init__(self, adapter, instance):
         """Create the Task to delete the VM from the system.
 
         :param adapter: The adapter for the pypowervm API.
@@ -313,10 +313,10 @@ class Delete(pvm_task.PowerVMTask):
         """
         super(Delete, self).__init__(instance, 'dlt_vm')
         self.adapter = adapter
-        self.lpar_uuid = lpar_uuid
+        self.instance = instance
 
     def execute_impl(self):
-        vm.dlt_lpar(self.adapter, self.lpar_uuid)
+        vm.dlt_lpar(self.adapter, vm.get_pvm_uuid(self.instance))
 
 
 class UpdateIBMiSettings(pvm_task.PowerVMTask):

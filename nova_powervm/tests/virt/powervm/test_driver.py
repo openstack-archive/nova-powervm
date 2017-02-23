@@ -20,7 +20,6 @@ import fixtures
 import logging
 import mock
 from oslo_serialization import jsonutils
-import six
 
 from nova import block_device as nova_block_device
 from nova.compute import task_states
@@ -1712,54 +1711,29 @@ class TestPowerVMDriver(test.TestCase):
         mock_reboot.assert_called_once_with(self.apt, inst, True)
 
     @mock.patch('pypowervm.tasks.vterm.open_remotable_vnc_vterm')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    def test_get_vnc_console(self, mock_uuid, mock_vterm):
-        # Mock response
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid',
+                new=mock.Mock(return_value='uuid'))
+    def test_get_vnc_console(self, mock_vterm):
+        # Success
         mock_vterm.return_value = '10'
-        mock_uuid.return_value = 'uuid'
-
-        # Invoke
         resp = self.drv.get_vnc_console(mock.ANY, self.inst)
-
-        # Validate
         self.assertEqual('127.0.0.1', resp.host)
         self.assertEqual('10', resp.port)
         self.assertEqual('uuid', resp.internal_access_path)
-
         mock_vterm.assert_called_once_with(
             mock.ANY, 'uuid', mock.ANY, vnc_path='uuid', use_x509_auth=False,
             ca_certs=None, server_cert=None, server_key=None)
 
-    @mock.patch('pypowervm.tasks.vterm.open_remotable_vnc_vterm')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    def test_get_vnc_console_failure(self, mock_uuid, mock_vterm):
-        # Mock response
-        mock_vterm.side_effect = pvm_exc.VNCBasedTerminalFailedToOpen(
-            err='test')
-        mock_uuid.return_value = 'uuid'
-
-        # Invoke
-        self.assertRaises(exc.ConsoleTypeUnavailable, self.drv.get_vnc_console,
+        # Failure
+        mock_vterm.side_effect = pvm_exc.VNCBasedTerminalFailedToOpen(err='xx')
+        self.assertRaises(exc.InternalError, self.drv.get_vnc_console,
                           mock.ANY, self.inst)
 
-    @mock.patch('pypowervm.tasks.vterm.open_remotable_vnc_vterm')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    def test_get_vnc_console_notfound(self, mock_uuid, mock_vterm):
-        # Mock response
+        # 404
         mock_resp = mock.Mock(status=404)
         mock_vterm.side_effect = pvm_exc.HttpError(mock_resp)
-        mock_uuid.return_value = 'uuid'
-        exc_str = None
-
-        # Invoke
-        try:
-            self.drv.get_vnc_console(mock.ANY, self.inst)
-        except Exception as exc:
-            exc_str = six.text_type(exc)
-
-        self.assertIsNotNone(exc_str, 'Expected Not Found Exception')
-        self.assertEqual(exc_str, 'Unable to open console since '
-                         'virtual machine Fake Instance does not exist.')
+        self.assertRaises(exc.InstanceNotFound, self.drv.get_vnc_console,
+                          mock.ANY, self.inst)
 
     @staticmethod
     def _fake_bdms():

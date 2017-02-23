@@ -132,3 +132,8 @@ class NoActiveViosForFeedTask(nex.NovaException):
 class InvalidRebuild(nex.NovaException):
     msg_fmt = _("Unable to rebuild virtual machine on new host.  Error is "
                 "%(error)s")
+
+
+class OptRequiredIfOtherOptValue(nex.NovaException):
+    msg_fmt = _("The %(then_opt)s option is required if %(if_opt)s is "
+                "specified as '%(if_value)s'.")

@@ -657,7 +657,7 @@ class PowerVMDriver(driver.ComputeDriver):
             # the NVRAM from the store.
             # Note: If moving to a Graph Flow, will need to change to depend on
             # the prior step.
-            flow.add(tf_vm.Delete(self.adapter, pvm_inst_uuid, instance))
+            flow.add(tf_vm.Delete(self.adapter, instance))
 
             if (destroy_disks and
                     instance.vm_state not in KEEP_NVRAM_STATES and
@@ -1774,12 +1774,10 @@ class PowerVMDriver(driver.ComputeDriver):
             # If the LPAR was not found, then give a more descriptive message
             if isinstance(err, pvm_exc.HttpError):
                 if err.response.status == 404:
-                    msg = _("Unable to open console since virtual machine "
-                            "%s does not exist.") % instance['display_name']
-                    raise exception.ConsoleTypeUnavailable(message=msg)
+                    raise exception.InstanceNotFound(instance_id=instance.uuid)
             # Otherwise wrapper the error in an exception that can be handled
-            raise exception.ConsoleTypeUnavailable(
-                message=_("Unable to open console.  Error is: %s") % err)
+            raise exception.InternalError(
+                err=_("Unable to open console.  Error is: %s") % err)
 
         # Note that the VNC viewer will wrap the internal_access_path with
         # the HTTP content.

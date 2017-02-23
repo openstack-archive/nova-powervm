@@ -25,6 +25,7 @@ from nova_powervm.virt.powervm.tasks import vm as tf_vm
 from pypowervm import const as pvmc
 from taskflow import engines as tf_eng
 from taskflow.patterns import linear_flow as tf_lf
+from taskflow import task as tf_tsk
 
 
 class TestVMTasks(test.TestCase):
@@ -91,6 +92,63 @@ class TestVMTasks(test.TestCase):
         flow_test.add(crt)
         self.assertRaises(exception.NovaException, tf_eng.run, flow_test)
         mock_vm_dlt.assert_called()
+
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    def test_power_on(self, mock_pwron):
+        pwron = tf_vm.PowerOn(self.apt, self.instance, pwr_opts='opt')
+        pwron.execute()
+        mock_pwron.assert_called_once_with(self.apt, self.instance, opts='opt')
+
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    def test_power_on_revert(self, mock_pwroff, mock_pwron):
+        flow = tf_lf.Flow('revert_power_on')
+        pwron = tf_vm.PowerOn(self.apt, self.instance, pwr_opts='opt')
+        flow.add(pwron)
+
+        # Dummy Task that fails, triggering flow revert
+        def failure(*a, **k):
+            raise ValueError()
+        flow.add(tf_tsk.FunctorTask(failure))
+
+        # When PowerOn.execute doesn't fail, revert calls power_off
+        self.assertRaises(ValueError, tf_eng.run, flow)
+        mock_pwron.assert_called_once_with(self.apt, self.instance, opts='opt')
+        mock_pwroff.assert_called_once_with(self.apt, self.instance,
+                                            force_immediate=True)
+
+        mock_pwron.reset_mock()
+        mock_pwroff.reset_mock()
+
+        # When PowerOn.execute fails, revert doesn't call power_off
+        mock_pwron.side_effect = exception.NovaException()
+        self.assertRaises(exception.NovaException, tf_eng.run, flow)
+        mock_pwron.assert_called_once_with(self.apt, self.instance, opts='opt')
+        mock_pwroff.assert_not_called()
+
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    def test_power_off(self, mock_pwroff):
+        # Default force_immediate
+        pwroff = tf_vm.PowerOff(self.apt, self.instance)
+        pwroff.execute()
+        mock_pwroff.assert_called_once_with(self.apt, self.instance,
+                                            force_immediate=False)
+
+        mock_pwroff.reset_mock()
+
+        # Explicit force_immediate
+        pwroff = tf_vm.PowerOff(self.apt, self.instance, force_immediate=True)
+        pwroff.execute()
+        mock_pwroff.assert_called_once_with(self.apt, self.instance,
+                                            force_immediate=True)
+
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    def test_delete(self, mock_dlt, mock_uuid):
+        delete = tf_vm.Delete(self.apt, self.instance)
+        delete.execute()
+        mock_dlt.assert_called_once_with(self.apt, mock_uuid.return_value)
+        mock_uuid.assert_called_once_with(self.instance)
 
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     def test_resize(self, mock_vm_update):
