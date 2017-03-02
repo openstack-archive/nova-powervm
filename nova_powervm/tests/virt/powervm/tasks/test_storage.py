@@ -93,36 +93,33 @@ class TestStorage(test.TestCase):
     def test_delete_disk(self):
         stor_adpt_mappings = mock.Mock()
 
-        task = tf_stg.DeleteDisk(self.disk_dvr, self.context, self.instance)
+        task = tf_stg.DeleteDisk(self.disk_dvr, self.instance)
         task.execute(stor_adpt_mappings)
-        self.disk_dvr.delete_disks.assert_called_once_with(
-            self.context, self.instance, stor_adpt_mappings)
+        self.disk_dvr.delete_disks.assert_called_once_with(stor_adpt_mappings)
 
     def test_detach_disk(self):
         disk_type = 'disk_type'
         stg_ftsk = mock.Mock()
 
         task = tf_stg.DetachDisk(
-            self.disk_dvr, self.context, self.instance, stg_ftsk=stg_ftsk,
+            self.disk_dvr, self.instance, stg_ftsk=stg_ftsk,
             disk_type=disk_type)
         task.execute()
-        self.disk_dvr.disconnect_image_disk.assert_called_once_with(
-            self.context, self.instance, stg_ftsk=stg_ftsk,
-            disk_type=disk_type)
+        self.disk_dvr.disconnect_disk.assert_called_once_with(
+            self.instance, stg_ftsk=stg_ftsk, disk_type=disk_type)
 
     def test_connect_disk(self):
         stg_ftsk = mock.Mock()
         disk_dev_info = mock.Mock()
 
         task = tf_stg.ConnectDisk(
-            self.disk_dvr, self.context, self.instance, stg_ftsk=stg_ftsk)
+            self.disk_dvr, self.instance, stg_ftsk=stg_ftsk)
         task.execute(disk_dev_info)
         self.disk_dvr.connect_disk.assert_called_once_with(
-            self.context, self.instance, disk_dev_info, stg_ftsk=stg_ftsk)
+            self.instance, disk_dev_info, stg_ftsk=stg_ftsk)
 
         task.revert(disk_dev_info, 'result', 'flow failures')
-        self.disk_dvr.disconnect_image_disk.assert_called_once_with(
-            self.context, self.instance)
+        self.disk_dvr.disconnect_disk.assert_called_once_with(self.instance)
 
     def test_create_disk_for_img(self):
         image_meta = mock.Mock()
@@ -138,8 +135,7 @@ class TestStorage(test.TestCase):
             image_type=image_type)
 
         task.revert('result', 'flow failures')
-        self.disk_dvr.delete_disks.assert_called_once_with(
-            self.context, self.instance, ['result'])
+        self.disk_dvr.delete_disks.assert_called_once_with(['result'])
 
     @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
     @mock.patch('nova_powervm.virt.powervm.mgmt.discover_vscsi_disk')
@@ -284,16 +280,14 @@ class TestStorage(test.TestCase):
         disk_dvr.get_disk_ref.assert_called_once_with(instance, disk_type)
         self.assertIsNone(ret_disk)
 
-    def test_extenddisk(self):
+    def test_extend_disk(self):
         disk_dvr = mock.Mock()
         instance = mock.Mock()
-        context = 'context'
         disk_info = {'type': 'disk_type'}
 
-        task = tf_stg.ExtendDisk(disk_dvr, context, instance, disk_info, 1024)
+        task = tf_stg.ExtendDisk(disk_dvr, instance, disk_info, 1024)
         task.execute()
-        disk_dvr.extend_disk.assert_called_once_with(context, instance,
-                                                     disk_info, 1024)
+        disk_dvr.extend_disk.assert_called_once_with(instance, disk_info, 1024)
 
     def test_connect_volume(self):
         vol_dvr = mock.Mock(connection_info={'data': {'volume_id': '1'}})

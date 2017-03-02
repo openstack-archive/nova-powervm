@@ -169,21 +169,20 @@ class CreateDiskForImg(pvm_task.PowerVMTask):
 
         # Run the delete.  The result is a single disk.  Wrap into list
         # as the method works with plural disks.
-        self.disk_dvr.delete_disks(self.context, self.instance, [result])
+        self.disk_dvr.delete_disks([result])
 
 
 class ConnectDisk(pvm_task.PowerVMTask):
 
     """The task to connect the disk to the instance."""
 
-    def __init__(self, disk_dvr, context, instance, stg_ftsk=None):
+    def __init__(self, disk_dvr, instance, stg_ftsk=None):
         """Create the Task for the connect disk to instance method.
 
         Requires disk info through requirement of disk_dev_info (provided by
         crt_disk_from_img)
 
         :param disk_dvr: The disk driver.
-        :param context: The context passed into the spawn method.
         :param instance: The nova instance.
         :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
                          I/O Operations.  If provided, the Virtual I/O Server
@@ -195,16 +194,15 @@ class ConnectDisk(pvm_task.PowerVMTask):
         super(ConnectDisk, self).__init__(
             instance, 'connect_disk', requires=['disk_dev_info'])
         self.disk_dvr = disk_dvr
-        self.context = context
         self.stg_ftsk = stg_ftsk
 
     def execute_impl(self, disk_dev_info):
-        self.disk_dvr.connect_disk(self.context, self.instance, disk_dev_info,
+        self.disk_dvr.connect_disk(self.instance, disk_dev_info,
                                    stg_ftsk=self.stg_ftsk)
 
     def revert_impl(self, disk_dev_info, result, flow_failures):
         # Note that the FeedTask is None - to force instant disconnect.
-        self.disk_dvr.disconnect_image_disk(self.context, self.instance)
+        self.disk_dvr.disconnect_disk(self.instance)
 
 
 class InstanceDiskToMgmt(pvm_task.PowerVMTask):
@@ -434,15 +432,13 @@ class DetachDisk(pvm_task.PowerVMTask):
 
     """The task to detach the disk storage from the instance."""
 
-    def __init__(self, disk_dvr, context, instance, stg_ftsk=None,
-                 disk_type=None):
+    def __init__(self, disk_dvr, instance, stg_ftsk=None, disk_type=None):
         """Creates the Task to detach the storage adapters.
 
         Provides the stor_adpt_mappings.  A list of pypowervm
         VSCSIMappings or VFCMappings (depending on the storage adapter).
 
         :param disk_dvr: The DiskAdapter for the VM.
-        :param context: The nova context.
         :param instance: The nova instance.
         :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
                          I/O Operations.  If provided, the Virtual I/O Server
@@ -455,37 +451,32 @@ class DetachDisk(pvm_task.PowerVMTask):
         super(DetachDisk, self).__init__(
             instance, 'detach_storage', provides='stor_adpt_mappings')
         self.disk_dvr = disk_dvr
-        self.context = context
         self.stg_ftsk = stg_ftsk
         self.disk_type = disk_type
 
     def execute_impl(self):
-        return self.disk_dvr.disconnect_image_disk(
-            self.context, self.instance, stg_ftsk=self.stg_ftsk,
-            disk_type=self.disk_type)
+        return self.disk_dvr.disconnect_disk(
+            self.instance, stg_ftsk=self.stg_ftsk, disk_type=self.disk_type)
 
 
 class DeleteDisk(pvm_task.PowerVMTask):
 
     """The task to delete the backing storage."""
 
-    def __init__(self, disk_dvr, context, instance):
+    def __init__(self, disk_dvr, instance):
         """Creates the Task to delete the disk storage from the system.
 
         Requires the stor_adpt_mappings.
 
         :param disk_dvr: The DiskAdapter for the VM.
-        :param context: The nova context.
         :param instance: The nova instance.
         """
         req = ['stor_adpt_mappings']
         super(DeleteDisk, self).__init__(instance, 'dlt_storage', requires=req)
         self.disk_dvr = disk_dvr
-        self.context = context
 
     def execute_impl(self, stor_adpt_mappings):
-        self.disk_dvr.delete_disks(self.context, self.instance,
-                                   stor_adpt_mappings)
+        self.disk_dvr.delete_disks(stor_adpt_mappings)
 
 
 class SaveBDM(pvm_task.PowerVMTask):
@@ -545,17 +536,15 @@ class ExtendDisk(pvm_task.PowerVMTask):
 
     """Task to extend a disk."""
 
-    def __init__(self, disk_dvr, context, instance, disk_info, size):
+    def __init__(self, disk_dvr, instance, disk_info, size):
         """Creates the Task to extend a disk.
 
         :param disk_dvr: The storage driver.
-        :param context: nova context for operation.
         :param instance: instance to extend the disk for.
         :param disk_info: dictionary with disk info.
         :param size: the new size in gb.
         """
         self.disk_dvr = disk_dvr
-        self.context = context
         self.disk_info = disk_info
         self.size = size
         super(ExtendDisk, self).__init__(
@@ -564,5 +553,4 @@ class ExtendDisk(pvm_task.PowerVMTask):
     def execute_impl(self):
         LOG.info(_LI('Extending disk size of disk: %(disk)s size: %(size)s.'),
                  {'disk': self.disk_info['type'], 'size': self.size})
-        self.disk_dvr.extend_disk(self.context, self.instance, self.disk_info,
-                                  self.size)
+        self.disk_dvr.extend_disk(self.instance, self.disk_info, self.size)

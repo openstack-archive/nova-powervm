@@ -434,8 +434,8 @@ class PowerVMDriver(driver.ComputeDriver):
                     self.disk_dvr, context, instance, image_meta,
                     disk_size=flavor.root_gb))
             # Connects up the disk to the LPAR
-            flow_spawn.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance,
-                                              stg_ftsk=stg_ftsk))
+            flow_spawn.add(tf_stg.ConnectDisk(
+                self.disk_dvr, instance, stg_ftsk=stg_ftsk))
 
         # Determine if there are volumes to connect.  If so, add a connection
         # for each type.
@@ -619,12 +619,12 @@ class PowerVMDriver(driver.ComputeDriver):
             if not self._is_booted_from_volume(block_device_info):
                 # Detach the disk storage adapters (when the stg_ftsk runs)
                 flow.add(tf_stg.DetachDisk(
-                    self.disk_dvr, context, instance, stg_ftsk))
+                    self.disk_dvr, instance, stg_ftsk=stg_ftsk))
 
                 # Delete the storage disks
                 if destroy_disks:
                     destroy_disk_task = tf_stg.DeleteDisk(
-                        self.disk_dvr, context, instance)
+                        self.disk_dvr, instance)
 
             # It's possible that volume disconnection may have failed for disks
             # which had been removed from the VIOS by the storage back end
@@ -887,7 +887,7 @@ class PowerVMDriver(driver.ComputeDriver):
             image_type=disk_dvr.DiskType.RESCUE))
 
         # Connects up the disk to the LPAR
-        flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance))
+        flow.add(tf_stg.ConnectDisk(self.disk_dvr, instance))
 
         # Last step is to power on the system.
         flow.add(tf_vm.PowerOn(
@@ -905,8 +905,6 @@ class PowerVMDriver(driver.ComputeDriver):
         """
         self._log_operation('unrescue', instance)
 
-        context = ctx.get_admin_context()
-
         # Define the flow
         flow = tf_lf.Flow("unrescue")
 
@@ -914,11 +912,11 @@ class PowerVMDriver(driver.ComputeDriver):
         flow.add(tf_vm.PowerOff(self.adapter, instance))
 
         # Detach the disk adapter for the rescue image
-        flow.add(tf_stg.DetachDisk(self.disk_dvr, context, instance,
-                                   disk_type=[disk_dvr.DiskType.RESCUE]))
+        flow.add(tf_stg.DetachDisk(
+            self.disk_dvr, instance, disk_type=[disk_dvr.DiskType.RESCUE]))
 
         # Delete the storage disk for the rescue image
-        flow.add(tf_stg.DeleteDisk(self.disk_dvr, context, instance))
+        flow.add(tf_stg.DeleteDisk(self.disk_dvr, instance))
 
         # Last step is to power on the system.
         flow.add(tf_vm.PowerOn(self.adapter, instance))
@@ -1162,8 +1160,8 @@ class PowerVMDriver(driver.ComputeDriver):
                      immediate=True))
         if flavor.root_gb > instance.root_gb:
             # Resize the root disk
-            flow.add(tf_stg.ExtendDisk(self.disk_dvr, context, instance,
-                                       dict(type='boot'), flavor.root_gb))
+            flow.add(tf_stg.ExtendDisk(
+                self.disk_dvr, instance, dict(type='boot'), flavor.root_gb))
 
         # Disconnect any volumes that are attached.  They are reattached
         # on the new VM (or existing VM if this is just a resize.)
@@ -1306,8 +1304,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
                 # Connects up the disk to the LPAR
                 # TODO(manas) Connect the disk flow into the slot lookup map
-                flow.add(tf_stg.ConnectDisk(self.disk_dvr, context, instance,
-                                            stg_ftsk=stg_ftsk))
+                flow.add(tf_stg.ConnectDisk(
+                    self.disk_dvr, instance, stg_ftsk=stg_ftsk))
 
         if bdms:
             # Determine if there are volumes to connect.  If so, add a
