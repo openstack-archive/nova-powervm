@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2016, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -13,8 +13,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-
 import abc
 from oslo_log import log as logging
 import six
@@ -22,7 +20,6 @@ from taskflow import task
 import time
 
 from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 
@@ -42,37 +39,35 @@ class PowerVMTask(task.Task):
         super(PowerVMTask, self).__init__(name=name, **kwargs)
 
     def execute(self, *args, **kwargs):
-        LOG.info(_LI('Running task %(task)s for instance %(inst)s'),
-                 {'task': self.name, 'inst': self.instance.name},
+        LOG.info(_LI('Running task %(task)s.'), {'task': self.name},
                  instance=self.instance)
         start_time = time.time()
 
         ret = self.execute_impl(*args, **kwargs)
 
         run_time = time.time() - start_time
-        LOG.info(_LI('Task %(task)s completed in %(seconds)d seconds for '
-                     'instance %(inst)s'),
-                 {'task': self.name, 'inst': self.instance.name,
-                  'seconds': run_time}, instance=self.instance)
+        LOG.info(_LI('Task %(task)s completed in %(seconds)d seconds.'),
+                 {'task': self.name, 'seconds': run_time},
+                 instance=self.instance)
         return ret
 
-    def execute_impl(self, **kwargs):
+    def execute_impl(self, *args, **kwargs):
         """Execute the task.  Follows the TaskFlow execute signature."""
+        pass
 
     def revert(self, *args, **kwargs):
-        LOG.info(_LW('Reverting task %(task)s for instance %(inst)s'),
-                 {'task': self.name, 'inst': self.instance.name},
+        LOG.info(_LI('Reverting task %(task)s.'), {'task': self.name},
                  instance=self.instance)
         start_time = time.time()
 
         ret = self.revert_impl(*args, **kwargs)
 
         run_time = time.time() - start_time
-        LOG.info(_LW('Revert task %(task)s completed in %(seconds)d seconds '
-                     'for instance %(inst)s'),
-                 {'task': self.name, 'inst': self.instance.name,
-                  'seconds': run_time}, instance=self.instance)
+        LOG.info(_LI('Revert task %(task)s completed in %(seconds)d seconds.'),
+                 {'task': self.name, 'seconds': run_time},
+                 instance=self.instance)
         return ret
 
     def revert_impl(self, result, flow_failures, **kwargs):
         """(Optional) Revert the task.  Follows TaskFlow revert signature."""
+        pass
