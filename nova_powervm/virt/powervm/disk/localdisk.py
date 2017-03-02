@@ -59,7 +59,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 if_opt='disk_driver', if_value='localdisk',
                 then_opt='volume_group_name')
         self.vg_name = CONF.powervm.volume_group_name
-        self._vios_uuid, self.vg_uuid = self._get_vg_uuid(self.vg_name)
+        self._vios_uuid, self.vg_uuid = tsk_stg.find_vg(self.vg_name)
         self.image_cache_mgr = imagecache.ImageManager(self._vios_uuid,
                                                        self.vg_uuid, adapter)
         self.cache_lock = lockutils.ReaderWriterLock()
@@ -329,33 +329,6 @@ class LocalStorage(disk_dvr.DiskAdapter):
             # TODO(IBM): Handle etag mismatch and retry
             LOG.exception()
             raise
-
-    def _get_vg_uuid(self, name):
-        """Returns the VIOS and VG UUIDs for the volume group.
-
-        Will iterate over the VIOSes to find the VG with the name.
-
-        :param name: The name of the volume group.
-        :return vios_uuid: The Virtual I/O Server pypowervm UUID.
-        :return vg_uuid: The Volume Group pypowervm UUID.
-        """
-        if CONF.powervm.volume_group_vios_name:
-            # Search for the VIOS if the admin specified it.
-            vios_wraps = pvm_vios.VIOS.search(
-                self.adapter, name=CONF.powervm.volume_group_vios_name)
-        else:
-            vios_wraps = pvm_vios.VIOS.get(self.adapter)
-
-        # Loop through each vios to find the one with the appropriate name.
-        for vios_wrap in vios_wraps:
-            # Search the feed for the volume group
-            vol_grps = pvm_stg.VG.get(self.adapter, parent=vios_wrap)
-            for vol_grp in vol_grps:
-                LOG.debug('Volume group: %s', vol_grp.name)
-                if name == vol_grp.name:
-                    return vios_wrap.uuid, vol_grp.uuid
-
-        raise npvmex.VGNotFound(vg_name=name)
 
     def _get_vg_wrap(self):
         return pvm_stg.VG.get(self.adapter, uuid=self.vg_uuid,
