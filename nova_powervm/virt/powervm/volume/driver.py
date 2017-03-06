@@ -82,7 +82,7 @@ class PowerVMVolumeAdapter(object):
         Every driver must implement this method if the default impl will
         not work for their data.
         """
-        return self.connection_info['data']['volume_id']
+        return self.connection_info['serial']
 
     def reset_stg_ftsk(self, stg_ftsk=None):
         """Resets the pypowervm transaction FeedTask to a new value.
