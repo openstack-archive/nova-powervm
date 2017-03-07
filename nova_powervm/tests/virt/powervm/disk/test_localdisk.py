@@ -55,8 +55,7 @@ class TestLocalDisk(test.TestCase):
 
         # Set up for the mocks for get_ls
         self.mock_vg_uuid = self.useFixture(fixtures.MockPatch(
-            'nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
-            '_get_vg_uuid')).mock
+            'pypowervm.tasks.storage.find_vg')).mock
         self.vg_uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
         self.mock_vg_uuid.return_value = ('vios_uuid', self.vg_uuid)
 
@@ -405,62 +404,3 @@ class TestLocalDisk(test.TestCase):
         local.disconnect_disk_from_mgmt('vios_uuid', 'disk_name')
         mock_rm_vdisk_map.assert_called_with(
             local.adapter, 'vios_uuid', 'mp_uuid', disk_names=['disk_name'])
-
-
-class TestLocalDiskFindVG(test.TestCase):
-    """Test in separate class for the static loading of the VG.
-
-    This is abstracted in all other tests.  To keep the other test cases terse
-    we put this one in a separate class that doesn't make use of the patchers.
-    """
-
-    def setUp(self):
-        super(TestLocalDiskFindVG, self).setUp()
-
-        self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
-
-        self.vg_to_vio = mock.Mock()
-        self.vg_to_vio.configure_mock(name='rootvg')
-        self.vio_to_vg = mock.Mock()
-
-        self.mock_vios_feed = [self.vio_to_vg]
-        self.mock_vg_feed = [self.vg_to_vio]
-
-        # Return the mgmt uuid
-        self.mgmt_uuid = self.useFixture(fixtures.MockPatch(
-            'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
-        self.mgmt_uuid.return_value = 'mp_uuid'
-
-    @mock.patch('pypowervm.wrappers.storage.VG.get')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
-    def test_get_vg_uuid(self, mock_vio_get, mock_vg_get):
-        mock_vio_get.return_value = self.mock_vios_feed
-        mock_vg_get.return_value = self.mock_vg_feed
-        self.flags(volume_group_name='rootvg', group='powervm')
-
-        storage = ld.LocalStorage(self.apt, 'host_uuid')
-
-        # Make sure the uuids match
-        self.assertEqual(self.vg_to_vio.uuid, storage.vg_uuid)
-
-    @mock.patch('pypowervm.wrappers.storage.VG.get')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.search')
-    def test_get_vg_uuid_on_vios(self, mock_vio_search, mock_vg_get):
-        # Return no VIOSes.
-        mock_vio_search.return_value = []
-
-        # Similar to test_get_vg_uuid, the read isn't what is useful.  The
-        # wrap is used to simulate a feed.
-        self.apt.read.return_value = self.vg_to_vio
-        mock_vg_get.return_value = self.mock_vg_feed
-
-        # Override that we need a specific VIOS...that won't be found.
-        self.flags(volume_group_name='rootvg',
-                   volume_group_vios_name='invalid_vios', group='powervm')
-
-        self.assertRaises(npvmex.VGNotFound, ld.LocalStorage,
-                          self.apt, 'host_uuid')
-
-    def test_bad_config(self):
-        self.assertRaises(npvmex.OptRequiredIfOtherOptValue,
-                          ld.LocalStorage, self.apt, 'host_uuid')
