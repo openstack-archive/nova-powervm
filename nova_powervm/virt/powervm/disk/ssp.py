@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -399,8 +399,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         # TODO(IBM): Smarter refreshing (i.e. don't do it every time).
         if getattr(self, '_ssp_wrap', None) is None:
-            resp = self.adapter.read_by_href(self._cluster.ssp_uri)
-            self._ssp_wrap = pvm_stg.SSP.wrap(resp)
+            self._ssp_wrap = pvm_stg.SSP.get_by_href(self.adapter,
+                                                     self._cluster.ssp_uri)
         else:
             self._ssp_wrap = self._ssp_wrap.refresh()
         return self._ssp_wrap
