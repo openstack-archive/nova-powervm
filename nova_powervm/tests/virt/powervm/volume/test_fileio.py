@@ -72,7 +72,9 @@ class TestFileIOVolumeAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv._connect_volume(mock_slot_mgr)
 
         # Validate
-        mock_file_bld.assert_called_once_with(self.adpt, 'fake_path')
+        mock_file_bld.assert_called_once_with(
+            self.adpt, 'fake_path',
+            backstore_type=pvm_stg.BackStoreType.USER_QCOW)
 
     @mock.patch('pypowervm.tasks.partition.get_mgmt_partition')
     @mock.patch('pypowervm.tasks.scsi_mapper.gen_match_func')
