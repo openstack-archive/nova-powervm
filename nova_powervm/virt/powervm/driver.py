@@ -29,7 +29,6 @@ from nova.virt import configdrive
 from nova.virt import driver
 from oslo_log import log as logging
 from oslo_utils import importutils
-import re
 import six
 from taskflow import engines as tf_eng
 from taskflow.patterns import linear_flow as tf_lf
@@ -678,21 +677,6 @@ class PowerVMDriver(driver.ComputeDriver):
             LOG.warning(_LW('VM was not found during destroy operation.'),
                         instance=instance)
             return
-        except pvm_exc.HttpError as e:
-            # See if we were operating on the LPAR that we're deleting
-            # and it wasn't found
-            resp = e.response
-            exp = '/ManagedSystem/.*/LogicalPartition/.*-.*-.*-.*-.*'
-            if resp.status == 404 and re.search(exp, resp.reqpath):
-                # It's the LPAR, so just return.
-                LOG.warning(_LW('VM was not found during destroy operation.'),
-                            instance=instance)
-                return
-            else:
-                LOG.exception(e)
-                # Convert to a Nova exception
-                raise exception.InstanceTerminationFailure(
-                    reason=six.text_type(e))
         except Exception as e:
                 LOG.exception(e)
                 # Convert to a Nova exception

@@ -369,6 +369,46 @@ class TestVM(test.TestCase):
         self.assertEqual(1, mock_vterm.call_count)
         self.assertEqual(1, self.apt.delete.call_count)
 
+        # Test HttpError 404
+        self.apt.reset_mock()
+        mock_vterm.reset_mock()
+
+        resp.status = 404
+        self.apt.delete.side_effect = pvm_exc.HttpError(resp=resp)
+        vm.dlt_lpar(self.apt, '54321')
+        self.assertEqual(1, mock_vterm.call_count)
+        self.assertEqual(1, self.apt.delete.call_count)
+
+        # Test Other HttpError
+        self.apt.reset_mock()
+        mock_vterm.reset_mock()
+
+        resp.status = 111
+        self.apt.delete.side_effect = pvm_exc.HttpError(resp=resp)
+        self.assertRaises(pvm_exc.HttpError, vm.dlt_lpar, self.apt, '11111')
+        self.assertEqual(1, mock_vterm.call_count)
+        self.assertEqual(1, self.apt.delete.call_count)
+
+        # Test HttpError 404 closing vterm
+        self.apt.reset_mock()
+        mock_vterm.reset_mock()
+
+        resp.status = 404
+        mock_vterm.side_effect = pvm_exc.HttpError(resp=resp)
+        vm.dlt_lpar(self.apt, '55555')
+        self.assertEqual(1, mock_vterm.call_count)
+        self.assertEqual(0, self.apt.delete.call_count)
+
+        # Test Other HttpError closing vterm
+        self.apt.reset_mock()
+        mock_vterm.reset_mock()
+
+        resp.status = 111
+        mock_vterm.side_effect = pvm_exc.HttpError(resp=resp)
+        self.assertRaises(pvm_exc.HttpError, vm.dlt_lpar, self.apt, '33333')
+        self.assertEqual(1, mock_vterm.call_count)
+        self.assertEqual(0, self.apt.delete.call_count)
+
     @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder._add_IBMi_attrs')
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
     @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder.build')
