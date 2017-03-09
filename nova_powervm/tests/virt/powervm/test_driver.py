@@ -1063,30 +1063,7 @@ class TestPowerVMDriver(test.TestCase):
                          block_device_info=mock_bdms)
         assert_not_called()
 
-        mock_resp = mock.Mock()
-        mock_resp.status = 404
-        mock_resp.reqpath = (
-            '/rest/api/uom/ManagedSystem/c5d782c7-44e4-3086-ad15-'
-            'b16fb039d63b/LogicalPartition/1B5FB633-16D1-4E10-A14'
-            '5-E6FB905161A3?group=None')
-        mock_pvmuuid.side_effect = pvm_exc.HttpError(mock_resp)
-
-        # Invoke the method.
-        self.drv.destroy('context', self.inst, [],
-                         block_device_info=mock_bdms)
-        assert_not_called()
-
-        # Ensure the exception is raised with non-matching path
         reset_mocks()
-        mock_resp.reqpath = (
-            '/rest/api/uom/ManagedSystem/c5d782c7-44e4-3086-ad15-'
-            'b16fb039d63b/SomeResource/1B5FB633-16D1-4E10-A14'
-            '5-E6FB905161A3?group=None')
-        # Invoke the method.
-        self.assertRaises(exc.InstanceTerminationFailure,
-                          self.drv.destroy, 'context', self.inst,
-                          [], block_device_info=mock_bdms)
-        assert_not_called()
 
         # Test generic exception
         mock_pvmuuid.side_effect = ValueError('Some error')

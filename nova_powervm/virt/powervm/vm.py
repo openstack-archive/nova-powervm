@@ -45,7 +45,7 @@ from nova_powervm.virt.powervm import exception as nvex
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
-
+from nova_powervm.virt.powervm.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -631,10 +631,10 @@ def dlt_lpar(adapter, lpar_uuid):
     :param adapter: The adapter for the pypowervm API
     :param lpar_uuid: The lpar to delete
     """
-    # Attempt to delete the VM. If delete fails because of vterm
-    # we will close the vterm and try the delete again
+    # Attempt to delete the VM.
     try:
         LOG.info(_LI('Deleting virtual machine. LPARID: %s'), lpar_uuid)
+
         # Ensure any vterms are closed.  Will no-op otherwise.
         vterm.close_vterm(adapter, lpar_uuid)
 
@@ -642,6 +642,14 @@ def dlt_lpar(adapter, lpar_uuid):
         resp = adapter.delete(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid)
         LOG.info(_LI('Virtual machine delete status: %d'), resp.status)
         return resp
+    except pvm_exc.HttpError as e:
+        if e.response and e.response.status == 404:
+            LOG.warning(_LW('Virtual Machine not found LPAR_ID: %s'),
+                        lpar_uuid)
+        else:
+            LOG.error(_LE('HttpError deleting virtual machine. LPARID: %s'),
+                      lpar_uuid)
+            raise
     except pvm_exc.Error:
         # Attempting to close vterm did not help so raise exception
         LOG.error(_LE('Virtual machine delete failed: LPARID=%s'),
