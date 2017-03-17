@@ -68,7 +68,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                          information to the live_migration command, it
                          should be added to this dictionary.
         """
-        LOG.debug("Incoming mig_data=%s" % mig_data)
+        LOG.debug("Incoming mig_data=%s", mig_data)
         # Check if volume is available in destination.
         vol_path = self._get_path()
         if not os.path.exists(vol_path):

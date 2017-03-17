@@ -88,13 +88,14 @@ class TestLocalDisk(test.TestCase):
         mock_copy.return_value = 'vdisk'
         inst = mock.Mock()
         inst.configure_mock(name='Inst Name',
-                            uuid='d5065c2c-ac43-3fa6-af32-ea84a3960291')
+                            uuid='d5065c2c-ac43-3fa6-af32-ea84a3960291',
+                            flavor=mock.Mock(root_gb=20))
         mock_image = mock.MagicMock()
         mock_image.name = 'cached_image'
         mock_get_image.return_value = mock_image
 
         vdisk = self.get_ls(self.apt).create_disk_from_image(
-            None, inst, powervm.TEST_IMAGE1, 20)
+            None, inst, powervm.TEST_IMAGE1)
         self.assertEqual('vdisk', vdisk)
 
         mock_get_image.reset_mock()
@@ -102,7 +103,7 @@ class TestLocalDisk(test.TestCase):
         mock_get_image.side_effect = exception
         self.assertRaises(exception,
                           self.get_ls(self.apt).create_disk_from_image,
-                          None, inst, powervm.TEST_IMAGE1, 20)
+                          None, inst, powervm.TEST_IMAGE1)
         self.assertEqual(mock_get_image.call_count, 4)
 
     @mock.patch('pypowervm.tasks.storage.upload_new_vdisk', autospec=True)

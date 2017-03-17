@@ -23,7 +23,6 @@ from nova import context as ctx
 from nova import exception
 from nova import image
 from nova import objects
-from nova.objects import flavor as flavor_obj
 from nova import utils as n_utils
 from nova.virt import configdrive
 from nova.virt import driver
@@ -339,8 +338,7 @@ class PowerVMDriver(driver.ComputeDriver):
         return False
 
     def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None,
-              flavor=None):
+              admin_password, network_info=None, block_device_info=None):
         """Create a new instance/VM/domain on the virtualization platform.
 
         Once this successfully completes, the instance should be
@@ -350,31 +348,19 @@ class PowerVMDriver(driver.ComputeDriver):
         cleaned up, and the virtualization platform should be in the state
         that it was before this call began.
 
-        Spawn can be called while deploying an instance for the first time or
-        it can be called to recreate an instance that was shelved or during
-        evacuation.  We have to be careful to handle all these cases.  During
-        evacuation, when on shared storage, the image_meta will be empty.
-
         :param context: security context
-        :param instance: Instance object as returned by DB layer.
+        :param instance: nova.objects.instance.Instance
                          This function should use the data there to guide
                          the creation of the new instance.
         :param nova.objects.ImageMeta image_meta:
             The metadata of the image of the instance.
         :param injected_files: User files to inject into instance.
         :param admin_password: Administrator password to set in instance.
-        :param network_info:
-           :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
+        :param network_info: instance network information
         :param block_device_info: Information about block devices to be
                                   attached to the instance.
-        :param flavor: The flavor for the instance to be spawned.
         """
         self._log_operation('spawn', instance)
-        if not flavor:
-            admin_ctx = ctx.get_admin_context(read_deleted='yes')
-            flavor = (
-                flavor_obj.Flavor.get_by_id(admin_ctx,
-                                            instance.instance_type_id))
 
         # Extract the block devices.
         bdms = self._extract_bdm(block_device_info)
@@ -409,7 +395,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # Create task produce a FeedTask that will be used to scrub stale
         # adapters immediately after the LPAR is created.
         flow_spawn.add(tf_vm.Create(
-            self.adapter, self.host_wrapper, instance, flavor,
+            self.adapter, self.host_wrapper, instance,
             stg_ftsk=(None if recreate else stg_ftsk), nvram_mgr=nvram_mgr,
             slot_mgr=slot_mgr))
 
@@ -430,8 +416,7 @@ class PowerVMDriver(driver.ComputeDriver):
             else:
                 # Creates the boot image.
                 flow_spawn.add(tf_stg.CreateDiskForImg(
-                    self.disk_dvr, context, instance, image_meta,
-                    disk_size=flavor.root_gb))
+                    self.disk_dvr, context, instance, image_meta))
             # Connects up the disk to the LPAR
             flow_spawn.add(tf_stg.ConnectDisk(
                 self.disk_dvr, instance, stg_ftsk=stg_ftsk))
@@ -1267,13 +1252,13 @@ class PowerVMDriver(driver.ComputeDriver):
             # This is just a resize.
             new_name = self._gen_resize_name(instance, same_host=True)
             flow.add(tf_vm.Resize(self.adapter, self.host_wrapper, instance,
-                                  instance.flavor, name=new_name))
+                                  name=new_name))
         else:
             # This is a migration over to another host.  We have a lot of work.
             # Create the LPAR
             flow.add(tf_vm.Create(self.adapter, self.host_wrapper, instance,
-                                  instance.flavor, stg_ftsk,
-                                  nvram_mgr=self.nvram_mgr, slot_mgr=slot_mgr))
+                                  stg_ftsk=stg_ftsk, nvram_mgr=self.nvram_mgr,
+                                  slot_mgr=slot_mgr))
 
             # Create a flow for the network IO
             flow.add(tf_net.PlugVifs(self.virtapi, self.adapter, instance,
@@ -1356,8 +1341,7 @@ class PowerVMDriver(driver.ComputeDriver):
         #
         # The flavor should be the 'old' flavor now.
         vm.power_off(self.adapter, instance)
-        vm.update(self.adapter, self.host_wrapper, instance,
-                  instance.flavor)
+        vm.update(self.adapter, self.host_wrapper, instance)
 
         if power_on:
             vm.power_on(self.adapter, instance)

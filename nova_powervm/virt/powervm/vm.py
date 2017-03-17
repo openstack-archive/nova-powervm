@@ -281,13 +281,12 @@ class VMBuilder(object):
             kwargs['max_slots'] = slot_mgr.build_map.get_max_vslots()
         self.stdz = lpar_bldr.DefaultStandardize(self.host_w, **kwargs)
 
-    def lpar_builder(self, instance, flavor):
+    def lpar_builder(self, instance):
         """Returns the pypowervm LPARBuilder for a given Nova flavor.
 
         :param instance: the VM instance
-        :param flavor: The Nova instance flavor.
         """
-        attrs = self._format_flavor(instance, flavor)
+        attrs = self._format_flavor(instance)
         self._add_IBMi_attrs(instance, attrs)
         return lpar_bldr.LPARBuilder(self.adapter, attrs, self.stdz)
 
@@ -297,11 +296,10 @@ class VMBuilder(object):
             attrs[lpar_bldr.ENV] = pvm_bp.LPARType.OS400
             # Add other attributes in the future
 
-    def _format_flavor(self, instance, flavor):
+    def _format_flavor(self, instance):
         """Returns the pypowervm format of the flavor.
 
         :param instance: the VM instance
-        :param flavor: The Nova instance flavor.
         :return: a dict that can be used by the LPAR builder
         """
         # The attrs are what is sent to pypowervm to convert the lpar.
@@ -311,13 +309,13 @@ class VMBuilder(object):
             instance.name)
         # The uuid is only actually set on a create of an LPAR
         attrs[lpar_bldr.UUID] = pvm_uuid.convert_uuid_to_pvm(instance.uuid)
-        attrs[lpar_bldr.MEM] = flavor.memory_mb
-        attrs[lpar_bldr.VCPU] = flavor.vcpus
+        attrs[lpar_bldr.MEM] = instance.flavor.memory_mb
+        attrs[lpar_bldr.VCPU] = instance.flavor.vcpus
         # Set the srr capability to True by default
         attrs[lpar_bldr.SRR_CAPABLE] = True
 
         # Loop through the extra specs and process powervm keys
-        for key in flavor.extra_specs.keys():
+        for key in instance.flavor.extra_specs.keys():
             # If it is not a valid key, then can skip.
             if not self._is_pvm_valid_key(key):
                 continue
@@ -328,10 +326,10 @@ class VMBuilder(object):
             # Check for no direct mapping, if the value is none, need to
             # derive the complex type
             if bldr_key is None:
-                self._build_complex_type(key, attrs, flavor)
+                self._build_complex_type(key, attrs, instance.flavor)
             else:
                 # We found a direct mapping
-                attrs[bldr_key] = flavor.extra_specs[key]
+                attrs[bldr_key] = instance.flavor.extra_specs[key]
 
         return attrs
 
@@ -542,14 +540,12 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
     return jsonutils.loads(resp.body)
 
 
-def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None,
-             slot_mgr=None):
+def crt_lpar(adapter, host_wrapper, instance, nvram=None, slot_mgr=None):
     """Create an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
     :param host_wrapper: The host wrapper
     :param instance: The nova instance.
-    :param flavor: The nova flavor.
     :param nvram: The NVRAM to set on the LPAR.
     :param slot_mgr: NovaSlotManager to restore/save the maximum number of
                      virtual slots.  If omitted, the default is used.
@@ -557,8 +553,7 @@ def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None,
     """
     try:
         lpar_b = VMBuilder(
-            host_wrapper, adapter, slot_mgr=slot_mgr).lpar_builder(instance,
-                                                                   flavor)
+            host_wrapper, adapter, slot_mgr=slot_mgr).lpar_builder(instance)
         pending_lpar_w = lpar_b.build()
         vldn.LPARWrapperValidator(pending_lpar_w, host_wrapper).validate_all()
         if nvram is not None:
@@ -577,13 +572,12 @@ def crt_lpar(adapter, host_wrapper, instance, flavor, nvram=None,
         raise nvex.PowerVMAPIFailed(inst_name=instance.name, reason=he)
 
 
-def update(adapter, host_wrapper, instance, flavor, entry=None, name=None):
+def update(adapter, host_wrapper, instance, entry=None, name=None):
     """Update an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
     :param host_wrapper: The host wrapper
     :param instance: The nova instance.
-    :param flavor: The nova flavor.
     :param entry: The instance pvm entry, if available, otherwise it will
         be fetched.
     :param name: VM name to use for the update.  Used on resize when we want
@@ -594,7 +588,7 @@ def update(adapter, host_wrapper, instance, flavor, entry=None, name=None):
     if not entry:
         entry = get_instance_wrapper(adapter, instance)
 
-    lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance, flavor)
+    lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance)
     lpar_b.rebuild(entry)
 
     # Set the new name if the instance name is not desired.

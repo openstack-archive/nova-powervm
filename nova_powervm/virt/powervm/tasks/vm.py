@@ -57,7 +57,7 @@ class Create(pvm_task.PowerVMTask):
 
     """The task for creating a VM."""
 
-    def __init__(self, adapter, host_wrapper, instance, flavor, stg_ftsk=None,
+    def __init__(self, adapter, host_wrapper, instance, stg_ftsk=None,
                  nvram_mgr=None, slot_mgr=None):
         """Creates the Task for creating a VM.
 
@@ -79,7 +79,6 @@ class Create(pvm_task.PowerVMTask):
         :param adapter: The adapter for the pypowervm API
         :param host_wrapper: The managed system wrapper
         :param instance: The nova instance.
-        :param flavor: The nova flavor.
         :param stg_ftsk: (Optional, Default: None) A FeedTask managing storage
                          I/O operations.  If None, one will be built locally
                          and executed immediately. Otherwise it is the caller's
@@ -93,7 +92,6 @@ class Create(pvm_task.PowerVMTask):
             instance, 'crt_vm', provides='lpar_wrap')
         self.adapter = adapter
         self.host_wrapper = host_wrapper
-        self.flavor = flavor
         self.stg_ftsk = stg_ftsk or pvm_tpar.build_active_vio_feed_task(
             adapter, name='create_scrubber',
             xag={pvm_const.XAG.VIO_SMAP, pvm_const.XAG.VIO_FMAP})
@@ -109,7 +107,7 @@ class Create(pvm_task.PowerVMTask):
             LOG.debug('NVRAM data is: %s', data, instance=self.instance)
 
         wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
-                           self.flavor, nvram=data, slot_mgr=self.slot_mgr)
+                           nvram=data, slot_mgr=self.slot_mgr)
         pvm_stg.add_lpar_storage_scrub_tasks([wrap.id], self.stg_ftsk,
                                              lpars_exist=True)
         # If the stg_ftsk passed in was None and we initialized a
@@ -141,7 +139,7 @@ class Resize(pvm_task.PowerVMTask):
 
     """The task for resizing an existing VM."""
 
-    def __init__(self, adapter, host_wrapper, instance, flavor, name=None):
+    def __init__(self, adapter, host_wrapper, instance, name=None):
         """Creates the Task to resize a VM.
 
         Provides the 'lpar_wrap' for other tasks.
@@ -149,7 +147,6 @@ class Resize(pvm_task.PowerVMTask):
         :param adapter: The adapter for the pypowervm API
         :param host_wrapper: The managed system wrapper
         :param instance: The nova instance.
-        :param flavor: The nova flavor.
         :param name: VM name to use for the update.  Used on resize when we
             want to rename it but not use the instance name.
         """
@@ -157,13 +154,11 @@ class Resize(pvm_task.PowerVMTask):
             instance, 'resize_vm', provides='lpar_wrap')
         self.adapter = adapter
         self.host_wrapper = host_wrapper
-        self.flavor = flavor
         self.vm_name = name
 
     def execute_impl(self):
         return vm.update(self.adapter, self.host_wrapper,
-                         self.instance, self.flavor, entry=None,
-                         name=self.vm_name)
+                         self.instance, entry=None, name=self.vm_name)
 
 
 class Rename(pvm_task.PowerVMTask):

@@ -349,7 +349,7 @@ class DiskAdapter(object):
         """
         pass
 
-    def create_disk_from_image(self, context, instance, image_meta, disk_size,
+    def create_disk_from_image(self, context, instance, image_meta,
                                image_type=DiskType.BOOT):
         """Creates a disk and copies the specified image to it.
 
@@ -357,10 +357,6 @@ class DiskAdapter(object):
         :param instance: instance to create the disk for.
         :param nova.objects.ImageMeta image_meta:
             The metadata of the image of the instance.
-        :param disk_size: The size of the disk to create in GB.  If smaller
-                          than the image, it will be ignored (as the disk
-                          must be at least as big as the image).  Must be an
-                          int.
         :param image_type: the image type. See disk constants above.
         :return: The backing pypowervm storage object that was created.
         """
@@ -369,8 +365,7 @@ class DiskAdapter(object):
         for attempt in range(1, 5):
             try:
                 return self._create_disk_from_image(
-                    context, instance, image_meta,
-                    disk_size, image_type=image_type)
+                    context, instance, image_meta, image_type=image_type)
             except Exception as error:
                 if attempt < 4:
                     LOG.exception(error)
@@ -383,7 +378,7 @@ class DiskAdapter(object):
                 else:
                     raise
 
-    def _create_disk_from_image(self, context, instance, image_meta, disk_size,
+    def _create_disk_from_image(self, context, instance, image_meta,
                                 image_type=DiskType.BOOT):
         """Creates a disk and copies the specified image to it.
 
@@ -393,10 +388,6 @@ class DiskAdapter(object):
         :param instance: instance to create the disk for.
         :param nova.objects.ImageMeta image_meta:
             The metadata of the image of the instance.
-        :param disk_size: The size of the disk to create in GB.  If smaller
-                          than the image, it will be ignored (as the disk
-                          must be at least as big as the image).  Must be an
-                          int.
         :param image_type: the image type. See disk constants above.
         :return: The backing pypowervm storage object that was created.
         """

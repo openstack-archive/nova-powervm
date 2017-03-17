@@ -1,4 +1,4 @@
-# Copyright 2014, 2015 IBM Corp.
+# Copyright 2014, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -21,6 +21,9 @@ import logging
 from nova import test
 from oslo_serialization import jsonutils
 import pypowervm.tests.test_fixtures as pvm_fx
+from pypowervm.wrappers import iocard as pvm_card
+from pypowervm.wrappers import managed_system as pvm_ms
+from pypowervm.wrappers import mtms as pvm_mtms
 
 from nova_powervm.virt.powervm import host as pvm_host
 
@@ -28,23 +31,37 @@ LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
 
-class TestPowerVMHost(test.TestCase):
+def mock_sriov(adap_id, pports):
+    sriov = mock.create_autospec(pvm_card.SRIOVAdapter, spec_set=True)
+    sriov.configure_mock(sriov_adap_id=adap_id, phys_ports=pports)
+    return sriov
+
+
+def mock_pport(port_id, label, maxlps):
+    port = mock.create_autospec(pvm_card.SRIOVEthPPort, spec_set=True)
+    port.configure_mock(port_id=port_id, label=label, supp_max_lps=maxlps)
+    return port
+
+
+class TestPowerVMHost(test.NoDBTestCase):
     def test_host_resources(self):
         # Create objects to test with
         sriov_adaps = [
-            mock.Mock(sriov_adap_id=1, phys_ports=[
-                mock.Mock(port_id=2, label='foo', supp_max_lps=1),
-                mock.Mock(port_id=3, label='', supp_max_lps=2)]),
-            mock.Mock(sriov_adap_id=4, phys_ports=[
-                mock.Mock(port_id=5, label='bar', supp_max_lps=3)])]
-        ms_wrapper = mock.MagicMock(
+            mock_sriov(1, [mock_pport(2, 'foo', 1), mock_pport(3, '', 2)]),
+            mock_sriov(4, [mock_pport(5, 'bar', 3)])]
+        ms_wrapper = mock.create_autospec(pvm_ms.System, spec_set=True)
+        mtms = mock.create_autospec(pvm_mtms.MTMS, spec_set=True)
+        mtms.configure_mock(mtms_str='8484923A123456')
+        asio = mock.create_autospec(pvm_ms.ASIOConfig, spec_set=True)
+        asio.configure_mock(sriov_adapters=sriov_adaps)
+        ms_wrapper.configure_mock(
             proc_units_configurable=500,
             proc_units_avail=500,
             memory_configurable=5242880,
             memory_free=5242752,
-            mtms=mock.MagicMock(mtms_str='8484923A123456'),
+            mtms=mtms,
             memory_region_size='big',
-            asio_config=mock.Mock(sriov_adapters=sriov_adaps))
+            asio_config=asio)
 
         # Run the actual test
         stats = pvm_host.build_host_resource_from_ms(ms_wrapper)

@@ -89,8 +89,7 @@ class TestVMBuilder(test.TestCase):
         flavor.extra_specs = {'powervm:dedicated_proc': 'true'}
         test_attrs = dict(lpar_attrs, dedicated_proc='true')
 
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
@@ -104,32 +103,28 @@ class TestVMBuilder(test.TestCase):
                           dedicated_proc='true',
                           sharing_mode='sre idle procs active',
                           min_vcpu='1', max_vcpu='3')
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
         # Test shared proc sharing mode
         flavor.extra_specs = {'powervm:uncapped': 'true'}
         test_attrs = dict(lpar_attrs, sharing_mode='uncapped')
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
         # Test availability priority
         flavor.extra_specs = {'powervm:availability_priority': '150'}
         test_attrs = dict(lpar_attrs, avail_priority='150')
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
         # Test processor compatibility
         flavor.extra_specs = {'powervm:processor_compatibility': 'POWER8'}
         test_attrs = dict(lpar_attrs, processor_compatibility='POWER8')
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
@@ -137,8 +132,7 @@ class TestVMBuilder(test.TestCase):
         test_attrs = dict(
             lpar_attrs,
             processor_compatibility=pvm_bp.LPARCompat.POWER6_PLUS)
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
@@ -147,8 +141,7 @@ class TestVMBuilder(test.TestCase):
         test_attrs = dict(
             lpar_attrs,
             processor_compatibility=pvm_bp.LPARCompat.POWER6_PLUS_ENHANCED)
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
@@ -157,8 +150,7 @@ class TestVMBuilder(test.TestCase):
                               'powervm:max_proc_units': '2.0'}
         test_attrs = dict(lpar_attrs, min_proc_units='0.5',
                           max_proc_units='2.0')
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
@@ -166,16 +158,14 @@ class TestVMBuilder(test.TestCase):
         flavor.extra_specs = {'powervm:min_mem': '1024',
                               'powervm:max_mem': '4096'}
         test_attrs = dict(lpar_attrs, min_mem='1024', max_mem='4096')
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
         # Test remote restart set to false
         flavor.extra_specs = {'powervm:srr_capability': 'false'}
         test_attrs = dict(lpar_attrs, srr_capability=False)
-        self.assertEqual(self.lpar_b._format_flavor(instance, flavor),
-                         test_attrs)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
 
     @mock.patch('pypowervm.wrappers.shared_proc_pool.SharedProcPool.search')
     def test_spp_pool_id(self, mock_search):
@@ -422,7 +412,7 @@ class TestVM(test.TestCase):
         lparw = pvm_lpar.LPAR.wrap(self.resp.feed.entries[0])
         mock_bld.return_value = lparw
         self.apt.create.return_value = lparw.entry
-        vm.crt_lpar(self.apt, host_wrapper, instance, flavor, nvram='data')
+        vm.crt_lpar(self.apt, host_wrapper, instance, nvram='data')
         self.apt.create.assert_called_once_with(
             lparw, host_wrapper.schema_type, child_type='LogicalPartition',
             root_id=host_wrapper.uuid, service='uom', timeout=-1)
@@ -439,8 +429,7 @@ class TestVM(test.TestCase):
         self.apt.create.return_value = lparw.entry
         mock_slot_mgr = mock.Mock(build_map=mock.Mock(
             get_max_vslots=mock.Mock(return_value=123)))
-        vm.crt_lpar(self.apt, host_wrapper, instance, flavor,
-                    slot_mgr=mock_slot_mgr)
+        vm.crt_lpar(self.apt, host_wrapper, instance, slot_mgr=mock_slot_mgr)
         self.assertTrue(self.apt.create.called)
         self.assertTrue(mock_vld_all.called)
         self.assertTrue(lparw.srr_enabled)
@@ -455,20 +444,20 @@ class TestVM(test.TestCase):
         mock_bld.side_effect = lpar_bld.LPARBuilderException("Invalid Name")
         host_wrapper = mock.Mock()
         self.assertRaises(exception.BuildAbortException, vm.crt_lpar,
-                          self.apt, host_wrapper, instance, flavor)
+                          self.apt, host_wrapper, instance)
 
         resp = mock.Mock(status=202, method='fake', path='/dev/',
                          reason='Failure')
         mock_bld.side_effect = pvm_exc.HttpError(resp)
         try:
-            vm.crt_lpar(self.apt, host_wrapper, instance, flavor)
+            vm.crt_lpar(self.apt, host_wrapper, instance)
         except nvex.PowerVMAPIFailed as e:
             self.assertEqual(e.kwargs['inst_name'], instance.name)
             self.assertEqual(e.kwargs['reason'], mock_bld.side_effect)
         flavor.extra_specs = {'powervm:BADATTR': 'true'}
         host_wrapper = mock.Mock()
         self.assertRaises(exception.InvalidAttribute, vm.crt_lpar,
-                          self.apt, host_wrapper, instance, flavor)
+                          self.apt, host_wrapper, instance)
 
     @mock.patch('pypowervm.wrappers.logical_partition.LPAR.get')
     def test_get_instance_wrapper(self, mock_get):
@@ -483,12 +472,12 @@ class TestVM(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder')
     def test_update(self, mock_vmb, mock_get_inst):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
-        flavor, entry = mock.Mock(), mock.Mock()
+        entry = mock.Mock()
         name = "new_name"
         entry.update.return_value = 'NewEntry'
         bldr = mock_vmb.return_value
         lpar_bldr = bldr.lpar_builder.return_value
-        new_entry = vm.update(self.apt, 'mock_host_wrap', instance, flavor,
+        new_entry = vm.update(self.apt, 'mock_host_wrap', instance,
                               entry=entry, name=name)
         # Ensure the lpar was rebuilt
         lpar_bldr.rebuild.assert_called_once_with(entry)

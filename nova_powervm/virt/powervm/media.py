@@ -59,10 +59,12 @@ class ConfigDrivePowerVM(object):
 
         # Validate that the virtual optical exists
         self.vios_uuid, self.vg_uuid = tsk_vopt.validate_vopt_repo_exists(
-            self.adapter, CONF.powervm.vopt_media_volume_group,
-            CONF.powervm.vopt_media_rep_size)
+            self.adapter,
+            vopt_media_volume_group=CONF.powervm.vopt_media_volume_group,
+            vopt_media_rep_size=CONF.powervm.vopt_media_rep_size)
 
-    def _sanitize_network_info(self, network_info):
+    @staticmethod
+    def _sanitize_network_info(network_info):
         """Will sanitize the network info for the config drive.
 
         Newer versions of cloud-init look at the vif type information in

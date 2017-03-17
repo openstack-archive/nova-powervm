@@ -629,8 +629,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         # Verify that on migration, the WWPNs are reversed.
         self.assertEqual(2, self.vol_drv.stg_ftsk.feed.reverse.call_count)
 
-    @mock.patch('pypowervm.tasks.vfc_mapper.'
-                'build_migration_mappings')
+    @mock.patch('pypowervm.tasks.vfc_mapper.build_migration_mappings')
     @mock.patch('nova_powervm.virt.powervm.volume.npiv.NPIVVolumeAdapter.'
                 '_fabric_names')
     def test_pre_live_migration_on_destination(
@@ -649,8 +648,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
 
         # Order of the mappings is not important.
         self.assertEqual(
-            set({'b', 'a'}),
-            set(jsonutils.loads(mig_data.get('vfc_lpm_mappings'))))
+            {'b', 'a'}, set(jsonutils.loads(mig_data.get('vfc_lpm_mappings'))))
 
     def test_set_fabric_meta(self):
         port_map = [('1', 'aa AA'), ('2', 'bb BB'),
