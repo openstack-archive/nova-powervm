@@ -58,6 +58,13 @@ class TestStorage(test.TestCase):
 
         self.mock_mb.reset_mock()
 
+        # Revert when dlt_vopt fails
+        self.mock_mb.dlt_vopt.side_effect = Exception('fake-exc')
+        task.revert(lpar_w, 'mgmt_cna', 'result', 'flow_failures')
+        self.mock_mb.dlt_vopt.assert_called_once_with(lpar_w.uuid)
+
+        self.mock_mb.reset_mock()
+
         # With a specified FeedTask
         task = tf_stg.CreateAndConnectCfgDrive(
             self.adapter, 'host_uuid', self.instance, 'injected_files',
