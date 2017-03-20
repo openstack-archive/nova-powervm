@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import six
+
 from pypowervm.tasks import scsi_mapper as pvm_smap
 
 from oslo_log import log as logging
@@ -398,8 +400,13 @@ class CreateAndConnectCfgDrive(pvm_task.PowerVMTask):
         if self.mb is None:
             return
 
-        # Delete the virtual optical media
-        self.mb.dlt_vopt(lpar_wrap.uuid)
+        # Delete the virtual optical media. If it fails we don't care.
+        try:
+            self.mb.dlt_vopt(lpar_wrap.uuid)
+        except Exception as e:
+            LOG.warning(_LW('Vopt removal as part of spawn reversion failed '
+                            'with: %(exc)s'), {'exc': six.text_type(e)},
+                        instance=self.instance)
 
 
 class DeleteVOpt(pvm_task.PowerVMTask):
