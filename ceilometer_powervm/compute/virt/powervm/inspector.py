@@ -84,12 +84,18 @@ class PowerVMInspector(virt_inspector.Inspector):
         LOG.debug("Host UUID: %s" % hosts[0].uuid)
         return hosts[0].uuid
 
-    def inspect_cpus(self, instance):
-        """Inspect the CPU statistics for an instance.
+    def inspect_instance(self, instance, duration=None):
+        """Inspect the statistics for an instance.
 
         :param instance: the target instance
-        :return: the number of CPUs and cumulative CPU time
+        :param duration: the last 'n' seconds, over which the value should be
+               inspected.
+
+               The PowerVM implementation does not make use of the duration
+               field.
+        :return: the instance statistics
         """
+
         uuid = self._puuid(instance)
         cur_date, cur_metric = self.vm_metrics.get_latest_metric(uuid)
 
@@ -102,20 +108,8 @@ class PowerVMInspector(virt_inspector.Inspector):
 
         cpu_time = (cur_metric.processor.util_cap_proc_cycles +
                     cur_metric.processor.util_uncap_proc_cycles)
-        return virt_inspector.CPUStats(number=cur_metric.processor.virt_procs,
-                                       time=cpu_time)
+        cpu_num = cur_metric.processor.virt_procs
 
-    def inspect_cpu_util(self, instance, duration=None):
-        """Inspect the CPU Utilization (%) for an instance.
-
-        :param instance: the target instance
-        :param duration: the last 'n' seconds, over which the value should be
-               inspected.
-
-               The PowerVM implementation does not make use of the duration
-               field.
-        :return: the percentage of CPU utilization
-        """
         # The duration is ignored.  There is precedent for this in other
         # inspectors if the platform doesn't support duration.
         #
@@ -126,16 +120,7 @@ class PowerVMInspector(virt_inspector.Inspector):
 
         # Get the current and previous sample.  Delta is performed between
         # these two.
-        uuid = self._puuid(instance)
-        cur_date, cur_metric = self.vm_metrics.get_latest_metric(uuid)
         prev_date, prev_metric = self.vm_metrics.get_previous_metric(uuid)
-
-        # If the current is none, then the instance can not be found in the
-        # sample and an error should be raised.
-        if cur_metric is None:
-            raise virt_inspector.InstanceNotFoundException(
-                _('VM %s not found in PowerVM Metrics Sample.') %
-                instance.name)
 
         # Get the current data.
         cur_util_cap = cur_metric.processor.util_cap_proc_cycles
@@ -157,9 +142,8 @@ class PowerVMInspector(virt_inspector.Inspector):
                             "It is either a new VM or was recently migrated. "
                             "It will be collected in the next inspection "
                             "cycle."), instance.name)
-            message = (_("Unable to derive CPU Utilization for VM %s.") %
-                       instance.name)
-            raise virt_inspector.InstanceNotFoundException(message)
+            return virt_inspector.InstanceStats(
+                cpu_time=cpu_time, cpu_number=cpu_num)
 
         # Gather the previous metrics
         prev_util_cap = prev_metric.processor.util_cap_proc_cycles
@@ -203,14 +187,13 @@ class PowerVMInspector(virt_inspector.Inspector):
         # If the entitled is zero, that generally means that the VM has not
         # been started yet (everything else would be zero as well).  So to
         # avoid a divide by zero error, just return 0% in that case.
-        if entitled == 0:
-            return virt_inspector.CPUUtilStats(util=0.0)
-
-        util = float(util_cap + util_uncap - idle - donated) / float(entitled)
+        util = (float(util_cap + util_uncap - idle - donated) / float(entitled)
+                if entitled else 0.0)
 
         # Utilization is reported as percents.  Therefore, multiply by 100.0
         # to get a readable percentage based format.
-        return virt_inspector.CPUUtilStats(util=util * 100.0)
+        return virt_inspector.InstanceStats(
+            cpu_util=util * 100.0, cpu_time=cpu_time, cpu_number=cpu_num)
 
     @staticmethod
     def mac_for_metric_cna(metric_cna, client_cnas):
@@ -279,14 +262,13 @@ class PowerVMInspector(virt_inspector.Inspector):
 
             # The name will be the location code.  MAC is identified from
             # above.  Others appear libvirt specific.
-            interface = virt_inspector.Interface(
-                name=metric_cna.physical_location,
-                mac=mac, fref=None, parameters=None)
-
+            #
             # PowerVM doesn't specify drops by receive vs. transmit.  Since we
             # have the client adapter, we assume all are receive drops.
             # There are no error metrics available.
-            stats = virt_inspector.InterfaceStats(
+            yield virt_inspector.InterfaceStats(
+                name=metric_cna.physical_location,
+                mac=mac, fref=None, parameters=None,
                 rx_bytes=metric_cna.received_bytes,
                 rx_packets=metric_cna.received_packets,
                 rx_drop=metric_cna.dropped_packets,
@@ -295,9 +277,6 @@ class PowerVMInspector(virt_inspector.Inspector):
                 tx_packets=metric_cna.sent_packets,
                 tx_drop=0,
                 tx_errors=0)
-
-            # Yield the stats up to the invoker
-            yield (interface, stats)
 
     def inspect_vnic_rates(self, instance, duration=None):
         """Inspect the vNIC rate statistics for an instance.
@@ -358,12 +337,6 @@ class PowerVMInspector(virt_inspector.Inspector):
             if mac is None:
                 continue
 
-            # The name will be the location code.  MAC is identified from
-            # above.  Others appear libvirt specific.
-            interface = virt_inspector.Interface(
-                name=metric_cna.physical_location,
-                mac=mac, fref=None, parameters=None)
-
             # Note that here, the previous may be none.  That simply indicates
             # that the adapter was dynamically added to the VM before the
             # previous collection.  Not the migration scenario above.
@@ -378,10 +351,13 @@ class PowerVMInspector(virt_inspector.Inspector):
             # in time between the two samples.
             rx_rate = float(rx_bytes_diff) / float(date_delta_num)
             tx_rate = float(tx_bytes_diff) / float(date_delta_num)
-            stats = virt_inspector.InterfaceRateStats(rx_rate, tx_rate)
 
-            # Yield the results back to the invoker.
-            yield (interface, stats)
+            # The name will be the location code.  MAC is identified from
+            # above.  Others appear libvirt specific.
+            yield virt_inspector.InterfaceRateStats(
+                name=metric_cna.physical_location,
+                mac=mac, fref=None, parameters=None,
+                rx_bytes_rate=rx_rate, tx_bytes_rate=tx_rate)
 
     def inspect_disks(self, instance):
         """Inspect the disk statistics for an instance.
@@ -419,12 +395,10 @@ class PowerVMInspector(virt_inspector.Inspector):
         for adpt in adpts:
             # PowerVM only shows the connection (SCSI or FC).  Name after
             # the connection name
-            disk = virt_inspector.Disk(device=adpt.name)
-            stats = virt_inspector.DiskStats(
-                read_requests=adpt.num_reads, read_bytes=adpt.read_bytes,
-                write_requests=adpt.num_writes, write_bytes=adpt.write_bytes,
-                errors=0)
-            yield (disk, stats)
+            yield virt_inspector.DiskStats(
+                device=adpt.name, read_requests=adpt.num_reads,
+                read_bytes=adpt.read_bytes, write_requests=adpt.num_writes,
+                write_bytes=adpt.write_bytes, errors=0)
 
     def inspect_disk_iops(self, instance):
         """Inspect the Disk Input/Output operations per second for an instance.
@@ -494,6 +468,5 @@ class PowerVMInspector(virt_inspector.Inspector):
 
             # PowerVM only shows the connection (SCSI or FC).  Name after
             # the connection name
-            disk = virt_inspector.Disk(device=cur_adpt.name)
-            stats = virt_inspector.DiskIOPSStats(iops_count=iops)
-            yield (disk, stats)
+            yield virt_inspector.DiskIOPSStats(device=cur_adpt.name,
+                                               iops_count=iops)

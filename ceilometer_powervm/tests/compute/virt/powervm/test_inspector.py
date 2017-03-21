@@ -79,41 +79,18 @@ class TestPowerVMInspector(base.BaseTestCase):
             self.inspector = p_inspect.PowerVMInspector(None)
             self.inspector.vm_metrics = self.mock_metrics
 
-    def test_inspect_cpus(self):
-        """Validates PowerVM's inspect_cpus method."""
+    def test_inspect_instance_stats(self):
+        """Validates PowerVM's inspect_instance method."""
         # Validate that an error is raised if the instance can't be found
         # in the sample
         self.mock_metrics.get_latest_metric.return_value = None, None
         self.assertRaises(virt_inspector.InstanceNotFoundException,
-                          self.inspector.inspect_cpus, mock.Mock())
-
-        # Build a response from the metric cache.
-        metric = mock.MagicMock()
-        metric.processor.util_cap_proc_cycles = 5
-        metric.processor.util_uncap_proc_cycles = 6
-        metric.processor.virt_procs = 12
-        self.mock_metrics.get_latest_metric.return_value = mock.Mock(), metric
-
-        # Invoke with the test data
-        resp = self.inspector.inspect_cpus(mock.Mock())
-
-        # Validate the metrics that came back
-        self.assertEqual(11, resp.time)
-        self.assertEqual(12, resp.number)
-
-    def test_inspect_cpu_util(self):
-        """Validates PowerVM's inspect_cpu_util method."""
-        # Validate that an error is raised if the instance can't be found in
-        # the sample data.
-        self.mock_metrics.get_latest_metric.return_value = None, None
-        self.mock_metrics.get_previous_metric.return_value = None, None
-        self.assertRaises(virt_inspector.InstanceNotFoundException,
-                          self.inspector.inspect_cpu_util,
-                          mock.Mock(), duration=30)
+                          self.inspector.inspect_instance, mock.Mock())
 
         def mock_metric(util_cap, util_uncap, idle, donated, entitled):
             """Helper method to create mock proc metrics."""
             metric = mock.MagicMock()
+            metric.processor.virt_procs = 12
             metric.processor.util_cap_proc_cycles = util_cap
             metric.processor.util_uncap_proc_cycles = util_uncap
             metric.processor.idle_proc_cycles = idle
@@ -126,8 +103,9 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.mock_metrics.get_latest_metric.return_value = (
             mock.Mock(), mock_metric(7000, 50, 1000, 5000, 10000))
         self.mock_metrics.get_previous_metric.return_value = None, None
-        self.assertRaises(virt_inspector.InstanceNotFoundException,
-                          self.inspector.inspect_cpu_util, mock.Mock())
+        resp = self.inspector.inspect_instance(mock.Mock())
+        self.assertEqual(7050, resp.cpu_time)
+        self.assertEqual(12, resp.cpu_number)
 
         # Mock up a mixed use environment.
         cur = mock_metric(7000, 50, 1000, 5000, 10000)
@@ -136,8 +114,8 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.mock_metrics.get_previous_metric.return_value = mock.Mock(), prev
 
         # Execute and validate
-        resp = self.inspector.inspect_cpu_util(mock.Mock())
-        self.assertEqual(.5, resp.util)
+        resp = self.inspector.inspect_instance(mock.Mock())
+        self.assertEqual(.5, resp.cpu_util)
 
         # Mock an instance with a dedicated processor, but idling and donating
         # cycles to others.  In these scenarios, util_cap shows full use, but
@@ -148,8 +126,8 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.mock_metrics.get_previous_metric.return_value = mock.Mock(), prev
 
         # Execute and validate
-        resp = self.inspector.inspect_cpu_util(mock.Mock())
-        self.assertEqual(51.0, resp.util)
+        resp = self.inspector.inspect_instance(mock.Mock())
+        self.assertEqual(51.0, resp.cpu_util)
 
         # Mock an instance with a shared processor.  By nature, this doesn't
         # idle or donate.  If it is 'idling' it is simply giving the cycles
@@ -160,8 +138,8 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.mock_metrics.get_previous_metric.return_value = mock.Mock(), prev
 
         # Execute and validate
-        resp = self.inspector.inspect_cpu_util(mock.Mock())
-        self.assertEqual(80.0, resp.util)
+        resp = self.inspector.inspect_instance(mock.Mock())
+        self.assertEqual(80.0, resp.cpu_util)
 
         # Mock an instance with a shared processor - but using cycles from
         # the uncap pool.  This means it is using extra cycles from other
@@ -173,8 +151,8 @@ class TestPowerVMInspector(base.BaseTestCase):
 
         # Execute and validate.  This should be running at 300% CPU
         # utilization.  Fast!
-        resp = self.inspector.inspect_cpu_util(mock.Mock())
-        self.assertEqual(300.0, resp.util)
+        resp = self.inspector.inspect_instance(mock.Mock())
+        self.assertEqual(300.0, resp.cpu_util)
 
         # Mock an instance that hasn't been started yet.
         cur = mock_metric(0, 0, 0, 0, 0)
@@ -183,8 +161,8 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.mock_metrics.get_previous_metric.return_value = mock.Mock(), prev
 
         # This should have 0% utilization
-        resp = self.inspector.inspect_cpu_util(mock.Mock())
-        self.assertEqual(0.0, resp.util)
+        resp = self.inspector.inspect_instance(mock.Mock())
+        self.assertEqual(0.0, resp.cpu_util)
 
     @staticmethod
     def _mock_vnic_metric(rec_bytes, tx_bytes, rec_pkts, tx_pkts, phys_loc,
@@ -252,9 +230,9 @@ class TestPowerVMInspector(base.BaseTestCase):
         resp = list(self.inspector.inspect_vnics(mock.Mock()))
         self.assertEqual(3, len(resp))
 
-        interface1, stats1 = resp[0]
-        self.assertEqual('aa:bb:cc:dd:ee:ff', interface1.mac)
-        self.assertEqual('a', interface1.name)
+        stats1 = resp[0]
+        self.assertEqual('aa:bb:cc:dd:ee:ff', stats1.mac)
+        self.assertEqual('a', stats1.name)
         self.assertEqual(1000, stats1.rx_bytes)
         self.assertEqual(1000, stats1.tx_bytes)
         self.assertEqual(10, stats1.rx_packets)
@@ -302,23 +280,23 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.assertEqual(3, len(resp))
 
         # First metric.  No delta
-        interface1, stats1 = resp[0]
-        self.assertEqual('aa:bb:cc:dd:ee:ff', interface1.mac)
-        self.assertEqual('a', interface1.name)
+        stats1 = resp[0]
+        self.assertEqual('aa:bb:cc:dd:ee:ff', stats1.mac)
+        self.assertEqual('a', stats1.name)
         self.assertEqual(0, stats1.rx_bytes_rate)
         self.assertEqual(0, stats1.tx_bytes_rate)
 
         # Second metric
-        interface2, stats2 = resp[1]
-        self.assertEqual('aa:bb:cc:dd:ee:11', interface2.mac)
-        self.assertEqual('b', interface2.name)
+        stats2 = resp[1]
+        self.assertEqual('aa:bb:cc:dd:ee:11', stats2.mac)
+        self.assertEqual('b', stats2.name)
         self.assertEqual(60.0, stats2.rx_bytes_rate)
         self.assertEqual(60.0, stats2.tx_bytes_rate)
 
         # Third metric had no previous.
-        interface3, stats3 = resp[2]
-        self.assertEqual('aa:bb:cc:dd:ee:22', interface3.mac)
-        self.assertEqual('c', interface3.name)
+        stats3 = resp[2]
+        self.assertEqual('aa:bb:cc:dd:ee:22', stats3.mac)
+        self.assertEqual('c', stats3.name)
         self.assertEqual(100.0, stats3.rx_bytes_rate)
         self.assertEqual(100.0, stats3.tx_bytes_rate)
 
@@ -387,17 +365,17 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.assertEqual(3, len(resp))
 
         # Two vSCSI's
-        disk1, stats1 = resp[0]
-        self.assertEqual('vscsi1', disk1.device)
+        stats1 = resp[0]
+        self.assertEqual('vscsi1', stats1.device)
         self.assertEqual(33, stats1.iops_count)
 
-        disk2, stats2 = resp[1]
-        self.assertEqual('vscsi2', disk2.device)
+        stats2 = resp[1]
+        self.assertEqual('vscsi2', stats2.device)
         self.assertEqual(133, stats2.iops_count)
 
         # Next is the vFC metric
-        disk3, stats3 = resp[2]
-        self.assertEqual('vfc1', disk3.device)
+        stats3 = resp[2]
+        self.assertEqual('vfc1', stats3.device)
         self.assertEqual(66, stats3.iops_count)
 
     def test_inspect_disks(self):
@@ -425,16 +403,16 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.assertEqual(3, len(resp))
 
         # Two vSCSIs.
-        disk1, stats1 = resp[0]
-        self.assertEqual('vscsi1', disk1.device)
+        stats1 = resp[0]
+        self.assertEqual('vscsi1', stats1.device)
         self.assertEqual(1000, stats1.read_requests)
         self.assertEqual(100000, stats1.read_bytes)
         self.assertEqual(1000, stats1.write_requests)
         self.assertEqual(100000, stats1.write_bytes)
         self.assertEqual(0, stats1.errors)
 
-        disk2, stats2 = resp[1]
-        self.assertEqual('vscsi2', disk2.device)
+        stats2 = resp[1]
+        self.assertEqual('vscsi2', stats2.device)
         self.assertEqual(2000, stats2.read_requests)
         self.assertEqual(200000, stats2.read_bytes)
         self.assertEqual(2000, stats2.write_requests)
@@ -442,8 +420,8 @@ class TestPowerVMInspector(base.BaseTestCase):
         self.assertEqual(0, stats1.errors)
 
         # Next is the vFC metric
-        disk3, stats3 = resp[2]
-        self.assertEqual('vfc1', disk3.device)
+        stats3 = resp[2]
+        self.assertEqual('vfc1', stats3.device)
         self.assertEqual(3000, stats3.read_requests)
         self.assertEqual(300000, stats3.read_bytes)
         self.assertEqual(3000, stats3.write_requests)
