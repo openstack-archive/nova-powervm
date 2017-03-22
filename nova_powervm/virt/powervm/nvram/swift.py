@@ -65,6 +65,7 @@ class SwiftNvramStore(api.NvramStore):
             'os_project_domain_name': CONF.powervm.swift_project_domain_name,
             'os_auth_url': CONF.powervm.swift_auth_url,
             'os_cacert': CONF.powervm.swift_cacert,
+            'os_endpoint_type': CONF.powervm.swift_endpoint_type,
         }
 
         return options
