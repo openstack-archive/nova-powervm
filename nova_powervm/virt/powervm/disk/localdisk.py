@@ -59,7 +59,9 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 if_opt='disk_driver', if_value='localdisk',
                 then_opt='volume_group_name')
         self.vg_name = CONF.powervm.volume_group_name
-        self._vios_uuid, self.vg_uuid = tsk_stg.find_vg(self.vg_name)
+        vios_w, vg_w = tsk_stg.find_vg(adapter, self.vg_name)
+        self._vios_uuid = vios_w.uuid
+        self.vg_uuid = vg_w.uuid
         self.image_cache_mgr = imagecache.ImageManager(self._vios_uuid,
                                                        self.vg_uuid, adapter)
         self.cache_lock = lockutils.ReaderWriterLock()
