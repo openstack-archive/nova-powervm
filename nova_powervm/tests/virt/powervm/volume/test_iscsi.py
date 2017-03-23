@@ -47,21 +47,30 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
 
         self.adpt.read.return_value = self.vios_feed_resp
 
-        @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.getter')
+        @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS', autospec=True)
         @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-        @mock.patch('pypowervm.tasks.partition.get_mgmt_partition')
-        @mock.patch('pypowervm.tasks.hdisk.discover_iscsi_initiator')
+        @mock.patch('pypowervm.tasks.partition.get_mgmt_partition',
+                    autospec=True)
+        @mock.patch('pypowervm.tasks.hdisk.discover_iscsi_initiator',
+                    autospec=True)
         def init_vol_adpt(mock_initiator, mock_mgmt_part, mock_pvm_uuid,
-                          mock_getter):
-
+                          mock_vios):
+            self.trans_type = 'iscsi'
+            self.iqn = 'iqn.2016-08.bar.foo:target'
+            self.lun = '1'
+            self.host_ip = '10.0.0.1'
+            self.user = 'user'
+            self.password = 'password'
+            self.serial = 'f042c68a-c5a5-476a-ba34-2f6d43f4226c'
             con_info = {
-                'serial': 'f042c68a-c5a5-476a-ba34-2f6d43f4226c',
+                'serial': self.serial,
+                'driver_volume_type': self.trans_type,
                 'data': {
-                    'target_iqn': 'iqn.2016-08.bar.foo:target',
-                    'target_lun': '1',
-                    'target_portal': '10.0.0.1',
-                    'auth_username': 'user',
-                    'auth_password': 'password'
+                    'target_iqn': self.iqn,
+                    'target_lun': self.lun,
+                    'target_portal': self.host_ip,
+                    'auth_username': self.user,
+                    'auth_password': self.password
                 },
             }
             mock_inst = mock.MagicMock()
@@ -69,8 +78,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
             mock_initiator.return_value = 'initiatior iqn'
             # The getter can just return the VIOS values (to remove a read
             # that would otherwise need to be mocked).
-            mock_getter.return_value = self.feed
-
+            mock_vios.getter.return_value = self.feed
             return iscsi.IscsiVolumeAdapter(self.adpt, 'host_uuid', mock_inst,
                                             con_info)
         self.vol_drv = init_vol_adpt()
@@ -80,10 +88,11 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.slot_mgr = mock.Mock()
         self.slot_mgr.build_map.get_vscsi_slot.return_value = 62, 'the_lua'
 
-    @mock.patch('pypowervm.tasks.hdisk.discover_iscsi')
-    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
-    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
-    @mock.patch('pypowervm.tasks.hdisk.lua_recovery')
+    @mock.patch('pypowervm.tasks.hdisk.discover_iscsi', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping',
+                autospec=True)
+    @mock.patch('pypowervm.tasks.hdisk.lua_recovery', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume(self, mock_get_vm_id, mock_lua_recovery,
                             mock_build_map, mock_add_map, mock_discover):
@@ -113,10 +122,14 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual(1, mock_add_map.call_count)
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(1, mock_build_map.call_count)
+        mock_discover.assert_called_with(
+            self.adpt, self.host_ip, self.user, self.password, self.iqn,
+            self.feed[0].uuid, transport_type=self.trans_type)
 
-    @mock.patch('pypowervm.tasks.hdisk.remove_iscsi')
-    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
-    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
+    @mock.patch('pypowervm.tasks.hdisk.remove_iscsi', autospec=True)
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid',
+                autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_disconnect_volume(self, mock_get_vm_id, mock_remove_maps,
                                mock_hdisk_from_uuid, mock_remove_iscsi):

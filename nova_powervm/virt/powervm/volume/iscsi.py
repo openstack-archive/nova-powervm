@@ -92,13 +92,15 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                  not (could be the Virtual I/O Server does not have
                  connectivity to the hdisk).
         """
+        transport_type = self.connection_info["driver_volume_type"]
         host_ip = self.connection_info["data"]["target_portal"]
         iqn = self.connection_info["data"]["target_iqn"]
         password = self.connection_info["data"]["auth_password"]
         user = self.connection_info["data"]["auth_username"]
         target_name = "ISCSI-" + iqn.split(":")[1]
         device_name, udid = hdisk.discover_iscsi(
-            self.adapter, host_ip, user, password, iqn, vios_w.uuid)
+            self.adapter, host_ip, user, password, iqn, vios_w.uuid,
+            transport_type=transport_type)
         slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, device_name)
         if device_name is not None and udid is not None:
             device_name = '/dev/' + device_name
