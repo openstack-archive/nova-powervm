@@ -313,7 +313,11 @@ class TestSwiftStore(test.TestCase):
         """Test optional config values."""
         # Not in the sparse one from setUp()
         self.assertIsNone(self.swift_store.options['os_cacert'])
+        self.assertIsNone(self.swift_store.options['os_endpoint_type'])
         # Create a new one with the optional values set
         self.flags(swift_cacert='/path/to/ca.pem', group='powervm')
+        self.flags(swift_endpoint_type='internalURL', group='powervm')
         swift_store = swift.SwiftNvramStore()
         self.assertEqual('/path/to/ca.pem', swift_store.options['os_cacert'])
+        self.assertEqual('internalURL',
+                         swift_store.options['os_endpoint_type'])

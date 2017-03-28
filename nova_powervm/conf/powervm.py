@@ -204,7 +204,10 @@ swift_opts = [
     cfg.StrOpt('swift_auth_url', help='The Keystone authorization url. '
                'Example: "http://keystone-hostname:5000/v3"'),
     cfg.StrOpt('swift_cacert', required=False, help='Path to CA certificate '
-               'file.  Example: /etc/swiftclient/myca.pem')
+               'file.  Example: /etc/swiftclient/myca.pem'),
+    cfg.StrOpt('swift_endpoint_type', help='The endpoint/interface type for '
+               'the Swift client to select from the Keystone Service Catalog '
+               'for the connection URL.  Swift defaults to "publicURL".')
 ]
 
 vnc_opts = [
