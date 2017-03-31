@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# Copyright 2014 IBM Corp.
+# Copyright (c) 2013 Hewlett-Packard Development Company, L.P.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,5 +25,5 @@ except ImportError:
     pass
 
 setuptools.setup(
-    setup_requires=['pbr>=1.8'],
+    setup_requires=['pbr>=2.0.0'],
     pbr=True)
