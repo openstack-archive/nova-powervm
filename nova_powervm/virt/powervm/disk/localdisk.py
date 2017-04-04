@@ -242,13 +242,12 @@ class LocalStorage(disk_dvr.DiskAdapter):
             if len(image) == 1:
                 return image[0].udid
 
-            def upload(path):
-                IMAGE_API.download(context, image_meta.id, dest_path=path)
-
             image = tsk_stg.upload_new_vdisk(
-                self.adapter, self._vios_uuid, self.vg_uuid, upload,
-                cache_name, image_meta.size, d_size=image_meta.size,
-                upload_type=tsk_stg.UploadType.FUNC)[0]
+                self.adapter, self._vios_uuid, self.vg_uuid,
+                disk_dvr.IterableToFileAdapter(
+                    IMAGE_API.download(context, image_meta.id)), cache_name,
+                image_meta.size, d_size=image_meta.size,
+                upload_type=tsk_stg.UploadType.IO_STREAM)[0]
             return image.udid
 
     def connect_disk(self, instance, disk_info, stg_ftsk=None):

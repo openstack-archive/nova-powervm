@@ -107,47 +107,44 @@ class TestLocalDisk(test.TestCase):
 
     @mock.patch('pypowervm.tasks.storage.upload_new_vdisk', autospec=True)
     @mock.patch('nova.image.api.API.download')
+    @mock.patch('nova_powervm.virt.powervm.disk.driver.IterableToFileAdapter')
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
                 '_get_vg_wrap')
-    def test_get_or_upload_image(self, mock_get_vg, mock_img_api,
+    def test_get_or_upload_image(self, mock_get_vg, mock_it2f, mock_img_api,
                                  mock_upload_vdisk):
         mock_wrapper = mock.Mock()
         mock_wrapper.configure_mock(name='vg_name', virtual_disks=[])
         mock_get_vg.return_value = mock_wrapper
         local = self.get_ls(self.apt)
 
-        def test_upload_new_vdisk(adpt, vio_uuid, vg_uuid, upload, vol_name,
-                                  image_size, d_size=0, upload_type=None):
-            self.assertEqual(self.apt, adpt)
-            self.assertEqual('vios-uuid', vio_uuid)
-            self.assertEqual(self.vg_uuid, vg_uuid)
-            self.assertEqual('i_3e865d14_8c1e', vol_name)
-            self.assertEqual(powervm.TEST_IMAGE1.size, image_size)
-            self.assertEqual(powervm.TEST_IMAGE1.size, d_size)
-            self.assertEqual(tsk_stor.UploadType.FUNC, upload_type)
-            upload('test_path')
-            vDisk = mock.Mock()
-            vDisk.udid = 'udid'
-            return vDisk, None
-
-        mock_upload_vdisk.side_effect = test_upload_new_vdisk
-        img_udid = local._get_or_upload_image(None, powervm.TEST_IMAGE1)
-        self.assertEqual('udid', img_udid)
+        self.assertEqual(
+            mock_upload_vdisk.return_value[0].udid,
+            local._get_or_upload_image('ctx', powervm.TEST_IMAGE1))
 
         # Make sure the upload was invoked properly
-        mock_img_api.assert_called_once_with(
-            None, '3e865d14-8c1e-4615-b73f-f78eaecabfbd',
-            dest_path='test_path')
+        mock_upload_vdisk.assert_called_once_with(
+            self.apt, 'vios-uuid', self.vg_uuid, mock_it2f.return_value,
+            'i_3e865d14_8c1e', powervm.TEST_IMAGE1.size,
+            d_size=powervm.TEST_IMAGE1.size,
+            upload_type=tsk_stor.UploadType.IO_STREAM)
+        mock_it2f.assert_called_once_with(mock_img_api.return_value)
+        mock_img_api.assert_called_once_with('ctx', powervm.TEST_IMAGE1.id)
+
+        mock_img_api.reset_mock()
+        mock_upload_vdisk.reset_mock()
+
+        # Now ensure upload_new_vdisk isn't called if the vdisk already exists.
         mock_image = mock.MagicMock()
         mock_image.configure_mock(name='i_3e865d14_8c1e', udid='udid')
         mock_instance = mock.MagicMock()
-        mock_instance.name = 'b_Inst_Nam_d506'
+        mock_instance.configure_mock(name='b_Inst_Nam_d506')
         mock_wrapper.virtual_disks = [mock_instance, mock_image]
         mock_get_vg.return_value = mock_wrapper
-        mock_img_api.reset_mock()
-        img_udid = local._get_or_upload_image(None, powervm.TEST_IMAGE1)
-        self.assertEqual(mock_image.udid, img_udid)
-        self.assertEqual(mock_img_api.call_count, 0)
+        self.assertEqual(
+            mock_image.udid,
+            local._get_or_upload_image('ctx', powervm.TEST_IMAGE1))
+        mock_img_api.assert_not_called()
+        self.assertEqual(0, mock_upload_vdisk.call_count)
 
     @mock.patch('pypowervm.wrappers.storage.VG', autospec=True)
     def test_capacity(self, mock_vg):
