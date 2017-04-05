@@ -229,13 +229,11 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                  dict(image_type=image_type, image_id=image_meta.id,
                       instance_uuid=instance.uuid))
 
-        def upload(path):
-            IMAGE_API.download(context, image_meta.id, dest_path=path)
-
         image_lu = tsk_cs.get_or_upload_image_lu(
             self._tier, self._get_image_name(image_meta),
-            self._any_vios_uuid(), upload,
-            image_meta.size, upload_type=tsk_stg.UploadType.FUNC)
+            self._any_vios_uuid(), disk_drv.IterableToFileAdapter(
+                IMAGE_API.download(context, image_meta.id)),
+            image_meta.size, upload_type=tsk_stg.UploadType.IO_STREAM)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
         LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)

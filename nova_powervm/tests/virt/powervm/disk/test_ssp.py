@@ -326,61 +326,50 @@ class TestSSPDiskAdapter(test.TestCase):
                 '_get_disk_name')
     @mock.patch('pypowervm.tasks.storage.crt_lu')
     @mock.patch('nova.image.api.API.download')
-    def test_create_disk_from_image(self, mock_img_api, mock_crt_lu, mock_gdn,
-                                    mock_vuuid, mock_gin, mock_goru):
-        context = mock.Mock()
+    @mock.patch('nova_powervm.virt.powervm.disk.driver.IterableToFileAdapter')
+    def test_create_disk_from_image(self, mock_it2f, mock_dl, mock_crt_lu,
+                                    mock_gdn, mock_vuuid, mock_gin, mock_goru):
         instance = mock.Mock()
-        img_meta = mock.Mock(size=10)
-        disk_size_gb = mock.Mock()
-        image_type = mock.Mock()
-        image_lu = mock.Mock()
-        boot_lu = mock.Mock()
+        img_meta = mock.Mock()
 
         ssp = self._get_ssp_stor()
-        mock_crt_lu.return_value = ssp._ssp_wrap, boot_lu
 
+        mock_crt_lu.return_value = ssp._ssp_wrap, 'lu'
         mock_gin.return_value = 'img_name'
         mock_vuuid.return_value = 'vios_uuid'
 
-        def test_get_or_upload_image_lu(
-                tier, name, vio_uuid, upload, size, upload_type=None):
-            self.assertEqual(tier, ssp._tier)
-            self.assertEqual('img_name', name)
-            self.assertEqual('vios_uuid', vio_uuid)
-            self.assertEqual(10, size)
-            self.assertEqual(tsk_stg.UploadType.FUNC, upload_type)
-            upload('test_path')
-            return image_lu
-
-        mock_goru.side_effect = test_get_or_upload_image_lu
-
         # Default image_type
-        self.assertEqual(boot_lu, ssp.create_disk_from_image(
-            context, instance, img_meta, disk_size_gb))
+        self.assertEqual('lu', ssp.create_disk_from_image(
+            'ctx', instance, img_meta, 'disk_gb'))
         mock_goru.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gin.return_value,
-            mock_vuuid.return_value, mock.ANY, img_meta.size,
-            upload_type=tsk_stg.UploadType.FUNC)
+            mock_vuuid.return_value, mock_it2f.return_value, img_meta.size,
+            upload_type=tsk_stg.UploadType.IO_STREAM)
+        mock_it2f.assert_called_once_with(mock_dl.return_value)
+        mock_dl.assert_called_once_with('ctx', img_meta.id)
         mock_gdn.assert_called_once_with(disk_dvr.DiskType.BOOT, instance)
         mock_crt_lu.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gdn.return_value,
-            disk_size_gb, typ=pvm_stg.LUType.DISK, clone=image_lu)
+            'disk_gb', typ=pvm_stg.LUType.DISK, clone=mock_goru.return_value)
         # Reset
         mock_goru.reset_mock()
         mock_gdn.reset_mock()
         mock_crt_lu.reset_mock()
+        mock_dl.reset_mock()
+        mock_it2f.reset_mock()
 
         # Specified image_type
-        self.assertEqual(boot_lu, ssp.create_disk_from_image(
-            context, instance, img_meta, disk_size_gb, image_type=image_type))
+        self.assertEqual('lu', ssp.create_disk_from_image(
+            'ctx', instance, img_meta, 'disk_gb', image_type='imgtyp'))
         mock_goru.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gin.return_value,
-            mock_vuuid.return_value, mock.ANY, img_meta.size,
-            upload_type=tsk_stg.UploadType.FUNC)
-        mock_gdn.assert_called_once_with(image_type, instance)
+            mock_vuuid.return_value, mock_it2f.return_value, img_meta.size,
+            upload_type=tsk_stg.UploadType.IO_STREAM)
+        mock_dl.assert_called_once_with('ctx', img_meta.id)
+        mock_gdn.assert_called_once_with('imgtyp', instance)
         mock_crt_lu.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gdn.return_value,
-            disk_size_gb, typ=pvm_stg.LUType.DISK, clone=image_lu)
+            'disk_gb', typ=pvm_stg.LUType.DISK, clone=mock_goru.return_value)
 
     def test_get_image_name(self):
         """Generate image name from ImageMeta."""

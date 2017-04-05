@@ -43,6 +43,31 @@ class DiskType(object):
     IMAGE = 'image'
 
 
+class IterableToFileAdapter(object):
+    """A degenerate file-like so that an iterable can be read like a file.
+
+    The Glance client returns an iterable, but PowerVM requires a file.  This
+    is the adapter between the two.
+
+    Taken from xenapi/image/apis.py
+    """
+
+    def __init__(self, iterable):
+        self.iterator = iterable.__iter__()
+        self.remaining_data = ''
+
+    def read(self, size):
+        chunk = self.remaining_data
+        try:
+            while not chunk:
+                chunk = next(self.iterator)
+        except StopIteration:
+            return ''
+        return_value = chunk[0:size]
+        self.remaining_data = chunk[size:]
+        return return_value
+
+
 @six.add_metaclass(abc.ABCMeta)
 class DiskAdapter(object):
 
