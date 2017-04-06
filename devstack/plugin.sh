@@ -47,11 +47,6 @@ function configure_ceilometer_powervm {
 
 # install_ceilometer_powervm() - Install ceilometer_powervm and necessary dependencies
 function install_ceilometer_powervm {
-    if [[ "$INSTALL_PYPOWERVM" == "True" ]]; then
-        echo_summary "Installing pypowervm"
-        install_pypowervm
-    fi
-
     # Install the ceilometer-powervm package
     setup_develop $CEILOMETER_POWERVM_DIR
 }
@@ -115,7 +110,6 @@ if is_service_enabled pvm-ceilometer-acompute; then
         # clean.sh first calls unstack.sh
         echo_summary "Cleaning up ceilometer-powervm and associated data"
         cleanup_ceilometer_powervm
-        cleanup_pypowervm
     fi
 fi
 
