@@ -69,11 +69,6 @@ function configure_nova_powervm {
 
 # install_nova_powervm() - Install nova_powervm and necessary dependencies
 function install_nova_powervm {
-    if [[ "$INSTALL_PYPOWERVM" == "True" ]]; then
-        echo_summary "Installing pypowervm"
-        install_pypowervm
-    fi
-
     # Install the nova-powervm package
     setup_develop $NOVA_POWERVM_DIR
 }
@@ -138,7 +133,6 @@ if is_service_enabled nova-powervm; then
         # clean.sh first calls unstack.sh
         echo_summary "Cleaning up nova-powervm and associated data"
         cleanup_nova_powervm
-        cleanup_pypowervm
     fi
 fi
 
