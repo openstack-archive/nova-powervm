@@ -146,6 +146,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                                                match_func=match_func)
             for rm_map in removed_maps:
                 slot_mgr.drop_vscsi_mapping(rm_map)
+            return removed_maps
 
         self.stg_ftsk.add_functor_subtask(rm_func)
         # Find the disk directly.
