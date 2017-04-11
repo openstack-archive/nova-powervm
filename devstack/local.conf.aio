@@ -30,9 +30,6 @@ TENANT_VLAN_RANGE=1000:1999
 DISK_DRIVER=localdisk
 VOL_GRP_NAME=devstackvg
 
-# Set to True to install the latest pypowervm from source
-INSTALL_PYPOWERVM=False
-
 # Enable services (pvm-q-agt and pvm-ceilometer-acompute started by their plugins)
 enable_service n-novnc neutron q-svc
 disable_service n-net

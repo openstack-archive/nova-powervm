@@ -3,25 +3,8 @@
 # devstack/powervm-functions.sh
 # Functions to control the installation and configuration of the PowerVM compute services
 
-GITREPO["pypowervm"]=${PYPOWERVM_REPO:-https://github.com/powervm/pypowervm}
-GITBRANCH["pypowervm"]=${PYPOWERVM_BRANCH:-develop}
-GITDIR["pypowervm"]=$DEST/pypowervm
-
 # TODO (adreznec) Uncomment when public NovaLink PPA available
 # NOVALINK_PPA=${NOVALINK_PPA:-TBD}
-
-function install_pypowervm {
-    # Install the latest pypowervm from git
-    echo_summary "Installing pypowervm"
-    git_clone_by_name "pypowervm"
-    setup_dev_lib "pypowervm"
-    echo_summary "Pypowervm install complete"
-}
-
-function cleanup_pypowervm {
-    echo_summary "Cleaning pypowervm"
-    rm -rf ${GITDIR["pypowervm"]}
-}
 
 function check_novalink_install {
     echo_summary "Checking NovaLink installation"
