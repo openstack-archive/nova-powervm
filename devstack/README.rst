@@ -10,8 +10,8 @@ Installing with Devstack
 
     [[local|localrc]]
     ...
-    enable_plugin ceilometer http://git.openstack.org/openstack/ceilometer
-    enable_plugin ceilometer-powervm http://git.openstack.org/openstack/ceilometer-powervm
+    enable_plugin ceilometer git.openstack.org/openstack/ceilometer
+    enable_plugin ceilometer-powervm git.openstack.org/openstack/ceilometer-powervm
 
 3. See ceilometer-powervm/doc/source/devref/usage.rst, then configure
    the installation through options in local.conf as needed::

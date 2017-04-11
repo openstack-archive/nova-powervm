@@ -26,8 +26,8 @@ however if you aren't please see `this Git tutorial`_ for an introduction
 to using Git and `this guide`_ for a tutorial on using Gerrit and Git for
 code contribution to Openstack projects.
 
-.. _this Git tutorial: http://git-scm.com/book/en/Getting-Started
-.. _this guide: http://docs.openstack.org/infra/manual/developers.html#development-workflow
+.. _this Git tutorial: https://git-scm.com/book/en/Getting-Started
+.. _this guide: https://docs.openstack.org/infra/manual/developers.html#development-workflow
 
 Getting the code
 ----------------
