@@ -237,12 +237,14 @@ class LiveMigrationDest(LiveMigration):
         """
         LOG.info(_LI('Performing detach for volume %(volume)s'),
                  dict(volume=vol_drv.volume_id), instance=self.instance)
-        try:
-            vol_drv.cleanup_volume_at_destination(self.pre_live_vol_data)
-        except Exception as e:
-            LOG.exception(e, instance=self.instance)
-            # Log the exception but no need to raise one because
-            # the VM is still on the source host.
+        # Ensure the voulme data is present before trying cleanup
+        if self.pre_live_vol_data:
+            try:
+                vol_drv.cleanup_volume_at_destination(self.pre_live_vol_data)
+            except Exception as e:
+                LOG.exception(e, instance=self.instance)
+                # Log the exception but no need to raise one because
+                # the VM is still on the source host.
 
 
 class LiveMigrationSrc(LiveMigration):

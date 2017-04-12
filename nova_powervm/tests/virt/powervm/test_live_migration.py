@@ -201,8 +201,15 @@ class TestLPM(test.TestCase):
         vol_drv = mock.Mock()
         self.lpmdst.pre_live_vol_data = {}
         self.lpmdst.cleanup_volume(vol_drv)
+        # Ensure the volume driver is not called
+        self.assertEqual(0, vol_drv.cleanup_volume_at_destination.call_count)
+
+    def test_src_cleanup_valid(self):
+        vol_drv = mock.Mock()
+        self.lpmdst.pre_live_vol_data = {'vscsi-vol-id': 'fake_udid'}
+        self.lpmdst.cleanup_volume(vol_drv)
         # Ensure the volume driver was called to clean up the volume.
-        vol_drv.cleanup_volume_at_destination.assert_called_once_with({})
+        vol_drv.cleanup_volume_at_destination.assert_called_once()
 
     @mock.patch('pypowervm.tasks.migration.migrate_lpar')
     @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationSrc.'
