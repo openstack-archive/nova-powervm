@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -19,6 +19,7 @@ from nova.api.metadata import base as instance_metadata
 from nova.network import model as network_model
 from nova.virt import configdrive
 import os
+import retrying
 from taskflow import task
 
 from oslo_log import log as logging
@@ -122,8 +123,26 @@ class ConfigDrivePowerVM(object):
                          "building to path %(iso_path)s."),
                      {'inst': instance.name, 'iso_path': iso_path},
                      instance=instance)
-            cdb.make_drive(iso_path)
-            return iso_path, file_name
+            # In case, if there's an OSError related failure while
+            # creating config drive, retry make drive operation.
+
+            def _retry_on_oserror(exc):
+                return isinstance(exc, OSError)
+
+            @retrying.retry(retry_on_exception=_retry_on_oserror,
+                            stop_max_attempt_number=2)
+            def _make_cfg_drive(iso_path):
+                cdb.make_drive(iso_path)
+            try:
+                _make_cfg_drive(iso_path)
+                return iso_path, file_name
+            except OSError:
+                # If we get here, that means there's an exception during
+                # second attempt, log the same and fail the deploy
+                # operation.
+                LOG.exception("Config drive ISO could not be built",
+                              instance=instance)
+                raise
 
     def create_cfg_drv_vopt(self, instance, injected_files, network_info,
                             lpar_uuid, admin_pass=None, mgmt_cna=None,

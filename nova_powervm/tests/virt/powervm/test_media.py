@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -63,6 +63,18 @@ class TestConfigDrivePowerVM(test.TestCase):
         self.assertEqual('/tmp/cfgdrv/cfg_fake_instance_with_name_that_.iso',
                          iso_path)
         self.assertTrue(self.validate_vopt.called)
+        # Test retry vopt create
+        mock_mkdrv.reset_mock()
+        mock_mkdrv.side_effect = [OSError, mock_mkdrv]
+        mock_instance.name = 'fake-instance-2'
+        iso_path, file_name = cfg_dr_builder._create_cfg_dr_iso(mock_instance,
+                                                                mock_files,
+                                                                mock_net)
+        self.assertEqual('cfg_fake_instance_2.iso', file_name)
+        self.assertEqual('/tmp/cfgdrv/cfg_fake_instance_2.iso',
+                         iso_path)
+        self.assertTrue(self.validate_vopt.called)
+        self.assertEqual(mock_mkdrv.call_count, 2)
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_create_cfg_dr_iso')
