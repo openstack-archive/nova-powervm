@@ -19,12 +19,12 @@ from pypowervm import const as pvm_const
 from pypowervm.tasks import partition as pvm_tpar
 from pypowervm.tasks import storage as pvm_stg
 import six
+from taskflow import task
 from taskflow.types import failure as task_fail
 
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
-from nova_powervm.virt.powervm.tasks import base as pvm_task
 from nova_powervm.virt.powervm import vm
 
 from nova.compute import task_states
@@ -32,7 +32,7 @@ from nova.compute import task_states
 LOG = logging.getLogger(__name__)
 
 
-class Get(pvm_task.PowerVMTask):
+class Get(task.Task):
 
     """The task for getting a VM entry."""
 
@@ -45,15 +45,16 @@ class Get(pvm_task.PowerVMTask):
         :param host_uuid: The host UUID
         :param instance: The nova instance.
         """
-        super(Get, self).__init__(instance, 'get_vm', provides='lpar_wrap')
+        super(Get, self).__init__('get_vm', provides='lpar_wrap')
         self.adapter = adapter
         self.host_uuid = host_uuid
+        self.instance = instance
 
-    def execute_impl(self):
+    def execute(self):
         return vm.get_instance_wrapper(self.adapter, self.instance)
 
 
-class Create(pvm_task.PowerVMTask):
+class Create(task.Task):
 
     """The task for creating a VM."""
 
@@ -88,17 +89,17 @@ class Create(pvm_task.PowerVMTask):
         :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the
                          maximum number of virtual slots for the VM.
         """
-        super(Create, self).__init__(
-            instance, 'crt_vm', provides='lpar_wrap')
+        super(Create, self).__init__('crt_vm', provides='lpar_wrap')
         self.adapter = adapter
         self.host_wrapper = host_wrapper
+        self.instance = instance
         self.stg_ftsk = stg_ftsk or pvm_tpar.build_active_vio_feed_task(
             adapter, name='create_scrubber',
             xag={pvm_const.XAG.VIO_SMAP, pvm_const.XAG.VIO_FMAP})
         self.nvram_mgr = nvram_mgr
         self.slot_mgr = slot_mgr
 
-    def execute_impl(self):
+    def execute(self):
         data = None
         if self.nvram_mgr is not None:
             LOG.info(_LI('Fetching NVRAM for instance %s.'),
@@ -124,7 +125,7 @@ class Create(pvm_task.PowerVMTask):
 
         return wrap
 
-    def revert_impl(self, result, flow_failures, **kwargs):
+    def revert(self, result, flow_failures, **kwargs):
         # Only reverts failed rebuilds, because the revert
         # for a failed build is handled in the manager.
 
@@ -135,7 +136,7 @@ class Create(pvm_task.PowerVMTask):
             vm.dlt_lpar(self.adapter, vm.get_pvm_uuid(self.instance))
 
 
-class Resize(pvm_task.PowerVMTask):
+class Resize(task.Task):
 
     """The task for resizing an existing VM."""
 
@@ -150,18 +151,18 @@ class Resize(pvm_task.PowerVMTask):
         :param name: VM name to use for the update.  Used on resize when we
             want to rename it but not use the instance name.
         """
-        super(Resize, self).__init__(
-            instance, 'resize_vm', provides='lpar_wrap')
+        super(Resize, self).__init__('resize_vm', provides='lpar_wrap')
         self.adapter = adapter
         self.host_wrapper = host_wrapper
+        self.instance = instance
         self.vm_name = name
 
-    def execute_impl(self):
+    def execute(self):
         return vm.update(self.adapter, self.host_wrapper,
                          self.instance, entry=None, name=self.vm_name)
 
 
-class Rename(pvm_task.PowerVMTask):
+class Rename(task.Task):
 
     """The task for renaming an existing VM."""
 
@@ -174,18 +175,19 @@ class Rename(pvm_task.PowerVMTask):
         :param instance: The nova instance.
         :param name: The new VM name.
         """
-        super(Rename, self).__init__(
-            instance, 'rename_vm_%s' % name, provides='lpar_wrap')
+        super(Rename, self).__init__('rename_vm_%s' % name,
+                                     provides='lpar_wrap')
         self.adapter = adapter
+        self.instance = instance
         self.vm_name = name
 
-    def execute_impl(self):
+    def execute(self):
         LOG.info(_LI('Renaming instance to name: %s'), self.name,
                  instance=self.instance)
         return vm.rename(self.adapter, self.instance, self.vm_name)
 
 
-class PowerOn(pvm_task.PowerVMTask):
+class PowerOn(task.Task):
 
     """The task to power on the instance."""
 
@@ -196,15 +198,15 @@ class PowerOn(pvm_task.PowerVMTask):
         :param instance: The nova instance.
         :param pwr_opts: Additional parameters for the pypowervm PowerOn Job.
         """
-        super(PowerOn, self).__init__(instance, 'pwr_vm')
+        super(PowerOn, self).__init__('pwr_vm')
         self.adapter = adapter
         self.instance = instance
         self.pwr_opts = pwr_opts
 
-    def execute_impl(self):
+    def execute(self):
         vm.power_on(self.adapter, self.instance, opts=self.pwr_opts)
 
-    def revert_impl(self, result, flow_failures):
+    def revert(self, result, flow_failures):
         LOG.warning(_LW('Powering off instance: %s'), self.instance.name)
 
         if isinstance(result, task_fail.Failure):
@@ -215,7 +217,7 @@ class PowerOn(pvm_task.PowerVMTask):
         vm.power_off(self.adapter, self.instance, force_immediate=True)
 
 
-class PowerOff(pvm_task.PowerVMTask):
+class PowerOff(task.Task):
 
     """The task to power off a VM."""
 
@@ -227,16 +229,17 @@ class PowerOff(pvm_task.PowerVMTask):
         :param instance: The nova instance.
         :param force_immediate: Boolean. Perform a VSP hard power off.
         """
-        super(PowerOff, self).__init__(instance, 'pwr_off_vm')
+        super(PowerOff, self).__init__('pwr_off_vm')
         self.adapter = adapter
+        self.instance = instance
         self.force_immediate = force_immediate
 
-    def execute_impl(self):
+    def execute(self):
         vm.power_off(self.adapter, self.instance,
                      force_immediate=self.force_immediate)
 
 
-class StoreNvram(pvm_task.PowerVMTask):
+class StoreNvram(task.Task):
 
     """Store the NVRAM for an instance."""
 
@@ -247,11 +250,12 @@ class StoreNvram(pvm_task.PowerVMTask):
         :param instance: The nova instance.
         :param immediate: boolean whether to update the NVRAM immediately
         """
-        super(StoreNvram, self).__init__(instance, 'store_nvram')
+        super(StoreNvram, self).__init__('store_nvram')
         self.nvram_mgr = nvram_mgr
+        self.instance = instance
         self.immediate = immediate
 
-    def execute_impl(self):
+    def execute(self):
         if self.nvram_mgr is None:
             return
 
@@ -265,7 +269,7 @@ class StoreNvram(pvm_task.PowerVMTask):
                           instance=self.instance)
 
 
-class DeleteNvram(pvm_task.PowerVMTask):
+class DeleteNvram(task.Task):
 
     """Delete the NVRAM for an instance from the store."""
 
@@ -275,10 +279,11 @@ class DeleteNvram(pvm_task.PowerVMTask):
         :param nvram_mgr: The NVRAM manager.
         :param instance: The nova instance.
         """
-        super(DeleteNvram, self).__init__(instance, 'delete_nvram')
+        super(DeleteNvram, self).__init__('delete_nvram')
         self.nvram_mgr = nvram_mgr
+        self.instance = instance
 
-    def execute_impl(self):
+    def execute(self):
         if self.nvram_mgr is None:
             LOG.info(_LI("No op for NVRAM delete."), instance=self.instance)
             return
@@ -295,7 +300,7 @@ class DeleteNvram(pvm_task.PowerVMTask):
                           instance=self.instance)
 
 
-class Delete(pvm_task.PowerVMTask):
+class Delete(task.Task):
 
     """The task to delete the instance from the system."""
 
@@ -306,15 +311,15 @@ class Delete(pvm_task.PowerVMTask):
         :param lpar_uuid: The VM's PowerVM UUID.
         :param instance: The nova instance.
         """
-        super(Delete, self).__init__(instance, 'dlt_vm')
+        super(Delete, self).__init__('dlt_vm')
         self.adapter = adapter
         self.instance = instance
 
-    def execute_impl(self):
+    def execute(self):
         vm.dlt_lpar(self.adapter, vm.get_pvm_uuid(self.instance))
 
 
-class UpdateIBMiSettings(pvm_task.PowerVMTask):
+class UpdateIBMiSettings(task.Task):
 
     """The task to update settings of an ibmi instance."""
 
@@ -325,10 +330,10 @@ class UpdateIBMiSettings(pvm_task.PowerVMTask):
         :param instance: The nova instance.
         :param boot_type: The boot type of the instance.
         """
-        super(UpdateIBMiSettings, self).__init__(
-            instance, 'update_ibmi_settings')
+        super(UpdateIBMiSettings, self).__init__('update_ibmi_settings')
         self.adapter = adapter
+        self.instance = instance
         self.boot_type = boot_type
 
-    def execute_impl(self):
+    def execute(self):
         vm.update_ibmi_settings(self.adapter, self.instance, self.boot_type)
