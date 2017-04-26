@@ -313,15 +313,17 @@ class HostCPUStats(pcm_util.MetricCache):
         # sample.
         if (prev_sample.processor.util_cap_proc_cycles ==
                 prev_sample.processor.util_uncap_proc_cycles ==
-                prev_sample.processor.donated_proc_cycles == 0):
+                prev_sample.processor.idle_proc_cycles == 0):
             return 0
-
+        # The VM utilization on host is its capped + uncapped - idle cycles.
+        # Donated proc cycles should not be considered as these are
+        # not guaranteed to be getting utilized by any other lpar on the host.
         prev_amount = (prev_sample.processor.util_cap_proc_cycles +
                        prev_sample.processor.util_uncap_proc_cycles -
-                       prev_sample.processor.donated_proc_cycles)
+                       prev_sample.processor.idle_proc_cycles)
         cur_amount = (cur_sample.processor.util_cap_proc_cycles +
                       cur_sample.processor.util_uncap_proc_cycles -
-                      cur_sample.processor.donated_proc_cycles)
+                      cur_sample.processor.idle_proc_cycles)
         return cur_amount - prev_amount
 
     @staticmethod
