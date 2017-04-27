@@ -162,3 +162,12 @@ class TestFileIOVolumeAdapter(test_vol.TestVolumeAdapter):
         self.assertRaises(
             p_exc.VolumePreMigrationFailed,
             self.vol_drv.pre_live_migration_on_destination, mock.ANY)
+
+    @mock.patch('nova_powervm.virt.powervm.volume.fileio.FileIOVolumeAdapter.'
+                'vios_uuids', new_callable=mock.PropertyMock)
+    def test_is_volume_on_vios(self, mock_vios_uuids):
+        mock_vios_uuids.return_value = ['uuid1']
+        vol_found, vol_path = self.vol_drv.is_volume_on_vios(
+            mock.Mock(uuid='uuid2'))
+        self.assertFalse(vol_found)
+        self.assertIsNone(vol_path)

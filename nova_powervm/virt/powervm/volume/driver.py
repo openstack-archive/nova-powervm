@@ -17,6 +17,7 @@
 import abc
 import six
 
+from pypowervm.tasks import partition as pvm_partition
 from pypowervm.utils import transaction as pvm_tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -107,6 +108,12 @@ class PowerVMVolumeAdapter(object):
     def min_xags(cls):
         """List of pypowervm XAGs needed to support this adapter."""
         raise NotImplementedError()
+
+    @property
+    def vios_uuids(self):
+        """List the UUIDs of the Virtual I/O Servers hosting the storage."""
+        vios_wraps = pvm_partition.get_active_vioses(self.adapter)
+        return [wrap.uuid for wrap in vios_wraps]
 
     @classmethod
     def vol_type(cls):
