@@ -1984,3 +1984,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_bk_dev.return_value = 'info'
         self.assertEqual('info',
                          self.drv._get_block_device_info('ctx', self.inst))
+
+    def test_deallocate_networks_on_reschedule(self):
+        candeallocate = self.drv.deallocate_networks_on_reschedule(mock.Mock())
+        self.assertTrue(candeallocate)
