@@ -1860,3 +1860,11 @@ class PowerVMDriver(driver.ComputeDriver):
         elif 'driver_volume_type' in conn_info['data']:
             boot_conn_type = conn_info['data']['driver_volume_type']
         return boot_conn_type
+
+    def deallocate_networks_on_reschedule(self, instance):
+        """Does the driver want networks deallocated on reschedule?
+
+        :param instance: the instance object.
+        :returns: Boolean value. If True deallocate networks on reschedule.
+        """
+        return True
