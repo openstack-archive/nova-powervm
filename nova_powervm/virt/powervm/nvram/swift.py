@@ -31,6 +31,7 @@ from nova_powervm.virt.powervm.nvram import api
 
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
+from oslo_utils import excutils
 from swiftclient import exceptions as swft_exc
 from swiftclient import service as swft_srv
 
@@ -89,9 +90,9 @@ class SwiftNvramStore(api.NvramStore):
             else:
                 LOG.debug('SwiftOperation result: %s', str(result))
             return result
-        except swft_srv.SwiftError as e:
-            LOG.exception(e)
-            raise
+        except swft_srv.SwiftError:
+            with excutils.save_and_reraise_exception(logger=LOG):
+                LOG.exception("Error running swift operation.")
 
     @classmethod
     def _get_name_from_listing(cls, results):

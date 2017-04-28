@@ -17,6 +17,7 @@
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
+from oslo_utils import excutils
 import re
 import six
 
@@ -379,7 +380,7 @@ class VMBuilder(object):
             else:
                 attr = key + '=' + flavor.extra_specs[key]
                 exc = exception.InvalidAttribute(attr=attr)
-                LOG.exception(exc)
+                LOG.error(exc)
                 raise exc
         elif key == self._PVM_SHAR_PROC_POOL:
             pool_name = flavor.extra_specs[key]
@@ -394,7 +395,7 @@ class VMBuilder(object):
         else:
             # There was no mapping or we didn't handle it.
             exc = exception.InvalidAttribute(attr=key)
-            LOG.exception(exc)
+            LOG.error(exc)
             raise exc
 
     def _spp_pool_id(self, pool_name):
@@ -468,13 +469,13 @@ def get_instance_wrapper(adapter, instance, xag=None):
     try:
         return pvm_lpar.LPAR.get(adapter, uuid=pvm_inst_uuid, xag=xag)
     except pvm_exc.Error as he:
-        if he.response is not None and he.response.status == 404:
-            LOG.exception(he)
-            # Raise InstanceNotFound exception
-            raise exception.InstanceNotFound(instance_id=pvm_inst_uuid)
-        else:
-            LOG.exception(he)
-            raise
+        with excutils.save_and_reraise_exception(logger=LOG) as sare:
+            if he.response is not None and he.response.status == 404:
+                LOG.exception("PowerVM error getting instance.",
+                              instance=instance)
+                # Raise InstanceNotFound exception
+                sare.reraise = False
+                raise exception.InstanceNotFound(instance_id=pvm_inst_uuid)
 
 
 def instance_exists(adapter, instance, log_errors=False):
@@ -530,12 +531,12 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
             kwds['helpers'] = helpers
         resp = adapter.read(pvm_lpar.LPAR.schema_type, **kwds)
     except pvm_exc.HttpError as e:
-        # 404 error indicates the LPAR has been deleted (or moved to a
-        # different host)
-        if e.response and e.response.status == 404:
-            raise exception.InstanceNotFound(instance_id=lpar_uuid)
-        else:
-            raise
+        with excutils.save_and_reraise_exception() as sare:
+            # 404 error indicates the LPAR has been deleted (or moved to a
+            # different host)
+            if e.response and e.response.status == 404:
+                sare.reraise = False
+                raise exception.InstanceNotFound(instance_id=lpar_uuid)
 
     return jsonutils.loads(resp.body)
 
@@ -568,7 +569,7 @@ def crt_lpar(adapter, host_wrapper, instance, nvram=None, slot_mgr=None):
                                             reason=e)
     except pvm_exc.HttpError as he:
         # Raise the API exception
-        LOG.exception(he)
+        LOG.exception("PowerVM HttpError creating LPAR.", instance=instance)
         raise nvex.PowerVMAPIFailed(inst_name=instance.name, reason=he)
 
 
@@ -639,18 +640,19 @@ def dlt_lpar(adapter, lpar_uuid):
         LOG.info(_LI('Virtual machine delete status: %d'), resp.status)
         return resp
     except pvm_exc.HttpError as e:
-        if e.response and e.response.status == 404:
-            LOG.warning(_LW('Virtual Machine not found LPAR_ID: %s'),
-                        lpar_uuid)
-        else:
-            LOG.error(_LE('HttpError deleting virtual machine. LPARID: %s'),
-                      lpar_uuid)
-            raise
+        with excutils.save_and_reraise_exception(logger=LOG) as sare:
+            if e.response and e.response.status == 404:
+                sare.reraise = False
+                LOG.warning(_LW('Virtual Machine not found LPAR_ID: %s'),
+                            lpar_uuid)
+            else:
+                LOG.error(_LE('HttpError deleting virtual machine.'
+                              ' LPARID: %s'), lpar_uuid)
     except pvm_exc.Error:
-        # Attempting to close vterm did not help so raise exception
-        LOG.error(_LE('Virtual machine delete failed: LPARID=%s'),
-                  lpar_uuid)
-        raise
+        with excutils.save_and_reraise_exception(logger=LOG) as sare:
+            # Attempting to close vterm did not help so raise exception
+            LOG.error(_LE('Virtual machine delete failed: LPARID=%s'),
+                      lpar_uuid)
 
 
 def power_on(adapter, instance, opts=None):
@@ -714,7 +716,8 @@ def power_off(adapter, instance, opts=None, force_immediate=False,
                 power.power_off(entry, None, force_immediate=force_flag,
                                 add_parms=opts, **kwargs)
             except Exception as e:
-                LOG.exception(e)
+                LOG.exception("Failed to power of instance.",
+                              instance=instance)
                 raise exception.InstancePowerOffFailure(
                     reason=six.text_type(e))
             return True
@@ -747,7 +750,7 @@ def reboot(adapter, instance, hard):
                 # If we get here, pypowervm thinks the instance is down.
                 power.power_on(entry, None)
         except Exception as e:
-            LOG.exception(e)
+            LOG.exception("Failed to reboot instance.", instance=instance)
             raise exception.InstanceRebootFailure(reason=six.text_type(e))
 
 

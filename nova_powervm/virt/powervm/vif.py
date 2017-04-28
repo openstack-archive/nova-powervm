@@ -26,6 +26,7 @@ from nova import utils
 from oslo_config import cfg
 from oslo_log import log
 from oslo_serialization import jsonutils
+from oslo_utils import excutils
 from oslo_utils import importutils
 from pypowervm import exceptions as pvm_ex
 from pypowervm.tasks import cna as pvm_cna
@@ -116,9 +117,9 @@ def _push_vif_event(adapter, action, vif_w, instance, vif_type):
         LOG.debug(_LI('Pushed custom event for consumption by neutron agent: '
                       '%s'), str(event), instance=instance)
     except Exception:
-        LOG.error(_LE('Custom VIF event push failed.  %s'), str(event),
-                  instance=instance)
-        raise
+        with excutils.save_and_reraise_exception(logger=LOG):
+            LOG.exception('Custom VIF event push failed.  %s', str(event),
+                          instance=instance)
 
 
 def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
@@ -148,7 +149,8 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
         vnet_w = vif_drv.plug(vif, slot_num, new_vif=new_vif)
     except pvm_ex.HttpError as he:
         # Log the message constructed by HttpError
-        LOG.exception(he.args[0], instance=instance)
+        LOG.exception("HttpError during vif plug operation.",
+                      instance=instance)
         raise exception.VirtualInterfacePlugException(reason=he.args[0])
     # Other exceptions are (hopefully) custom VirtualInterfacePlugException
     # generated lower in the call stack.
@@ -186,7 +188,8 @@ def unplug(adapter, host_uuid, instance, vif, slot_mgr, cna_w_list=None):
             _push_vif_event(adapter, 'unplug', vnet_w, instance, vif['type'])
     except pvm_ex.HttpError as he:
         # Log the message constructed by HttpError
-        LOG.exception(he.args[0], instance=instance)
+        LOG.exception("HttpError during vif unplug operation.",
+                      instance=instance)
         raise exception.VirtualInterfaceUnplugException(reason=he.args[0])
 
     if vnet_w:
@@ -371,7 +374,8 @@ class PvmVifDriver(object):
                           '%(inst)s.'),
                       {'mac': vif['address'], 'inst': self.instance.name},
                       instance=self.instance)
-            LOG.exception(e, instance=self.instance)
+            LOG.exception("PowerVM error during vif unplug.",
+                          instance=self.instance)
             raise exception.VirtualInterfaceUnplugException(
                 reason=six.text_type(e))
         return cna_w

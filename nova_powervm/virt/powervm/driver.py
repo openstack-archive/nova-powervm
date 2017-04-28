@@ -282,8 +282,8 @@ class PowerVMDriver(driver.ComputeDriver):
                     self.adapter, self.host_uuid, {'max_mem': max_mem})
                 self._inst_overhead_cache[max_mem] = overhead
 
-        except Exception as e:
-            LOG.exception(e)
+        except Exception:
+            LOG.exception("PowerVM error estimating instance overhead.")
         finally:
             return {'memory_mb': overhead}
 
@@ -331,8 +331,9 @@ class PowerVMDriver(driver.ComputeDriver):
                     LOG.debug('Disks found on shared storage.',
                               instance=instance)
                     return True
-            except Exception as e:
-                LOG.exception(e)
+            except Exception:
+                LOG.exception("PowerVM error checking instance on disk.",
+                              instance=instance)
 
         LOG.debug('Instance disks not found on this host.', instance=instance)
         return False
@@ -663,7 +664,8 @@ class PowerVMDriver(driver.ComputeDriver):
                         instance=instance)
             return
         except Exception as e:
-                LOG.exception(e)
+                LOG.exception("PowerVM error destroying instance.",
+                              instance=instance)
                 # Convert to a Nova exception
                 raise exception.InstanceTerminationFailure(
                     reason=six.text_type(e))
@@ -998,8 +1000,8 @@ class PowerVMDriver(driver.ComputeDriver):
             raise exception.VirtualInterfacePlugException(
                 _("Plug vif failed because instance %s was not found.")
                 % instance.name)
-        except Exception as e:
-            LOG.exception(e)
+        except Exception:
+            LOG.exception("PowerVM error plugging vifs.", instance=instance)
             raise exception.VirtualInterfacePlugException(
                 _("Plug vif failed because of an unexpected error."))
 
@@ -1024,13 +1026,13 @@ class PowerVMDriver(driver.ComputeDriver):
         # Run the flow
         try:
             tf_base.run(flow, instance=instance)
-        except exception.InstanceNotFound as ei:
-            LOG.exception(ei)
-            LOG.warning(_LW('VM was not found during unplug operation '
-                            'as it is already possibly deleted'),
-                        instance=instance)
-        except Exception as e:
-            LOG.exception(e)
+        except exception.InstanceNotFound:
+            LOG.exception('VM was not found during unplug operation '
+                          'as it is already possibly deleted.',
+                          instance=instance)
+        except Exception:
+            LOG.exception("PowerVM error trying to unplug vifs.",
+                          instance=instance)
             raise exception.InterfaceDetachFailed(instance_uuid=instance.uuid)
 
     def get_available_nodes(self, refresh=False):
@@ -1485,7 +1487,8 @@ class PowerVMDriver(driver.ComputeDriver):
                                                block_migration, migrate_data,
                                                mig, ex=timeout_ex)
             except Exception as e:
-                LOG.exception(e)
+                LOG.exception("PowerVM error during live migration.",
+                              instance=instance)
                 self._migration_exception_util(context, instance, dest,
                                                recover_method,
                                                block_migration, migrate_data,
@@ -1522,8 +1525,9 @@ class PowerVMDriver(driver.ComputeDriver):
             mig.rollback_live_migration(context)
             recover_method(context, instance, dest, block_migration,
                            migrate_data)
-        except Exception as e:
-            LOG.exception(e)
+        except Exception:
+            LOG.exception("PowerVM error rolling back live migration.",
+                          instance=instance)
 
         raise lpm.LiveMigrationFailed(name=instance.name,
                                       reason=six.text_type(ex))

@@ -22,6 +22,7 @@ from nova import exception
 from nova.objects import migrate_data as mig_obj
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
+from oslo_utils import excutils
 from pypowervm.tasks import management_console as mgmt_task
 from pypowervm.tasks import migration as mig
 from pypowervm.tasks import storage as stor_task
@@ -167,8 +168,9 @@ class LiveMigrationDest(LiveMigration):
             try:
                 vol_drv.pre_live_migration_on_destination(
                     migrate_data.vol_data)
-            except Exception as e:
-                LOG.exception(e, instance=self.instance)
+            except Exception:
+                LOG.exception("PowerVM error preparing instance for live "
+                              "migration.", instance=self.instance)
                 # It failed.
                 vol_exc = LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
@@ -203,8 +205,9 @@ class LiveMigrationDest(LiveMigration):
                      dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
                 vol_drv.post_live_migration_at_destination(mig_vol_stor)
-            except Exception as e:
-                LOG.exception(e, instance=self.instance)
+            except Exception:
+                LOG.exception("PowerVM error cleaning up destincation host "
+                              "after migration.", instance=self.instance)
                 # It failed.
                 raise LiveMigrationVolume(
                     host=self.drvr.host_wrapper.system_name,
@@ -241,8 +244,9 @@ class LiveMigrationDest(LiveMigration):
         if self.pre_live_vol_data:
             try:
                 vol_drv.cleanup_volume_at_destination(self.pre_live_vol_data)
-            except Exception as e:
-                LOG.exception(e, instance=self.instance)
+            except Exception:
+                LOG.exception("PowerVM error cleaning volume after failed "
+                              "migration.", instance=self.instance)
                 # Log the exception but no need to raise one because
                 # the VM is still on the source host.
 
@@ -373,8 +377,9 @@ class LiveMigrationSrc(LiveMigration):
             for trunk_to_del in trunks_to_del:
                 trunk_to_del.delete()
         except Exception:
-            LOG.error(_LE("Live migration failed."), instance=self.instance)
-            raise
+            with excutils.save_and_reraise_exception(logger=LOG):
+                LOG.exception("Live migration failed.",
+                              instance=self.instance)
         finally:
             LOG.debug("Finished migration.", instance=self.instance)
 
@@ -401,8 +406,9 @@ class LiveMigrationSrc(LiveMigration):
                      dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
                 vol_drv.post_live_migration_at_source(migrate_data.vol_data)
-            except Exception as e:
-                LOG.exception(e, instance=self.instance)
+            except Exception:
+                LOG.exception("PowerVM error cleaning source host after live "
+                              "migration.", instance=self.instance)
                 # Log the exception but no need to raise one because
                 # the VM is already moved.  By raising an exception that
                 # results in the VM being on the new host but the instance
@@ -463,11 +469,9 @@ class LiveMigrationSrc(LiveMigration):
         LOG.debug("Abort migration.", instance=self.instance)
         try:
             mig.migrate_abort(self.lpar_w)
-        except Exception as ex:
-            LOG.error(_LE("Abort of live migration has failed. "
-                          "This is non-blocking. Exception is logged below."),
-                      instance=self.instance)
-            LOG.exception(ex, instance=self.instance)
+        except Exception:
+            LOG.exception("Abort of live migration has failed. This is "
+                          "non-blocking.", instance=self.instance)
 
     def migration_recover(self):
         """Recover migration if the migration failed for any reason. """

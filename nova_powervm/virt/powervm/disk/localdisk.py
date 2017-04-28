@@ -17,6 +17,7 @@
 
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
+from oslo_utils import excutils
 
 from nova import exception as nova_exc
 from nova import image
@@ -318,9 +319,10 @@ class LocalStorage(disk_dvr.DiskAdapter):
         try:
             _extend()
         except pvm_exc.Error:
-            # TODO(IBM): Handle etag mismatch and retry
-            LOG.exception()
-            raise
+            with excutils.save_and_reraise_exception(logger=LOG):
+                # TODO(IBM): Handle etag mismatch and retry
+                LOG.exception("PowerVM Error extending disk.",
+                              instance=instance)
 
     def _get_vg_wrap(self):
         return pvm_stg.VG.get(self.adapter, uuid=self.vg_uuid,

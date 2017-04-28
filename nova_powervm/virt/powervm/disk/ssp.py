@@ -26,6 +26,7 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vm
 
 from nova import image
+from oslo_utils import excutils
 import pypowervm.const as pvm_const
 from pypowervm.tasks import cluster_ssp as tsk_cs
 from pypowervm.tasks import partition as tsk_par
@@ -362,9 +363,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                     raise npvmex.NoConfigTooManyClusters(
                         clust_count=len(wraps))
             clust_wrap = wraps[0]
-        except Exception as e:
-            LOG.exception(e.message)
-            raise e
+        except Exception:
+            with excutils.save_and_reraise_exception(logger=LOG):
+                LOG.exception("PowerVM error fetching cluster.")
         return clust_wrap
 
     def _refresh_cluster(self):

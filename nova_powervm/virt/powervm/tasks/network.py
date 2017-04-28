@@ -260,11 +260,9 @@ class PlugVifs(task.Task):
             try:
                 vif.unplug(self.adapter, self.host_uuid, self.instance,
                            network_info, self.slot_mgr, cna_w_list=cna_w_list)
-            except Exception as e:
-                LOG.exception(e)
-                LOG.warning(_LW("An exception occurred during an unplug "
-                                "in the vif rollback.  Ignoring."),
-                            instance=self.instance)
+            except Exception:
+                LOG.exception("Error unplugging during vif rollback. "
+                              "Ignoring.", instance=self.instance)
 
 
 class PlugMgmtVif(task.Task):

@@ -18,7 +18,6 @@ from oslo_log import log as logging
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
-from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
@@ -213,9 +212,8 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                     instance=self.instance)
 
         except Exception as e:
-            LOG.error(_LE('Cannot detach volumes from virtual machine: %s'),
-                      self.vm_uuid, instance=self.instance)
-            LOG.exception(_LE('Error: %s'), e, instance=self.instance)
+            LOG.exception('PowerVM error detaching volume from virtual '
+                          'machine.', instance=self.instance)
             ex_args = {'volume_id': self.volume_id, 'reason': six.text_type(e),
                        'instance_name': self.instance.name}
             raise p_exc.VolumeDetachFailed(**ex_args)

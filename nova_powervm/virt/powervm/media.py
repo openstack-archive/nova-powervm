@@ -23,6 +23,7 @@ import retrying
 from taskflow import task
 
 from oslo_log import log as logging
+from oslo_utils import excutils
 
 from pypowervm import const as pvm_const
 from pypowervm.tasks import scsi_mapper as tsk_map
@@ -139,12 +140,12 @@ class ConfigDrivePowerVM(object):
                 _make_cfg_drive(iso_path)
                 return iso_path, file_name
             except OSError:
-                # If we get here, that means there's an exception during
-                # second attempt, log the same and fail the deploy
-                # operation.
-                LOG.exception("Config drive ISO could not be built",
-                              instance=instance)
-                raise
+                with excutils.save_and_reraise_exception(logger=LOG):
+                    # If we get here, that means there's an exception during
+                    # second attempt, log the same and fail the deploy
+                    # operation.
+                    LOG.exception("Config drive ISO could not be built.",
+                                  instance=instance)
 
     def create_cfg_drv_vopt(self, instance, injected_files, network_info,
                             lpar_uuid, admin_pass=None, mgmt_cna=None,

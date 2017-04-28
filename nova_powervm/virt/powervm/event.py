@@ -26,7 +26,6 @@ from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import event as pvm_evt
 
 from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -116,10 +115,9 @@ class PowerVMNovaEventHandler(pvm_apt.WrapperEventHandler):
                 inst_cache[pvm_event.data] = self._handle_event(
                     pvm_event, details, inst=inst_cache.get(pvm_event.data,
                                                             None))
-            except Exception as e:
-                LOG.exception(e)
-                LOG.warning(_LW('Unable to parse event URI: %s from PowerVM.'),
-                            pvm_event.data)
+            except Exception:
+                LOG.exception('Unable to parse event URI: %s from PowerVM.',
+                              pvm_event.data)
 
 
 class PowerVMLifecycleEventHandler(object):

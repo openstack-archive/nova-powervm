@@ -194,7 +194,8 @@ class NvramManager(object):
         except pvm_exc.HttpError as e:
             # The VM might have been deleted since the store request.
             if e.response.status not in [404]:
-                LOG.exception(e)
+                LOG.exception("HttpError 404 trying to get instance NVRAM "
+                              "data.", instance=instance)
                 LOG.warning(_LW('Unable to store the NVRAM for instance: '
                                 '%s'), instance.name)
         return data

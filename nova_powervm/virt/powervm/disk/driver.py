@@ -18,6 +18,7 @@
 import abc
 
 import oslo_log.log as logging
+from oslo_utils import excutils
 from oslo_utils import units
 import random
 import six
@@ -366,17 +367,16 @@ class DiskAdapter(object):
             try:
                 return self._create_disk_from_image(
                     context, instance, image_meta, image_type=image_type)
-            except Exception as error:
-                if attempt < 4:
-                    LOG.exception(error)
-                    LOG.warning(_LW("Instance %(inst)s Disk Upload attempt "
-                                    "#%(attempt)d failed. Retrying the "
-                                    "upload."),
-                                {"attempt": attempt,
-                                "inst": instance.name}, instance=instance)
-                    time.sleep(random.randint(1, 5))
-                else:
-                    raise
+            except Exception:
+                with excutils.save_and_reraise_exception(
+                    logger=LOG, reraise=False) as sare:
+                    if attempt < 4:
+                        LOG.exception("Disk Upload attempt #%d failed. "
+                                      "Retrying the upload.", attempt,
+                                      instance=instance)
+                        time.sleep(random.randint(1, 5))
+                    else:
+                        sare.reraise = True
 
     def _create_disk_from_image(self, context, instance, image_meta,
                                 image_type=DiskType.BOOT):
