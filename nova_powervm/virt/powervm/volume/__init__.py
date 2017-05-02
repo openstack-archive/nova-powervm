@@ -102,7 +102,7 @@ def get_iscsi_initiator(adapter):
         mgmt_w = partition.get_mgmt_partition(adapter)
         if isinstance(mgmt_w, pvm_vios.VIOS):
             _ISCSI_INITIATOR = hdisk.discover_iscsi_initiator(
-                adapter, mgmt_w.uuid)
+                adapter, mgmt_w.uuid).strip()
 
     _ISCSI_LOOKUP_COMPLETE = True
     return _ISCSI_INITIATOR
