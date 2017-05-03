@@ -63,7 +63,10 @@ Two disk implementations exist currently.
   physical disks local to their system.  Images will be cached on the same
   volume group as the VMs.  The cached images will be periodically cleaned up
   by the Nova imagecache manager, at a rate determined by the ``nova.conf``
-  setting: image_cache_manager_interval.
+  setting: image_cache_manager_interval.  Also supports file-backed ephemeral
+  storage, which is specified by using the ``QCOW VG - default`` volume group.
+  Note: Resizing instances with file-backed ephemeral is not currently
+  supported.
 
 * Shared Storage Pool - utilizes PowerVM's distributed storage.  As such this
   implementation allows operators to make use of live migration capabilities.

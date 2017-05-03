@@ -33,6 +33,7 @@ from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm.disk import imagecache
 from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vm
@@ -247,7 +248,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 disk_dvr.IterableToFileAdapter(
                     IMAGE_API.download(context, image_meta.id)), cache_name,
                 image_meta.size, d_size=image_meta.size,
-                upload_type=tsk_stg.UploadType.IO_STREAM)[0]
+                upload_type=tsk_stg.UploadType.IO_STREAM,
+                file_format=image_meta.disk_format)[0]
             return image.udid
 
     def connect_disk(self, instance, disk_info, stg_ftsk=None):
@@ -285,6 +287,17 @@ class LocalStorage(disk_dvr.DiskAdapter):
         if stg_ftsk.name == 'localdisk':
             stg_ftsk.execute()
 
+    def _validate_resizable(self, vdisk):
+        """Validates that VDisk supports resizing
+
+        :param vdisk: The VDisk to be resized
+        :raise ResizeError: If resizing is not supported for the given VDisk.
+        """
+        if (vdisk.backstore_type == pvm_stg.BackStoreType.USER_QCOW):
+            raise nova_exc.ResizeError(
+                reason=_("Resizing file-backed instances is not currently"
+                         "supported."))
+
     def extend_disk(self, instance, disk_info, size):
         """Extends the disk.
 
@@ -299,7 +312,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
             vdisks = vg_wrap.virtual_disks
             disk_found = None
             for vdisk in vdisks:
-                if vdisk.name == vol_name:
+                # Vdisk name can be either disk_name or /path/to/disk_name
+                if vdisk.name.split('/')[-1] == vol_name.split('/')[-1]:
                     disk_found = vdisk
                     break
 
@@ -308,6 +322,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                           instance=instance)
                 raise nova_exc.DiskNotFound(
                     location=self.vg_name + '/' + vol_name)
+            self._validate_resizable(disk_found)
 
             # Set the new size
             disk_found.capacity = size

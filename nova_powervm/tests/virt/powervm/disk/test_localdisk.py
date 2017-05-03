@@ -30,6 +30,7 @@ from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm.disk import localdisk as ld
 from nova_powervm.virt.powervm import exception as npvmex
+from nova_powervm.virt.powervm import vm
 
 
 class TestLocalDisk(test.TestCase):
@@ -126,7 +127,8 @@ class TestLocalDisk(test.TestCase):
             self.apt, 'vios-uuid', self.vg_uuid, mock_it2f.return_value,
             'i_3e865d14_8c1e', powervm.TEST_IMAGE1.size,
             d_size=powervm.TEST_IMAGE1.size,
-            upload_type=tsk_stor.UploadType.IO_STREAM)
+            upload_type=tsk_stor.UploadType.IO_STREAM,
+            file_format=powervm.TEST_IMAGE1.disk_format)
         mock_it2f.assert_called_once_with(mock_img_api.return_value)
         mock_img_api.assert_called_once_with('ctx', powervm.TEST_IMAGE1.id)
 
@@ -246,10 +248,13 @@ class TestLocalDisk(test.TestCase):
         # to match the FeedTask.
         local = self.get_ls(self.apt)
         inst = mock.Mock(uuid=fx.FAKE_INST_UUID)
-
+        lpar_uuid = vm.get_pvm_uuid(inst)
+        mock_disk = mock.Mock()
         # As initialized above, remove_maps returns True to trigger update.
-        local.connect_disk(inst, mock.Mock(), stg_ftsk=None)
+        local.connect_disk(inst, mock_disk, stg_ftsk=None)
         self.assertEqual(1, mock_add_map.call_count)
+        mock_build_map.assert_called_once_with(
+            'host_uuid', self.vio_to_vg, lpar_uuid, mock_disk)
         mock_add_map.assert_called_once_with(feed[0], 'fake_map')
         self.assertEqual(1, self.vio_to_vg.update.call_count)
 
@@ -304,7 +309,6 @@ class TestLocalDisk(test.TestCase):
     @mock.patch('pypowervm.wrappers.storage.VG', autospec=True)
     def test_extend_disk_not_found(self, mock_vg):
         local = self.get_ls(self.apt)
-
         inst = mock.Mock()
         inst.name = 'Name Of Instance'
         inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
@@ -324,6 +328,26 @@ class TestLocalDisk(test.TestCase):
         # Validate the call
         self.assertEqual(1, resp.update.call_count)
         self.assertEqual(vdisk.capacity, 1000)
+
+    @mock.patch('pypowervm.wrappers.storage.VG', autospec=True)
+    def test_extend_disk_file_format(self, mock_vg):
+        local = self.get_ls(self.apt)
+        inst = mock.Mock()
+        inst.name = 'Name Of Instance'
+        inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
+
+        vdisk = mock.Mock(name='vdisk')
+        vdisk.configure_mock(name='/path/to/b_Name_Of__d506',
+                             backstore_type=pvm_stor.BackStoreType.USER_QCOW,
+                             file_format=pvm_stor.FileFormatType.QCOW2)
+        resp = mock.Mock(name='response')
+        resp.virtual_disks = [vdisk]
+        mock_vg.get.return_value = resp
+        self.assertRaises(nova_exc.ResizeError, local.extend_disk,
+                          inst, dict(type='boot'), 10)
+        vdisk.file_format = pvm_stor.FileFormatType.RAW
+        self.assertRaises(nova_exc.ResizeError, local.extend_disk,
+                          inst, dict(type='boot'), 10)
 
     def _bld_mocks_for_instance_disk(self):
         inst = mock.Mock()
