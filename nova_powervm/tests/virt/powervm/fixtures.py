@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -183,9 +183,7 @@ class TaskFlow(fixtures.Fixture):
                 testcase.assertEqual(expected, observed.name)
 
         # Compare the list of expected against added.
-        for func in map(compare_tasks, expected_tasks, self.tasks_added):
-            # Call the function to do the compare
-            func
+        map(compare_tasks, expected_tasks, self.tasks_added)
 
 
 class DriverTaskFlow(TaskFlow):

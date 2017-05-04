@@ -130,16 +130,14 @@ class TestStorage(test.TestCase):
 
     def test_create_disk_for_img(self):
         image_meta = mock.Mock()
-        disk_size = 10
         image_type = mock.Mock()
 
         task = tf_stg.CreateDiskForImg(
             self.disk_dvr, self.context, self.instance, image_meta,
-            disk_size=disk_size, image_type=image_type)
+            image_type=image_type)
         task.execute()
         self.disk_dvr.create_disk_from_image.assert_called_once_with(
-            self.context, self.instance, image_meta, disk_size,
-            image_type=image_type)
+            self.context, self.instance, image_meta, image_type=image_type)
 
         task.revert('result', 'flow failures')
         self.disk_dvr.delete_disks.assert_called_once_with(['result'])

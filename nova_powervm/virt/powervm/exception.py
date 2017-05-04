@@ -112,7 +112,7 @@ class VolumePreMigrationFailed(nex.NovaException):
 
 
 class PowerVMAPIFailed(nex.NovaException):
-    msg_fmt = _("PowerVM API Failed to complete for instance=%(inst_name)s."
+    msg_fmt = _("PowerVM API failed to complete for instance=%(inst_name)s."
                 "%(reason)s")
 
 

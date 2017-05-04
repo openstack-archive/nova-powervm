@@ -45,15 +45,15 @@ class TestVMTasks(test.TestCase):
 
         # Test create with normal (non-recreate) ftsk
         crt = tf_vm.Create(self.apt, 'host_wrapper', self.instance,
-                           'flavor', mock_ftsk, nvram_mgr=nvram_mgr,
+                           stg_ftsk=mock_ftsk, nvram_mgr=nvram_mgr,
                            slot_mgr='slot_mgr')
         mock_vm_crt.return_value = lpar_entry
         crt_entry = crt.execute()
 
         mock_ftsk.execute.assert_not_called()
-        mock_vm_crt.assert_called_once_with(self.apt, 'host_wrapper',
-                                            self.instance, 'flavor',
-                                            nvram='data', slot_mgr='slot_mgr')
+        mock_vm_crt.assert_called_once_with(
+            self.apt, 'host_wrapper', self.instance, nvram='data',
+            slot_mgr='slot_mgr')
         self.assertEqual(lpar_entry, crt_entry)
         nvram_mgr.fetch.assert_called_once_with(self.instance)
 
@@ -61,7 +61,7 @@ class TestVMTasks(test.TestCase):
         mock_bld.return_value = mock_ftsk
         # Test create with recreate ftsk
         rcrt = tf_vm.Create(self.apt, 'host_wrapper', self.instance,
-                            'flavor', None, nvram_mgr=nvram_mgr,
+                            stg_ftsk=None, nvram_mgr=nvram_mgr,
                             slot_mgr='slot_mgr')
         mock_bld.assert_called_once_with(
             self.apt, name='create_scrubber',
@@ -76,8 +76,8 @@ class TestVMTasks(test.TestCase):
                            mock_get_pvm_uuid):
 
         mock_crt_exc.side_effect = exception.NovaException()
-        crt = tf_vm.Create(self.apt, 'host_wrapper', self.instance,
-                           'flavor', 'stg_ftsk', None)
+        crt = tf_vm.Create(self.apt, 'host_wrapper', self.instance, 'stg_ftsk',
+                           None)
 
         # Assert that a failure while building does not revert
         crt.instance.task_state = task_states.SPAWNING
@@ -154,12 +154,12 @@ class TestVMTasks(test.TestCase):
     def test_resize(self, mock_vm_update):
 
         resize = tf_vm.Resize(self.apt, 'host_wrapper', self.instance,
-                              'flavor', name='new_name')
+                              name='new_name')
         mock_vm_update.return_value = 'resized_entry'
         resized_entry = resize.execute()
-        mock_vm_update.assert_called_once_with(self.apt, 'host_wrapper',
-                                               self.instance, 'flavor',
-                                               entry=None, name='new_name')
+        mock_vm_update.assert_called_once_with(
+            self.apt, 'host_wrapper', self.instance, entry=None,
+            name='new_name')
         self.assertEqual('resized_entry', resized_entry)
 
     @mock.patch('nova_powervm.virt.powervm.vm.rename')

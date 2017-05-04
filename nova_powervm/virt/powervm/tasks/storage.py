@@ -134,7 +134,7 @@ class CreateDiskForImg(pvm_task.PowerVMTask):
 
     """The Task to create the disk from an image in the storage."""
 
-    def __init__(self, disk_dvr, context, instance, image_meta, disk_size=0,
+    def __init__(self, disk_dvr, context, instance, image_meta,
                  image_type=disk_driver.DiskType.BOOT):
         """Create the Task.
 
@@ -146,8 +146,6 @@ class CreateDiskForImg(pvm_task.PowerVMTask):
         :param instance: The nova instance.
         :param nova.objects.ImageMeta image_meta:
             The metadata of the image of the instance.
-        :param disk_size: The size of disk to create. If the size is smaller
-                          than the image, the image size will be used.
         :param image_type: The image type. See disk/driver.py
         """
         super(CreateDiskForImg, self).__init__(
@@ -155,12 +153,11 @@ class CreateDiskForImg(pvm_task.PowerVMTask):
         self.disk_dvr = disk_dvr
         self.context = context
         self.image_meta = image_meta
-        self.disk_size = disk_size
         self.image_type = image_type
 
     def execute_impl(self):
         return self.disk_dvr.create_disk_from_image(
-            self.context, self.instance, self.image_meta, self.disk_size,
+            self.context, self.instance, self.image_meta,
             image_type=self.image_type)
 
     def revert_impl(self, result, flow_failures):

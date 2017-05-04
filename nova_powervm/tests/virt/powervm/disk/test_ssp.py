@@ -287,7 +287,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         # Default image_type
         self.assertEqual('lu', ssp.create_disk_from_image(
-            'ctx', instance, img_meta, 'disk_gb'))
+            'ctx', instance, img_meta))
         mock_goru.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gin.return_value,
             mock_vuuid.return_value, mock_it2f.return_value, img_meta.size,
@@ -297,7 +297,7 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_gdn.assert_called_once_with(disk_dvr.DiskType.BOOT, instance)
         mock_crt_lu.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gdn.return_value,
-            'disk_gb', typ=pvm_stg.LUType.DISK,
+            instance.flavor.root_gb, typ=pvm_stg.LUType.DISK,
             clone=mock_goru.return_value)
 
         # Reset
@@ -309,7 +309,7 @@ class TestSSPDiskAdapter(test.TestCase):
 
         # Specified image_type
         self.assertEqual('lu', ssp.create_disk_from_image(
-            'ctx', instance, img_meta, 'disk_gb', image_type='imgtyp'))
+            'ctx', instance, img_meta, image_type='imgtyp'))
         mock_goru.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gin.return_value,
             mock_vuuid.return_value, mock_it2f.return_value, img_meta.size,
@@ -319,7 +319,8 @@ class TestSSPDiskAdapter(test.TestCase):
         mock_gdn.assert_called_once_with('imgtyp', instance)
         mock_crt_lu.assert_called_once_with(
             self.mock_get_tier.return_value, mock_gdn.return_value,
-            'disk_gb', typ=pvm_stg.LUType.DISK, clone=mock_goru.return_value)
+            instance.flavor.root_gb, typ=pvm_stg.LUType.DISK,
+            clone=mock_goru.return_value)
 
     def test_get_image_name(self):
         """Generate image name from ImageMeta."""

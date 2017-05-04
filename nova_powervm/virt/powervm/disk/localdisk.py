@@ -190,7 +190,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
                 'vios_name': vios_uuid})
 
-    def _create_disk_from_image(self, context, instance, image_meta, disk_size,
+    def _create_disk_from_image(self, context, instance, image_meta,
                                 image_type=disk_dvr.DiskType.BOOT):
         """Creates a disk and copies the specified image to it.
 
@@ -200,17 +200,14 @@ class LocalStorage(disk_dvr.DiskAdapter):
         :param instance: instance to create the disk for.
         :param nova.objects.ImageMeta image_meta:
             The metadata of the image of the instance.
-        :param disk_size: The size of the disk to create in GB.  If smaller
-                          than the image, it will be ignored (as the disk
-                          must be at least as big as the image).  Must be an
-                          int.
         :param image_type: the image type. See disk constants above.
         :return: The backing pypowervm storage object that was created.
         """
         LOG.info(_LI('Create disk.'), instance=instance)
 
-        # Disk size to API is in bytes.  Input from method is in Gb
-        disk_bytes = self._disk_gb_to_bytes(disk_size, floor=image_meta.size)
+        # Disk size to API is in bytes.  Input from flavor is in Gb
+        disk_bytes = self._disk_gb_to_bytes(instance.flavor.root_gb,
+                                            floor=image_meta.size)
         vol_name = self._get_disk_name(image_type, instance, short=True)
 
         with self.cache_lock.read_lock():

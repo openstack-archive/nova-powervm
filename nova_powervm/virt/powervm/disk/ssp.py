@@ -201,7 +201,6 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         tsk_stg.rm_tier_storage(storage_elems, tier=self._tier)
 
     def _create_disk_from_image(self, context, instance, image_meta,
-                                disk_size_gb,
                                 image_type=disk_drv.DiskType.BOOT):
         """Creates a boot disk and links the specified image to it.
 
@@ -213,10 +212,6 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :param instance: instance to create the disk for.
         :param nova.objects.ImageMeta image_meta:
             The metadata of the image of the instance.
-        :param disk_size_gb: The size of the disk to create in GB.  If smaller
-                             than the image, it will be ignored (as the disk
-                             must be at least as big as the image).  Must be an
-                             int.
         :param image_type: The image type. See disk_drv.DiskType.
         :return: The backing pypowervm LU storage object that was created.
         """
@@ -234,8 +229,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         boot_lu_name = self._get_disk_name(image_type, instance)
         LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)
 
-        return tsk_stg.crt_lu(self._tier, boot_lu_name, disk_size_gb,
-                              typ=pvm_stg.LUType.DISK, clone=image_lu)[1]
+        return tsk_stg.crt_lu(
+            self._tier, boot_lu_name, instance.flavor.root_gb,
+            typ=pvm_stg.LUType.DISK, clone=image_lu)[1]
 
     def get_disk_ref(self, instance, disk_type):
         """Returns a reference to the disk for the instance."""
