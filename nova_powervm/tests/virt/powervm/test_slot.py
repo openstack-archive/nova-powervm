@@ -121,6 +121,32 @@ class TestSwiftSlotManager(test.TestCase):
             p_exc.InvalidRebuild, self.slot_mgr.init_recreate_map, mock.Mock(),
             self._vol_drv_iter())
 
+    @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap')
+    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
+    def test_init_recreate_map_fileio(self, mock_ftsk, mock_rebuild_slot):
+        vios1, vios2 = mock.Mock(uuid='uuid1'), mock.Mock(uuid='uuid2')
+        mock_ftsk.return_value.feed = [vios1, vios2]
+        expected_vio_wrap = [vios1, vios2]
+        self.slot_mgr.init_recreate_map(mock.Mock(), self._vol_drv_iter_2())
+        self.assertEqual(1, mock_ftsk.call_count)
+        mock_rebuild_slot.assert_called_once_with(
+            self.slot_mgr, expected_vio_wrap,
+            {'udidvscsi': ['uuid1'], 'udid': ['uuid1']}, [])
+
+    def _vol_drv_iter_2(self):
+        mock_fileio = mock.Mock()
+        mock_fileio.vol_type.return_value = 'fileio'
+        mock_fileio.is_volume_on_vios.side_effect = ((True, 'udid'),
+                                                     (False, None))
+        mock_scsi = mock.Mock()
+        mock_scsi.vol_type.return_value = 'vscsi'
+        mock_scsi.is_volume_on_vios.side_effect = ((True, 'udidvscsi'),
+                                                   (False, None))
+
+        vol_drv = [mock_fileio, mock_scsi]
+        for type in vol_drv:
+            yield mock.Mock(), type
+
     def _vol_drv_iter(self):
         mock_scsi = mock.Mock()
         mock_scsi.vol_type.return_value = 'vscsi'

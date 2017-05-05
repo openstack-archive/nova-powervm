@@ -40,6 +40,12 @@ LOG = logging.getLogger(__name__)
 class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     """Base class for connecting file based Cinder Volumes to PowerVM VMs."""
 
+    def __init__(self, adapter, host_uuid, instance, connection_info,
+                 stg_ftsk=None):
+        super(FileIOVolumeAdapter, self).__init__(
+            adapter, host_uuid, instance, connection_info, stg_ftsk=stg_ftsk)
+        self._nl_vios_ids = None
+
     @classmethod
     def min_xags(cls):
         return [pvm_const.XAG.VIO_SMAP]
@@ -53,6 +59,15 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
     def _get_path(self):
         """Return the path to the file to connect."""
         pass
+
+    @property
+    def vios_uuids(self):
+        """List the UUIDs of the Virtual I/O Servers hosting the storage."""
+        # Get the hosting UUID
+        if self._nl_vios_ids is None:
+            nl_vios_wrap = partition.get_mgmt_partition(self.adapter)
+            self._nl_vios_ids = [nl_vios_wrap.uuid]
+        return self._nl_vios_ids
 
     def pre_live_migration_on_destination(self, mig_data):
         """Perform pre live migration steps for the volume on the target host.
@@ -78,9 +93,6 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                 volume_id=self.volume_id, instance_name=self.instance.name)
 
     def _connect_volume(self, slot_mgr):
-        # Get the hosting UUID
-        nl_vios_wrap = partition.get_mgmt_partition(self.adapter)
-        vios_uuid = nl_vios_wrap.uuid
         path = self._get_path()
         # Get the File Path
         fio = pvm_stg.FileIO.bld(
@@ -89,7 +101,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
 
         def add_func(vios_w):
             # If the vios doesn't match, just return
-            if vios_w.uuid != vios_uuid:
+            if vios_w.uuid not in self.vios_uuids:
                 return None
 
             LOG.info(_LI("Adding logical volume disk connection between VM "
@@ -126,9 +138,6 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
             set_slot_info, name='file_io_slot_%s' % path))
 
     def _disconnect_volume(self, slot_mgr):
-        # Get the hosting UUID
-        nl_vios_wrap = partition.get_mgmt_partition(self.adapter)
-        vios_uuid = nl_vios_wrap.uuid
         # Build the match function
         match_func = tsk_map.gen_match_func(pvm_stg.VDisk,
                                             names=[self._get_path()])
@@ -136,7 +145,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         # Make sure the remove function will run within the transaction manager
         def rm_func(vios_w):
             # If the vios doesn't match, just return
-            if vios_w.uuid != vios_uuid:
+            if vios_w.uuid not in self.vios_uuids:
                 return None
 
             LOG.info(_LI("Disconnecting instance %(inst)s from storage "
@@ -150,7 +159,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
 
         self.stg_ftsk.add_functor_subtask(rm_func)
         # Find the disk directly.
-        vios_w = self.stg_ftsk.wrapper_tasks[vios_uuid].wrapper
+        vios_w = self.stg_ftsk.wrapper_tasks[self.vios_uuids[0]].wrapper
         mappings = tsk_map.find_maps(vios_w.scsi_mappings,
                                      client_lpar_id=self.vm_uuid,
                                      match_func=match_func)
@@ -168,6 +177,9 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                  otherwise.
         :return: The file path.
         """
+        if vios_w.uuid not in self.vios_uuids:
+            return False, None
+
         vol_path = self._get_path()
         vol_found = os.path.exists(vol_path)
         return vol_found, vol_path
