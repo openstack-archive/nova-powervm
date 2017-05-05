@@ -191,4 +191,4 @@ class DriverTaskFlow(TaskFlow):
     def __init__(self):
         super(DriverTaskFlow, self).__init__(
             linear_flow='nova_powervm.virt.powervm.driver.tf_lf',
-            engines='nova_powervm.virt.powervm.driver.tf_eng')
+            engines='nova_powervm.virt.powervm.tasks.base.tf_eng')

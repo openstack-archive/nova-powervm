@@ -21,12 +21,12 @@ from nova import utils
 
 from oslo_log import log as logging
 from pypowervm.wrappers import network as pvm_net
+from taskflow import task
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _LE
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
-from nova_powervm.virt.powervm.tasks import base as pvm_task
 from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
 
@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 
-class UnplugVifs(pvm_task.PowerVMTask):
+class UnplugVifs(task.Task):
 
     """The task to unplug Virtual Network Interfaces from a VM."""
 
@@ -54,11 +54,11 @@ class UnplugVifs(pvm_task.PowerVMTask):
         self.network_infos = network_infos or []
         self.host_uuid = host_uuid
         self.slot_mgr = slot_mgr
+        self.instance = instance
 
-        super(UnplugVifs, self).__init__(instance, 'unplug_vifs',
-                                         requires=['lpar_wrap'])
+        super(UnplugVifs, self).__init__('unplug_vifs', requires=['lpar_wrap'])
 
-    def execute_impl(self, lpar_wrap):
+    def execute(self, lpar_wrap):
         # If the state is not in an OK state for deleting, then throw an
         # error up front.
         modifiable, reason = lpar_wrap.can_modify_io()
@@ -81,7 +81,7 @@ class UnplugVifs(pvm_task.PowerVMTask):
         return cna_w_list
 
 
-class PlugVifs(pvm_task.PowerVMTask):
+class PlugVifs(task.Task):
 
     """The task to plug the Virtual Network Interfaces to a VM."""
 
@@ -109,9 +109,10 @@ class PlugVifs(pvm_task.PowerVMTask):
         self.slot_mgr = slot_mgr
         self.crt_network_infos, self.update_network_infos = [], []
         self.cnas, self.vnics = None, None
+        self.instance = instance
 
-        super(PlugVifs, self).__init__(
-            instance, 'plug_vifs', provides='vm_cnas', requires=['lpar_wrap'])
+        super(PlugVifs, self).__init__('plug_vifs', provides='vm_cnas',
+                                       requires=['lpar_wrap'])
 
     def _vif_exists(self, network_info):
         """Does the instance have a CNA/VNIC (as appropriate) for a given net?
@@ -135,7 +136,7 @@ class PlugVifs(pvm_task.PowerVMTask):
 
         return network_info['address'] in [vm.norm_mac(v.mac) for v in vifs]
 
-    def execute_impl(self, lpar_wrap):
+    def execute(self, lpar_wrap):
         # We will have two types of network infos.  One is for newly created
         # vifs.  The others are those that exist, but should be re-'treated'
         for network_info in self.network_infos:
@@ -243,7 +244,7 @@ class PlugVifs(pvm_task.PowerVMTask):
         else:
             return []
 
-    def revert_impl(self, lpar_wrap, result, flow_failures):
+    def revert(self, lpar_wrap, result, flow_failures):
         if not self.network_infos:
             return
 
@@ -266,7 +267,7 @@ class PlugVifs(pvm_task.PowerVMTask):
                             instance=self.instance)
 
 
-class PlugMgmtVif(pvm_task.PowerVMTask):
+class PlugMgmtVif(task.Task):
 
     """The task to plug the Management VIF into a VM."""
 
@@ -288,12 +289,12 @@ class PlugMgmtVif(pvm_task.PowerVMTask):
         self.adapter = adapter
         self.host_uuid = host_uuid
         self.slot_mgr = slot_mgr
+        self.instance = instance
 
-        super(PlugMgmtVif, self).__init__(
-            instance, 'plug_mgmt_vif', provides='mgmt_cna',
-            requires=['vm_cnas'])
+        super(PlugMgmtVif, self).__init__('plug_mgmt_vif', provides='mgmt_cna',
+                                          requires=['vm_cnas'])
 
-    def execute_impl(self, vm_cnas):
+    def execute(self, vm_cnas):
         # If configured to not use RMC mgmt vifs, then return None.  Need to
         # return None because the Config Drive step (which may be used...may
         # not be) required the mgmt vif.

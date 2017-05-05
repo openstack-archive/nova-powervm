@@ -29,7 +29,6 @@ from nova.virt import driver
 from oslo_log import log as logging
 from oslo_utils import importutils
 import six
-from taskflow import engines as tf_eng
 from taskflow.patterns import linear_flow as tf_lf
 import time
 
@@ -60,6 +59,7 @@ from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm.nvram import manager as nvram_manager
 from nova_powervm.virt.powervm import slot
+from nova_powervm.virt.powervm.tasks import base as tf_base
 from nova_powervm.virt.powervm.tasks import image as tf_img
 from nova_powervm.virt.powervm.tasks import network as tf_net
 from nova_powervm.virt.powervm.tasks import slot as tf_slot
@@ -463,7 +463,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                      pwr_opts=pwr_opts))
 
         # Run the flow.
-        tf_eng.run(flow_spawn)
+        tf_base.run(flow_spawn, instance=instance)
 
     def _add_volume_connection_tasks(self, context, instance, bdms,
                                      flow, stg_ftsk, slot_mgr):
@@ -652,8 +652,8 @@ class PowerVMDriver(driver.ComputeDriver):
                 flow.add(tf_vm.DeleteNvram(self.nvram_mgr, instance))
                 flow.add(tf_slot.DeleteSlotStore(instance, slot_mgr))
 
-            # Build the engine & run!
-            tf_eng.run(flow)
+            # Run the flow
+            tf_base.run(flow, instance=instance)
 
         try:
             pvm_inst_uuid = vm.get_pvm_uuid(instance)
@@ -731,9 +731,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # Save the new slot info
         flow.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
-        # Build the engine & run!
-        engine = tf_eng.load(flow)
-        engine.run()
+        # Run the flow
+        tf_base.run(flow, instance=instance)
 
         # The volume connector may have updated the system metadata.  Save
         # the instance to persist the data.  Spawn/destroy auto saves instance,
@@ -776,9 +775,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # Save the new slot info
         flow.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
-        # Build the engine & run!
-        engine = tf_eng.load(flow)
-        engine.run()
+        # Run the flow
+        tf_base.run(flow, instance=instance)
 
     def snapshot(self, context, instance, image_id, update_task_state):
         """Snapshots the specified instance.
@@ -825,8 +823,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # device
         flow.add(tf_stg.RemoveInstanceDiskFromMgmt(self.disk_dvr, instance))
 
-        # Build the engine & run
-        tf_eng.load(flow).run()
+        # Run the flow
+        tf_base.run(flow, instance=instance)
 
     def rescue(self, context, instance, network_info, image_meta,
                rescue_password):
@@ -863,9 +861,8 @@ class PowerVMDriver(driver.ComputeDriver):
             self.adapter, instance,
             pwr_opts=pvm_popts.PowerOnOpts().bootmode(pvm_popts.BootMode.SMS)))
 
-        # Build the engine & run!
-        engine = tf_eng.load(flow)
-        engine.run()
+        # Run the flow
+        tf_base.run(flow, instance=instance)
 
     def unrescue(self, instance, network_info):
         """Unrescue the specified instance.
@@ -890,9 +887,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # Last step is to power on the system.
         flow.add(tf_vm.PowerOn(self.adapter, instance))
 
-        # Build the engine & run!
-        engine = tf_eng.load(flow)
-        engine.run()
+        # Run the flow
+        tf_base.run(flow, instance=instance)
 
     def power_off(self, instance, timeout=0, retry_interval=0):
         """Power off the specified instance.
@@ -995,10 +991,9 @@ class PowerVMDriver(driver.ComputeDriver):
         # Save the new slot info
         flow.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
-        # Build the engine & run!
-        engine = tf_eng.load(flow)
+        # Run the flow
         try:
-            engine.run()
+            tf_base.run(flow, instance=instance)
         except exception.InstanceNotFound:
             raise exception.VirtualInterfacePlugException(
                 _("Plug vif failed because instance %s was not found.")
@@ -1026,10 +1021,9 @@ class PowerVMDriver(driver.ComputeDriver):
         # Save the new slot info
         flow.add(tf_slot.SaveSlotStore(instance, slot_mgr))
 
-        # Build the engine & run!
-        engine = tf_eng.load(flow)
+        # Run the flow
         try:
-            engine.run()
+            tf_base.run(flow, instance=instance)
         except exception.InstanceNotFound as ei:
             LOG.exception(ei)
             LOG.warning(_LW('VM was not found during unplug operation '
@@ -1165,7 +1159,7 @@ class PowerVMDriver(driver.ComputeDriver):
         new_name = self._gen_resize_name(instance, same_host=same_host)
         flow.add(tf_vm.Rename(self.adapter, instance, new_name))
         try:
-            tf_eng.run(flow)
+            tf_base.run(flow, instance=instance)
         except Exception as e:
             raise exception.InstanceFaultRollback(e)
 
@@ -1290,8 +1284,9 @@ class PowerVMDriver(driver.ComputeDriver):
         if power_on:
             flow.add(tf_vm.PowerOn(self.adapter, instance))
 
+        # Run the flow
         try:
-            tf_eng.run(flow)
+            tf_base.run(flow, instance=instance)
         except Exception as e:
             raise exception.InstanceFaultRollback(e)
 

@@ -19,6 +19,7 @@ import six
 from pypowervm.tasks import scsi_mapper as pvm_smap
 
 from oslo_log import log as logging
+from taskflow import task
 from taskflow.types import failure as task_fail
 
 from nova_powervm.virt.powervm.disk import driver as disk_driver
@@ -27,12 +28,11 @@ from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import mgmt
-from nova_powervm.virt.powervm.tasks import base as pvm_task
 
 LOG = logging.getLogger(__name__)
 
 
-class ConnectVolume(pvm_task.PowerVMTask):
+class ConnectVolume(task.Task):
 
     """The task to connect a volume to an instance."""
 
@@ -48,15 +48,14 @@ class ConnectVolume(pvm_task.PowerVMTask):
         self.vol_id = self.vol_drv.connection_info['data']['volume_id']
         self.slot_mgr = slot_mgr
 
-        super(ConnectVolume, self).__init__(
-            self.vol_drv.instance, 'connect_vol_%s' % self.vol_id)
+        super(ConnectVolume, self).__init__('connect_vol_%s' % self.vol_id)
 
-    def execute_impl(self):
+    def execute(self):
         LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
         self.vol_drv.connect_volume(self.slot_mgr)
 
-    def revert_impl(self, result, flow_failures):
+    def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
         LOG.warning(_LW('Volume %(vol)s for instance %(inst)s to be '
@@ -81,7 +80,7 @@ class ConnectVolume(pvm_task.PowerVMTask):
                          'error': e.message})
 
 
-class DisconnectVolume(pvm_task.PowerVMTask):
+class DisconnectVolume(task.Task):
 
     """The task to disconnect a volume from an instance."""
 
@@ -96,15 +95,16 @@ class DisconnectVolume(pvm_task.PowerVMTask):
         self.vol_drv = vol_drv
         self.vol_id = self.vol_drv.connection_info['data']['volume_id']
         self.slot_mgr = slot_mgr
-        super(DisconnectVolume, self).__init__(
-            self.vol_drv.instance, 'disconnect_vol_%s' % self.vol_id)
 
-    def execute_impl(self):
+        super(DisconnectVolume, self).__init__(
+            'disconnect_vol_%s' % self.vol_id)
+
+    def execute(self):
         LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s'),
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
         self.vol_drv.disconnect_volume(self.slot_mgr)
 
-    def revert_impl(self, result, flow_failures):
+    def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
         LOG.warning(_LW('Volume %(vol)s for instance %(inst)s to be '
@@ -130,7 +130,7 @@ class DisconnectVolume(pvm_task.PowerVMTask):
                          'error': e.message})
 
 
-class CreateDiskForImg(pvm_task.PowerVMTask):
+class CreateDiskForImg(task.Task):
 
     """The Task to create the disk from an image in the storage."""
 
@@ -149,18 +149,19 @@ class CreateDiskForImg(pvm_task.PowerVMTask):
         :param image_type: The image type. See disk/driver.py
         """
         super(CreateDiskForImg, self).__init__(
-            instance, 'crt_disk_from_img', provides='disk_dev_info')
+            'crt_disk_from_img', provides='disk_dev_info')
         self.disk_dvr = disk_dvr
         self.context = context
+        self.instance = instance
         self.image_meta = image_meta
         self.image_type = image_type
 
-    def execute_impl(self):
+    def execute(self):
         return self.disk_dvr.create_disk_from_image(
             self.context, self.instance, self.image_meta,
             image_type=self.image_type)
 
-    def revert_impl(self, result, flow_failures):
+    def revert(self, result, flow_failures):
         # If there is no result, or its a direct failure, then there isn't
         # anything to delete.
         if result is None or isinstance(result, task_fail.Failure):
@@ -171,7 +172,7 @@ class CreateDiskForImg(pvm_task.PowerVMTask):
         self.disk_dvr.delete_disks([result])
 
 
-class ConnectDisk(pvm_task.PowerVMTask):
+class ConnectDisk(task.Task):
 
     """The task to connect the disk to the instance."""
 
@@ -190,21 +191,22 @@ class ConnectDisk(pvm_task.PowerVMTask):
                          the FeedTask is not provided, the updates will be run
                          immediately when the respective method is executed.
         """
-        super(ConnectDisk, self).__init__(
-            instance, 'connect_disk', requires=['disk_dev_info'])
+        super(ConnectDisk, self).__init__('connect_disk',
+                                          requires=['disk_dev_info'])
         self.disk_dvr = disk_dvr
+        self.instance = instance
         self.stg_ftsk = stg_ftsk
 
-    def execute_impl(self, disk_dev_info):
+    def execute(self, disk_dev_info):
         self.disk_dvr.connect_disk(self.instance, disk_dev_info,
                                    stg_ftsk=self.stg_ftsk)
 
-    def revert_impl(self, disk_dev_info, result, flow_failures):
+    def revert(self, disk_dev_info, result, flow_failures):
         # Note that the FeedTask is None - to force instant disconnect.
         self.disk_dvr.disconnect_disk(self.instance)
 
 
-class InstanceDiskToMgmt(pvm_task.PowerVMTask):
+class InstanceDiskToMgmt(task.Task):
 
     """Connect an instance's disk to the management partition, discover it.
 
@@ -228,14 +230,15 @@ class InstanceDiskToMgmt(pvm_task.PowerVMTask):
         :param instance: The nova instance whose boot disk is to be connected.
         """
         super(InstanceDiskToMgmt, self).__init__(
-            instance, 'connect_and_discover_instance_disk_to_mgmt',
+            'connect_and_discover_instance_disk_to_mgmt',
             provides=['stg_elem', 'vios_wrap', 'disk_path'])
         self.disk_dvr = disk_dvr
+        self.instance = instance
         self.stg_elem = None
         self.vios_wrap = None
         self.disk_path = None
 
-    def execute_impl(self):
+    def execute(self):
         """Map the instance's boot disk and discover it."""
 
         # Search for boot disk on the Novalink partition
@@ -265,7 +268,7 @@ class InstanceDiskToMgmt(pvm_task.PowerVMTask):
         self.disk_path = mgmt.discover_vscsi_disk(the_map)
         return self.stg_elem, self.vios_wrap, self.disk_path
 
-    def revert_impl(self, result, flow_failures):
+    def revert(self, result, flow_failures):
         """Unmap the disk and then remove it from the management partition.
 
         We use this order to avoid rediscovering the device in case some other
@@ -291,7 +294,7 @@ class InstanceDiskToMgmt(pvm_task.PowerVMTask):
         mgmt.remove_block_dev(self.disk_path)
 
 
-class RemoveInstanceDiskFromMgmt(pvm_task.PowerVMTask):
+class RemoveInstanceDiskFromMgmt(task.Task):
 
     """Unmap and remove an instance's boot disk from the mgmt partition."""
 
@@ -311,11 +314,12 @@ class RemoveInstanceDiskFromMgmt(pvm_task.PowerVMTask):
         :param instance: The nova instance whose boot disk is to be connected.
         """
         self.disk_dvr = disk_dvr
+        self.instance = instance
         super(RemoveInstanceDiskFromMgmt, self).__init__(
-            instance, 'remove_inst_disk_from_mgmt',
+            'remove_inst_disk_from_mgmt',
             requires=['stg_elem', 'vios_wrap', 'disk_path'])
 
-    def execute_impl(self, stg_elem, vios_wrap, disk_path):
+    def execute(self, stg_elem, vios_wrap, disk_path):
         """Unmap and remove an instance's boot disk from the mgmt partition.
 
         Input parameters ('requires') provided by InstanceDiskToMgmt task.
@@ -342,7 +346,7 @@ class RemoveInstanceDiskFromMgmt(pvm_task.PowerVMTask):
         mgmt.remove_block_dev(disk_path)
 
 
-class CreateAndConnectCfgDrive(pvm_task.PowerVMTask):
+class CreateAndConnectCfgDrive(task.Task):
 
     """The task to create the configuration drive."""
 
@@ -369,23 +373,24 @@ class CreateAndConnectCfgDrive(pvm_task.PowerVMTask):
                          immediately when the respective method is executed.
         """
         super(CreateAndConnectCfgDrive, self).__init__(
-            instance, 'cfg_drive', requires=['lpar_wrap', 'mgmt_cna'])
+            'cfg_drive', requires=['lpar_wrap', 'mgmt_cna'])
         self.adapter = adapter
         self.host_uuid = host_uuid
+        self.instance = instance
         self.injected_files = injected_files
         self.network_info = network_info
         self.ad_pass = admin_pass
         self.mb = None
         self.stg_ftsk = stg_ftsk
 
-    def execute_impl(self, lpar_wrap, mgmt_cna):
+    def execute(self, lpar_wrap, mgmt_cna):
         self.mb = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
         self.mb.create_cfg_drv_vopt(self.instance, self.injected_files,
                                     self.network_info, lpar_wrap.uuid,
                                     admin_pass=self.ad_pass,
                                     mgmt_cna=mgmt_cna, stg_ftsk=self.stg_ftsk)
 
-    def revert_impl(self, lpar_wrap, mgmt_cna, result, flow_failures):
+    def revert(self, lpar_wrap, mgmt_cna, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
 
@@ -402,7 +407,7 @@ class CreateAndConnectCfgDrive(pvm_task.PowerVMTask):
                         instance=self.instance)
 
 
-class DeleteVOpt(pvm_task.PowerVMTask):
+class DeleteVOpt(task.Task):
 
     """The task to delete the virtual optical."""
 
@@ -421,18 +426,19 @@ class DeleteVOpt(pvm_task.PowerVMTask):
                          the FeedTask is not provided, the updates will be run
                          immediately when the respective method is executed.
         """
-        super(DeleteVOpt, self).__init__(instance, 'vopt_delete')
+        super(DeleteVOpt, self).__init__('vopt_delete')
         self.adapter = adapter
         self.host_uuid = host_uuid
+        self.instance = instance
         self.lpar_uuid = lpar_uuid
         self.stg_ftsk = stg_ftsk
 
-    def execute_impl(self):
+    def execute(self):
         media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
         media_builder.dlt_vopt(self.lpar_uuid, stg_ftsk=self.stg_ftsk)
 
 
-class DetachDisk(pvm_task.PowerVMTask):
+class DetachDisk(task.Task):
 
     """The task to detach the disk storage from the instance."""
 
@@ -453,17 +459,18 @@ class DetachDisk(pvm_task.PowerVMTask):
         :param disk_type: List of disk types to detach. None means detach all.
         """
         super(DetachDisk, self).__init__(
-            instance, 'detach_storage', provides='stor_adpt_mappings')
+            'detach_storage', provides='stor_adpt_mappings')
         self.disk_dvr = disk_dvr
+        self.instance = instance
         self.stg_ftsk = stg_ftsk
         self.disk_type = disk_type
 
-    def execute_impl(self):
+    def execute(self):
         return self.disk_dvr.disconnect_disk(
             self.instance, stg_ftsk=self.stg_ftsk, disk_type=self.disk_type)
 
 
-class DeleteDisk(pvm_task.PowerVMTask):
+class DeleteDisk(task.Task):
 
     """The task to delete the backing storage."""
 
@@ -476,14 +483,14 @@ class DeleteDisk(pvm_task.PowerVMTask):
         :param instance: The nova instance.
         """
         req = ['stor_adpt_mappings']
-        super(DeleteDisk, self).__init__(instance, 'dlt_storage', requires=req)
+        super(DeleteDisk, self).__init__('dlt_storage', requires=req)
         self.disk_dvr = disk_dvr
 
-    def execute_impl(self, stor_adpt_mappings):
+    def execute(self, stor_adpt_mappings):
         self.disk_dvr.delete_disks(stor_adpt_mappings)
 
 
-class SaveBDM(pvm_task.PowerVMTask):
+class SaveBDM(task.Task):
 
     """Task to save an updated block device mapping."""
 
@@ -494,17 +501,17 @@ class SaveBDM(pvm_task.PowerVMTask):
         :param instance: The nova instance
         """
         self.bdm = bdm
-        super(SaveBDM, self).__init__(
-            instance, 'save_bdm_%s' % self.bdm.volume_id)
+        self.instance = instance
+        super(SaveBDM, self).__init__('save_bdm_%s' % self.bdm.volume_id)
 
-    def execute_impl(self):
+    def execute(self):
         LOG.info(_LI('Saving block device mapping for volume id %(vol_id)s '
                      'on instance %(inst)s.'),
                  {'vol_id': self.bdm.volume_id, 'inst': self.instance.name})
         self.bdm.save()
 
 
-class FindDisk(pvm_task.PowerVMTask):
+class FindDisk(task.Task):
 
     """The Task to find a disk and provide information to downstream tasks."""
 
@@ -519,13 +526,13 @@ class FindDisk(pvm_task.PowerVMTask):
         :param instance: The nova instance.
         :param disk_type: One of the DiskType enum values.
         """
-        super(FindDisk, self).__init__(
-            instance, 'find_disk', provides='disk_dev_info')
+        super(FindDisk, self).__init__('find_disk', provides='disk_dev_info')
         self.disk_dvr = disk_dvr
         self.context = context
+        self.instance = instance
         self.disk_type = disk_type
 
-    def execute_impl(self):
+    def execute(self):
         disk = self.disk_dvr.get_disk_ref(self.instance, self.disk_type)
         if not disk:
             LOG.warning(_LW('Disk not found: %(disk_name)s'),
@@ -536,7 +543,7 @@ class FindDisk(pvm_task.PowerVMTask):
         return disk
 
 
-class ExtendDisk(pvm_task.PowerVMTask):
+class ExtendDisk(task.Task):
 
     """Task to extend a disk."""
 
@@ -549,12 +556,12 @@ class ExtendDisk(pvm_task.PowerVMTask):
         :param size: the new size in gb.
         """
         self.disk_dvr = disk_dvr
+        self.instance = instance
         self.disk_info = disk_info
         self.size = size
-        super(ExtendDisk, self).__init__(
-            instance, 'extend_disk_%s' % disk_info['type'])
+        super(ExtendDisk, self).__init__('extend_disk_%s' % disk_info['type'])
 
-    def execute_impl(self):
+    def execute(self):
         LOG.info(_LI('Extending disk size of disk: %(disk)s size: %(size)s.'),
                  {'disk': self.disk_info['type'], 'size': self.size})
         self.disk_dvr.extend_disk(self.instance, self.disk_info, self.size)

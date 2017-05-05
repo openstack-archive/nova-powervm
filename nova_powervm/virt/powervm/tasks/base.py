@@ -13,61 +13,28 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import abc
 from oslo_log import log as logging
-import six
-from taskflow import task
-import time
+from taskflow import engines as tf_eng
+from taskflow.listeners import timing as tf_tm
 
-from nova_powervm.virt.powervm.i18n import _LI
 
 LOG = logging.getLogger(__name__)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class PowerVMTask(task.Task):
-    """Provides a base TaskFlow class for PowerVM tasks.
+def run(flow, instance=None):
+    """Run a TaskFlow Flow with task timing and logging with instance.
 
-    This provides additional logging to indicate how long a given task has
-    taken for an instance.
+    :param flow: A taskflow.flow.Flow to run.
+    :param instance: A nova instance, for logging.
+    :return: The result of taskflow.engines.run(), a dictionary of named
+             results of the Flow's execution.
     """
+    def log_with_instance(*args, **kwargs):
+        """Wrapper for LOG.info(*args, **kwargs, instance=instance)."""
+        if instance is not None:
+            kwargs['instance'] = instance
+        LOG.info(*args, **kwargs)
 
-    def __init__(self, instance, name, **kwargs):
-        self.instance = instance
-        self.name = name
-
-        super(PowerVMTask, self).__init__(name=name, **kwargs)
-
-    def execute(self, *args, **kwargs):
-        LOG.info(_LI('Running task %(task)s.'), {'task': self.name},
-                 instance=self.instance)
-        start_time = time.time()
-
-        ret = self.execute_impl(*args, **kwargs)
-
-        run_time = time.time() - start_time
-        LOG.info(_LI('Task %(task)s completed in %(seconds)d seconds.'),
-                 {'task': self.name, 'seconds': run_time},
-                 instance=self.instance)
-        return ret
-
-    def execute_impl(self, *args, **kwargs):
-        """Execute the task.  Follows the TaskFlow execute signature."""
-        pass
-
-    def revert(self, *args, **kwargs):
-        LOG.info(_LI('Reverting task %(task)s.'), {'task': self.name},
-                 instance=self.instance)
-        start_time = time.time()
-
-        ret = self.revert_impl(*args, **kwargs)
-
-        run_time = time.time() - start_time
-        LOG.info(_LI('Revert task %(task)s completed in %(seconds)d seconds.'),
-                 {'task': self.name, 'seconds': run_time},
-                 instance=self.instance)
-        return ret
-
-    def revert_impl(self, result, flow_failures, **kwargs):
-        """(Optional) Revert the task.  Follows TaskFlow revert signature."""
-        pass
+    eng = tf_eng.load(flow)
+    with tf_tm.PrintingDurationListener(eng, printer=log_with_instance):
+        return eng.run()

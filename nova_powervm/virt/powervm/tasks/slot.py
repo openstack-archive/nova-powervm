@@ -16,13 +16,12 @@
 
 
 from oslo_log import log as logging
-
-from nova_powervm.virt.powervm.tasks import base as pvm_task
+from taskflow import task
 
 LOG = logging.getLogger(__name__)
 
 
-class SaveSlotStore(pvm_task.PowerVMTask):
+class SaveSlotStore(task.Task):
 
     """Will run the save of the slot store.
 
@@ -39,15 +38,16 @@ class SaveSlotStore(pvm_task.PowerVMTask):
                          saved.
         """
         self.slot_mgr = slot_mgr
-        super(SaveSlotStore, self).__init__(instance, 'save_slot_store')
+        self.instance = instance
+        super(SaveSlotStore, self).__init__('save_slot_store')
 
-    def execute_impl(self):
+    def execute(self):
         LOG.debug("Topology for instance %(inst)s: %(topo)s",
                   {'inst': self.instance.name, 'topo': self.slot_mgr.topology})
         self.slot_mgr.save()
 
 
-class DeleteSlotStore(pvm_task.PowerVMTask):
+class DeleteSlotStore(task.Task):
 
     """Will run the delete of the slot store.
 
@@ -63,7 +63,8 @@ class DeleteSlotStore(pvm_task.PowerVMTask):
                          deleted.
         """
         self.slot_mgr = slot_mgr
-        super(DeleteSlotStore, self).__init__(instance, 'delete_slot_store')
+        self.instance = instance
+        super(DeleteSlotStore, self).__init__('delete_slot_store')
 
     def execute(self):
         self.slot_mgr.delete()

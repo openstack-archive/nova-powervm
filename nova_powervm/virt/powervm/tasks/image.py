@@ -19,7 +19,6 @@ from taskflow import task
 
 from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import image
-from nova_powervm.virt.powervm.tasks import base as pvm_task
 
 LOG = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class UpdateTaskState(task.Task):
         self.update_task_state(self.task_state, **self.kwargs)
 
 
-class StreamToGlance(pvm_task.PowerVMTask):
+class StreamToGlance(task.Task):
 
     """Task around streaming a block device to glance."""
 
@@ -68,10 +67,11 @@ class StreamToGlance(pvm_task.PowerVMTask):
         self.context = context
         self.image_api = image_api
         self.image_id = image_id
-        super(StreamToGlance, self).__init__(instance, 'stream_to_glance',
+        self.instance = instance
+        super(StreamToGlance, self).__init__('stream_to_glance',
                                              requires='disk_path')
 
-    def execute_impl(self, disk_path):
+    def execute(self, disk_path):
         metadata = image.snapshot_metadata(self.context, self.image_api,
                                            self.image_id, self.instance)
         LOG.info(_LI("Starting stream of boot device for instance %(inst)s "

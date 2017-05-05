@@ -548,7 +548,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._vol_drv_iter')
     @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
     @mock.patch('taskflow.patterns.linear_flow.Flow')
-    @mock.patch('taskflow.engines.run')
+    @mock.patch('nova_powervm.virt.powervm.tasks.base.run')
     def test_spawn_recreate(self, mock_tf_run, mock_flow, mock_build_slot_mgr,
                             mock_vol_drv_iter, mock_pwron, mock_cfg_drv,
                             mock_plug_vifs, mock_plug_mgmt_vif,
