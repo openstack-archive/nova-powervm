@@ -1,23 +1,23 @@
 # Translations template for nova_powervm.
-# Copyright (C) 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 # This file is distributed under the same license as the nova_powervm
 # project.
-# Automatically generated, 2016.
+# Automatically generated, 2017.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 3.0.0.0rc2.dev10\n"
+"Project-Id-Version: nova_powervm 4.0.1.dev5\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2016-10-07 02:04-0400\n"
-"PO-Revision-Date: 2016-10-07 02:04-0400\n"
+"POT-Creation-Date: 2017-04-20 10:07-0400\n"
+"PO-Revision-Date: 2017-04-20 10:07-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.3.4\n"
+"Generated-By: Babel 2.4.0\n"
 
-#: nova_powervm/virt/powervm/driver.py:634
+#: nova_powervm/virt/powervm/driver.py:624
 #, python-format
 msgid ""
 "Removing %(num_maps)d storage-less VSCSI mappings associated with LPAR ID "
@@ -26,34 +26,34 @@ msgstr ""
 "Удаление %(num_maps)d связей VSCSI без памяти, относящихся к LPAR с ИД "
 "%(lpar_uuid)s из VIOS %(vios_name)s."
 
+#: nova_powervm/virt/powervm/driver.py:664
 #: nova_powervm/virt/powervm/driver.py:674
-#: nova_powervm/virt/powervm/driver.py:684
 msgid "VM was not found during destroy operation."
 msgstr "Во время операции уничтожения не найдена ВМ."
 
-#: nova_powervm/virt/powervm/driver.py:1082
+#: nova_powervm/virt/powervm/driver.py:1075
 msgid ""
 "VM was not found during unplug operation as it is already possibly deleted"
 msgstr ""
 "Виртуальная машина не найдена в ходе операции отключения. Вероятно, она уже удалена"
 
-#: nova_powervm/virt/powervm/driver.py:1109
+#: nova_powervm/virt/powervm/driver.py:1102
 #, python-format
 msgid ""
 "my_ip address (%(my_ip)s) was not found on any of the interfaces: %(ifaces)s"
 msgstr ""
 "Адрес my_ip (%(my_ip)s) не найден ни в одном из интерфейсов: %(ifaces)s"
 
-#: nova_powervm/virt/powervm/driver.py:1588
+#: nova_powervm/virt/powervm/driver.py:1571
 msgid "Rolling back live migration."
 msgstr "Откат оперативной миграции."
 
-#: nova_powervm/virt/powervm/driver.py:2042
+#: nova_powervm/virt/powervm/event.py:121
 #, python-format
 msgid "Unable to parse event URI: %s from PowerVM."
 msgstr "Ошибка анализа URI события: %s из PowerVM."
 
-#: nova_powervm/virt/powervm/host.py:207
+#: nova_powervm/virt/powervm/host.py:204
 #, python-format
 msgid ""
 "Host CPU Metrics determined that the total cycles reported was less than the "
@@ -64,7 +64,7 @@ msgid ""
 "Firmware Delta Cycles: %(fw_cycles)d"
 msgstr ""
 "Согласно показателям CPU хоста общее количество циклов в отчете меньше, "
-"чем число использованных циклов. Это признак некорректности данных PCM. Изучите "
+"чем число использованных циклов.  Это признак некорректности данных PCM.  Изучите "
 "результаты.\n"
 "Общее количество циклов: %(tot_cycles)d\n"
 "Количество циклов пользователя: %(user_cycles)d\n"
@@ -79,8 +79,8 @@ msgstr ""
 "Не удалось удалить карту разъемов из резервного хранилища Swift с ИД %(key)s.  "
 "Потребуется очистка вручную."
 
-#: nova_powervm/virt/powervm/vif.py:303 nova_powervm/virt/powervm/vif.py:499
-#: nova_powervm/virt/powervm/vif.py:649
+#: nova_powervm/virt/powervm/vif.py:357 nova_powervm/virt/powervm/vif.py:588
+#: nova_powervm/virt/powervm/vif.py:758
 #, python-format
 msgid ""
 "Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  The VIF was "
@@ -89,23 +89,33 @@ msgstr ""
 "Не удалось отсоединить VIF с MAC-адресом %(mac)s для экземпляра %(inst)s.  VIF "
 "не найден в экземпляре."
 
-#: nova_powervm/virt/powervm/vif.py:514
+#: nova_powervm/virt/powervm/vif.py:604
 #, python-format
 msgid ""
 "Unable to delete device %(dev_name)s from bridge %(bridge)s. Error: %(error)s"
 msgstr ""
 "Невозможно удалить устройство %(dev_name)s из моста %(bridge)s. Ошибка: %(error)s"
 
-#: nova_powervm/virt/powervm/vif.py:575
+#: nova_powervm/virt/powervm/vif.py:685
 #, python-format
 msgid ""
 "Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  No matching "
 "vNIC was found on the instance.  VIF: %(vif)s"
 msgstr ""
 "Не удалось отсоединить VIF с MAC-адресом %(mac)s для экземпляра %(inst)s.  Соответствующие "
-"виртуальные NIC не найдены в экземпляре. VIF: %(vif)s"
+"vNIC не найдены в экземпляре.  VIF: %(vif)s"
 
-#: nova_powervm/virt/powervm/disk/driver.py:199
+#: nova_powervm/virt/powervm/vif.py:827
+#, python-format
+msgid "Rolling back the live migrate of VIF with mac %(mac)s."
+msgstr "Выполняется откат оперативной миграции VIF с MAC-адресом %(mac)s."
+
+#: nova_powervm/virt/powervm/vif.py:857
+#, python-format
+msgid "Deleting target side trunk adapter %(dev)s for rollback operation"
+msgstr "Выполняется удаление целевого магистрального адаптера %(dev)s в процессе операции отката"
+
+#: nova_powervm/virt/powervm/disk/driver.py:225
 #, python-format
 msgid ""
 "Failed to map boot disk %(disk_name)s of instance %(instance_name)s to the "
@@ -113,6 +123,15 @@ msgid ""
 msgstr ""
 "Не удалось подключить загрузочный диск %(disk_name)s экземпляра %(instance_name)s к "
 "разделу управления из сервера VIOS %(vios_name)s: %(exc)s"
+
+#: nova_powervm/virt/powervm/disk/driver.py:354
+#, python-format
+msgid ""
+"Instance %(inst)s Disk Upload attempt #%(attempt)d failed. Retrying the "
+"upload."
+msgstr ""
+"%(attempt)d-ая попытка передать диск для экземпляра %(inst)s завершилась неудачно. Будет "
+"сделана еще одна попытка передачи."
 
 #: nova_powervm/virt/powervm/nvram/manager.py:127
 #, python-format
@@ -124,7 +143,11 @@ msgstr "Не удалось удалить NVRAM: %s"
 msgid "Unable to store the NVRAM for instance: %s"
 msgstr "Не удалось сохранить NVRAM для экземпляра: %s"
 
-#: nova_powervm/virt/powervm/nvram/swift.py:285
+#: nova_powervm/virt/powervm/nvram/swift.py:182
+msgid "NVRAM upload failed due to invalid token. Retrying upload."
+msgstr "Передача NVRAM не выполнена из-за недопустимого маркера. Будет сделана еще одна попытка передачи."
+
+#: nova_powervm/virt/powervm/nvram/swift.py:288
 #, python-format
 msgid "Could not remove temporary file: %s"
 msgstr "Не удалось удалить временный файл: %s"
@@ -153,14 +176,23 @@ msgstr "Откат создания VIF для экземпляра %(inst)s"
 
 #: nova_powervm/virt/powervm/tasks/network.py:264
 msgid "An exception occurred during an unplug in the vif rollback.  Ignoring."
-msgstr "Возникла исключительная ситуация при отключении в откате VIF. Проигнорировано."
+msgstr "Возникла исключительная ситуация при отключении в откате VIF. Она проигнорирована."
 
-#: nova_powervm/virt/powervm/tasks/storage.py:60
+#: nova_powervm/virt/powervm/tasks/network.py:312
+#, python-format
+msgid ""
+"No management VIF created for instance %s due to lack of Management Virtual "
+"Switch"
+msgstr ""
+"Для экземпляра %s не создан VIF управления, так как отсутствует виртуальный "
+"коммутатор управления"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:62
 #, python-format
 msgid "Volume %(vol)s for instance %(inst)s to be disconnected"
 msgstr "Планируется отключение тома %(vol)s для экземпляра %(inst)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:76
+#: nova_powervm/virt/powervm/tasks/storage.py:78
 #, python-format
 msgid ""
 "Unable to disconnect volume for %(inst)s during rollback.  Error was: "
@@ -169,12 +201,12 @@ msgstr ""
 "Не удалось отключить том для %(inst)s в процессе отката. Ошибка: "
 "%(error)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:108
+#: nova_powervm/virt/powervm/tasks/storage.py:110
 #, python-format
 msgid "Volume %(vol)s for instance %(inst)s to be re-connected"
 msgstr "Планируется повторное подключение тома %(vol)s для экземпляра %(inst)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:125
+#: nova_powervm/virt/powervm/tasks/storage.py:127
 #, python-format
 msgid ""
 "Unable to re-connect volume for %(inst)s during rollback.  Error was: "
@@ -183,7 +215,7 @@ msgstr ""
 "Не удалось повторно подключить том для %(inst)s в процессе отката. Ошибка: "
 "%(error)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:274
+#: nova_powervm/virt/powervm/tasks/storage.py:284
 #, python-format
 msgid ""
 "Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
@@ -192,12 +224,17 @@ msgstr ""
 "Удаление связи загрузочного диска %(disk_name)s экземпляра %(instance_name)s из "
 "раздела управления через виртуальный сервер ввода-вывода %(vios_name)s."
 
-#: nova_powervm/virt/powervm/tasks/storage.py:286
+#: nova_powervm/virt/powervm/tasks/storage.py:296
 #, python-format
 msgid "Removing disk %(disk_path)s from the management partition."
 msgstr "Удаление %(disk_path)s диска из раздела управления."
 
-#: nova_powervm/virt/powervm/tasks/storage.py:527
+#: nova_powervm/virt/powervm/tasks/storage.py:407
+#, python-format
+msgid "Vopt removal as part of spawn reversion failed with: %(exc)s"
+msgstr "Сбой удаления Vopt в ходе отката операции создания. Ошибка: %(exc)s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:545
 #, python-format
 msgid "Disk not found: %(disk_name)s"
 msgstr "Диск не найден: %(disk_name)s"
@@ -207,7 +244,7 @@ msgstr "Диск не найден: %(disk_name)s"
 msgid "Powering off instance: %s"
 msgstr "Выключение экземпляра: %s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:163
+#: nova_powervm/virt/powervm/volume/iscsi.py:153
 #, python-format
 msgid ""
 "Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual I/O "
@@ -215,10 +252,10 @@ msgid ""
 "as volume is not healthy."
 msgstr ""
 "Отключение тома: базовый жесткий диск тома %(volume_id)s из сервера VIOS "
-"%(vios)s не находится в корректном состоянии. Никакие операции отключения не допустимы, "
+"%(vios)s не находится в корректном состоянии.  Никакие операции отключения не допустимы, "
 "так как том неисправен."
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:172
+#: nova_powervm/virt/powervm/volume/iscsi.py:163
 #, python-format
 msgid ""
 "Disconnect Volume: Failed to find disk on Virtual I/O Server %(vios_name)s "
@@ -227,17 +264,16 @@ msgstr ""
 "Отключение тома: не удалось найти диск на сервере VIOS %(vios_name)s "
 "для тома %(volume_id)s. Ошибка: %(error)s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:214
-#: nova_powervm/virt/powervm/volume/vscsi.py:327
+#: nova_powervm/virt/powervm/volume/iscsi.py:206
 #, python-format
 msgid ""
-"Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY of "
+"Disconnect Volume: Failed to disconnect the  volume %(volume_id)s on ANY of "
 "the Virtual I/O Servers for instance %(inst)s."
 msgstr ""
 "Отключение тома: не удалось отключить том %(volume_id)s ни на одном из "
 "серверов VIOS для экземпляра %(inst)s."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:488
+#: nova_powervm/virt/powervm/volume/npiv.py:490
 #, python-format
 msgid ""
 "Had to update the system metadata for the WWPNs due to incorrect physical "
@@ -246,7 +282,7 @@ msgstr ""
 "Потребовалось обновить метаданные системы для WWPN из-за неверных физических "
 "WWPN в фабрике %(fabric)s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:587
+#: nova_powervm/virt/powervm/volume/npiv.py:590
 #, python-format
 msgid ""
 "No storage connections found between the Virtual I/O Servers and FC Fabric "
@@ -255,7 +291,7 @@ msgstr ""
 "Не найдены соединения системы хранения, связывающие серверы VIOS и фабрику FC "
 "%(fabric)s."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:705
+#: nova_powervm/virt/powervm/volume/npiv.py:703
 #, python-format
 msgid ""
 "No NPIV mappings exist for instance %(inst)s on fabric %(fabric)s.  May not "
@@ -273,7 +309,7 @@ msgid ""
 msgstr ""
 "Возникла ошибка при удалении жесткого диска %(disk)s с сервера VIOS."
 
-#: nova_powervm/virt/powervm/volume/volume.py:281
+#: nova_powervm/virt/powervm/volume/volume.py:282
 #, python-format
 msgid "Could not remove hdisk for volume: %s"
 msgstr "Не удалось удалить жесткий диск для тома %s"
@@ -287,7 +323,7 @@ msgstr ""
 "Обнаруженное устройство %(dev)s для тома %(volume)s на сервере %(vios)s занято. Ошибка "
 "состояния: %(status)s."
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:277
+#: nova_powervm/virt/powervm/volume/vscsi.py:278
 #, python-format
 msgid ""
 "Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual I/O "
@@ -298,7 +334,7 @@ msgstr ""
 "%(vios)s не находится в корректном состоянии.  Это может быть результатом "
 "освобождения."
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:286
+#: nova_powervm/virt/powervm/volume/vscsi.py:288
 #, python-format
 msgid ""
 "Disconnect Volume: Failed to find disk on Virtual I/O Server %(vios_name)s "
@@ -307,6 +343,15 @@ msgstr ""
 "Отключение тома: не удалось найти диск на сервере VIOS %(vios_name)s "
 "для тома %(volume_id)s. UDID тома: %(volume_uid)s.  Ошибка: %(error)s"
 
-# ENGL1SH_VERS10N 16692_11 DO NOT REMOVE OR CHANGE THIS LINE
+#: nova_powervm/virt/powervm/volume/vscsi.py:330
+#, python-format
+msgid ""
+"Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY of "
+"the Virtual I/O Servers for instance %(inst)s."
+msgstr ""
+"Отключение тома: не удалось отключить том %(volume_id)s ни на одном из "
+"серверов VIOS для экземпляра %(inst)s."
+
+# ENGL1SH_VERS10N 12659_13 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 49
-# T9N_SH1P_STR1NG PV132AAP001 2
+# T9N_SH1P_STR1NG PV133AAP001 2
