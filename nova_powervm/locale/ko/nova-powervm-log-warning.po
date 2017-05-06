@@ -1,23 +1,23 @@
 # Translations template for nova_powervm.
-# Copyright (C) 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 # This file is distributed under the same license as the nova_powervm
 # project.
-# Automatically generated, 2016.
+# Automatically generated, 2017.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 3.0.0.0rc2.dev10\n"
+"Project-Id-Version: nova_powervm 4.0.1.dev5\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2016-10-07 02:04-0400\n"
-"PO-Revision-Date: 2016-10-07 02:04-0400\n"
+"POT-Creation-Date: 2017-04-20 10:07-0400\n"
+"PO-Revision-Date: 2017-04-20 10:07-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.3.4\n"
+"Generated-By: Babel 2.4.0\n"
 
-#: nova_powervm/virt/powervm/driver.py:634
+#: nova_powervm/virt/powervm/driver.py:624
 #, python-format
 msgid ""
 "Removing %(num_maps)d storage-less VSCSI mappings associated with LPAR ID "
@@ -26,34 +26,34 @@ msgstr ""
 "VIOS %(vios_name)s에서 LPAR ID %(lpar_uuid)s와 연관된 %(num_maps)d "
 "스토리지 없는 VSCSI 맵핑을 제거하는 중입니다."
 
+#: nova_powervm/virt/powervm/driver.py:664
 #: nova_powervm/virt/powervm/driver.py:674
-#: nova_powervm/virt/powervm/driver.py:684
 msgid "VM was not found during destroy operation."
 msgstr "영구 삭제 조작 중에 VM을 찾을 수 없습니다."
 
-#: nova_powervm/virt/powervm/driver.py:1082
+#: nova_powervm/virt/powervm/driver.py:1075
 msgid ""
 "VM was not found during unplug operation as it is already possibly deleted"
 msgstr ""
 "이미 삭제되었을 수 있으므로 언플러그 조작 중에 VM을 찾을 수 없음"
 
-#: nova_powervm/virt/powervm/driver.py:1109
+#: nova_powervm/virt/powervm/driver.py:1102
 #, python-format
 msgid ""
 "my_ip address (%(my_ip)s) was not found on any of the interfaces: %(ifaces)s"
 msgstr ""
 "my_ip 주소(%(my_ip)s)를 인터페이스에서 찾을 수 없음: %(ifaces)s"
 
-#: nova_powervm/virt/powervm/driver.py:1588
+#: nova_powervm/virt/powervm/driver.py:1571
 msgid "Rolling back live migration."
 msgstr "실시간 마이그레이션을 롤백 중입니다."
 
-#: nova_powervm/virt/powervm/driver.py:2042
+#: nova_powervm/virt/powervm/event.py:121
 #, python-format
 msgid "Unable to parse event URI: %s from PowerVM."
 msgstr "PowerVM에서 이벤트 URI %s을(를) 구문 분석할 수 없습니다."
 
-#: nova_powervm/virt/powervm/host.py:207
+#: nova_powervm/virt/powervm/host.py:204
 #, python-format
 msgid ""
 "Host CPU Metrics determined that the total cycles reported was less than the "
@@ -79,8 +79,8 @@ msgstr ""
 "ID가 %(key)s인 Swift 지원 저장소에서 슬롯 맵을 삭제할 수 없습니다."
 "수동으로 정리해야 합니다."
 
-#: nova_powervm/virt/powervm/vif.py:303 nova_powervm/virt/powervm/vif.py:499
-#: nova_powervm/virt/powervm/vif.py:649
+#: nova_powervm/virt/powervm/vif.py:357 nova_powervm/virt/powervm/vif.py:588
+#: nova_powervm/virt/powervm/vif.py:758
 #, python-format
 msgid ""
 "Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  The VIF was "
@@ -89,23 +89,33 @@ msgstr ""
 "인스턴스 %(inst)s에 대해 mac %(mac)s을(를) 사용하는 VIF를 언플러그할 수 없습니다. 인스턴스에서 "
 "VIF를 찾을 수 없습니다."
 
-#: nova_powervm/virt/powervm/vif.py:514
+#: nova_powervm/virt/powervm/vif.py:604
 #, python-format
 msgid ""
 "Unable to delete device %(dev_name)s from bridge %(bridge)s. Error: %(error)s"
 msgstr ""
 "브릿지 %(bridge)s에서 디바이스 %(dev_name)s을(를) 삭제할 수 없습니다. 오류: %(error)s"
 
-#: nova_powervm/virt/powervm/vif.py:575
+#: nova_powervm/virt/powervm/vif.py:685
 #, python-format
 msgid ""
 "Unable to unplug VIF with mac %(mac)s for instance %(inst)s.  No matching "
 "vNIC was found on the instance.  VIF: %(vif)s"
 msgstr ""
 "인스턴스 %(inst)s에 대해 mac %(mac)s을(를) 사용하는 VIF를 언플러그할 수 없습니다. 인스턴스에서 "
-"일치하는 vNIC를 찾을 수 없었습니다. VIF: %(vif)s"
+"일치하는 vNIC를 찾을 수 없습니다. VIF: %(vif)s"
 
-#: nova_powervm/virt/powervm/disk/driver.py:199
+#: nova_powervm/virt/powervm/vif.py:827
+#, python-format
+msgid "Rolling back the live migrate of VIF with mac %(mac)s."
+msgstr "MAC %(mac)s인 VIF의 실시간 마이그레이션을 롤백 중입니다."
+
+#: nova_powervm/virt/powervm/vif.py:857
+#, python-format
+msgid "Deleting target side trunk adapter %(dev)s for rollback operation"
+msgstr "롤백 조작을 위해 대상 측 트렁크 어댑터 %(dev)s 삭제 중"
+
+#: nova_powervm/virt/powervm/disk/driver.py:225
 #, python-format
 msgid ""
 "Failed to map boot disk %(disk_name)s of instance %(instance_name)s to the "
@@ -113,6 +123,15 @@ msgid ""
 msgstr ""
 "인스턴스 %(instance_name)s의 부트 디스크 %(disk_name)s을(를) "
 "Virtual I/O Server %(vios_name)s의 관리 파티션에 맵핑할 수 없음: %(exc)s"
+
+#: nova_powervm/virt/powervm/disk/driver.py:354
+#, python-format
+msgid ""
+"Instance %(inst)s Disk Upload attempt #%(attempt)d failed. Retrying the "
+"upload."
+msgstr ""
+"인스턴스 %(inst)s 디스크 업로드 시도 #%(attempt)d에 실패했습니다. 업로드를 "
+"재시도 중입니다."
 
 #: nova_powervm/virt/powervm/nvram/manager.py:127
 #, python-format
@@ -124,7 +143,11 @@ msgstr "NVRAM을 삭제할 수 없음: %s"
 msgid "Unable to store the NVRAM for instance: %s"
 msgstr "인스턴스에 대한 NVRAM을 저장할 수 없음: %s"
 
-#: nova_powervm/virt/powervm/nvram/swift.py:285
+#: nova_powervm/virt/powervm/nvram/swift.py:182
+msgid "NVRAM upload failed due to invalid token. Retrying upload."
+msgstr "올바르지 않은 토큰 때문에 NVRAM 업로드에 실패했습니다. 업로드를 재시도 중입니다."
+
+#: nova_powervm/virt/powervm/nvram/swift.py:288
 #, python-format
 msgid "Could not remove temporary file: %s"
 msgstr "임시 파일을 제거할 수 없음: %s"
@@ -153,14 +176,23 @@ msgstr "%(inst)s 인스턴스에 대해 롤백 중인 VIP 작성"
 
 #: nova_powervm/virt/powervm/tasks/network.py:264
 msgid "An exception occurred during an unplug in the vif rollback.  Ignoring."
-msgstr "VIF 롤백에서 언플러그 수행 중에 예외가 발생했습니다. 무시 중입니다."
+msgstr "VIF 롤백에서 언플러그 수행 중에 예외가 발생했습니다. 이를 무시합니다."
 
-#: nova_powervm/virt/powervm/tasks/storage.py:60
+#: nova_powervm/virt/powervm/tasks/network.py:312
+#, python-format
+msgid ""
+"No management VIF created for instance %s due to lack of Management Virtual "
+"Switch"
+msgstr ""
+"관리 가상 스위치가 없으므로 인스턴스 %s에 대해 관리 VIF가 작성되지 "
+"않았습니다."
+
+#: nova_powervm/virt/powervm/tasks/storage.py:62
 #, python-format
 msgid "Volume %(vol)s for instance %(inst)s to be disconnected"
 msgstr "연결이 끊길 %(inst)s 인스턴스에 대한 %(vol)s 볼륨"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:76
+#: nova_powervm/virt/powervm/tasks/storage.py:78
 #, python-format
 msgid ""
 "Unable to disconnect volume for %(inst)s during rollback.  Error was: "
@@ -169,12 +201,12 @@ msgstr ""
 "롤백 중에 %(inst)s에 대한 볼륨의 연결을 끊을 수 없습니다. 오류: "
 "%(error)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:108
+#: nova_powervm/virt/powervm/tasks/storage.py:110
 #, python-format
 msgid "Volume %(vol)s for instance %(inst)s to be re-connected"
 msgstr "다시 연결될 %(inst)s 인스턴스에 대한 %(vol)s 볼륨"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:125
+#: nova_powervm/virt/powervm/tasks/storage.py:127
 #, python-format
 msgid ""
 "Unable to re-connect volume for %(inst)s during rollback.  Error was: "
@@ -183,7 +215,7 @@ msgstr ""
 "롤백 중에 %(inst)s에 대한 볼륨을 다시 연결할 수 없습니다. 오류: "
 "%(error)s"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:274
+#: nova_powervm/virt/powervm/tasks/storage.py:284
 #, python-format
 msgid ""
 "Unmapping boot disk %(disk_name)s of instance %(instance_name)s from "
@@ -192,12 +224,17 @@ msgstr ""
 "Virtual I/O Server %(vios_name)s을(를) 통해 관리 파티션에서 %(instance_name)s "
 "인스턴스의 부트 디스크 %(disk_name)s 맵핑 해제 중"
 
-#: nova_powervm/virt/powervm/tasks/storage.py:286
+#: nova_powervm/virt/powervm/tasks/storage.py:296
 #, python-format
 msgid "Removing disk %(disk_path)s from the management partition."
 msgstr "관리 파티션에서 %(disk_path)s 디스크를 제거 중입니다."
 
-#: nova_powervm/virt/powervm/tasks/storage.py:527
+#: nova_powervm/virt/powervm/tasks/storage.py:407
+#, python-format
+msgid "Vopt removal as part of spawn reversion failed with: %(exc)s"
+msgstr "생성 복귀의 일부로 Vopt 제거 실패: %(exc)s"
+
+#: nova_powervm/virt/powervm/tasks/storage.py:545
 #, python-format
 msgid "Disk not found: %(disk_name)s"
 msgstr "디스크를 찾을 수 없음: %(disk_name)s"
@@ -207,7 +244,7 @@ msgstr "디스크를 찾을 수 없음: %(disk_name)s"
 msgid "Powering off instance: %s"
 msgstr "인스턴스의 전원을 끄는 중: %s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:163
+#: nova_powervm/virt/powervm/volume/iscsi.py:153
 #, python-format
 msgid ""
 "Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual I/O "
@@ -218,7 +255,7 @@ msgstr ""
 "백업 hdisk가 올바른 상태가 아닙니다. 볼륨이 올바르지 않으므로 "
 "연결 끊기 조치를 취하지 않습니다. "
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:172
+#: nova_powervm/virt/powervm/volume/iscsi.py:163
 #, python-format
 msgid ""
 "Disconnect Volume: Failed to find disk on Virtual I/O Server %(vios_name)s "
@@ -227,17 +264,16 @@ msgstr ""
 "볼륨 연결 끊기: 볼륨 volume %(volume_id)s에 대해 Virtual I/O Server %(vios_name)s에서 "
 "디스크를 찾을 수 없습니다. 오류: %(error)s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:214
-#: nova_powervm/virt/powervm/volume/vscsi.py:327
+#: nova_powervm/virt/powervm/volume/iscsi.py:206
 #, python-format
 msgid ""
-"Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY of "
+"Disconnect Volume: Failed to disconnect the  volume %(volume_id)s on ANY of "
 "the Virtual I/O Servers for instance %(inst)s."
 msgstr ""
 "볼륨 연결 끊기: 인스턴스 %(inst)s에 대해 Virtual I/O Server 중 하나에서 "
 "볼륨 %(volume_id)s의 연결 끊기에 실패했습니다. "
 
-#: nova_powervm/virt/powervm/volume/npiv.py:488
+#: nova_powervm/virt/powervm/volume/npiv.py:490
 #, python-format
 msgid ""
 "Had to update the system metadata for the WWPNs due to incorrect physical "
@@ -246,7 +282,7 @@ msgstr ""
 "패브릭 %(fabric)s의 물리적 WWPN이 올바르지 않으므로 WWPN에 대한 시스템 메타데이터를 "
 "업데이트해야 했습니다."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:587
+#: nova_powervm/virt/powervm/volume/npiv.py:590
 #, python-format
 msgid ""
 "No storage connections found between the Virtual I/O Servers and FC Fabric "
@@ -255,7 +291,7 @@ msgstr ""
 "Virtual I/O Server 및 다음 FC 패브릭 간에 스토리지 연결을 찾을 수 없습니다. "
 "%(fabric)s."
 
-#: nova_powervm/virt/powervm/volume/npiv.py:705
+#: nova_powervm/virt/powervm/volume/npiv.py:703
 #, python-format
 msgid ""
 "No NPIV mappings exist for instance %(inst)s on fabric %(fabric)s.  May not "
@@ -273,7 +309,7 @@ msgid ""
 msgstr ""
 "Virtual I/O Server에서 hdisk %(disk)s을(를) 제거하는 중에 오류가 발생했습니다. "
 
-#: nova_powervm/virt/powervm/volume/volume.py:281
+#: nova_powervm/virt/powervm/volume/volume.py:282
 #, python-format
 msgid "Could not remove hdisk for volume: %s"
 msgstr "볼륨에 대한 hdisk를 제거할 수 없음: %s"
@@ -287,7 +323,7 @@ msgstr ""
 "%(vios)s에서 %(volume)s 볼륨에 대한 %(dev)s 장치가 사용 중인 것으로 검색되었습니다. 오류"
 "상태 코드: %(status)s."
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:277
+#: nova_powervm/virt/powervm/volume/vscsi.py:278
 #, python-format
 msgid ""
 "Disconnect Volume: The backing hdisk for volume %(volume_id)s on Virtual I/O "
@@ -298,7 +334,7 @@ msgstr ""
 "백업 hdisk가 올바른 상태가 아닙니다. 이는 정리의 결과일 수 "
 "있습니다. "
 
-#: nova_powervm/virt/powervm/volume/vscsi.py:286
+#: nova_powervm/virt/powervm/volume/vscsi.py:288
 #, python-format
 msgid ""
 "Disconnect Volume: Failed to find disk on Virtual I/O Server %(vios_name)s "
@@ -307,6 +343,15 @@ msgstr ""
 "볼륨 연결 끊기: 볼륨 volume %(volume_id)s에 대해 Virtual I/O Server %(vios_name)s에서 "
 "디스크를 찾을 수 없습니다. 볼륨 UDID: %(volume_uid)s.  오류: %(error)s"
 
-# ENGL1SH_VERS10N 16692_11 DO NOT REMOVE OR CHANGE THIS LINE
+#: nova_powervm/virt/powervm/volume/vscsi.py:330
+#, python-format
+msgid ""
+"Disconnect Volume: Failed to disconnect the volume %(volume_id)s on ANY of "
+"the Virtual I/O Servers for instance %(inst)s."
+msgstr ""
+"볼륨 연결 끊기: 인스턴스 %(inst)s에 대해 Virtual I/O Server 중 하나에서 "
+"볼륨 %(volume_id)s의 연결 끊기에 실패했습니다. "
+
+# ENGL1SH_VERS10N 12659_13 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 49
-# T9N_SH1P_STR1NG PV132AAP001 2
+# T9N_SH1P_STR1NG PV133AAP001 2

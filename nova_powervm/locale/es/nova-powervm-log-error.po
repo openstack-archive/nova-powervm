@@ -1,36 +1,36 @@
 # Translations template for nova_powervm.
-# Copyright (C) 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 # This file is distributed under the same license as the nova_powervm
 # project.
-# Automatically generated, 2016.
+# Automatically generated, 2017.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 3.0.0.0rc2.dev10\n"
+"Project-Id-Version: nova_powervm 4.0.1.dev5\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2016-10-07 02:04-0400\n"
-"PO-Revision-Date: 2016-10-07 02:04-0400\n"
+"POT-Creation-Date: 2017-04-20 10:07-0400\n"
+"PO-Revision-Date: 2017-04-20 10:07-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.3.4\n"
+"Generated-By: Babel 2.4.0\n"
 
-#: nova_powervm/virt/powervm/driver.py:1548
+#: nova_powervm/virt/powervm/driver.py:1531
 msgid "Live migration timed out. Aborting migration"
 msgstr "La migración en directo ha excedido el tiempo de espera. Se aborta la migración"
 
-#: nova_powervm/virt/powervm/live_migration.py:331
+#: nova_powervm/virt/powervm/live_migration.py:376
 msgid "Live migration failed."
 msgstr "La migración en directo ha fallado."
 
-#: nova_powervm/virt/powervm/live_migration.py:385
+#: nova_powervm/virt/powervm/live_migration.py:439
 #, python-format
 msgid "Migration recover failed with error: %s"
 msgstr "La recuperación de la migración ha fallado con el error: %s"
 
-#: nova_powervm/virt/powervm/live_migration.py:413
+#: nova_powervm/virt/powervm/live_migration.py:467
 msgid ""
 "Abort of live migration has failed. This is non-blocking. Exception is "
 "logged below."
@@ -38,27 +38,27 @@ msgstr ""
 "La terminación anormal de la migración en directo ha fallado. No es de bloqueo. La excepción se "
 "registra a continuación."
 
-#: nova_powervm/virt/powervm/vif.py:106
+#: nova_powervm/virt/powervm/vif.py:119
 #, python-format
 msgid "Custom VIF event push failed.  %s"
 msgstr "El suceso VIF personalizado ha fallado.  %s"
 
-#: nova_powervm/virt/powervm/vif.py:316
+#: nova_powervm/virt/powervm/vif.py:370
 #, python-format
 msgid "Unable to unplug VIF with mac %(mac)s for instance %(inst)s."
 msgstr "No se puede desconectar VIF con mac %(mac)s para la instancia %(inst)s."
 
-#: nova_powervm/virt/powervm/vm.py:646
+#: nova_powervm/virt/powervm/vm.py:647
 #, python-format
 msgid "Virtual machine delete failed: LPARID=%s"
 msgstr "Ha fallado la supresión de la máquina virtual: LPARID=%s"
 
-#: nova_powervm/virt/powervm/disk/localdisk.py:258
+#: nova_powervm/virt/powervm/disk/localdisk.py:263
 #, python-format
 msgid "Disk %s not found during resize."
 msgstr "El disco %s no se ha encontrado durante el redimensionamiento."
 
-#: nova_powervm/virt/powervm/disk/ssp.py:331
+#: nova_powervm/virt/powervm/disk/ssp.py:333
 #, python-format
 msgid "Error checking for shared storage. exception=%s"
 msgstr "Error al comprobar el almacenamiento compartido. excepción=%s"
@@ -100,32 +100,35 @@ msgstr "Anomalía de la conexión VIF para la devolución de llamada en el event
 #: nova_powervm/virt/powervm/tasks/vm.py:283
 #, python-format
 msgid "Unable to store NVRAM for instance %(name)s. Exception: %(reason)s"
-msgstr "No se ha podido almacenar la NVRAM para la instancia %(name)s. Excepción: %(reason)s"
+msgstr "No se puede almacenar la NVRAM para la instancia %(name)s. Excepción: %(reason)s"
 
 #: nova_powervm/virt/powervm/tasks/vm.py:313
 #, python-format
 msgid "Unable to delete NVRAM for instance %(name)s. Exception: %(reason)s"
-msgstr "No se ha podido suprimir la NVRAM para la instancia %(name)s. Excepción: %(reason)s"
+msgstr "No se puede suprimir la NVRAM para la instancia %(name)s. Excepción: %(reason)s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:221
-#: nova_powervm/virt/powervm/volume/vscsi.py:334
+#: nova_powervm/virt/powervm/volume/iscsi.py:214
 #, python-format
 msgid "Cannot detach volumes from virtual machine: %s"
 msgstr "No se puede desconectar volúmenes de la máquina virtual: %s"
 
-#: nova_powervm/virt/powervm/volume/iscsi.py:223
-#: nova_powervm/virt/powervm/volume/vscsi.py:336
+#: nova_powervm/virt/powervm/volume/iscsi.py:216
+#: nova_powervm/virt/powervm/volume/vscsi.py:340
 #, python-format
 msgid "Error: %s"
 msgstr "Error: %s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:515
+#: nova_powervm/virt/powervm/volume/npiv.py:517
 #, python-format
 msgid ""
 "Mappings were not able to find a proper VIOS. The port mappings were %s."
 msgstr ""
 "Las correlaciones no han podido encontrar un servidor de E/S virtual apropiado. Las correlaciones de puertos eran %s."
 
-# ENGL1SH_VERS10N 37135_5 DO NOT REMOVE OR CHANGE THIS LINE
+#: nova_powervm/virt/powervm/volume/vscsi.py:338
+msgid "Cannot detach volumes from virtual machine"
+msgstr "No se pueden desconectar los volúmenes de la máquina virtual"
+
+# ENGL1SH_VERS10N 32661_5 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 44
-# T9N_SH1P_STR1NG PV132AAP001 2
+# T9N_SH1P_STR1NG PV133AAP001 2
