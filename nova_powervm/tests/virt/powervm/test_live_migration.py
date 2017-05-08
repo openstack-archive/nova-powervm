@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -199,7 +199,6 @@ class TestLPM(test.TestCase):
 
     def test_src_cleanup(self):
         vol_drv = mock.Mock()
-        self.lpmdst.pre_live_vol_data = {}
         self.lpmdst.cleanup_volume(vol_drv)
         # Ensure the volume driver is not called
         self.assertEqual(0, vol_drv.cleanup_volume_at_destination.call_count)

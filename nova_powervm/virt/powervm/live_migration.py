@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -241,7 +241,7 @@ class LiveMigrationDest(LiveMigration):
         LOG.info(_LI('Performing detach for volume %(volume)s'),
                  dict(volume=vol_drv.volume_id), instance=self.instance)
         # Ensure the volume data is present before trying cleanup
-        if self.pre_live_vol_data:
+        if hasattr(self, 'pre_live_vol_data'):
             try:
                 vol_drv.cleanup_volume_at_destination(self.pre_live_vol_data)
             except Exception:
