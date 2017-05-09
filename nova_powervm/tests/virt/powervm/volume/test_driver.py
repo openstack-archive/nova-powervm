@@ -77,6 +77,11 @@ class TestInitMethods(test.TestCase):
                          volume.get_iscsi_initiator(mock_adpt))
         self.assertEqual(1, mock_mgmt.call_count)
 
+        # Check if initiator returned does not have newline character
+        mock_iscsi_init.return_value = 'test_initiator\n'
+        self.assertEqual('test_initiator',
+                         volume.get_iscsi_initiator(mock_adpt))
+
     def test_get_volume_class(self):
         for vol_type, class_type in six.iteritems(self.volume_drivers):
             self.assertEqual(class_type, volume.get_volume_class(vol_type))
