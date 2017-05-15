@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2016, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -213,9 +213,10 @@ class TestVifFunctions(test.TestCase):
         mock_crt.return_value = mock.Mock()
         self.slot_mgr.build_map.get_mgmt_vea_slot = mock.Mock(
             return_value=(None, None))
+        mock_instance = mock.MagicMock(system_metadata={})
 
         # Run the method
-        vif.plug_secure_rmc_vif(self.adpt, 'instance', 'host_uuid',
+        vif.plug_secure_rmc_vif(self.adpt, mock_instance, 'host_uuid',
                                 self.slot_mgr)
 
         # Validate responses
@@ -233,9 +234,10 @@ class TestVifFunctions(test.TestCase):
         mock_crt.return_value = mock.Mock()
         self.slot_mgr.build_map.get_mgmt_vea_slot = mock.Mock(
             return_value=('mac_addr', 5))
+        mock_instance = mock.MagicMock(system_metadata={})
 
         # Run the method
-        vif.plug_secure_rmc_vif(self.adpt, 'instance', 'host_uuid',
+        vif.plug_secure_rmc_vif(self.adpt, mock_instance, 'host_uuid',
                                 self.slot_mgr)
 
         # Validate responses
@@ -243,6 +245,37 @@ class TestVifFunctions(test.TestCase):
             self.adpt, 'host_uuid', 'lpar_uuid', 4094, vswitch='MGMTSWITCH',
             crt_vswitch=True, slot_num=5, mac_addr='mac_addr')
         self.assertFalse(self.slot_mgr.called)
+
+    @mock.patch('pypowervm.tasks.cna.crt_cna')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_plug_secure_rmc_vif_for_rebuild(self, mock_pvm_uuid, mock_crt):
+        # Mock up the data
+        mock_pvm_uuid.return_value = 'lpar_uuid'
+        mock_crt.return_value = mock.Mock()
+        self.slot_mgr.build_map.get_mgmt_vea_slot = mock.Mock(
+            return_value=(None, None))
+        mock_instance = mock.MagicMock(
+            system_metadata={'mgmt_interface_mac': 'old_mac'})
+
+        # Run the method
+        vif.plug_secure_rmc_vif(self.adpt, mock_instance, 'host_uuid',
+                                self.slot_mgr)
+
+        # Validate responses
+        # Validate that as part of rebuild, pvm_cna.crt_cna is called with
+        # 'old_mac' stored in instance's syetem_metadata. Also, the slot
+        # number is not passed. This is because as part of rebuild, the
+        # instance is destroyed and spawned again. When the instance is
+        # destroyed, the slot data is removed. When instance is spawned,
+        # the required volume and network info is got as part of BDM
+        # and network info dicts. The only missing information is mgmt
+        # interface mac address.
+        mock_crt.assert_called_once_with(
+            self.adpt, 'host_uuid', 'lpar_uuid', 4094, vswitch='MGMTSWITCH',
+            crt_vswitch=True, slot_num=None, mac_addr='old_mac')
+        # Validate that register_cna is called.
+        self.slot_mgr.register_cna.assert_called_once_with(
+            mock_crt.return_value)
 
     def test_build_vif_driver(self):
         # Test the Shared Ethernet Adapter type VIF
