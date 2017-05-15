@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2016, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -290,6 +290,14 @@ def plug_secure_rmc_vif(adapter, instance, host_uuid, slot_mgr):
     """
     # Gather the mac and slot number for the mgmt vif
     mac, slot_num = slot_mgr.build_map.get_mgmt_vea_slot()
+    if not mac:
+        # This is either a deploy case or rebuild case. For remote restart,
+        # mac will not be none, as it will be available from slot data.
+        # Deploy case - mac is None at both slot and instance_system_metadata
+        # and crt_cna will auto-generate it.
+        # Rebuild case - mac is none from slot data but is available
+        # at instance system_metadata.
+        mac = instance.system_metadata.get('mgmt_interface_mac')
 
     # Create the adapter.
     lpar_uuid = vm.get_pvm_uuid(instance)
@@ -298,8 +306,14 @@ def plug_secure_rmc_vif(adapter, instance, host_uuid, slot_mgr):
                             slot_num=slot_num, mac_addr=mac)
 
     # Save the mgmt vif to the slot map.
-    if not mac:
+    # For the rebuild case, mac will be present but not slot_num.
+    # For deploy case, both will be none. We want to register cna in both cases
+    if not slot_num:
         slot_mgr.register_cna(cna_w)
+    if cna_w.mac != mac:
+        # Update instance system metadata to store instance management
+        # interface mac address.
+        instance.system_metadata.update({'mgmt_interface_mac': cna_w.mac})
 
     return cna_w
 
