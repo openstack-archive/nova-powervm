@@ -265,7 +265,7 @@ class TestHostCPUStats(test.TestCase):
         prev_lpar_sample = mock_prev_phyp.sample.lpars[0].processor
         prev_lpar_sample.util_cap_proc_cycles = 0
         prev_lpar_sample.util_uncap_proc_cycles = 0
-        prev_lpar_sample.donated_proc_cycles = 0
+        prev_lpar_sample.idle_proc_cycles = 0
         delta3 = host_stats._delta_proc_cycles(mock_phyp.sample.lpars,
                                                mock_prev_phyp.sample.lpars)
         self.assertEqual(0, delta3)
@@ -278,11 +278,11 @@ class TestHostCPUStats(test.TestCase):
         mock_phyp, mock_prev_phyp = self._get_mock_phyps()
         mock_phyp.sample.lpars[0].processor.util_cap_proc_cycles = 250000
         mock_phyp.sample.lpars[0].processor.util_uncap_proc_cycles = 250000
-        mock_phyp.sample.lpars[0].processor.donated_proc_cycles = 500
+        mock_phyp.sample.lpars[0].processor.idle_proc_cycles = 500
         mock_prev_phyp.sample.lpars[0].processor.util_cap_proc_cycles = 0
         num = 455000
         mock_prev_phyp.sample.lpars[0].processor.util_uncap_proc_cycles = num
-        mock_prev_phyp.sample.lpars[0].processor.donated_proc_cycles = 1000
+        mock_prev_phyp.sample.lpars[0].processor.idle_proc_cycles = 1000
 
         # Test that a previous sample allows us to gather just the delta.
         new_elem = self._get_sample(4, mock_phyp.sample)
@@ -395,13 +395,13 @@ class TestHostCPUStats(test.TestCase):
         mock_lpar_4A.processor = mock.MagicMock(
             util_cap_proc_cycles=5005045000,
             util_uncap_proc_cycles=5005045000,
-            donated_proc_cycles=10000)
+            idle_proc_cycles=10000)
         mock_lpar_4A_prev = mock.Mock()
         mock_lpar_4A_prev.configure_mock(id=4, name='A')
         mock_lpar_4A_prev.processor = mock.MagicMock(
             util_cap_proc_cycles=40000,
             util_uncap_proc_cycles=40000,
-            donated_proc_cycles=0)
+            idle_proc_cycles=0)
         mock_phyp = mock.MagicMock(sample=mock.MagicMock(lpars=[mock_lpar_4A]))
         mock_prev_phyp = mock.MagicMock(
             sample=mock.MagicMock(lpars=[mock_lpar_4A_prev]))
