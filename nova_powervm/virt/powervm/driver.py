@@ -1517,13 +1517,13 @@ class PowerVMDriver(driver.ComputeDriver):
                 mig.migration_abort()
                 self._migration_exception_util(context, instance, dest,
                                                recover_method,
-                                               block_migration, migrate_data,
+                                               migrate_data,
                                                mig, ex=timeout_ex)
             except Exception as e:
                 LOG.exception(e)
                 self._migration_exception_util(context, instance, dest,
                                                recover_method,
-                                               block_migration, migrate_data,
+                                               migrate_data,
                                                mig, ex=e)
 
             LOG.debug("Calling post live migration method.", instance=instance)
@@ -1534,8 +1534,7 @@ class PowerVMDriver(driver.ComputeDriver):
             del self.live_migrations[instance.uuid]
 
     def _migration_exception_util(self, context, instance, dest,
-                                  recover_method, block_migration,
-                                  migrate_data, mig, ex):
+                                  recover_method, migrate_data, mig, ex):
         """Migration exception utility.
 
         :param context: security context
@@ -1546,7 +1545,6 @@ class PowerVMDriver(driver.ComputeDriver):
         :param recover_method:
             recovery method when any exception occurs.
             expected nova.compute.manager._rollback_live_migration.
-        :param block_migration: if true, migrate VM disk.
         :param migrate_data: a LiveMigrateData object
         :param mig: live_migration object
         :param ex: exception reason
@@ -1555,8 +1553,7 @@ class PowerVMDriver(driver.ComputeDriver):
         LOG.warning(_LW("Rolling back live migration."), instance=instance)
         try:
             mig.rollback_live_migration(context)
-            recover_method(context, instance, dest, block_migration,
-                           migrate_data)
+            recover_method(context, instance, dest, migrate_data=migrate_data)
         except Exception as e:
             LOG.exception(e)
 

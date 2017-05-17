@@ -1868,7 +1868,7 @@ class TestPowerVMDriver(test.TestCase):
             'block_mig', 'migrate_data')
         self.lpm.migration_abort.assert_called_once_with()
         mock_rec_meth.assert_called_once_with(
-            'context', self.lpm_inst, 'dest', mock.ANY, mock.ANY)
+            'context', self.lpm_inst, 'dest', migrate_data=mock.ANY)
         self.lpm.rollback_live_migration.assert_called_once_with('context')
         self.assertEqual(0, mock_post_meth.call_count)
 
@@ -1882,7 +1882,7 @@ class TestPowerVMDriver(test.TestCase):
             'context', self.lpm_inst, 'dest', mock_post_meth, mock_rec_meth,
             'block_mig', 'migrate_data')
         mock_rec_meth.assert_called_once_with(
-            'context', self.lpm_inst, 'dest', mock.ANY, mock.ANY)
+            'context', self.lpm_inst, 'dest', migrate_data=mock.ANY)
         self.lpm.rollback_live_migration.assert_called_once_with('context')
         self.assertEqual(0, mock_post_meth.call_count)
 
@@ -1898,7 +1898,7 @@ class TestPowerVMDriver(test.TestCase):
             'context', self.lpm_inst, 'dest', mock_post_meth, mock_rec_meth,
             'block_mig', 'migrate_data')
         mock_rec_meth.assert_called_once_with(
-            'context', self.lpm_inst, 'dest', mock.ANY, mock.ANY)
+            'context', self.lpm_inst, 'dest', migrate_data=mock.ANY)
         self.lpm.rollback_live_migration.assert_called_once_with('context')
         self.assertEqual(0, mock_post_meth.call_count)
 
