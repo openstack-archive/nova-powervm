@@ -801,6 +801,8 @@ class PvmOvsVifDriver(PvmLioVifDriver):
                                   mac address, value is the destination's
                                   target hypervisor VLAN.
         """
+        self._cleanup_orphan_adapters(vif,
+                                      CONF.powervm.pvm_vswitch_for_novalink_io)
         mgmt_wrap = pvm_par.get_this_partition(self.adapter)
         dev = self.get_trunk_dev_name(vif)
 
@@ -903,3 +905,13 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         """
         linux_net.delete_ovs_vif_port(vif['network']['bridge'],
                                       self.get_trunk_dev_name(vif))
+
+    def _cleanup_orphan_adapters(self, vif, vswitch_name):
+        """Finds and removes trunk VEAs that have no corresponding CNA."""
+        # Find and delete orphan adapters with macs matching our vif
+        orphans = pvm_cna.find_orphaned_trunks(self.adapter, vswitch_name)
+        for orphan in orphans:
+            if vm.norm_mac(orphan.mac) == vif['address']:
+                linux_net.delete_ovs_vif_port(vif['network']['bridge'],
+                                              self.get_trunk_dev_name(vif))
+                orphan.delete()
