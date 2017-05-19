@@ -908,10 +908,11 @@ class TestVifOvsDriver(test.TestCase):
     @mock.patch('nova.network.linux_net.create_ovs_vif_port')
     @mock.patch('nova.utils.execute')
     @mock.patch('pypowervm.tasks.cna.crt_trunk_with_free_vlan')
+    @mock.patch('pypowervm.tasks.cna.find_orphaned_trunks', autospec=True)
     @mock.patch('pypowervm.tasks.partition.get_this_partition')
     def test_pre_live_migrate_at_destination(
-            self, mock_part_get, mock_trunk_crt, mock_execute,
-            mock_crt_ovs_port):
+            self, mock_part_get, mock_find_trunks, mock_trunk_crt,
+            mock_execute, mock_crt_ovs_port):
         # Mock the vif
         vif = {'devname': 'tap-dev', 'address': 'aa:bb:cc:dd:ee:ff',
                'network': {'bridge': 'br-int'}, 'id': 'vif_id'}
@@ -923,17 +924,26 @@ class TestVifOvsDriver(test.TestCase):
 
         mock_trunk_crt.return_value = [mock.Mock(pvid=2)]
 
+        mock_orphan_wrap = mock.MagicMock(mac='aabbccddeeff')
+        mock_find_trunks.return_value = [mock_orphan_wrap]
+
         # Invoke and test the basic response
         vea_vlan_mappings = {}
         self.drv.pre_live_migrate_at_destination(vif, vea_vlan_mappings)
         self.assertEqual(vea_vlan_mappings['aa:bb:cc:dd:ee:ff'], 2)
 
         # Now validate it called the things it needed to
-        mock_execute.assert_called_once_with('ip', 'link', 'set', 'tap-dev',
-                                             'up', run_as_root=True)
+        mock_execute.assert_has_calls(
+            [mock.call('ovs-vsctl', '--timeout=120', '--', '--if-exists',
+                       'del-port', 'br-int', 'tap-dev', run_as_root=True),
+             mock.call('ip', 'link', 'set', 'tap-dev', 'up',
+                       run_as_root=True)])
         mock_trunk_crt.assert_called_once_with(
             self.adpt, 'host_uuid', ['mgmt_uuid'],
             CONF.powervm.pvm_vswitch_for_novalink_io, dev_name='tap-dev')
+        mock_find_trunks.assert_called_once_with(
+            self.adpt, CONF.powervm.pvm_vswitch_for_novalink_io)
+        mock_orphan_wrap.delete.assert_called_once_with()
         mock_crt_ovs_port.assert_called_once_with(
             'br-int', 'tap-dev', 'vif_id', 'aa:bb:cc:dd:ee:ff', self.inst.uuid)
 
