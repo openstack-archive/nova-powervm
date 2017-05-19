@@ -52,6 +52,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
     capabilities = {
         'shared_storage': True,
+        'snapshot': True,
     }
 
     def __init__(self, adapter, host_uuid):

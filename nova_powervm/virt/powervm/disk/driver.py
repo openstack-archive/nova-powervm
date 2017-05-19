@@ -74,6 +74,7 @@ class DiskAdapter(object):
     capabilities = {
         'shared_storage': False,
         'has_imagecache': False,
+        'snapshot': False,
     }
 
     def __init__(self, adapter, host_uuid):

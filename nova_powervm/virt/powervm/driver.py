@@ -800,6 +800,11 @@ class PowerVMDriver(driver.ComputeDriver):
                                       update.  The driver will raise if this
                                       doesn't match.
         """
+        if not self.disk_dvr.capabilities.get('snapshot'):
+            raise exception.NotSupportedWithOption(
+                message=_("The snapshot operation is not supported in "
+                          "conjunction with a CONF.powervm.disk_driver "
+                          "setting of %s.") % CONF.powervm.disk_driver)
         self._log_operation('snapshot', instance)
 
         # Define the flow

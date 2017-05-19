@@ -429,3 +429,16 @@ class TestLocalDisk(test.TestCase):
         local.disconnect_disk_from_mgmt('vios-uuid', 'disk_name')
         mock_rm_vdisk_map.assert_called_with(
             local.adapter, 'vios-uuid', 'mp_uuid', disk_names=['disk_name'])
+
+    def test_capabilities_non_mgmt_vios(self):
+        local = self.get_ls(self.apt)
+        self.assertFalse(local.capabilities.get('shared_storage'))
+        # With the default setup, the management partition isn't the VIOS.
+        self.assertFalse(local.capabilities.get('snapshot'))
+
+    def test_capabilities_mgmt_vios(self):
+        # Make the management partition the VIOS.
+        self.vio_to_vg.uuid = self.mgmt_uuid.return_value
+        local = self.get_ls(self.apt)
+        self.assertFalse(local.capabilities.get('shared_storage'))
+        self.assertTrue(local.capabilities.get('snapshot'))

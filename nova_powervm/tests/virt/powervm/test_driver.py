@@ -1721,6 +1721,12 @@ class TestPowerVMDriver(test.TestCase):
         mock_rm.assert_called_with(stg_elem='stg_elem', vios_wrap='vios_wrap',
                                    disk_path='disk_path')
 
+        # snapshot operation not supported
+        self.drv.disk_dvr.capabilities = {'snapshot': False}
+        self.assertRaises(exc.NotSupportedWithOption,
+                          self.drv.snapshot, 'context', self.inst, 'image_id',
+                          'update_task_state')
+
     @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationDest')
     def test_can_migrate_dest(self, mock_lpm):
         mock_lpm.return_value.check_destination.return_value = 'dest_data'

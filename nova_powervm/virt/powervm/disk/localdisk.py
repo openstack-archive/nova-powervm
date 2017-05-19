@@ -48,6 +48,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
     capabilities = {
         'shared_storage': False,
         'has_imagecache': True,
+        # NOTE(efried): 'snapshot' capability set dynamically in __init__.
     }
 
     def __init__(self, adapter, host_uuid):
@@ -65,6 +66,12 @@ class LocalStorage(disk_dvr.DiskAdapter):
         self.image_cache_mgr = imagecache.ImageManager(self._vios_uuid,
                                                        self.vg_uuid, adapter)
         self.cache_lock = lockutils.ReaderWriterLock()
+        # Set the 'snapshot' capability dynamically.  If we're hosting I/O on
+        # the management partition, we can snapshot.  If we're hosting I/O on
+        # traditional VIOS, we are limited by the fact that a VSCSI device
+        # can't be mapped to two partitions (the VIOS and the management) at
+        # once.
+        self.capabilities['snapshot'] = self.mp_uuid == self._vios_uuid
         LOG.info("Local Storage driver initialized: volume group: '%s'",
                  self.vg_name)
 

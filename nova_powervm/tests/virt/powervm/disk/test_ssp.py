@@ -120,8 +120,8 @@ class TestSSPDiskAdapter(test.TestCase):
 
     def test_capabilities(self):
         ssp_stor = self._get_ssp_stor()
-        # Ensure return shared storage
         self.assertTrue(ssp_stor.capabilities.get('shared_storage'))
+        self.assertTrue(ssp_stor.capabilities.get('snapshot'))
 
     def test_get_info(self):
         ssp_stor = self._get_ssp_stor()
