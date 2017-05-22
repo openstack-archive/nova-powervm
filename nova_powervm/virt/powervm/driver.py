@@ -1732,14 +1732,12 @@ class PowerVMDriver(driver.ComputeDriver):
                 self.adapter, lpar_uuid, host, vnc_path=lpar_uuid,
                 use_x509_auth=use_x509_auth, ca_certs=ca_certs,
                 server_cert=server_cert, server_key=server_key)
-        except Exception as err:
-            # If the LPAR was not found, then give a more descriptive message
-            if isinstance(err, pvm_exc.HttpError):
-                if err.response.status == 404:
-                    raise exception.InstanceNotFound(instance_id=instance.uuid)
+        except pvm_exc.HttpNotFound:
+            raise exception.InstanceNotFound(instance_id=instance.uuid)
+        except pvm_exc.Error:
             # Otherwise wrapper the error in an exception that can be handled
-            raise exception.InternalError(
-                err=_("Unable to open console.  Error is: %s") % err)
+            LOG.exception("Unable to open console.", instance=instance)
+            raise exception.InternalError(err=_("Unable to open console."))
 
         # Note that the VNC viewer will wrap the internal_access_path with
         # the HTTP content.

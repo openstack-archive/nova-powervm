@@ -17,7 +17,6 @@
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
-from oslo_utils import excutils
 import re
 import six
 
@@ -46,9 +45,6 @@ from pypowervm.wrappers import shared_proc_pool as pvm_spp
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as nvex
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LE
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -468,14 +464,8 @@ def get_instance_wrapper(adapter, instance, xag=None):
     pvm_inst_uuid = get_pvm_uuid(instance)
     try:
         return pvm_lpar.LPAR.get(adapter, uuid=pvm_inst_uuid, xag=xag)
-    except pvm_exc.Error as he:
-        with excutils.save_and_reraise_exception(logger=LOG) as sare:
-            if he.response is not None and he.response.status == 404:
-                LOG.exception("PowerVM error getting instance.",
-                              instance=instance)
-                # Raise InstanceNotFound exception
-                sare.reraise = False
-                raise exception.InstanceNotFound(instance_id=pvm_inst_uuid)
+    except pvm_exc.HttpNotFound:
+        raise exception.InstanceNotFound(instance_id=pvm_inst_uuid)
 
 
 def instance_exists(adapter, instance, log_errors=False):
@@ -530,18 +520,15 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
                 pass
             kwds['helpers'] = helpers
         resp = adapter.read(pvm_lpar.LPAR.schema_type, **kwds)
-    except pvm_exc.HttpError as e:
-        with excutils.save_and_reraise_exception() as sare:
-            # 404 error indicates the LPAR has been deleted (or moved to a
-            # different host)
-            if e.response and e.response.status == 404:
-                sare.reraise = False
-                raise exception.InstanceNotFound(instance_id=lpar_uuid)
+    except pvm_exc.HttpNotFound:
+        # 404 error indicates the LPAR has been deleted (or moved to a
+        # different host)
+        raise exception.InstanceNotFound(instance_id=lpar_uuid)
 
     return jsonutils.loads(resp.body)
 
 
-def crt_lpar(adapter, host_wrapper, instance, nvram=None, slot_mgr=None):
+def create_lpar(adapter, host_wrapper, instance, nvram=None, slot_mgr=None):
     """Create an LPAR based on the host based on the instance
 
     :param adapter: The adapter for the pypowervm API
@@ -622,37 +609,26 @@ def rename(adapter, instance, name, entry=None):
     return _rename(entry)
 
 
-def dlt_lpar(adapter, lpar_uuid):
+def delete_lpar(adapter, instance):
     """Delete an LPAR
 
-    :param adapter: The adapter for the pypowervm API
-    :param lpar_uuid: The lpar to delete
+    :param adapter: The adapter for the pypowervm API.
+    :param instance: The nova instance whose LPAR is to be deleted.
     """
+    lpar_uuid = get_pvm_uuid(instance)
     # Attempt to delete the VM.
     try:
-        LOG.info(_LI('Deleting virtual machine. LPARID: %s'), lpar_uuid)
+        LOG.info('Deleting LPAR', instance=instance)
 
         # Ensure any vterms are closed.  Will no-op otherwise.
         vterm.close_vterm(adapter, lpar_uuid)
 
         # Run the LPAR delete
         resp = adapter.delete(pvm_lpar.LPAR.schema_type, root_id=lpar_uuid)
-        LOG.info(_LI('Virtual machine delete status: %d'), resp.status)
+        LOG.info('LPAR delete status: %d', resp.status, instance=instance)
         return resp
-    except pvm_exc.HttpError as e:
-        with excutils.save_and_reraise_exception(logger=LOG) as sare:
-            if e.response and e.response.status == 404:
-                sare.reraise = False
-                LOG.warning(_LW('Virtual Machine not found LPAR_ID: %s'),
-                            lpar_uuid)
-            else:
-                LOG.error(_LE('HttpError deleting virtual machine.'
-                              ' LPARID: %s'), lpar_uuid)
-    except pvm_exc.Error:
-        with excutils.save_and_reraise_exception(logger=LOG) as sare:
-            # Attempting to close vterm did not help so raise exception
-            LOG.error(_LE('Virtual machine delete failed: LPARID=%s'),
-                      lpar_uuid)
+    except pvm_exc.HttpNotFound:
+        LOG.info('LPAR not found (already deleted).', instance=instance)
 
 
 def power_on(adapter, instance, opts=None):

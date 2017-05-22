@@ -291,7 +291,7 @@ class TestVM(test.TestCase):
         self.assertEqual(inst_info.cpu_time_ns, 0)
 
         # Check that we raise an exception if the instance is gone.
-        self.apt.read.side_effect = pvm_exc.HttpError(
+        self.apt.read.side_effect = pvm_exc.HttpNotFound(
             mock.MagicMock(status=404))
         self.assertRaises(exception.InstanceNotFound,
                           inst_info.__getattribute__, 'state')
@@ -303,12 +303,8 @@ class TestVM(test.TestCase):
             def __init__(self, body):
                 self.body = '"%s"' % body
 
-        resp = FakeResp2('running')
-
-        def return_resp(*args, **kwds):
-            return resp
-
-        self.apt.read.side_effect = return_resp
+        self.apt.read.side_effect = None
+        self.apt.read.return_value = FakeResp2('running')
         self.assertEqual(inst_info.state, power_state.RUNNING)
 
         # Check the __eq__ method
@@ -336,68 +332,85 @@ class TestVM(test.TestCase):
         self.assertEqual(lpar_list[0], 'z3-9-5-126-208-000001f0')
         self.assertEqual(len(lpar_list), 20)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('pypowervm.tasks.vterm.close_vterm')
-    def test_dlt_lpar(self, mock_vterm):
+    def test_dlt_lpar(self, mock_vterm, mock_pvm_uuid):
         """Performs a delete LPAR test."""
-        vm.dlt_lpar(self.apt, '12345')
-        self.assertEqual(1, self.apt.delete.call_count)
-        self.assertEqual(1, mock_vterm.call_count)
+        mock_pvm_uuid.return_value = 'pvm_uuid'
+
+        vm.delete_lpar(self.apt, 'inst')
+        mock_pvm_uuid.assert_called_once_with('inst')
+        mock_vterm.assert_called_once_with(self.apt, 'pvm_uuid')
+        self.apt.delete.assert_called_once_with('LogicalPartition',
+                                                root_id='pvm_uuid')
 
         # Test Failure Path
         # build a mock response body with the expected HSCL msg
-        resp = mock.Mock()
-        resp.body = 'error msg: HSCL151B more text'
+        resp = mock.Mock(body='error msg: HSCL151B more text')
         self.apt.delete.side_effect = pvm_exc.Error(
             'Mock Error Message', response=resp)
 
         # Reset counters
+        mock_pvm_uuid.reset_mock()
         self.apt.reset_mock()
         mock_vterm.reset_mock()
 
         self.assertRaises(pvm_exc.Error,
-                          vm.dlt_lpar, self.apt, '12345')
-        self.assertEqual(1, mock_vterm.call_count)
-        self.assertEqual(1, self.apt.delete.call_count)
+                          vm.delete_lpar, self.apt, 'inst')
+        mock_pvm_uuid.assert_called_once_with('inst')
+        mock_vterm.assert_called_once_with(self.apt, 'pvm_uuid')
+        self.apt.delete.assert_called_once_with('LogicalPartition',
+                                                root_id='pvm_uuid')
 
-        # Test HttpError 404
+        # Test HttpNotFound - exception not raised
+        mock_pvm_uuid.reset_mock()
         self.apt.reset_mock()
         mock_vterm.reset_mock()
 
         resp.status = 404
-        self.apt.delete.side_effect = pvm_exc.HttpError(resp=resp)
-        vm.dlt_lpar(self.apt, '54321')
-        self.assertEqual(1, mock_vterm.call_count)
-        self.assertEqual(1, self.apt.delete.call_count)
+        self.apt.delete.side_effect = pvm_exc.HttpNotFound(resp=resp)
+        vm.delete_lpar(self.apt, 'inst')
+        mock_pvm_uuid.assert_called_once_with('inst')
+        mock_vterm.assert_called_once_with(self.apt, 'pvm_uuid')
+        self.apt.delete.assert_called_once_with('LogicalPartition',
+                                                root_id='pvm_uuid')
 
         # Test Other HttpError
+        mock_pvm_uuid.reset_mock()
         self.apt.reset_mock()
         mock_vterm.reset_mock()
 
         resp.status = 111
         self.apt.delete.side_effect = pvm_exc.HttpError(resp=resp)
-        self.assertRaises(pvm_exc.HttpError, vm.dlt_lpar, self.apt, '11111')
-        self.assertEqual(1, mock_vterm.call_count)
-        self.assertEqual(1, self.apt.delete.call_count)
+        self.assertRaises(pvm_exc.HttpError, vm.delete_lpar, self.apt, 'inst')
+        mock_pvm_uuid.assert_called_once_with('inst')
+        mock_vterm.assert_called_once_with(self.apt, 'pvm_uuid')
+        self.apt.delete.assert_called_once_with('LogicalPartition',
+                                                root_id='pvm_uuid')
 
-        # Test HttpError 404 closing vterm
+        # Test HttpNotFound closing vterm
+        mock_pvm_uuid.reset_mock()
         self.apt.reset_mock()
         mock_vterm.reset_mock()
 
         resp.status = 404
-        mock_vterm.side_effect = pvm_exc.HttpError(resp=resp)
-        vm.dlt_lpar(self.apt, '55555')
-        self.assertEqual(1, mock_vterm.call_count)
-        self.assertEqual(0, self.apt.delete.call_count)
+        mock_vterm.side_effect = pvm_exc.HttpNotFound(resp=resp)
+        vm.delete_lpar(self.apt, 'inst')
+        mock_pvm_uuid.assert_called_once_with('inst')
+        mock_vterm.assert_called_once_with(self.apt, 'pvm_uuid')
+        self.apt.delete.assert_not_called()
 
         # Test Other HttpError closing vterm
+        mock_pvm_uuid.reset_mock()
         self.apt.reset_mock()
         mock_vterm.reset_mock()
 
         resp.status = 111
         mock_vterm.side_effect = pvm_exc.HttpError(resp=resp)
-        self.assertRaises(pvm_exc.HttpError, vm.dlt_lpar, self.apt, '33333')
-        self.assertEqual(1, mock_vterm.call_count)
-        self.assertEqual(0, self.apt.delete.call_count)
+        self.assertRaises(pvm_exc.HttpError, vm.delete_lpar, self.apt, 'inst')
+        mock_pvm_uuid.assert_called_once_with('inst')
+        mock_vterm.assert_called_once_with(self.apt, 'pvm_uuid')
+        self.apt.delete.assert_not_called()
 
     @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder._add_IBMi_attrs')
     @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
@@ -412,7 +425,7 @@ class TestVM(test.TestCase):
         lparw = pvm_lpar.LPAR.wrap(self.resp.feed.entries[0])
         mock_bld.return_value = lparw
         self.apt.create.return_value = lparw.entry
-        vm.crt_lpar(self.apt, host_wrapper, instance, nvram='data')
+        vm.create_lpar(self.apt, host_wrapper, instance, nvram='data')
         self.apt.create.assert_called_once_with(
             lparw, host_wrapper.schema_type, child_type='LogicalPartition',
             root_id=host_wrapper.uuid, service='uom', timeout=-1)
@@ -429,7 +442,8 @@ class TestVM(test.TestCase):
         self.apt.create.return_value = lparw.entry
         mock_slot_mgr = mock.Mock(build_map=mock.Mock(
             get_max_vslots=mock.Mock(return_value=123)))
-        vm.crt_lpar(self.apt, host_wrapper, instance, slot_mgr=mock_slot_mgr)
+        vm.create_lpar(self.apt, host_wrapper, instance,
+                       slot_mgr=mock_slot_mgr)
         self.assertTrue(self.apt.create.called)
         self.assertTrue(mock_vld_all.called)
         self.assertTrue(lparw.srr_enabled)
@@ -443,26 +457,25 @@ class TestVM(test.TestCase):
         # Test to verify the LPAR Creation with invalid name specification
         mock_bld.side_effect = lpar_bld.LPARBuilderException("Invalid Name")
         host_wrapper = mock.Mock()
-        self.assertRaises(exception.BuildAbortException, vm.crt_lpar,
+        self.assertRaises(exception.BuildAbortException, vm.create_lpar,
                           self.apt, host_wrapper, instance)
 
         resp = mock.Mock(status=202, method='fake', path='/dev/',
                          reason='Failure')
         mock_bld.side_effect = pvm_exc.HttpError(resp)
         try:
-            vm.crt_lpar(self.apt, host_wrapper, instance)
+            vm.create_lpar(self.apt, host_wrapper, instance)
         except nvex.PowerVMAPIFailed as e:
             self.assertEqual(e.kwargs['inst_name'], instance.name)
             self.assertEqual(e.kwargs['reason'], mock_bld.side_effect)
         flavor.extra_specs = {'powervm:BADATTR': 'true'}
         host_wrapper = mock.Mock()
-        self.assertRaises(exception.InvalidAttribute, vm.crt_lpar,
+        self.assertRaises(exception.InvalidAttribute, vm.create_lpar,
                           self.apt, host_wrapper, instance)
 
     @mock.patch('pypowervm.wrappers.logical_partition.LPAR.get')
     def test_get_instance_wrapper(self, mock_get):
-        resp = mock.Mock(status=404)
-        mock_get.side_effect = pvm_exc.Error('message', response=resp)
+        mock_get.side_effect = pvm_exc.HttpNotFound(resp=mock.Mock(status=404))
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         # vm.get_instance_wrapper(self.apt, instance, 'lpar_uuid')
         self.assertRaises(exception.InstanceNotFound, vm.get_instance_wrapper,
@@ -735,7 +748,7 @@ class TestVM(test.TestCase):
 
         resp = mock.MagicMock()
         resp.status = 404
-        self.apt.read.side_effect = pvm_exc.HttpError(resp)
+        self.apt.read.side_effect = pvm_exc.HttpNotFound(resp)
         self.assertRaises(exception.InstanceNotFound, vm.get_vm_qp, self.apt,
                           'lpar_uuid', log_errors=False)
 

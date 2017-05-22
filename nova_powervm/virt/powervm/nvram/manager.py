@@ -170,35 +170,14 @@ class NvramManager(object):
 
         try:
             LOG.debug('Updating NVRAM for instance: %s', instance.uuid)
-            data = self._get_data(instance)
+            data = vm.get_instance_wrapper(
+                self._adapter, instance, xag=[pvm_const.XAG.NVRAM]).nvram
+            LOG.debug('NVRAM for instance: %s', data, instance=instance)
             if data is not None:
                 self._api.store(instance, data)
-        except Exception as e:
+        except pvm_exc.Error:
             # Update exceptions should not end the operation.
-            LOG.exception(_LE('Could not update NVRAM: %s'), e,
-                          instance=instance)
-
-    def _get_data(self, instance):
-        """Get the NVRAM data for the instance.
-
-        :param inst: The instance to get the data for.
-        :returns: The NVRAM data for the instance.
-        """
-        data = None
-        try:
-            # Get the data from the adapter.
-            entry = vm.get_instance_wrapper(self._adapter, instance,
-                                            xag=[pvm_const.XAG.NVRAM])
-            data = entry.nvram
-            LOG.debug('NVRAM for instance: %s', data, instance=instance)
-        except pvm_exc.HttpError as e:
-            # The VM might have been deleted since the store request.
-            if e.response.status not in [404]:
-                LOG.exception("HttpError 404 trying to get instance NVRAM "
-                              "data.", instance=instance)
-                LOG.warning(_LW('Unable to store the NVRAM for instance: '
-                                '%s'), instance.name)
-        return data
+            LOG.exception('Could not update NVRAM.', instance=instance)
 
     def _update_thread(self):
         """The thread that is charged with updating the NVRAM store."""

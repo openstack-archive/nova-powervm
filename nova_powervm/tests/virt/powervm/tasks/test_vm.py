@@ -37,7 +37,7 @@ class TestVMTasks(test.TestCase):
     @mock.patch('pypowervm.utils.transaction.FeedTask')
     @mock.patch('pypowervm.tasks.partition.build_active_vio_feed_task')
     @mock.patch('pypowervm.tasks.storage.add_lpar_storage_scrub_tasks')
-    @mock.patch('nova_powervm.virt.powervm.vm.crt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.create_lpar')
     def test_create(self, mock_vm_crt, mock_stg, mock_bld, mock_ftsk):
         nvram_mgr = mock.Mock()
         nvram_mgr.fetch.return_value = 'data'
@@ -71,7 +71,7 @@ class TestVMTasks(test.TestCase):
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.Create.execute')
-    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
     def test_create_revert(self, mock_vm_dlt, mock_crt_exc,
                            mock_get_pvm_uuid):
 
@@ -142,13 +142,11 @@ class TestVMTasks(test.TestCase):
         mock_pwroff.assert_called_once_with(self.apt, self.instance,
                                             force_immediate=True)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
-    def test_delete(self, mock_dlt, mock_uuid):
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
+    def test_delete(self, mock_dlt):
         delete = tf_vm.Delete(self.apt, self.instance)
         delete.execute()
-        mock_dlt.assert_called_once_with(self.apt, mock_uuid.return_value)
-        mock_uuid.assert_called_once_with(self.instance)
+        mock_dlt.assert_called_once_with(self.apt, self.instance)
 
     @mock.patch('nova_powervm.virt.powervm.vm.update')
     def test_resize(self, mock_vm_update):

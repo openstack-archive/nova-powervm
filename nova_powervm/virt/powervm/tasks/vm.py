@@ -107,8 +107,8 @@ class Create(task.Task):
             data = self.nvram_mgr.fetch(self.instance)
             LOG.debug('NVRAM data is: %s', data, instance=self.instance)
 
-        wrap = vm.crt_lpar(self.adapter, self.host_wrapper, self.instance,
-                           nvram=data, slot_mgr=self.slot_mgr)
+        wrap = vm.create_lpar(self.adapter, self.host_wrapper, self.instance,
+                              nvram=data, slot_mgr=self.slot_mgr)
         pvm_stg.add_lpar_storage_scrub_tasks([wrap.id], self.stg_ftsk,
                                              lpars_exist=True)
         # If the stg_ftsk passed in was None and we initialized a
@@ -130,10 +130,9 @@ class Create(task.Task):
         # for a failed build is handled in the manager.
 
         if self.instance.task_state == task_states.REBUILD_SPAWNING:
-            LOG.info(_LI('Rebuild of instance %s failed. '
-                     'Deleting instance from destination.'),
-                     self.instance.name, instance=self.instance)
-            vm.dlt_lpar(self.adapter, vm.get_pvm_uuid(self.instance))
+            LOG.info('Rebuild of instance failed. Deleting instance from '
+                     'destination.', instance=self.instance)
+            vm.delete_lpar(self.adapter, self.instance)
 
 
 class Resize(task.Task):
@@ -316,7 +315,7 @@ class Delete(task.Task):
         self.instance = instance
 
     def execute(self):
-        vm.dlt_lpar(self.adapter, vm.get_pvm_uuid(self.instance))
+        vm.delete_lpar(self.adapter, self.instance)
 
 
 class UpdateIBMiSettings(task.Task):

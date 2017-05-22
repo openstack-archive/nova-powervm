@@ -107,7 +107,7 @@ class TestPowerVMDriver(test.TestCase):
         self.iscsi_vol_drv = self.iscsi_vol_fix.drv
 
         self.crt_lpar = self.useFixture(fixtures.MockPatch(
-            'nova_powervm.virt.powervm.vm.crt_lpar')).mock
+            'nova_powervm.virt.powervm.vm.create_lpar')).mock
 
         self.get_inst_wrap = self.useFixture(fixtures.MockPatch(
             'nova_powervm.virt.powervm.vm.get_instance_wrapper')).mock
@@ -611,7 +611,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
-    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
@@ -749,7 +749,7 @@ class TestPowerVMDriver(test.TestCase):
                 'execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
-    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
     def test_spawn_ops_rollback_disk(self, mock_cfg_drv, mock_dlt,
                                      mock_plug_vifs, mock_plug_mgmt_vifs,
@@ -778,7 +778,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova.virt.block_device.DriverVolumeBlockDevice.save')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
-    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('pypowervm.tasks.power.power_on')
     @mock.patch('pypowervm.tasks.power.power_off')
@@ -918,7 +918,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
     @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
-    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'dlt_vopt')
@@ -1056,7 +1056,7 @@ class TestPowerVMDriver(test.TestCase):
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
     @mock.patch('nova.virt.powervm_ext.driver.PowerVMDriver.'
                 '_is_booted_from_volume')
-    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'dlt_vopt')
@@ -1215,7 +1215,7 @@ class TestPowerVMDriver(test.TestCase):
 
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.UnplugVifs.execute')
-    @mock.patch('nova_powervm.virt.powervm.vm.dlt_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
     @mock.patch('nova_powervm.virt.powervm.vm.power_off')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'dlt_vopt')
@@ -1673,8 +1673,7 @@ class TestPowerVMDriver(test.TestCase):
                           mock.ANY, self.inst)
 
         # 404
-        mock_resp = mock.Mock(status=404)
-        mock_vterm.side_effect = pvm_exc.HttpError(mock_resp)
+        mock_vterm.side_effect = pvm_exc.HttpNotFound(mock.Mock(status=404))
         self.assertRaises(exc.InstanceNotFound, self.drv.get_vnc_console,
                           mock.ANY, self.inst)
 
