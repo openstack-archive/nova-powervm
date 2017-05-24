@@ -28,6 +28,7 @@ from nova_powervm.virt.powervm import exception as p_exc
 LOG = logging.getLogger(__name__)
 
 _SLOT_KEY = "CLIENT_SLOT_DATA"
+_SLOT_VOLUME_TYPES = ['vscsi', 'fileio', 'rbd', 'iscsi']
 
 
 def build_slot_mgr(instance, store_api, adapter=None, vol_drv_iter=None):
@@ -124,7 +125,7 @@ class NovaSlotManager(slot_map.SlotMapStore):
         pv_vscsi_vol_to_vio = {}
         fabric_names = []
         for bdm, vol_drv in vol_drv_iter:
-            if vol_drv.vol_type() in ['vscsi', 'fileio', 'rbd']:
+            if vol_drv.vol_type() in _SLOT_VOLUME_TYPES:
                 self._pv_vscsi_vol_to_vio(vol_drv, pv_vscsi_vol_to_vio)
             elif len(fabric_names) == 0 and vol_drv.vol_type() == 'npiv':
                 fabric_names = vol_drv._fabric_names()

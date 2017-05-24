@@ -1085,6 +1085,7 @@ class PowerVMDriver(driver.ComputeDriver):
             self.adapter, self.host_uuid, instance)
         if wwpn_list is not None:
             connector["wwpns"] = wwpn_list
+        connector["multipath"] = CONF.powervm.volume_use_multipath
         connector['host'] = vol_attach.get_hostname_for_volume(instance)
         connector['initiator'] = vol_attach.get_iscsi_initiator(self.adapter)
         return connector

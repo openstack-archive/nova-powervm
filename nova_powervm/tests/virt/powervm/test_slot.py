@@ -108,7 +108,8 @@ class TestSwiftSlotManager(test.TestCase):
         self.slot_mgr.init_recreate_map(mock.Mock(), self._vol_drv_iter())
         self.assertEqual(1, mock_ftsk.call_count)
         mock_rebuild_slot.assert_called_once_with(
-            self.slot_mgr, mock.ANY, {'udid': ['uuid2']}, ['a', 'b'])
+            self.slot_mgr, mock.ANY, {'udid': ['uuid2'], 'iscsi': ['uuid1']},
+            ['a', 'b'])
 
     @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap')
     @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
@@ -152,6 +153,10 @@ class TestSwiftSlotManager(test.TestCase):
         mock_scsi.vol_type.return_value = 'vscsi'
         mock_scsi.is_volume_on_vios.side_effect = ((False, None),
                                                    (True, 'udid'))
+        mock_iscsi = mock.Mock()
+        mock_iscsi.vol_type.return_value = 'iscsi'
+        mock_iscsi.is_volume_on_vios.side_effect = ((True, 'iscsi'),
+                                                    (False, None))
 
         mock_npiv1 = mock.Mock()
         mock_npiv1.vol_type.return_value = 'npiv'
@@ -161,6 +166,6 @@ class TestSwiftSlotManager(test.TestCase):
         mock_npiv2.vol_type.return_value = 'npiv'
         mock_npiv2._fabric_names.return_value = ['a', 'b', 'c']
 
-        vol_drv = [mock_scsi, mock_npiv1, mock_npiv2]
+        vol_drv = [mock_scsi, mock_npiv1, mock_npiv2, mock_iscsi]
         for type in vol_drv:
             yield mock.Mock(), type

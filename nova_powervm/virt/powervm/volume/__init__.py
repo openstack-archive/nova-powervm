@@ -37,6 +37,8 @@ FC_STRATEGY_MAPPING = {
 _STATIC_VOLUME_MAPPINGS = {
     'iscsi': 'nova_powervm.virt.powervm.volume.iscsi.'
              'IscsiVolumeAdapter',
+    'iser': 'nova_powervm.virt.powervm.volume.iscsi.'
+             'IscsiVolumeAdapter',
     'local': 'nova_powervm.virt.powervm.volume.local.'
              'LocalVolumeAdapter',
     'nfs': 'nova_powervm.virt.powervm.volume.nfs.NFSVolumeAdapter',

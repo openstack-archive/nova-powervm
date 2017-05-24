@@ -13,6 +13,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import copy
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 
@@ -22,6 +23,7 @@ from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 from nova_powervm.virt.powervm.volume import volume as volume
 from pypowervm import const as pvm_const
+from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import hdisk
 from pypowervm.utils import transaction as tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -48,6 +50,10 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                  stg_ftsk=None):
         super(IscsiVolumeAdapter, self).__init__(
             adapter, host_uuid, instance, connection_info, stg_ftsk=stg_ftsk)
+        if connection_info['driver_volume_type'] == 'iser':
+            self.iface_name = 'iser'
+        else:
+            self.iface_name = CONF.powervm.iscsi_iface
 
     @classmethod
     def vol_type(cls):
@@ -79,6 +85,58 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
         """
         raise NotImplementedError()
 
+    def is_volume_on_vios(self, vios_w):
+        """Returns whether or not the volume is on a VIOS.
+
+        :param vios_w: The Virtual I/O Server wrapper.
+        :return: True if the volume driver's volume is on the VIOS.  False
+                 otherwise.
+        :return: The udid of the device.
+        """
+        device_name, udid = self._discover_volume_on_vios(vios_w)
+        return (device_name and udid) is not None, udid
+
+    def _is_multipath(self):
+        return self.connection_info["connector"].get("multipath", False)
+
+    def _discover_vol(self, vios_w, props):
+        portal = props.get("target_portals", props.get("target_portal"))
+        iqn = props.get("target_iqns", props.get("target_iqn"))
+        lun = props.get("target_luns", props.get("target_lun"))
+        auth = props.get("auth_method")
+        user = props.get("auth_username")
+        password = props.get("auth_password")
+        discovery_auth = props.get("discovery_auth_method")
+        discovery_username = props.get("discovery_auth_username")
+        discovery_password = props.get("discovery_auth_password")
+        try:
+            return hdisk.discover_iscsi(
+                self.adapter, portal, user, password, iqn, vios_w.uuid,
+                lunid=lun, iface_name=self.iface_name, auth=auth,
+                discovery_auth=discovery_auth,
+                discovery_username=discovery_username,
+                discovery_password=discovery_password,
+                multipath=self._is_multipath())
+        except (pvm_exc.ISCSIDiscoveryFailed, pvm_exc.JobRequestFailed) as e:
+            LOG.warning(e)
+
+    def _discover_volume_on_vios(self, vios_w):
+        """Discovers an hdisk on a single vios for the volume.
+
+        :param vios_w: VIOS wrapper to process
+        :returns: Device name or None
+        :returns: LUN or None
+        """
+        device_name = udid = None
+        if self._is_multipath():
+            device_name, udid = self._discover_vol(
+                vios_w, self.connection_info["data"])
+        else:
+            for props in self._iterate_all_targets(
+                    self.connection_info["data"]):
+                device_name, udid = self._discover_vol(vios_w, props)
+        return device_name, udid
+
     def _connect_volume_to_vio(self, vios_w, slot_mgr):
         """Attempts to connect a volume to a given VIO.
 
@@ -90,18 +148,13 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                  not (could be the Virtual I/O Server does not have
                  connectivity to the hdisk).
         """
-        transport_type = self.connection_info["driver_volume_type"]
-        host_ip = self.connection_info["data"]["target_portal"]
-        iqn = self.connection_info["data"]["target_iqn"]
-        password = self.connection_info["data"]["auth_password"]
-        user = self.connection_info["data"]["auth_username"]
-        target_name = "ISCSI-" + iqn.split(":")[1]
-        device_name, udid = hdisk.discover_iscsi(
-            self.adapter, host_ip, user, password, iqn, vios_w.uuid,
-            transport_type=transport_type)
-        slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, device_name)
+        device_name, udid = self._discover_volume_on_vios(vios_w)
         if device_name is not None and udid is not None:
+            slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, device_name)
             device_name = '/dev/' + device_name
+            iqn = self.connection_info["data"]["target_iqn"]
+            lun = self.connection_info["data"]["target_lun"]
+            target_name = "ISCSI-%s_%s" % (iqn.split(":")[1], str(lun))
             # Found a hdisk on this Virtual I/O Server.  Add the action to
             # map it to the VM when the stg_ftsk is executed.
             with lockutils.lock(hash(self)):
@@ -183,14 +236,30 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             with lockutils.lock(hash(self)):
                 self._add_remove_mapping(partition_id, vios_w.uuid,
                                          device_name, slot_mgr)
-                target_iqn = self.connection_info["data"]["target_iqn"]
+                conn_data = self.connection_info["data"]
+                iqn = conn_data.get("target_iqns", conn_data.get("target_iqn"))
+                portal = conn_data.get("target_portals",
+                                       conn_data.get("target_portal"))
+                lun = conn_data.get("target_luns",
+                                    conn_data.get("target_lun"))
 
-                def logout():
-                    hdisk.remove_iscsi(self.adapter, target_iqn, vios_w.uuid)
+                def remove():
+                    try:
+                        hdisk.remove_iscsi(
+                            self.adapter, iqn, vios_w.uuid, lun=lun,
+                            iface_name=self.iface_name, portal=portal,
+                            multipath=self._is_multipath())
+                    except (pvm_exc.ISCSIRemoveFailed,
+                            pvm_exc.JobRequestFailed) as e:
+                        LOG.warning(e)
+
                 self.stg_ftsk.add_post_execute(task.FunctorTask(
-                    logout, name='remove_iSCSI_%s' % target_iqn))
+                    remove, name='remove_%s_from_vios_%s' % (device_name,
+                                                             vios_w.uuid)))
+
             # Found a valid element to remove
             return True
+
         try:
             # See logic in _connect_volume for why this new FeedTask is here.
             discon_ftsk = tx.FeedTask(
@@ -215,3 +284,26 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             ex_args = {'volume_id': self.volume_id, 'reason': six.text_type(e),
                        'instance_name': self.instance.name}
             raise p_exc.VolumeDetachFailed(**ex_args)
+
+    # Taken from os_brick.initiator.connectors.base_iscsi.py
+    def _iterate_all_targets(self, connection_properties):
+        for portal, iqn, lun in self._get_all_targets(connection_properties):
+            props = copy.deepcopy(connection_properties)
+            props['target_portal'] = portal
+            props['target_iqn'] = iqn
+            props['target_lun'] = lun
+            for key in ('target_portals', 'target_iqns', 'target_luns'):
+                props.pop(key, None)
+            yield props
+
+    def _get_all_targets(self, connection_properties):
+        if all([key in connection_properties for key in ('target_portals',
+                                                         'target_iqns',
+                                                         'target_luns')]):
+            return zip(connection_properties['target_portals'],
+                       connection_properties['target_iqns'],
+                       connection_properties['target_luns'])
+
+        return [(connection_properties['target_portal'],
+                 connection_properties['target_iqn'],
+                 connection_properties.get('target_lun', 0))]
