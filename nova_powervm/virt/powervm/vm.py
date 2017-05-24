@@ -815,7 +815,8 @@ def get_cnas(adapter, instance, **search):
     :param instance: The nova instance.
     :param search: Keyword arguments for CNA.search.  If omitted, all CNAs are
                    returned.
-    :return The CNA wrappers that represent the ClientNetworkAdapters on the VM
+    :return: The CNA wrappers that represent the ClientNetworkAdapters
+    on the VM
     """
     meth = pvm_net.CNA.search if search else pvm_net.CNA.get
 
@@ -830,7 +831,7 @@ def get_vnics(adapter, instance, **search):
     :param instance: The nova instance.
     :param search: Keyword arguments for VNIC.search.  If omitted, all VNICs
                    are returned.
-    :return The VNIC wrappers that represent the virtual NICs on the VM.
+    :return: The VNIC wrappers that represent the virtual NICs on the VM.
     """
     meth = pvm_card.VNIC.search if search else pvm_card.VNIC.get
 
