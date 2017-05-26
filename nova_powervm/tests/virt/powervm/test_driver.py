@@ -1953,3 +1953,10 @@ class TestPowerVMDriver(test.TestCase):
     def test_deallocate_networks_on_reschedule(self):
         candeallocate = self.drv.deallocate_networks_on_reschedule(mock.Mock())
         self.assertTrue(candeallocate)
+
+    @mock.patch('pypowervm.tasks.cna.find_orphaned_trunks')
+    def test_cleanup_orphan_adapters(self, mock_find_orphans):
+        mock_orphan = mock.MagicMock()
+        mock_find_orphans.return_value = [mock_orphan]
+        self.drv._cleanup_orphan_adapters('my_vswitch')
+        mock_orphan.delete.assert_called_once_with()

@@ -93,6 +93,7 @@ class PowerVMComputeDriver(fixtures.Fixture):
     @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage')
     @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._get_adapter')
     @mock.patch('pypowervm.tasks.partition.get_this_partition')
+    @mock.patch('pypowervm.tasks.cna.find_orphaned_trunks')
     def _init_host(self, *args):
 
         self.mock_sys = self.useFixture(fixtures.MockPatch(

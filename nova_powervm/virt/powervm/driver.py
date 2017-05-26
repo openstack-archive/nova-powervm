@@ -37,6 +37,7 @@ from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.helpers import vios_busy as vio_hlp
+from pypowervm.tasks import cna as pvm_cna
 from pypowervm.tasks import memory as pvm_mem
 from pypowervm.tasks import partition as pvm_par
 from pypowervm.tasks import power_opts as pvm_popts
@@ -138,6 +139,9 @@ class PowerVMDriver(driver.ComputeDriver):
         # Key: max_mem (int MB)
         # Value: overhead (int MB)
         self._inst_overhead_cache = {}
+
+        # Clean-up any orphan adapters
+        self._cleanup_orphan_adapters(CONF.powervm.pvm_vswitch_for_novalink_io)
 
         LOG.info(_LI("The compute driver has been initialized."))
 
@@ -1814,3 +1818,10 @@ class PowerVMDriver(driver.ComputeDriver):
         :returns: Boolean value. If True deallocate networks on reschedule.
         """
         return True
+
+    def _cleanup_orphan_adapters(self, vswitch_name):
+        """Finds and removes trunk VEAs that have no corresponding CNA."""
+        orphans = pvm_cna.find_orphaned_trunks(self.adapter, vswitch_name)
+        for orphan in orphans:
+            LOG.info("Deleting orphan CNA: %s", orphan.dev_name)
+            orphan.delete()
