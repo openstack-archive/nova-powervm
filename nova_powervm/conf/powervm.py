@@ -102,15 +102,6 @@ localdisk_opts = [
                     'disk_driver is localdisk, then this attribute must be '
                     'specified.  It is strongly recommended NOT to use '
                     'rootvg.'),
-    cfg.StrOpt('volume_group_vios_name',
-               default='',
-               help='(Optional) The name of the Virtual I/O Server hosting '
-                    'the volume group.  If this is not specified, the system '
-                    'will query through the Virtual I/O Servers looking for '
-                    'one that matches the volume_group_vios_name.  This is '
-                    'only needed if the system has multiple Virtual I/O '
-                    'Servers with a volume group whose name matches the '
-                    '`volume_group_name` option.')
 ]
 
 ssp_opts = [

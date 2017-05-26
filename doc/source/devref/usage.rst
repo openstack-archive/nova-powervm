@@ -103,7 +103,7 @@ Disk Options
 |                                      | Group exists on one of the Virtual I/O Servers, then no    |
 |                                      | further config is needed.  If multiple volume groups exist,|
 |                                      | then further specification can be done via the             |
-|                                      | volume_group_* options.                                    |
+|                                      | volume_group_name option.                                  |
 |                                      |                                                            |
 |                                      | Live migration is not supported with a localdisk config.   |
 |                                      |                                                            |
@@ -122,15 +122,6 @@ Disk Options
 |                                      | Must not be rootvg.  If disk_driver is localdisk, and more |
 |                                      | than one non-rootvg volume group exists across the         |
 |                                      | Virtual I/O Servers, then this attribute must be specified.|
-+--------------------------------------+------------------------------------------------------------+
-| volume_group_vios_name = None        | (StrOpt) (Optional) The name of the Virtual I/O Server     |
-|                                      | hosting the volume group.  If this is not specified, the   |
-|                                      | system will query through the Virtual I/O Servers looking  |
-|                                      | for one that matches the volume_group_vios_name.  This is  |
-|                                      | only needed if the system has multiple Virtual I/O Servers |
-|                                      | with a non-rootvg volume group whose name is duplicated.   |
-|                                      |                                                            |
-|                                      | Typically paired with the volume_group_name attribute.     |
 +--------------------------------------+------------------------------------------------------------+
 
 
