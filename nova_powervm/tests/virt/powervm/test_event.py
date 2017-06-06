@@ -15,68 +15,157 @@
 #    under the License.
 #
 
-from eventlet import greenthread
-import logging
 import mock
+from nova.compute import power_state
+from nova import exception
 from nova import test
-from pypowervm.wrappers import base_partition as pvm_bp
+from pypowervm.wrappers import event as pvm_evt
 
-from nova_powervm.tests.virt import powervm
 from nova_powervm.virt.powervm import event
-from nova_powervm.virt.powervm import vm
 
-LOG = logging.getLogger(__name__)
-logging.basicConfig()
+
+class TestGetInstance(test.TestCase):
+    @mock.patch('nova.context.get_admin_context')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance')
+    def test_get_instance(self, mock_get_inst, mock_get_context):
+        # If instance provided, vm.get_instance not called
+        self.assertEqual('inst', event._get_instance('inst', 'uuid'))
+        mock_get_inst.assert_not_called()
+        # Note that we can only guarantee get_admin_context wasn't called
+        # because _get_instance is mocked everywhere else in this suite.
+        # Otherwise it could run from another test case executing in parallel.
+        mock_get_context.assert_not_called()
+
+        # If instance not provided, vm.get_instance is called
+        mock_get_inst.return_value = 'inst2'
+        for _ in range(2):
+            # Doing it the second time doesn't call get_admin_context() again.
+            self.assertEqual('inst2', event._get_instance(None, 'uuid'))
+            mock_get_context.assert_called_once_with()
+            mock_get_inst.assert_called_once_with(
+                mock_get_context.return_value, 'uuid')
+            mock_get_inst.reset_mock()
+            # Don't reset mock_get_context
 
 
 class TestPowerVMNovaEventHandler(test.TestCase):
     def setUp(self):
         super(TestPowerVMNovaEventHandler, self).setUp()
+        lceh_process_p = mock.patch(
+            'nova_powervm.virt.powervm.event.PowerVMLifecycleEventHandler.'
+            'process')
+        self.addCleanup(lceh_process_p.stop)
+        self.mock_lceh_process = lceh_process_p.start()
         self.mock_driver = mock.Mock()
         self.handler = event.PowerVMNovaEventHandler(self.mock_driver)
 
-    @mock.patch('nova.context.get_admin_context', mock.MagicMock())
-    @mock.patch.object(vm, 'get_instance')
-    @mock.patch.object(vm, 'get_vm_qp')
-    def test_events(self, mock_qprops, mock_get_inst):
-        # Test events
-        event_data = [
-            mock.Mock(etype='NEW_CLIENT', data='', eid='1452692619554',
+    @mock.patch('nova_powervm.virt.powervm.event._get_instance')
+    def test_handle_inst_event(self, mock_get_instance):
+        # If no event we care about, or NVRAM but no nvram_mgr, nothing happens
+        self.mock_driver.nvram_mgr = None
+        for dets in ([], ['foo', 'bar', 'baz'], ['NVRAM']):
+            self.assertEqual('inst', self.handler._handle_inst_event(
+                'inst', 'uuid', dets))
+        mock_get_instance.assert_not_called()
+        self.mock_lceh_process.assert_not_called()
+
+        self.mock_driver.nvram_mgr = mock.Mock()
+
+        # PartitionState only: no NVRAM handling, and inst is passed through.
+        self.assertEqual('inst', self.handler._handle_inst_event(
+            'inst', 'uuid', ['foo', 'PartitionState', 'bar']))
+        mock_get_instance.assert_not_called()
+        self.mock_driver.nvram_mgr.store.assert_not_called()
+        self.mock_lceh_process.assert_called_once_with('inst', 'uuid')
+
+        self.mock_lceh_process.reset_mock()
+
+        # No instance; nothing happens (we skip PartitionState handling too)
+        mock_get_instance.return_value = None
+        self.assertIsNone(self.handler._handle_inst_event(
+            'inst', 'uuid', ['NVRAM', 'PartitionState']))
+        mock_get_instance.assert_called_once_with('inst', 'uuid')
+        self.mock_driver.nvram_mgr.store.assert_not_called()
+        self.mock_lceh_process.assert_not_called()
+
+        mock_get_instance.reset_mock()
+        mock_get_instance.return_value = 'inst'
+
+        # NVRAM only - no PartitionState handling, instance is returned
+        self.assertEqual('inst', self.handler._handle_inst_event(
+            None, 'uuid', ['NVRAM', 'baz']))
+        mock_get_instance.assert_called_once_with(None, 'uuid')
+        self.mock_driver.nvram_mgr.store.assert_called_once_with('inst')
+        self.mock_lceh_process.assert_not_called()
+
+        mock_get_instance.reset_mock()
+        self.mock_driver.nvram_mgr.store.reset_mock()
+
+        # Both event types
+        self.assertEqual('inst', self.handler._handle_inst_event(
+            None, 'uuid', ['PartitionState', 'NVRAM']))
+        mock_get_instance.assert_called_once_with(None, 'uuid')
+        self.mock_driver.nvram_mgr.store.assert_called_once_with('inst')
+        self.mock_lceh_process.assert_called_once_with('inst', 'uuid')
+
+    @mock.patch('nova_powervm.virt.powervm.event.PowerVMNovaEventHandler.'
+                '_handle_inst_event')
+    @mock.patch('pypowervm.util.get_req_path_uuid', autospec=True)
+    def test_process(self, mock_get_rpu, mock_handle):
+        # NEW_CLIENT/CACHE_CLEARED events are ignored
+        events = [mock.Mock(etype=pvm_evt.EventType.NEW_CLIENT),
+                  mock.Mock(etype=pvm_evt.EventType.CACHE_CLEARED)]
+        self.handler.process(events)
+        self.assertEqual(0, mock_get_rpu.call_count)
+        mock_handle.assert_not_called()
+
+        moduri = pvm_evt.EventType.MODIFY_URI
+        # If get_req_path_uuid doesn't find a UUID, or not a LogicalPartition
+        # URI, or details is empty, or has no actions we care about, no action
+        # is taken.
+        mock_get_rpu.side_effect = [None, 'uuid1', 'uuid2', 'uuid3']
+        events = [
+            mock.Mock(etype=moduri, data='foo/LogicalPartition/None',
+                      details='NVRAM,PartitionState'),
+            mock.Mock(etype=moduri, data='bar/VirtualIOServer/uuid1',
+                      details='NVRAM,PartitionState'),
+            mock.Mock(etype=moduri, data='baz/LogicalPartition/uuid2',
                       detail=''),
-            mock.Mock(etype='MODIFY_URI', detail='Other', eid='1452692619555',
-                      data='http://localhost:12080/rest/api/uom/Managed'
-                           'System/c889bf0d-9996-33ac-84c5-d16727083a77'),
-            mock.Mock(etype='MODIFY_URI', detail='ReferenceCode,Other',
-                      eid='1452692619563',
-                      data='http://localhost:12080/rest/api/uom/Managed'
-                           'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
-                           'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
-                           'A73E41EAA938'),
-            mock.Mock(etype='MODIFY_URI',
-                      detail='RMCState,PartitionState,Other',
-                      eid='1452692619566',
-                      data='http://localhost:12080/rest/api/uom/Managed'
-                           'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
-                           'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
-                           'A73E41EAA938'),
-            mock.Mock(etype='MODIFY_URI',
-                      detail='NVRAM',
-                      eid='1452692619566',
-                      data='http://localhost:12080/rest/api/uom/Managed'
-                           'System/c889bf0d-9996-33ac-84c5-d16727083a77/'
-                           'LogicalPartition/794654F5-B6E9-4A51-BEC2-'
-                           'A73E41EAA938'),
-        ]
+            mock.Mock(etype=moduri, data='blah/LogicalPartition/uuid3',
+                      detail='do,not,care')]
+        self.handler.process(events)
+        mock_get_rpu.assert_has_calls(
+            [mock.call(uri, preserve_case=True)
+             for uri in ('bar/VirtualIOServer/uuid1',
+                         'baz/LogicalPartition/uuid2',
+                         'blah/LogicalPartition/uuid3')])
+        mock_handle.assert_not_called()
 
-        mock_qprops.return_value = pvm_bp.LPARState.RUNNING
-        mock_get_inst.return_value = powervm.TEST_INST1
+        mock_get_rpu.reset_mock()
 
-        self.handler.process(event_data)
-        mock_get_inst.assert_called_once_with(mock.ANY, '794654F5-B6E9-'
-                                              '4A51-BEC2-A73E41EAA938')
-
-        self.assertTrue(self.mock_driver.emit_event.called)
-        self.assertTrue(self.mock_driver.nvram_mgr.store.called)
+        # The stars align, and we handle some events.
+        uuid_det = (('uuid1', 'NVRAM'),
+                    ('uuid2', 'this,one,ignored'),
+                    ('uuid3', 'PartitionState,baz,NVRAM'),
+                    # Repeat uuid1 to test the cache
+                    ('uuid1', 'blah,PartitionState'),
+                    ('uuid5', 'also,ignored'))
+        mock_get_rpu.side_effect = [ud[0] for ud in uuid_det]
+        events = [
+            mock.Mock(etype=moduri, data='LogicalPartition/' + uuid,
+                      detail=detail) for uuid, detail in uuid_det]
+        # Set up _handle_inst_event to test the cache and the exception path
+        mock_handle.side_effect = ['inst1', None, ValueError]
+        # Run it!
+        self.handler.process(events)
+        mock_get_rpu.assert_has_calls(
+            [mock.call(uri, preserve_case=True) for uri in
+             ('LogicalPartition/' + ud[0] for ud in uuid_det)])
+        mock_handle.assert_has_calls(
+            [mock.call(None, 'uuid1', ['NVRAM']),
+             mock.call(None, 'uuid3', ['PartitionState', 'baz', 'NVRAM']),
+             # inst1 pulled from the cache based on uuid1
+             mock.call('inst1', 'uuid1', ['blah', 'PartitionState'])])
 
 
 class TestPowerVMLifecycleEventHandler(test.TestCase):
@@ -85,109 +174,106 @@ class TestPowerVMLifecycleEventHandler(test.TestCase):
         self.mock_driver = mock.MagicMock()
         self.handler = event.PowerVMLifecycleEventHandler(self.mock_driver)
 
-    def test_is_delay_event(self):
-        non_delay_evts = [
-            pvm_bp.LPARState.ERROR,
-            pvm_bp.LPARState.OPEN_FIRMWARE,
-            pvm_bp.LPARState.RUNNING,
-            pvm_bp.LPARState.MIGRATING_NOT_ACTIVE,
-            pvm_bp.LPARState.MIGRATING_RUNNING,
-            pvm_bp.LPARState.HARDWARE_DISCOVERY,
-            pvm_bp.LPARState.STARTING,
-            pvm_bp.LPARState.UNKNOWN
-        ]
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
+    @mock.patch('nova_powervm.virt.powervm.event._get_instance')
+    @mock.patch('nova_powervm.virt.powervm.vm.translate_event')
+    @mock.patch('nova.virt.event.LifecycleEvent')
+    def test_emit_event(self, mock_lce, mock_tx_evt, mock_get_inst, mock_qp):
+        def assert_qp():
+            mock_qp.assert_called_once_with(
+                self.mock_driver.adapter, 'uuid', 'PartitionState')
+            mock_qp.reset_mock()
 
-        delay_evts = [
-            pvm_bp.LPARState.NOT_ACTIVATED,
-            pvm_bp.LPARState.SHUTTING_DOWN,
-            pvm_bp.LPARState.SUSPENDING,
-            pvm_bp.LPARState.RESUMING,
-            pvm_bp.LPARState.NOT_AVAILBLE
-        ]
+        def assert_get_inst():
+            mock_get_inst.assert_called_once_with('inst', 'uuid')
+            mock_get_inst.reset_mock()
 
-        for non_delay_evt in non_delay_evts:
-            self.assertFalse(self.handler._is_delay_event(non_delay_evt),
-                             msg=non_delay_evt)
+        # Ignore if LPAR is gone
+        mock_qp.side_effect = exception.InstanceNotFound(instance_id='uuid')
+        self.handler._emit_event('uuid', None)
+        assert_qp()
+        mock_get_inst.assert_not_called()
+        mock_tx_evt.assert_not_called()
+        mock_lce.assert_not_called()
+        self.mock_driver.emit_event.assert_not_called()
 
-        for delay_evt in delay_evts:
-            self.assertTrue(self.handler._is_delay_event(delay_evt),
-                            msg=delay_evt)
+        # Let get_vm_qp return its usual mock from now on
+        mock_qp.side_effect = None
 
-    @mock.patch('nova_powervm.virt.powervm.event.'
-                'PowerVMLifecycleEventHandler._register_delayed_event')
-    @mock.patch('nova_powervm.virt.powervm.event.'
-                'PowerVMLifecycleEventHandler._emit_event')
-    def test_process(self, mock_emit, mock_reg_delay_evt):
-        non_delay_evts = [
-            pvm_bp.LPARState.ERROR,
-            pvm_bp.LPARState.OPEN_FIRMWARE
-        ]
+        # Ignore if instance is gone
+        mock_get_inst.return_value = None
+        self.handler._emit_event('uuid', 'inst')
+        assert_qp()
+        assert_get_inst()
+        mock_tx_evt.assert_not_called()
+        mock_lce.assert_not_called()
+        self.mock_driver.emit_event.assert_not_called()
 
-        delay_evts = [
-            pvm_bp.LPARState.NOT_ACTIVATED,
-            pvm_bp.LPARState.SHUTTING_DOWN,
-            pvm_bp.LPARState.RESUMING,
-        ]
+        # Ignore if task_state isn't one we care about
+        for task_state in event._NO_EVENT_TASK_STATES:
+            mock_get_inst.return_value = mock.Mock(task_state=task_state)
+            self.handler._emit_event('uuid', 'inst')
+            assert_qp()
+            assert_get_inst()
+            mock_tx_evt.assert_not_called()
+            mock_lce.assert_not_called()
+            self.mock_driver.emit_event.assert_not_called()
 
-        for state in non_delay_evts + delay_evts:
-            self.handler.process(mock.Mock(), state)
+        # Task state we care about from now on
+        inst = mock.Mock(task_state='scheduling',
+                         power_state=power_state.RUNNING)
+        mock_get_inst.return_value = inst
 
-        self.assertEqual(mock_emit.call_count, 2)
-        self.assertEqual(mock_reg_delay_evt.call_count, 3)
+        # Ignore if not a transition we care about
+        mock_tx_evt.return_value = None
+        self.handler._emit_event('uuid', 'inst')
+        assert_qp()
+        assert_get_inst()
+        mock_tx_evt.assert_called_once_with(
+            mock_qp.return_value, power_state.RUNNING)
+        mock_lce.assert_not_called()
+        self.mock_driver.emit_event.assert_not_called()
 
-    @mock.patch('nova_powervm.virt.powervm.event.vm.translate_event')
-    def test_emit_event_immed(self, mock_translate):
-        mock_translate.return_value = 'test'
-        mock_delayed = mock.MagicMock()
-        mock_inst = mock.Mock()
-        mock_inst.uuid = 'inst_uuid'
-        self.handler._delayed_event_threads = {'inst_uuid': mock_delayed}
+        mock_tx_evt.reset_mock()
 
-        self.handler._emit_event(pvm_bp.LPARState.RUNNING, mock_inst, True)
-
-        self.assertEqual({}, self.handler._delayed_event_threads)
-        self.mock_driver.emit_event.assert_called_once()
-        mock_delayed.cancel.assert_called_once()
-
-    @mock.patch('nova_powervm.virt.powervm.event.vm.translate_event')
-    def test_emit_event_delayed(self, mock_translate):
-        mock_translate.return_value = 'test'
-        mock_delayed = mock.MagicMock()
-        mock_inst = mock.Mock()
-        mock_inst.uuid = 'inst_uuid'
-        self.handler._delayed_event_threads = {'inst_uuid': mock_delayed}
-
-        self.handler._emit_event(pvm_bp.LPARState.NOT_ACTIVATED, mock_inst,
-                                 False)
-
-        self.assertEqual({}, self.handler._delayed_event_threads)
-        self.mock_driver.emit_event.assert_called_once()
-
-    def test_emit_event_delayed_no_queue(self):
-        mock_inst = mock.Mock()
-        mock_inst.uuid = 'inst_uuid'
-        self.handler._delayed_event_threads = {}
-
-        self.handler._emit_event(pvm_bp.LPARState.NOT_ACTIVATED, mock_inst,
-                                 False)
-
-        self.assertFalse(self.mock_driver.emit_event.called)
-
-    @mock.patch.object(greenthread, 'spawn_after')
-    def test_register_delay_event(self, mock_spawn):
-        mock_old_delayed, mock_new_delayed = mock.Mock(), mock.Mock()
-        mock_spawn.return_value = mock_new_delayed
-
-        mock_inst = mock.Mock()
-        mock_inst.uuid = 'inst_uuid'
-        self.handler._delayed_event_threads = {'inst_uuid': mock_old_delayed}
-
-        self.handler._register_delayed_event(pvm_bp.LPARState.NOT_ACTIVATED,
-                                             mock_inst)
-
-        mock_old_delayed.cancel.assert_called_once()
-        mock_spawn.assert_called_once_with(
-            15, self.handler._emit_event, pvm_bp.LPARState.NOT_ACTIVATED,
-            mock_inst, False)
-        self.assertEqual({'inst_uuid': mock_new_delayed},
+        # Good path
+        mock_tx_evt.return_value = 'transition'
+        self.handler._delayed_event_threads = {'uuid': 'thread1',
+                                               'uuid2': 'thread2'}
+        self.handler._emit_event('uuid', 'inst')
+        assert_qp()
+        assert_get_inst()
+        mock_tx_evt.assert_called_once_with(
+            mock_qp.return_value, power_state.RUNNING)
+        mock_lce.assert_called_once_with(inst.uuid, 'transition')
+        self.mock_driver.emit_event.assert_called_once_with(
+            mock_lce.return_value)
+        # The thread was removed
+        self.assertEqual({'uuid2': 'thread2'},
                          self.handler._delayed_event_threads)
+
+    @mock.patch('eventlet.greenthread.spawn_after')
+    def test_process(self, mock_spawn):
+        thread1 = mock.Mock()
+        thread2 = mock.Mock()
+        mock_spawn.side_effect = [thread1, thread2]
+        # First call populates the delay queue
+        self.assertEqual({}, self.handler._delayed_event_threads)
+        self.handler.process(None, 'uuid')
+        mock_spawn.assert_called_once_with(15, self.handler._emit_event,
+                                           'uuid', None)
+        self.assertEqual({'uuid': thread1},
+                         self.handler._delayed_event_threads)
+        thread1.cancel.assert_not_called()
+        thread2.cancel.assert_not_called()
+
+        mock_spawn.reset_mock()
+
+        # Second call cancels the first thread and replaces it in delay queue
+        self.handler.process('inst', 'uuid')
+        mock_spawn.assert_called_once_with(15, self.handler._emit_event,
+                                           'uuid', 'inst')
+        self.assertEqual({'uuid': thread2},
+                         self.handler._delayed_event_threads)
+        thread1.cancel.assert_called_once_with()
+        thread2.cancel.assert_not_called()
