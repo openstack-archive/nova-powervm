@@ -675,6 +675,18 @@ class TestVM(test.TestCase):
                          str(mock_pwroff.call_args[1]['add_parms']))
         mock_lock.assert_called_once_with('power_uuid')
 
+    def test_get_pvm_uuid(self):
+
+        nova_uuid = "dbbb48f1-2406-4019-98af-1c16d3df0204"
+        # Test with uuid string
+        self.assertEqual('5BBB48F1-2406-4019-98AF-1C16D3DF0204',
+                         vm.get_pvm_uuid(nova_uuid))
+
+        mock_inst = mock.Mock(uuid=nova_uuid)
+        # Test with instance object
+        self.assertEqual('5BBB48F1-2406-4019-98AF-1C16D3DF0204',
+                         vm.get_pvm_uuid(mock_inst))
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
     def test_instance_exists(self, mock_getvmqp, mock_getuuid):

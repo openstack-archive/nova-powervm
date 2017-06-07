@@ -127,8 +127,7 @@ class TestSwiftStore(test.TestCase):
         mock_exists.return_value = True
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
-            self.swift_store._store(powervm.TEST_INST1.uuid,
-                                    powervm.TEST_INST1.name, 'data')
+            self.swift_store._store(powervm.TEST_INST1.uuid, 'data')
             mock_run.assert_called_once_with('upload', 'powervm_nvram',
                                              mock.ANY, options=None)
 
@@ -138,7 +137,7 @@ class TestSwiftStore(test.TestCase):
             mock_run.return_value = mock_result
             self.assertRaises(api.NVRAMUploadException,
                               self.swift_store._store, powervm.TEST_INST1.uuid,
-                              powervm.TEST_INST1.name, 'data')
+                              'data')
 
             # Test retry upload
             mock_run.reset_mock()
@@ -149,8 +148,7 @@ class TestSwiftStore(test.TestCase):
                             'object': '6ecb1386-53ab-43da-9e04-54e986ad4a9d'}
             mock_run.side_effect = [mock_res_obj,
                                     self._build_results(['obj'])]
-            self.swift_store._store(powervm.TEST_INST1.uuid,
-                                    powervm.TEST_INST1.name, 'data')
+            self.swift_store._store(powervm.TEST_INST1.uuid, 'data')
             mock_run.assert_called_with('upload', 'powervm_nvram',
                                         mock.ANY, options=None)
             self.assertEqual(mock_run.call_count, 2)
@@ -164,8 +162,7 @@ class TestSwiftStore(test.TestCase):
         mock_exists.return_value = False
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj'])
-            self.swift_store._store(powervm.TEST_INST1.uuid,
-                                    powervm.TEST_INST1.name, 'data')
+            self.swift_store._store(powervm.TEST_INST1.uuid, 'data')
             mock_run.assert_called_once_with(
                 'upload', 'powervm_nvram', mock.ANY,
                 options={'leave_segments': True})
@@ -179,8 +176,7 @@ class TestSwiftStore(test.TestCase):
                             'object': '6ecb1386-53ab-43da-9e04-54e986ad4a9d'}
             mock_run.side_effect = [mock_res_obj,
                                     self._build_results(['obj'])]
-            self.swift_store._store(powervm.TEST_INST1.uuid,
-                                    powervm.TEST_INST1.name, 'data')
+            self.swift_store._store(powervm.TEST_INST1.uuid, 'data')
             mock_run.assert_called_with('upload', 'powervm_nvram', mock.ANY,
                                         options={'leave_segments': True})
             self.assertEqual(mock_run.call_count, 2)
@@ -192,9 +188,8 @@ class TestSwiftStore(test.TestCase):
         # Test forcing a update
         with mock.patch.object(self.swift_store, '_store') as mock_store:
             mock_exists.return_value = False
-            self.swift_store.store(powervm.TEST_INST1, 'data', force=True)
+            self.swift_store.store(powervm.TEST_INST1.uuid, 'data', force=True)
             mock_store.assert_called_once_with(powervm.TEST_INST1.uuid,
-                                               powervm.TEST_INST1.name,
                                                'data', exists=False)
 
         with mock.patch.object(
@@ -206,7 +201,8 @@ class TestSwiftStore(test.TestCase):
             results = self._build_results(['obj'])
             results[0]['headers'] = {'etag': data_md5_hash}
             mock_run.return_value = results
-            self.swift_store.store(powervm.TEST_INST1, 'data', force=False)
+            self.swift_store.store(powervm.TEST_INST1.uuid, 'data',
+                                   force=False)
             self.assertFalse(mock_store.called)
             mock_run.assert_called_once_with(
                 'stat', options={'long': True},
@@ -217,7 +213,7 @@ class TestSwiftStore(test.TestCase):
         with mock.patch.object(self.swift_store, '_store') as mock_store:
             self.swift_store.store_slot_map("test_slot", 'data')
             mock_store.assert_called_once_with(
-                'test_slot', 'test_slot', 'data')
+                'test_slot', 'data')
 
     @mock.patch('os.remove')
     @mock.patch('tempfile.NamedTemporaryFile')

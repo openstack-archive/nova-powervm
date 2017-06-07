@@ -22,7 +22,7 @@ class NoopNvramStore(api.NvramStore):
     def store(self, instance, data, force=True):
         """Store the NVRAM into the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         :param data: the NVRAM data base64 encoded string
         :param force: boolean whether an update should always be saved,
                       otherwise, check to see if it's changed.
@@ -32,7 +32,7 @@ class NoopNvramStore(api.NvramStore):
     def fetch(self, instance):
         """Fetch the NVRAM from the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         :returns: the NVRAM data base64 encoded string
         """
         return None
@@ -40,7 +40,7 @@ class NoopNvramStore(api.NvramStore):
     def delete(self, instance):
         """Delete the NVRAM from the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         """
         pass
 
@@ -50,7 +50,7 @@ class ExpNvramStore(NoopNvramStore):
     def fetch(self, instance):
         """Fetch the NVRAM from the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         :returns: the NVRAM data base64 encoded string
         """
         # Raise exception. This is to ensure fetch causes a failure
@@ -60,7 +60,7 @@ class ExpNvramStore(NoopNvramStore):
     def delete(self, instance):
         """Delete the NVRAM from the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         """
         # Raise excpetion. This is to ensure delete does not fail
         # despite an exception being raised

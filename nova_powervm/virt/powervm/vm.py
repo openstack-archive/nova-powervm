@@ -17,6 +17,7 @@
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
+from oslo_utils import uuidutils
 import re
 import six
 
@@ -459,7 +460,7 @@ def get_instance_wrapper(adapter, instance, xag=None):
     """Get the LPAR wrapper for a given Nova instance.
 
     :param adapter: The adapter for the pypowervm API
-    :param instance: The nova instance.
+    :param instance: The nova instance OR its instance uuid.
     :param xag: The pypowervm XAG to be used on the read request
     :return: The pypowervm logical_partition wrapper.
     """
@@ -738,10 +739,12 @@ def get_pvm_uuid(instance):
     algorithm against the instance's uuid to convert it to the PowerVM
     UUID.
 
-    :param instance: nova.objects.instance.Instance
+    :param instance: nova.objects.instance.Instance OR the OpenStack instance
+                     uuid.
     :return: pvm_uuid.
     """
-    return pvm_uuid.convert_uuid_to_pvm(instance.uuid).upper()
+    inst_uuid = instance if uuidutils.is_uuid_like(instance) else instance.uuid
+    return pvm_uuid.convert_uuid_to_pvm(inst_uuid).upper()
 
 
 def _uuid_set_high_bit(pvm_uuid):

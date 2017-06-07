@@ -79,6 +79,23 @@ class PowerVMNovaEventHandler(pvm_apt.WrapperEventHandler):
     def __init__(self, driver):
         self._driver = driver
         self._lifecycle_handler = PowerVMLifecycleEventHandler(self._driver)
+        self._uuid_cache = {}
+
+    def _get_inst_uuid(self, inst, pvm_uuid):
+        """Retrieve instance UUID from cache keyed by the PVM UUID.
+
+        :param inst: the instance object.
+        :param pvm_uuid: the PowerVM uuid of the vm
+        :return inst: the instance object.
+        :return inst_uuid: The nova instance uuid
+        """
+        inst_uuid = self._uuid_cache.get(pvm_uuid)
+        if not inst_uuid:
+            inst = _get_instance(inst, pvm_uuid)
+            inst_uuid = inst.uuid if inst else None
+            if inst_uuid:
+                self._uuid_cache[pvm_uuid] = inst_uuid
+        return inst, inst_uuid
 
     def _handle_inst_event(self, inst, pvm_uuid, details):
         """Handle an instance event.
@@ -95,13 +112,16 @@ class PowerVMNovaEventHandler(pvm_apt.WrapperEventHandler):
         # If the NVRAM has changed for this instance and a store is configured.
         if 'NVRAM' in details and self._driver.nvram_mgr is not None:
             # Schedule the NVRAM for the instance to be stored.
-            inst = _get_instance(inst, pvm_uuid)
-            if inst is None:
+            # We'll need to fetch the instance object in the event we don't
+            # have the object and the UUID isn't cached. By updating the
+            # object reference here and returning it the process method will
+            # save the object in its cache.
+            inst, inst_uuid = self._get_inst_uuid(inst, pvm_uuid)
+            if inst_uuid is None:
                 return None
 
-            LOG.debug('Handle NVRAM event for PowerVM LPAR %s', pvm_uuid,
-                      instance=inst)
-            self._driver.nvram_mgr.store(inst)
+            LOG.debug('Handle NVRAM event for PowerVM LPAR %s', pvm_uuid)
+            self._driver.nvram_mgr.store(inst_uuid)
 
         # If the state of the vm changed see if it should be handled
         if 'PartitionState' in details:
@@ -120,6 +140,7 @@ class PowerVMNovaEventHandler(pvm_apt.WrapperEventHandler):
                 if pvm_event.etype in (pvm_evt.EventType.NEW_CLIENT,
                                        pvm_evt.EventType.CACHE_CLEARED):
                     # TODO(efried): Should we pull and check all the LPARs?
+                    self._uuid_cache.clear()
                     continue
                 # See if this uri (from data) ends with a PowerVM UUID.
                 pvm_uuid = pvm_util.get_req_path_uuid(
@@ -130,6 +151,13 @@ class PowerVMNovaEventHandler(pvm_apt.WrapperEventHandler):
                 if not pvm_event.data.endswith('LogicalPartition/' + pvm_uuid):
                     continue
 
+                # Are we deleting? Meaning we need to clear the cache entry.
+                if pvm_event.etype == pvm_evt.EventType.DELETE_URI:
+                    try:
+                        del self._uuid_cache[pvm_uuid]
+                    except KeyError:
+                        pass
+                    continue
                 # Pull all the pieces of the event.
                 details = (pvm_event.detail.split(',') if pvm_event.detail
                            else [])
