@@ -69,6 +69,7 @@ from nova_powervm.virt.powervm.tasks import vm as tf_vm
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm import volume as vol_attach
 
+
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
@@ -1048,7 +1049,7 @@ class PowerVMDriver(driver.ComputeDriver):
         [hypervisor_hostname].
         """
 
-        return [self.host_wrapper.mtms.mtms_str]
+        return [CONF.host]
 
     def legacy_nwinfo(self):
         """Indicate if the driver requires the legacy network_info format."""

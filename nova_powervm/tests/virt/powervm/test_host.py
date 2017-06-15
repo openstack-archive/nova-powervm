@@ -23,7 +23,6 @@ from oslo_serialization import jsonutils
 import pypowervm.tests.test_fixtures as pvm_fx
 from pypowervm.wrappers import iocard as pvm_card
 from pypowervm.wrappers import managed_system as pvm_ms
-from pypowervm.wrappers import mtms as pvm_mtms
 
 from nova_powervm.virt.powervm import host as pvm_host
 
@@ -50,8 +49,6 @@ class TestPowerVMHost(test.NoDBTestCase):
             mock_sriov(1, [mock_pport(2, 'foo', 1), mock_pport(3, '', 2)]),
             mock_sriov(4, [mock_pport(5, 'bar', 3)])]
         ms_wrapper = mock.create_autospec(pvm_ms.System, spec_set=True)
-        mtms = mock.create_autospec(pvm_mtms.MTMS, spec_set=True)
-        mtms.configure_mock(mtms_str='8484923A123456')
         asio = mock.create_autospec(pvm_ms.ASIOConfig, spec_set=True)
         asio.configure_mock(sriov_adapters=sriov_adaps)
         ms_wrapper.configure_mock(
@@ -59,9 +56,9 @@ class TestPowerVMHost(test.NoDBTestCase):
             proc_units_avail=500,
             memory_configurable=5242880,
             memory_free=5242752,
-            mtms=mtms,
             memory_region_size='big',
             asio_config=asio)
+        self.flags(host='the_hostname')
 
         # Run the actual test
         stats = pvm_host.build_host_resource_from_ms(ms_wrapper)
@@ -71,7 +68,7 @@ class TestPowerVMHost(test.NoDBTestCase):
         fields = (('vcpus', 500), ('vcpus_used', 0),
                   ('memory_mb', 5242880), ('memory_mb_used', 128),
                   'hypervisor_type', 'hypervisor_version',
-                  'hypervisor_hostname', 'cpu_info',
+                  ('hypervisor_hostname', 'the_hostname'), 'cpu_info',
                   'supported_instances', 'stats', 'pci_passthrough_devices')
         for fld in fields:
             if isinstance(fld, tuple):
