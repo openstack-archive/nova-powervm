@@ -138,6 +138,10 @@ class TestPowerVMDriver(test.TestCase):
         self.inst_ibmi = objects.Instance(**powervm.TEST_INST_SPAWNING)
         self.inst_ibmi.system_metadata = {'image_os_distro': 'ibmi'}
 
+    def test_get_available_nodes(self):
+        self.flags(host='hostname')
+        self.assertEqual(['hostname'], self.drv.get_available_nodes('node'))
+
     def test_driver_capabilities(self):
         """Test the default capabilities."""
         test_driver = driver.PowerVMDriver(fake.FakeVirtAPI())

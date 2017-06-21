@@ -22,9 +22,12 @@ from oslo_serialization import jsonutils
 from pypowervm.tasks.monitor import util as pcm_util
 import subprocess
 
+from nova import conf as cfg
 from nova_powervm.virt.powervm.i18n import _LW
 
+
 LOG = logging.getLogger(__name__)
+CONF = cfg.CONF
 
 # Power VM hypervisor info
 # Normally, the hypervisor version is a string in the form of '8.0.0' and
@@ -70,7 +73,7 @@ def build_host_resource_from_ms(ms_wrapper):
 
     data["hypervisor_type"] = fields.HVType.PHYP
     data["hypervisor_version"] = IBM_POWERVM_HYPERVISOR_VERSION
-    data["hypervisor_hostname"] = ms_wrapper.mtms.mtms_str
+    data["hypervisor_hostname"] = CONF.host
     data["cpu_info"] = HOST_STATS_CPU_INFO
     data["numa_topology"] = None
     data["supported_instances"] = POWERVM_SUPPORTED_INSTANCES
