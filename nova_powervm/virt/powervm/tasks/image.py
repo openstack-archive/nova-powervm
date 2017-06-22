@@ -17,7 +17,6 @@
 from oslo_log import log as logging
 from taskflow import task
 
-from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import image
 
 LOG = logging.getLogger(__name__)
@@ -74,9 +73,9 @@ class StreamToGlance(task.Task):
     def execute(self, disk_path):
         metadata = image.snapshot_metadata(self.context, self.image_api,
                                            self.image_id, self.instance)
-        LOG.info(_LI("Starting stream of boot device for instance %(inst)s "
-                     "(local blockdev %(devpath)s) to glance image "
-                     "%(img_id)s."),
+        LOG.info("Starting stream of boot device for instance %(inst)s "
+                 "(local blockdev %(devpath)s) to glance image "
+                 "%(img_id)s.",
                  {'inst': self.instance.name, 'devpath': disk_path,
                   'img_id': self.image_id}, instance=self.instance)
         image.stream_blockdev_to_glance(self.context, self.image_api,

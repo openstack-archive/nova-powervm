@@ -23,7 +23,6 @@ from pypowervm.tasks.monitor import util as pcm_util
 import subprocess
 
 from nova import conf as cfg
-from nova_powervm.virt.powervm.i18n import _LW
 
 
 LOG = logging.getLogger(__name__)
@@ -204,13 +203,13 @@ class HostCPUStats(pcm_util.MetricCache):
         # Should not happen, but just in case there is any precision loss from
         # CPU data back to system.
         if user_cycles_delta + fw_cycles_delta > tot_cycles_delta:
-            LOG.warning(_LW(
+            LOG.warning(
                 "Host CPU Metrics determined that the total cycles reported "
                 "was less than the used cycles.  This indicates an issue with "
                 "the PCM data.  Please investigate the results.\n"
                 "Total Delta Cycles: %(tot_cycles)d\n"
                 "User Delta Cycles: %(user_cycles)d\n"
-                "Firmware Delta Cycles: %(fw_cycles)d"),
+                "Firmware Delta Cycles: %(fw_cycles)d",
                 {'tot_cycles': tot_cycles_delta, 'fw_cycles': fw_cycles_delta,
                  'user_cycles': user_cycles_delta})
             tot_cycles_delta = user_cycles_delta + fw_cycles_delta

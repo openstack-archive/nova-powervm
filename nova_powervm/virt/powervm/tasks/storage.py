@@ -24,8 +24,6 @@ from taskflow.types import failure as task_fail
 
 from nova_powervm.virt.powervm.disk import driver as disk_driver
 from nova_powervm.virt.powervm import exception as npvmex
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import mgmt
 
@@ -51,15 +49,14 @@ class ConnectVolume(task.Task):
         super(ConnectVolume, self).__init__('connect_vol_%s' % self.vol_id)
 
     def execute(self):
-        LOG.info(_LI('Connecting volume %(vol)s to instance %(inst)s'),
+        LOG.info('Connecting volume %(vol)s to instance %(inst)s',
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
         self.vol_drv.connect_volume(self.slot_mgr)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warning(_LW('Volume %(vol)s for instance %(inst)s to be '
-                        'disconnected'),
+        LOG.warning('Volume %(vol)s for instance %(inst)s to be disconnected',
                     {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
@@ -74,8 +71,8 @@ class ConnectVolume(task.Task):
         except npvmex.VolumeDetachFailed as e:
             # Only log that the volume detach failed.  Should not be blocking
             # due to being in the revert flow.
-            LOG.warning(_LW("Unable to disconnect volume for %(inst)s during "
-                            "rollback.  Error was: %(error)s"),
+            LOG.warning("Unable to disconnect volume for %(inst)s during "
+                        "rollback.  Error was: %(error)s",
                         {'inst': self.vol_drv.instance.name,
                          'error': e.message})
 
@@ -100,15 +97,14 @@ class DisconnectVolume(task.Task):
             'disconnect_vol_%s' % self.vol_id)
 
     def execute(self):
-        LOG.info(_LI('Disconnecting volume %(vol)s from instance %(inst)s'),
+        LOG.info('Disconnecting volume %(vol)s from instance %(inst)s',
                  {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
         self.vol_drv.disconnect_volume(self.slot_mgr)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warning(_LW('Volume %(vol)s for instance %(inst)s to be '
-                        're-connected'),
+        LOG.warning('Volume %(vol)s for instance %(inst)s to be re-connected',
                     {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
@@ -124,8 +120,8 @@ class DisconnectVolume(task.Task):
         except npvmex.VolumeAttachFailed as e:
             # Only log that the volume attach failed.  Should not be blocking
             # due to being in the revert flow.  See comment above.
-            LOG.warning(_LW("Unable to re-connect volume for %(inst)s during "
-                            "rollback.  Error was: %(error)s"),
+            LOG.warning("Unable to re-connect volume for %(inst)s during "
+                        "rollback.  Error was: %(error)s",
                         {'inst': self.vol_drv.instance.name,
                          'error': e.message})
 
@@ -262,8 +258,8 @@ class InstanceDiskToMgmt(task.Task):
         # partition from the same VIOS - it is safe to use the first one.
         the_map = new_maps[0]
         # Scan the SCSI bus, discover the disk, find its canonical path.
-        LOG.info(_LI("Discovering device and path for mapping of %(dev_name)s "
-                     "on the management partition."),
+        LOG.info("Discovering device and path for mapping of %(dev_name)s "
+                 "on the management partition.",
                  {'dev_name': self.stg_elem.name})
         self.disk_path = mgmt.discover_vscsi_disk(the_map)
         return self.stg_elem, self.vios_wrap, self.disk_path
@@ -277,9 +273,9 @@ class InstanceDiskToMgmt(task.Task):
         if self.vios_wrap is None or self.stg_elem is None:
             # We never even got connected - nothing to do
             return
-        LOG.warning(_LW("Unmapping boot disk %(disk_name)s of instance "
-                        "%(instance_name)s from management partition via "
-                        "Virtual I/O Server %(vios_name)s."),
+        LOG.warning("Unmapping boot disk %(disk_name)s of instance "
+                    "%(instance_name)s from management partition via "
+                    "Virtual I/O Server %(vios_name)s.",
                     {'disk_name': self.stg_elem.name,
                      'instance_name': self.instance.name,
                      'vios_name': self.vios_wrap.name})
@@ -289,8 +285,8 @@ class InstanceDiskToMgmt(task.Task):
         if self.disk_path is None:
             # We did not discover the disk - nothing else to do.
             return
-        LOG.warning(_LW("Removing disk %(disk_path)s from the management "
-                        "partition."), {'disk_path': self.disk_path})
+        LOG.warning("Removing disk %(disk_path)s from the management "
+                    "partition.", {'disk_path': self.disk_path})
         mgmt.remove_block_dev(self.disk_path)
 
 
@@ -334,15 +330,15 @@ class RemoveInstanceDiskFromMgmt(task.Task):
         # stg_elem is None if boot disk was not mapped to management partition
         if stg_elem is None:
             return
-        LOG.info(_LI("Unmapping boot disk %(disk_name)s of instance "
-                     "%(instance_name)s from management partition via Virtual "
-                     "I/O Server %(vios_name)s."),
+        LOG.info("Unmapping boot disk %(disk_name)s of instance "
+                 "%(instance_name)s from management partition via Virtual "
+                 "I/O Server %(vios_name)s.",
                  {'disk_name': stg_elem.name,
                   'instance_name': self.instance.name,
                   'vios_name': vios_wrap.name})
         self.disk_dvr.disconnect_disk_from_mgmt(vios_wrap.uuid, stg_elem.name)
-        LOG.info(_LI("Removing disk %(disk_path)s from the management "
-                     "partition."), {'disk_path': disk_path})
+        LOG.info("Removing disk %(disk_path)s from the management "
+                 "partition.", {'disk_path': disk_path})
         mgmt.remove_block_dev(disk_path)
 
 
@@ -402,8 +398,8 @@ class CreateAndConnectCfgDrive(task.Task):
         try:
             self.mb.dlt_vopt(lpar_wrap.uuid)
         except Exception as e:
-            LOG.warning(_LW('Vopt removal as part of spawn reversion failed '
-                            'with: %(exc)s'), {'exc': six.text_type(e)},
+            LOG.warning('Vopt removal as part of spawn reversion failed '
+                        'with: %(exc)s', {'exc': six.text_type(e)},
                         instance=self.instance)
 
 
@@ -505,8 +501,8 @@ class SaveBDM(task.Task):
         super(SaveBDM, self).__init__('save_bdm_%s' % self.bdm.volume_id)
 
     def execute(self):
-        LOG.info(_LI('Saving block device mapping for volume id %(vol_id)s '
-                     'on instance %(inst)s.'),
+        LOG.info('Saving block device mapping for volume id %(vol_id)s '
+                 'on instance %(inst)s.',
                  {'vol_id': self.bdm.volume_id, 'inst': self.instance.name})
         self.bdm.save()
 
@@ -535,7 +531,7 @@ class FindDisk(task.Task):
     def execute(self):
         disk = self.disk_dvr.get_disk_ref(self.instance, self.disk_type)
         if not disk:
-            LOG.warning(_LW('Disk not found: %(disk_name)s'),
+            LOG.warning('Disk not found: %(disk_name)s',
                         {'disk_name':
                             self.disk_dvr._get_disk_name(self.disk_type,
                                                          self.instance),
@@ -562,6 +558,6 @@ class ExtendDisk(task.Task):
         super(ExtendDisk, self).__init__('extend_disk_%s' % disk_info['type'])
 
     def execute(self):
-        LOG.info(_LI('Extending disk size of disk: %(disk)s size: %(size)s.'),
+        LOG.info('Extending disk size of disk: %(disk)s size: %(size)s.',
                  {'disk': self.disk_info['type'], 'size': self.size})
         self.disk_dvr.extend_disk(self.instance, self.disk_info, self.size)

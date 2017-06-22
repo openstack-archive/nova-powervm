@@ -21,8 +21,6 @@ from taskflow import task
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 from oslo_log import log as logging
@@ -87,7 +85,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         # Check if volume is available in destination.
         vol_path = self._get_path()
         if not os.path.exists(vol_path):
-            LOG.warning(_LW("File not found at path %s"), vol_path,
+            LOG.warning("File not found at path %s", vol_path,
                         instance=self.instance)
             raise p_exc.VolumePreMigrationFailed(
                 volume_id=self.volume_id, instance_name=self.instance.name)
@@ -104,8 +102,8 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
             if vios_w.uuid not in self.vios_uuids:
                 return None
 
-            LOG.info(_LI("Adding logical volume disk connection between VM "
-                         "%(vm)s and VIOS %(vios)s."),
+            LOG.info("Adding logical volume disk connection between VM "
+                     "%(vm)s and VIOS %(vios)s.",
                      {'vm': self.instance.name, 'vios': vios_w.name},
                      instance=self.instance)
             slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, path)
@@ -148,9 +146,8 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
             if vios_w.uuid not in self.vios_uuids:
                 return None
 
-            LOG.info(_LI("Disconnecting instance %(inst)s from storage "
-                         "disks."), {'inst': self.instance.name},
-                     instance=self.instance)
+            LOG.info("Disconnecting instance %(inst)s from storage disks.",
+                     {'inst': self.instance.name}, instance=self.instance)
             removed_maps = tsk_map.remove_maps(vios_w, self.vm_uuid,
                                                match_func=match_func)
             for rm_map in removed_maps:

@@ -23,7 +23,6 @@ from pypowervm.tasks import slot_map
 from pypowervm.tasks import storage as pvm_tstor
 
 from nova_powervm.virt.powervm import exception as p_exc
-from nova_powervm.virt.powervm.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 
@@ -177,9 +176,9 @@ class SwiftSlotManager(NovaSlotManager):
         try:
             self.store_api.delete_slot_map(key)
         except Exception:
-            LOG.warning(_LW("Unable to delete the slot map from Swift backing "
-                            "store with ID %(key)s.  Will require "
-                            "manual cleanup."), {'key': key},
+            LOG.warning("Unable to delete the slot map from Swift backing "
+                        "store with ID %(key)s.  Will require "
+                        "manual cleanup.", {'key': key},
                         instance=self.instance)
 
 

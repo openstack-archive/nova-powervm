@@ -19,7 +19,3 @@ import oslo_i18n
 # Initialize message translators and short cut methods
 _translators = oslo_i18n.TranslatorFactory(domain='nova-powervm')
 _ = _translators.primary
-_LI = _translators.log_info
-_LW = _translators.log_warning
-_LE = _translators.log_error
-_LC = _translators.log_critical

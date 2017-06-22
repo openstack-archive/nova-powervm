@@ -19,8 +19,6 @@ from taskflow import task
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
 from pypowervm import const as pvm_const
@@ -124,7 +122,6 @@ class VscsiVolumeAdapter(object):
                      'found on %(vios_act)d Virtual I/O Servers.') %
                    {'volume_id': self.volume_id, 'vios_act': num_vioses_found,
                     'vios_req': CONF.powervm.vscsi_vios_connections_required})
-        LOG.error(msg)
         ex_args = {'volume_id': self.volume_id, 'reason': msg,
                    'instance_name': self.instance.name}
         raise p_exc.VolumeAttachFailed(**ex_args)
@@ -145,9 +142,9 @@ class VscsiVolumeAdapter(object):
                     for a particular bus, or none of them.
         """
         def add_func(vios_w):
-            LOG.info(_LI("Adding vSCSI mapping to Physical Volume %(dev)s "
-                         "to VM %(vm)s"), {'dev': device_name,
-                                           'vm': self.vm_uuid})
+            LOG.info("Adding vSCSI mapping to Physical Volume %(dev)s "
+                     "to VM %(vm)s", {'dev': device_name,
+                                      'vm': self.vm_uuid})
             pv = pvm_stor.PV.bld(self.adapter, device_name, udid)
             v_map = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, self.vm_uuid, pv,
@@ -165,8 +162,8 @@ class VscsiVolumeAdapter(object):
         except (KeyError, ValueError):
             # It's common to lose our specific data in the BDM.  The connection
             # information can be 'refreshed' by operations like LPM and resize
-            LOG.info(_LI(u'Failed to retrieve device_id key from BDM for '
-                         'volume id %s'), self.volume_id)
+            LOG.info('Failed to retrieve device_id key from BDM for volume id '
+                     '%s', self.volume_id)
             return None
 
     def _set_udid(self, udid):
@@ -186,8 +183,8 @@ class VscsiVolumeAdapter(object):
         except (KeyError, ValueError):
             # It's common to lose our specific data in the BDM.  The connection
             # information can be 'refreshed' by operations like LPM and resize
-            LOG.info(_LI(u'Failed to retrieve device_id key from BDM for '
-                         'volume id %s'), self.volume_id)
+            LOG.info('Failed to retrieve device_id key from BDM for volume id '
+                     '%s', self.volume_id)
             return None
 
     def _set_devname(self, devname):
@@ -208,8 +205,8 @@ class VscsiVolumeAdapter(object):
                          used when a volume is detached from the VM.
         """
         def rm_func(vios_w):
-            LOG.info(_LI("Removing vSCSI mapping from Physical Volume %(dev)s "
-                         "to VM %(vm)s"), {'dev': device_name, 'vm': vm_uuid})
+            LOG.info("Removing vSCSI mapping from Physical Volume %(dev)s "
+                     "to VM %(vm)s", {'dev': device_name, 'vm': vm_uuid})
             removed_maps = tsk_map.remove_maps(
                 vios_w, vm_uuid,
                 tsk_map.gen_match_func(pvm_stor.PV, names=[device_name]))
@@ -232,15 +229,15 @@ class VscsiVolumeAdapter(object):
         :param stg_ftsk: The feed task to add to. If None, then self.stg_ftsk
         """
         def rm_hdisk():
-            LOG.info(_LI("Running remove for hdisk: '%s'"), device_name)
+            LOG.info("Running remove for hdisk: '%s'", device_name)
             try:
                 # Attempt to remove the hDisk
                 hdisk.remove_hdisk(self.adapter, CONF.host, device_name,
                                    vio_wrap.uuid)
             except Exception as e:
                 # If there is a failure, log it, but don't stop the process
-                LOG.warning(_LW("There was an error removing the hdisk "
-                            "%(disk)s from the Virtual I/O Server."),
+                LOG.warning("There was an error removing the hdisk "
+                            "%(disk)s from the Virtual I/O Server.",
                             {'disk': device_name})
                 LOG.warning(e)
 
@@ -250,8 +247,8 @@ class VscsiVolumeAdapter(object):
             stg_ftsk = stg_ftsk or self.stg_ftsk
             stg_ftsk.add_post_execute(task.FunctorTask(rm_hdisk, name=name))
         else:
-            LOG.info(_LI("hdisk %(disk)s is not removed because it has "
-                         "existing storage mappings"), {'disk': device_name})
+            LOG.info("hdisk %(disk)s is not removed because it has "
+                     "existing storage mappings", {'disk': device_name})
 
     def _check_host_mappings(self, vios_wrap, device_name):
         """Checks if the given hdisk has multiple mappings
@@ -268,7 +265,7 @@ class VscsiVolumeAdapter(object):
             vios_scsi_mappings, None,
             tsk_map.gen_match_func(pvm_stor.PV, names=[device_name]))
 
-        LOG.info(_LI("%(num)d Storage Mappings found for %(dev)s"),
+        LOG.info("%(num)d Storage Mappings found for %(dev)s",
                  {'num': len(mappings), 'dev': device_name})
         # the mapping is still present as the task feed removes
         # the mapping later
@@ -279,10 +276,10 @@ class VscsiVolumeAdapter(object):
 
         if not udid and not devname:
             LOG.warning(
-                _LW('Could not remove hdisk for volume: %s'), self.volume_id)
+                'Could not remove hdisk for volume: %s', self.volume_id)
             return
 
-        LOG.info(_LI('Removing hdisk for udid: %s'), udid)
+        LOG.info('Removing hdisk for udid: %s', udid)
 
         def find_hdisk_to_remove(vios_w):
             if devname is None:
@@ -291,7 +288,7 @@ class VscsiVolumeAdapter(object):
                 device_name = devname
             if device_name is None:
                 return
-            LOG.info(_LI('Removing %(hdisk)s from VIOS %(vios)s'),
+            LOG.info('Removing %(hdisk)s from VIOS %(vios)s',
                      {'hdisk': device_name, 'vios': vios_w.name})
             self._add_remove_hdisk(vios_w, device_name,
                                    stg_ftsk=rmv_hdisk_ftsk)

@@ -31,7 +31,6 @@ import pypowervm.wrappers.virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import mgmt
 from nova_powervm.virt.powervm import vm
 
@@ -229,10 +228,10 @@ class DiskAdapter(object):
                 return stg_elem, vios
             except Exception as e:
                 msg_args['exc'] = e
-                LOG.warning(_LW("Failed to map boot disk %(disk_name)s of "
-                                "instance %(instance_name)s to the management "
-                                "partition from Virtual I/O Server "
-                                "%(vios_name)s: %(exc)s"), msg_args)
+                LOG.warning("Failed to map boot disk %(disk_name)s of "
+                            "instance %(instance_name)s to the management "
+                            "partition from Virtual I/O Server "
+                            "%(vios_name)s: %(exc)s", msg_args)
                 # Try the next hit, if available.
         # We either didn't find the boot dev, or failed all attempts to map it.
         raise npvmex.InstanceDiskMappingFailed(**msg_args)

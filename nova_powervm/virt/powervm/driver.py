@@ -52,9 +52,6 @@ from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm import event
 from nova_powervm.virt.powervm import host as pvm_host
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LE
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import image as img
 from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import media
@@ -123,7 +120,7 @@ class PowerVMDriver(driver.ComputeDriver):
         pvm_par.validate_vios_ready(self.adapter)
 
         # Do a scrub of the I/O plane to make sure the system is in good shape
-        LOG.info(_LI("Clearing stale I/O connections on driver init."))
+        LOG.info("Clearing stale I/O connections on driver init.")
         pvm_stor.ComprehensiveScrub(self.adapter).execute()
 
         # Initialize the disk adapter.  Sets self.disk_dvr
@@ -144,7 +141,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # Clean-up any orphan adapters
         self._cleanup_orphan_adapters(CONF.powervm.pvm_vswitch_for_novalink_io)
 
-        LOG.info(_LI("The compute driver has been initialized."))
+        LOG.info("The compute driver has been initialized.")
 
     def cleanup_host(self, host):
         """Clean up anything that is necessary for the driver gracefully stop.
@@ -157,7 +154,7 @@ class PowerVMDriver(driver.ComputeDriver):
         except Exception:
             pass
 
-        LOG.info(_LI("The compute driver has been shutdown."))
+        LOG.info("The compute driver has been shutdown.")
 
     def _get_adapter(self):
         # Build the adapter.  May need to attempt the connection multiple times
@@ -214,13 +211,13 @@ class PowerVMDriver(driver.ComputeDriver):
                 _("Expected exactly one host; found %d"), len(syswraps))
         self.host_wrapper = syswraps[0]
         self.host_uuid = self.host_wrapper.uuid
-        LOG.info(_LI("Host UUID is:%s"), self.host_uuid)
+        LOG.info("Host UUID is:%s", self.host_uuid)
 
     @staticmethod
     def _log_operation(op, instance):
         """Log entry point of driver operations."""
-        LOG.info(_LI('Operation: %(op)s. Virtual machine display name: '
-                     '%(display_name)s, name: %(name)s'),
+        LOG.info('Operation: %(op)s. Virtual machine display name: '
+                 '%(display_name)s, name: %(name)s',
                  {'op': op, 'display_name': instance.display_name,
                   'name': instance.name},
                  instance=instance)
@@ -625,9 +622,9 @@ class PowerVMDriver(driver.ComputeDriver):
             def _rm_vscsi_maps(vwrap):
                 removals = pvm_smap.remove_maps(vwrap, pvm_inst_uuid)
                 if removals:
-                    LOG.warning(_LW("Removing %(num_maps)d storage-less VSCSI "
-                                    "mappings associated with LPAR ID "
-                                    "%(lpar_uuid)s from VIOS %(vios_name)s."),
+                    LOG.warning("Removing %(num_maps)d storage-less VSCSI "
+                                "mappings associated with LPAR ID "
+                                "%(lpar_uuid)s from VIOS %(vios_name)s.",
                                 {'num_maps': len(removals),
                                  'lpar_uuid': pvm_inst_uuid,
                                  'vios_name': vwrap.name})
@@ -665,7 +662,7 @@ class PowerVMDriver(driver.ComputeDriver):
             pvm_inst_uuid = vm.get_pvm_uuid(instance)
             _setup_flow_and_run()
         except exception.InstanceNotFound:
-            LOG.warning(_LW('VM was not found during destroy operation.'),
+            LOG.warning('VM was not found during destroy operation.',
                         instance=instance)
             return
         except Exception as e:
@@ -693,7 +690,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param migrate_data: a LiveMigrateData object
         """
         if instance.task_state == task_states.RESIZE_REVERTING:
-            LOG.info(_LI('Destroy called for migrated/resized instance.'),
+            LOG.info('Destroy called for migrated/resized instance.',
                      instance=instance)
             # This destroy is part of resize or migrate.  It's called to
             # revert the resize/migration on the destination host.
@@ -706,7 +703,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                    qprop='PartitionName', log_errors=False)
             if vm_name == self._gen_resize_name(instance, same_host=True):
                 # Since it matches it must have been a resize, don't delete it!
-                LOG.info(_LI('Ignoring destroy call during resize revert.'),
+                LOG.info('Ignoring destroy call during resize revert.',
                          instance=instance)
                 return
 
@@ -763,8 +760,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # host.  If the migration failed, then the VM is probably not on
         # the destination host.
         if not vm.instance_exists(self.adapter, instance):
-            LOG.info(_LI('During volume detach, the instance was not found'
-                         ' on this host.'), instance=instance)
+            LOG.info('During volume detach, the instance was not found on '
+                     'this host.', instance=instance)
 
             # Check if there is live migration cleanup to do on this volume.
             mig = self.live_migrations.get(instance.uuid, None)
@@ -1060,8 +1057,8 @@ class PowerVMDriver(driver.ComputeDriver):
         # This code was pulled from the libvirt driver.
         ips = compute_utils.get_machine_ips()
         if CONF.my_ip not in ips:
-            LOG.warning(_LW('my_ip address (%(my_ip)s) was not found on '
-                            'any of the interfaces: %(ifaces)s'),
+            LOG.warning('my_ip address (%(my_ip)s) was not found on '
+                        'any of the interfaces: %(ifaces)s',
                         {'my_ip': CONF.my_ip, 'ifaces': ", ".join(ips)})
         return CONF.my_ip
 
@@ -1392,8 +1389,8 @@ class PowerVMDriver(driver.ComputeDriver):
 
         :returns: a dict containing migration info (hypervisor-dependent)
         """
-        LOG.info(_LI("Checking live migration capability on destination "
-                     "host."), instance=instance)
+        LOG.info("Checking live migration capability on destination host.",
+                 instance=instance)
 
         mig = lpm.LiveMigrationDest(self, instance)
         self.live_migrations[instance.uuid] = mig
@@ -1407,8 +1404,8 @@ class PowerVMDriver(driver.ComputeDriver):
         :param context: security context
         :param dest_check_data: result of check_can_live_migrate_destination
         """
-        LOG.info(_LI("Cleaning up from checking live migration capability "
-                     "on destination."))
+        LOG.info("Cleaning up from checking live migration capability "
+                 "on destination.")
 
     def check_can_live_migrate_source(self, context, instance,
                                       dest_check_data, block_device_info=None):
@@ -1423,7 +1420,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param block_device_info: result of _get_instance_block_device_info
         :returns: a dict containing migration info (hypervisor-dependent)
         """
-        LOG.info(_LI("Checking live migration capability on source host."),
+        LOG.info("Checking live migration capability on source host.",
                  instance=instance)
         mig = lpm.LiveMigrationSrc(self, instance, dest_check_data)
         self.live_migrations[instance.uuid] = mig
@@ -1445,8 +1442,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param disk_info: instance disk information
         :param migrate_data: a LiveMigrateData object
         """
-        LOG.info(_LI("Pre live migration processing."),
-                 instance=instance)
+        LOG.info("Pre live migration processing.", instance=instance)
         mig = self.live_migrations[instance.uuid]
 
         # Get a volume driver for each volume
@@ -1484,7 +1480,7 @@ class PowerVMDriver(driver.ComputeDriver):
                 mig.live_migration(context, migrate_data)
             except pvm_exc.JobRequestTimedOut as timeout_ex:
                 # If the migration operation exceeds configured timeout
-                LOG.error(_LE("Live migration timed out. Aborting migration"),
+                LOG.error("Live migration timed out. Aborting migration",
                           instance=instance)
                 mig.migration_abort()
                 self._migration_exception_util(context, instance, dest,
@@ -1523,7 +1519,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param ex: exception reason
 
         """
-        LOG.warning(_LW("Rolling back live migration."), instance=instance)
+        LOG.warning("Rolling back live migration.", instance=instance)
         try:
             mig.rollback_live_migration(context)
             recover_method(context, instance, dest, migrate_data=migrate_data)
@@ -1615,7 +1611,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: instance object reference
         :param network_info: instance network information
         """
-        LOG.info(_LI("Post live migration processing on source host."),
+        LOG.info("Post live migration processing on source host.",
                  instance=instance)
         mig = self.live_migrations[instance.uuid]
         mig.post_live_migration_at_source(network_info)
@@ -1631,7 +1627,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param network_info: instance network information
         :param block_migration: if true, post operation of block_migration.
         """
-        LOG.info(_LI("Post live migration processing on destination host."),
+        LOG.info("Post live migration processing on destination host.",
                  instance=instance)
         mig = self.live_migrations[instance.uuid]
         mig.instance = instance

@@ -35,8 +35,6 @@ from nova_powervm.virt.powervm.disk import driver as disk_dvr
 from nova_powervm.virt.powervm.disk import imagecache
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LE
-from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vm
 
 
@@ -67,7 +65,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         self.image_cache_mgr = imagecache.ImageManager(self._vios_uuid,
                                                        self.vg_uuid, adapter)
         self.cache_lock = lockutils.ReaderWriterLock()
-        LOG.info(_LI("Local Storage driver initialized: volume group: '%s'"),
+        LOG.info("Local Storage driver initialized: volume group: '%s'",
                  self.vg_name)
 
     @property
@@ -157,8 +155,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Make sure the remove function will run within the transaction manager
         def rm_func(vios_w):
-            LOG.info(_LI("Disconnecting instance %(inst)s from storage "
-                         "disks."), {'inst': instance.name})
+            LOG.info("Disconnecting instance %(inst)s from storage "
+                     "disks.", {'inst': instance.name})
             return tsk_map.remove_maps(vios_w, lpar_uuid,
                                        match_func=match_func)
 
@@ -186,11 +184,10 @@ class LocalStorage(disk_dvr.DiskAdapter):
         """
         tsk_map.remove_vdisk_mapping(self.adapter, vios_uuid, self.mp_uuid,
                                      disk_names=[disk_name])
-        LOG.info(_LI(
-            "Unmapped boot disk %(disk_name)s from the management partition "
-            "from Virtual I/O Server %(vios_name)s."), {
-                'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
-                'vios_name': vios_uuid})
+        LOG.info("Unmapped boot disk %(disk_name)s from the management "
+                 "partition from Virtual I/O Server %(vios_name)s.",
+                 {'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
+                  'vios_name': vios_uuid})
 
     def _create_disk_from_image(self, context, instance, image_meta,
                                 image_type=disk_dvr.DiskType.BOOT):
@@ -205,7 +202,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
         :param image_type: the image type. See disk constants above.
         :return: The backing pypowervm storage object that was created.
         """
-        LOG.info(_LI('Create disk.'), instance=instance)
+        LOG.info('Create disk.', instance=instance)
 
         # Disk size to API is in bytes.  Input from flavor is in Gb
         disk_bytes = self._disk_gb_to_bytes(instance.flavor.root_gb,
@@ -272,8 +269,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 self.adapter, name='localdisk', xag=[pvm_const.XAG.VIO_SMAP])
 
         def add_func(vios_w):
-            LOG.info(_LI("Adding logical volume disk connection between VM "
-                         "%(vm)s and VIOS %(vios)s."),
+            LOG.info("Adding logical volume disk connection between VM "
+                     "%(vm)s and VIOS %(vios)s.",
                      {'vm': instance.name, 'vios': vios_w.name})
             mapping = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, lpar_uuid, disk_info)
@@ -316,7 +313,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
                     break
 
             if not disk_found:
-                LOG.error(_LE('Disk %s not found during resize.'), vol_name,
+                LOG.error('Disk %s not found during resize.', vol_name,
                           instance=instance)
                 raise nova_exc.DiskNotFound(
                     location=self.vg_name + '/' + vol_name)
@@ -330,7 +327,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Get the disk name based on the instance and type
         vol_name = self._get_disk_name(disk_info['type'], instance, short=True)
-        LOG.info(_LI('Extending disk: %s'), vol_name)
+        LOG.info('Extending disk: %s', vol_name)
         try:
             _extend()
         except pvm_exc.Error:

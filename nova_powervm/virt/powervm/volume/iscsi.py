@@ -18,8 +18,6 @@ from oslo_log import log as logging
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 from nova_powervm.virt.powervm.volume import volume as volume
@@ -151,28 +149,28 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                     # If we have no device name, at this point
                     # we should not continue.  Subsequent scrub code on future
                     # deploys will clean this up.
-                    LOG.warning(_LW(
+                    LOG.warning(
                         "Disconnect Volume: The backing hdisk for volume "
                         "%(volume_id)s on Virtual I/O Server %(vios)s is "
                         "not in a valid state.  No disconnect "
-                        "actions to be taken as volume is not healthy."),
+                        "actions to be taken as volume is not healthy.",
                         {'volume_id': self.volume_id, 'vios': vios_w.name},
                         instance=self.instance)
                     return False
 
             except Exception as e:
-                LOG.warning(_LW(
+                LOG.warning(
                     "Disconnect Volume: Failed to find disk on Virtual I/O "
                     "Server %(vios_name)s for volume %(volume_id)s."
-                    " Error: %(error)s"),
+                    " Error: %(error)s",
                     {'error': e, 'vios_name': vios_w.name,
                      'volume_id': self.volume_id}, instance=self.instance)
                 return False
 
             # We have found the device name
-            LOG.info(_LI("Disconnect Volume: Discovered the device %(hdisk)s "
-                         "on Virtual I/O Server %(vios_name)s for volume "
-                         "%(volume_id)s."),
+            LOG.info("Disconnect Volume: Discovered the device %(hdisk)s "
+                     "on Virtual I/O Server %(vios_name)s for volume "
+                     "%(volume_id)s.",
                      {'volume_id': self.volume_id,
                       'vios_name': vios_w.name, 'hdisk': device_name},
                      instance=self.instance)
@@ -204,10 +202,10 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             # Warn if no hdisks disconnected.
             if not any([result['vio_modified']
                         for result in ret['wrapper_task_rets'].values()]):
-                LOG.warning(_LW(
+                LOG.warning(
                     "Disconnect Volume: Failed to disconnect the  volume "
                     "%(volume_id)s on ANY of the Virtual I/O Servers for "
-                    "instance %(inst)s."),
+                    "instance %(inst)s.",
                     {'inst': self.instance.name, 'volume_id': self.volume_id},
                     instance=self.instance)
 

@@ -18,13 +18,9 @@ from oslo_log import log as logging
 from pypowervm import const as pvm_const
 from pypowervm.tasks import partition as pvm_tpar
 from pypowervm.tasks import storage as pvm_stg
-import six
 from taskflow import task
 from taskflow.types import failure as task_fail
 
-from nova_powervm.virt.powervm.i18n import _LE
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 
 from nova.compute import task_states
@@ -102,7 +98,7 @@ class Create(task.Task):
     def execute(self):
         data = None
         if self.nvram_mgr is not None:
-            LOG.info(_LI('Fetching NVRAM for instance %s.'),
+            LOG.info('Fetching NVRAM for instance %s.',
                      self.instance.name, instance=self.instance)
             data = self.nvram_mgr.fetch(self.instance)
             LOG.debug('NVRAM data is: %s', data, instance=self.instance)
@@ -118,8 +114,8 @@ class Create(task.Task):
         # build map earlier in the spawn, just before the LPAR is created.
         # Only rebuilds should be passing in None for stg_ftsk.
         if self.stg_ftsk.name == 'create_scrubber':
-            LOG.info(_LI('Scrubbing storage for instance %s as part of '
-                         'rebuild.'), self.instance.name,
+            LOG.info('Scrubbing storage for instance %s as part of '
+                     'rebuild.', self.instance.name,
                      instance=self.instance)
             self.stg_ftsk.execute()
 
@@ -181,7 +177,7 @@ class Rename(task.Task):
         self.vm_name = name
 
     def execute(self):
-        LOG.info(_LI('Renaming instance to name: %s'), self.name,
+        LOG.info('Renaming instance to name: %s', self.name,
                  instance=self.instance)
         return vm.rename(self.adapter, self.instance, self.vm_name)
 
@@ -206,7 +202,7 @@ class PowerOn(task.Task):
         vm.power_on(self.adapter, self.instance, opts=self.pwr_opts)
 
     def revert(self, result, flow_failures):
-        LOG.warning(_LW('Powering off instance: %s'), self.instance.name)
+        LOG.warning('Powering off instance: %s', self.instance.name)
 
         if isinstance(result, task_fail.Failure):
             # The power on itself failed...can't power off.
@@ -260,12 +256,9 @@ class StoreNvram(task.Task):
 
         try:
             self.nvram_mgr.store(self.instance, immediate=self.immediate)
-        except Exception as e:
-            LOG.exception(_LE('Unable to store NVRAM for instance '
-                              '%(name)s. Exception: %(reason)s'),
-                          {'name': self.instance.name,
-                           'reason': six.text_type(e)},
-                          instance=self.instance)
+        except Exception:
+            LOG.exception('Unable to store NVRAM for instance %(name)s.',
+                          {'name': self.instance.name}, instance=self.instance)
 
 
 class DeleteNvram(task.Task):
@@ -284,19 +277,16 @@ class DeleteNvram(task.Task):
 
     def execute(self):
         if self.nvram_mgr is None:
-            LOG.info(_LI("No op for NVRAM delete."), instance=self.instance)
+            LOG.info("No op for NVRAM delete.", instance=self.instance)
             return
 
-        LOG.info(_LI('Deleting NVRAM for instance: %s'),
+        LOG.info('Deleting NVRAM for instance: %s',
                  self.instance.name, instance=self.instance)
         try:
             self.nvram_mgr.remove(self.instance)
-        except Exception as e:
-            LOG.exception(_LE('Unable to delete NVRAM for instance '
-                              '%(name)s. Exception: %(reason)s'),
-                          {'name': self.instance.name,
-                           'reason': six.text_type(e)},
-                          instance=self.instance)
+        except Exception:
+            LOG.exception('Unable to delete NVRAM for instance %(name)s.',
+                          {'name': self.instance.name}, instance=self.instance)
 
 
 class Delete(task.Task):

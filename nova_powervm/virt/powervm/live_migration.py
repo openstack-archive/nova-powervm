@@ -31,8 +31,6 @@ from pypowervm import util
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LE
-from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
@@ -163,7 +161,7 @@ class LiveMigrationDest(LiveMigration):
 
         # For each volume, make sure it's ready to migrate
         for vol_drv in vol_drvs:
-            LOG.info(_LI('Performing pre migration for volume %(volume)s'),
+            LOG.info('Performing pre migration for volume %(volume)s',
                      dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
                 vol_drv.pre_live_migration_on_destination(
@@ -201,7 +199,7 @@ class LiveMigrationDest(LiveMigration):
 
         # For each volume, make sure it completes the migration
         for vol_drv in vol_drvs:
-            LOG.info(_LI('Performing post migration for volume %(volume)s'),
+            LOG.info('Performing post migration for volume %(volume)s',
                      dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
                 vol_drv.post_live_migration_at_destination(mig_vol_stor)
@@ -238,7 +236,7 @@ class LiveMigrationDest(LiveMigration):
 
         :param vol_drv: volume driver for the attached volume
         """
-        LOG.info(_LI('Performing detach for volume %(volume)s'),
+        LOG.info('Performing detach for volume %(volume)s',
                  dict(volume=vol_drv.volume_id), instance=self.instance)
         # Ensure the volume data is present before trying cleanup
         if hasattr(self, 'pre_live_vol_data'):
@@ -402,7 +400,7 @@ class LiveMigrationSrc(LiveMigration):
         """
         # For each volume, make sure the source is cleaned
         for vol_drv in vol_drvs:
-            LOG.info(_LI('Performing post migration for volume %(volume)s'),
+            LOG.info('Performing post migration for volume %(volume)s',
                      dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
                 vol_drv.post_live_migration_at_source(migrate_data.vol_data)
@@ -442,7 +440,7 @@ class LiveMigrationSrc(LiveMigration):
                 self.migration_recover()
 
         except Exception as ex:
-            LOG.error(_LE("Migration recover failed with error: %s"), ex,
+            LOG.error("Migration recover failed with error: %s", ex,
                       instance=self.instance)
         finally:
             LOG.debug("Finished migration rollback.", instance=self.instance)

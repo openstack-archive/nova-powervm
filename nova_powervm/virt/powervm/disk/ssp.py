@@ -21,8 +21,6 @@ from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.disk import driver as disk_drv
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LE
-from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vm
 
 from nova import image
@@ -71,9 +69,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         self.ssp_name = self._ssp.name
         self.tier_name = self._tier.name
 
-        LOG.info(_LI("SSP Storage driver initialized. "
-                     "Cluster '%(clust_name)s'; SSP '%(ssp_name)s'; "
-                     "Tier '%(tier_name)s"),
+        LOG.info("SSP Storage driver initialized. "
+                 "Cluster '%(clust_name)s'; SSP '%(ssp_name)s'; "
+                 "Tier '%(tier_name)s",
                  {'clust_name': self.clust_name, 'ssp_name': self.ssp_name,
                   'tier_name': self.tier_name})
 
@@ -142,8 +140,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         # Delay run function to remove the mapping between the VM and the LU
         def rm_func(vios_w):
-            LOG.info(_LI("Removing SSP disk connection between VM %(vm)s and "
-                         "VIOS %(vios)s."),
+            LOG.info("Removing SSP disk connection between VM %(vm)s and "
+                     "VIOS %(vios)s.",
                      {'vm': instance.name, 'vios': vios_w.name})
             return tsk_map.remove_maps(vios_w, lpar_uuid,
                                        match_func=match_func)
@@ -186,11 +184,10 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         """
         tsk_map.remove_lu_mapping(self.adapter, vios_uuid, self.mp_uuid,
                                   disk_names=[disk_name])
-        LOG.info(_LI(
-            "Unmapped boot disk %(disk_name)s from the management partition "
-            "from Virtual I/O Server %(vios_uuid)s."), {
-                'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
-                'vios_uuid': vios_uuid})
+        LOG.info("Unmapped boot disk %(disk_name)s from the management "
+                 "partition from Virtual I/O Server %(vios_uuid)s.",
+                 {'disk_name': disk_name, 'mp_uuid': self.mp_uuid,
+                  'vios_uuid': vios_uuid})
 
     def delete_disks(self, storage_elems):
         """Removes the disks specified by the mappings.
@@ -216,8 +213,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :param image_type: The image type. See disk_drv.DiskType.
         :return: The backing pypowervm LU storage object that was created.
         """
-        LOG.info(_LI('SSP: Create %(image_type)s disk from image %(image_id)s '
-                     'for instance %(instance_uuid)s.'),
+        LOG.info('SSP: Create %(image_type)s disk from image %(image_id)s '
+                 'for instance %(instance_uuid)s.',
                  dict(image_type=image_type, image_id=image_meta.id,
                       instance_uuid=instance.uuid))
 
@@ -228,7 +225,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             image_meta.size, upload_type=tsk_stg.UploadType.IO_STREAM)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
-        LOG.info(_LI('SSP: Disk name is %s'), boot_lu_name)
+        LOG.info('SSP: Disk name is %s', boot_lu_name)
 
         return tsk_stg.crt_lu(
             self._tier, boot_lu_name, instance.flavor.root_gb,
@@ -265,8 +262,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         # This is the delay apply mapping
         def add_func(vios_w):
-            LOG.info(_LI("Adding SSP disk connection between VM %(vm)s and "
-                         "VIOS %(vios)s."),
+            LOG.info("Adding SSP disk connection between VM %(vm)s and "
+                     "VIOS %(vios)s.",
                      {'vm': instance.name, 'vios': vios_w.name})
             mapping = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, lpar_uuid, lu)
@@ -311,9 +308,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
                 ssp_uuid = data.get('ssp_uuid')
                 if ssp_uuid is not None:
                     return ssp_uuid == self._cluster.ssp_uuid
-        except Exception as e:
-            LOG.exception(_LE(u'Error checking for shared storage. '
-                              'exception=%s'), e)
+        except Exception:
+            LOG.exception('Error checking for shared storage.')
         return False
 
     def check_instance_shared_storage_cleanup(self, context, data):

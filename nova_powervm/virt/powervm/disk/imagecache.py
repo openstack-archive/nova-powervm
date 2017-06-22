@@ -17,7 +17,6 @@
 from nova.virt import imagecache
 
 from nova_powervm.virt.powervm.disk import driver
-from nova_powervm.virt.powervm.i18n import _LI
 
 from oslo_log import log as logging
 from pypowervm.tasks import storage as tsk_stg
@@ -80,7 +79,7 @@ class ImageManager(imagecache.ImageCacheManager):
         # Remove unused
         if unused:
             for image in unused:
-                LOG.info(_LI("Removing unused cache image: '%s'"), image.name)
+                LOG.info("Removing unused cache image: '%s'", image.name)
             tsk_stg.rm_vg_storage(base_dir, vdisks=unused)
 
     def update(self, context, all_instances):

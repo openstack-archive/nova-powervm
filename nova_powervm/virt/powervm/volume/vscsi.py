@@ -19,8 +19,6 @@ from oslo_log import log as logging
 
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
 from nova_powervm.virt.powervm.volume import volume as volume
@@ -187,14 +185,14 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
                                                          vios_w.uuid, itls)
 
         if hdisk.good_discovery(status, device_name):
-            LOG.info(_LI('Discovered %(hdisk)s on vios %(vios)s for '
-                     'volume %(volume_id)s. Status code: %(status)s.'),
+            LOG.info('Discovered %(hdisk)s on vios %(vios)s for '
+                     'volume %(volume_id)s. Status code: %(status)s.',
                      {'hdisk': device_name, 'vios': vios_w.name,
                       'volume_id': volume_id, 'status': str(status)},
                      instance=self.instance)
         elif status == hdisk.LUAStatus.DEVICE_IN_USE:
-            LOG.warning(_LW('Discovered device %(dev)s for volume %(volume)s '
-                            'on %(vios)s is in use. Error code: %(status)s.'),
+            LOG.warning('Discovered device %(dev)s for volume %(volume)s '
+                        'on %(vios)s is in use. Error code: %(status)s.',
                         {'dev': device_name, 'volume': volume_id,
                          'vios': vios_w.name, 'status': str(status)},
                         instance=self.instance)
@@ -274,28 +272,28 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
                     # in the I/O Server.  Subsequent scrub code on future
                     # deploys will clean this up.
                     if not hdisk.good_discovery(status, device_name):
-                        LOG.warning(_LW(
+                        LOG.warning(
                             "Disconnect Volume: The backing hdisk for volume "
                             "%(volume_id)s on Virtual I/O Server %(vios)s is "
                             "not in a valid state.  This may be the result of "
-                            "an evacuate."),
+                            "an evacuate.",
                             {'volume_id': self.volume_id, 'vios': vios_w.name},
                             instance=self.instance)
                         return False
 
             except Exception as e:
-                LOG.warning(_LW(
+                LOG.warning(
                     "Disconnect Volume: Failed to find disk on Virtual I/O "
                     "Server %(vios_name)s for volume %(volume_id)s. Volume "
-                    "UDID: %(volume_uid)s.  Error: %(error)s"),
+                    "UDID: %(volume_uid)s.  Error: %(error)s",
                     {'error': e, 'volume_uid': udid, 'vios_name': vios_w.name,
                      'volume_id': self.volume_id}, instance=self.instance)
                 return False
 
             # We have found the device name
-            LOG.info(_LI("Disconnect Volume: Discovered the device %(hdisk)s "
-                         "on Virtual I/O Server %(vios_name)s for volume "
-                         "%(volume_id)s.  Volume UDID: %(volume_uid)s."),
+            LOG.info("Disconnect Volume: Discovered the device %(hdisk)s "
+                     "on Virtual I/O Server %(vios_name)s for volume "
+                     "%(volume_id)s.  Volume UDID: %(volume_uid)s.",
                      {'volume_uid': udid, 'volume_id': self.volume_id,
                       'vios_name': vios_w.name, 'hdisk': device_name},
                      instance=self.instance)
@@ -326,9 +324,9 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
             # Warn if no hdisks disconnected.
             if not any([result['vio_modified']
                         for result in ret['wrapper_task_rets'].values()]):
-                LOG.warning(_LW("Disconnect Volume: Failed to disconnect the "
-                                "volume %(volume_id)s on ANY of the Virtual "
-                                "I/O Servers for instance %(inst)s."),
+                LOG.warning("Disconnect Volume: Failed to disconnect the "
+                            "volume %(volume_id)s on ANY of the Virtual "
+                            "I/O Servers for instance %(inst)s.",
                             {'inst': self.instance.name,
                              'volume_id': self.volume_id},
                             instance=self.instance)

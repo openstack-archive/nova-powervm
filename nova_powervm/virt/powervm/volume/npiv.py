@@ -29,9 +29,6 @@ from nova_powervm import conf as cfg
 from nova_powervm.conf import powervm as pvm_cfg
 from nova_powervm.virt.powervm import exception as exc
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LE
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm.volume import driver as v_driver
 
 LOG = logging.getLogger(__name__)
@@ -302,9 +299,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             return False
 
         # At this point, it should be correct.
-        LOG.info(_LI("Instance %(inst)s has not yet defined a WWPN on "
-                     "fabric %(fabric)s.  Appropriate WWPNs will be "
-                     "generated."),
+        LOG.info("Instance %(inst)s has not yet defined a WWPN on "
+                 "fabric %(fabric)s.  Appropriate WWPNs will be "
+                 "generated.",
                  {'inst': self.instance.name, 'fabric': fabric},
                  instance=self.instance)
         return True
@@ -402,8 +399,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # were already configured.
         for fabric in self._fabric_names():
             fc_state = self._get_fabric_state(fabric)
-            LOG.info(_LI(
-                "NPIV wwpns fabric state=%(st)s for instance %(inst)s"),
+            LOG.info(
+                "NPIV wwpns fabric state=%(st)s for instance %(inst)s",
                 {'st': fc_state, 'inst': self.instance.name},
                 instance=self.instance)
 
@@ -487,9 +484,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             vios_wraps, self._fabric_ports(fabric), v_wwpns, preserve=False)
         LOG.debug("Rebuilt port maps: %s", npiv_port_maps)
         self._set_fabric_meta(fabric, npiv_port_maps)
-        LOG.warning(_LW("Had to update the system metadata for the WWPNs "
-                        "due to incorrect physical WWPNs on fabric "
-                        "%(fabric)s"),
+        LOG.warning("Had to update the system metadata for the WWPNs due to "
+                    "incorrect physical WWPNs on fabric %(fabric)s",
                     {'fabric': fabric}, instance=self.instance)
 
         return npiv_port_maps
@@ -514,15 +510,15 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         for npiv_port_map in npiv_port_maps:
             vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
             if vios_w is None:
-                LOG.error(_LE("Mappings were not able to find a proper VIOS. "
-                              "The port mappings were %s."), npiv_port_maps,
+                LOG.error("Mappings were not able to find a proper VIOS. "
+                          "The port mappings were %s.", npiv_port_maps,
                           instance=self.instance)
                 raise exc.VolumeAttachFailed(
                     volume_id=volume_id, instance_name=self.instance.name,
                     reason=_("Unable to find a Virtual I/O Server that "
                              "hosts the NPIV port map for the server."))
-            ls = [LOG.info, _LI("Adding NPIV mapping for instance %(inst)s "
-                                "for Virtual I/O Server %(vios)s."),
+            ls = [LOG.info, "Adding NPIV mapping for instance %(inst)s "
+                            "for Virtual I/O Server %(vios)s.",
                   {'inst': self.instance.name, 'vios': vios_w.name}]
 
             # Add the subtask to add the specific map.
@@ -575,8 +571,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         vios_wraps = self.stg_ftsk.feed
 
         for npiv_port_map in npiv_port_maps:
-            ls = [LOG.info, _LI("Removing a NPIV mapping for instance "
-                                "%(inst)s for fabric %(fabric)s."),
+            ls = [LOG.info, "Removing a NPIV mapping for instance "
+                            "%(inst)s for fabric %(fabric)s.",
                   {'inst': self.instance.name, 'fabric': fabric}]
             vios_w = pvm_vfcm.find_vios_for_port_map(vios_wraps, npiv_port_map)
 
@@ -587,9 +583,9 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
                     pvm_vfcm.remove_maps, self.vm_uuid,
                     port_map=npiv_port_map, logspec=ls)
             else:
-                LOG.warning(_LW("No storage connections found between the "
-                                "Virtual I/O Servers and FC Fabric "
-                                "%(fabric)s."), {'fabric': fabric},
+                LOG.warning("No storage connections found between the "
+                            "Virtual I/O Servers and FC Fabric "
+                            "%(fabric)s.", {'fabric': fabric},
                             instance=self.instance)
 
     def _set_fabric_state(self, fabric, state):
@@ -603,7 +599,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
          FS_INST_MAPPED: Fabric is mapped with the nova instance.
         """
         meta_key = self._sys_fabric_state_key(fabric)
-        LOG.info(_LI("Setting Fabric state=%(st)s for instance=%(inst)s"),
+        LOG.info("Setting Fabric state=%(st)s for instance=%(inst)s",
                  {'st': state, 'inst': self.instance.name},
                  instance=self.instance)
         self.instance.system_metadata[meta_key] = state
@@ -655,8 +651,8 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
             meta_elems.append(p_wwpn)
             meta_elems.extend(v_wwpn.split())
 
-        LOG.info(_LI("Fabric %(fabric)s wwpn metadata will be set to "
-                     "%(meta)s for instance %(inst)s"),
+        LOG.info("Fabric %(fabric)s wwpn metadata will be set to "
+                 "%(meta)s for instance %(inst)s",
                  {'fabric': fabric, 'meta': ",".join(meta_elems),
                   'inst': self.instance.name},
                  instance=self.instance)
@@ -700,10 +696,10 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
 
         if self.instance.system_metadata.get(meta_key) is None:
             # If no mappings exist, log a warning.
-            LOG.warning(_LW("No NPIV mappings exist for instance %(inst)s on "
-                            "fabric %(fabric)s.  May not have connected to "
-                            "the fabric yet or fabric configuration was "
-                            "recently modified."),
+            LOG.warning("No NPIV mappings exist for instance %(inst)s on "
+                        "fabric %(fabric)s.  May not have connected to "
+                        "the fabric yet or fabric configuration was "
+                        "recently modified.",
                         {'inst': self.instance.name, 'fabric': fabric},
                         instance=self.instance)
             return []

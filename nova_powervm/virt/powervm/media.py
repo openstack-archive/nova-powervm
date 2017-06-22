@@ -35,7 +35,6 @@ from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm import conf as cfg
-from nova_powervm.virt.powervm.i18n import _LI
 from nova_powervm.virt.powervm import vm
 
 LOG = logging.getLogger(__name__)
@@ -98,7 +97,7 @@ class ConfigDrivePowerVM(object):
         :return iso_path: The path to the ISO
         :return file_name: The file name for the ISO
         """
-        LOG.info(_LI("Creating config drive for instance: %s"), instance.name,
+        LOG.info("Creating config drive for instance: %s", instance.name,
                  instance=instance)
         extra_md = {}
         if admin_pass is not None:
@@ -122,8 +121,8 @@ class ConfigDrivePowerVM(object):
             max_len=pvm_const.MaxLen.VOPT_NAME)
         iso_path = os.path.join(im_path, file_name)
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
-            LOG.info(_LI("Config drive ISO being built for instance %(inst)s "
-                         "building to path %(iso_path)s."),
+            LOG.info("Config drive ISO being built for instance %(inst)s "
+                     "building to path %(iso_path)s.",
                      {'inst': instance.name, 'iso_path': iso_path},
                      instance=instance)
             # In case, if there's an OSError related failure while
@@ -211,8 +210,8 @@ class ConfigDrivePowerVM(object):
 
         # Define the function to build and add the mapping
         def add_func(vios_w):
-            LOG.info(_LI("Adding cfg drive mapping for instance %(inst)s for "
-                         "Virtual I/O Server %(vios)s"),
+            LOG.info("Adding cfg drive mapping for instance %(inst)s for "
+                     "Virtual I/O Server %(vios)s",
                      {'inst': instance.name, 'vios': vios_w.name},
                      instance=instance)
             mapping = tsk_map.build_vscsi_mapping(self.host_uuid, vios_w,
@@ -341,7 +340,7 @@ class ConfigDrivePowerVM(object):
         media_elems = [x.backing_storage for x in media_mappings]
 
         def rm_vopt():
-            LOG.info(_LI("Removing virtual optical for VM with UUID %s."),
+            LOG.info("Removing virtual optical for VM with UUID %s.",
                      lpar_uuid)
             vg_wrap = pvm_stg.VG.get(self.adapter, uuid=self.vg_uuid,
                                      parent_type=pvm_vios.VIOS,

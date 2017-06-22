@@ -25,8 +25,6 @@ import types
 from nova_powervm import conf as cfg
 from nova_powervm.conf import powervm
 from nova_powervm.virt.powervm.i18n import _
-from nova_powervm.virt.powervm.i18n import _LI
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm.nvram import api
 
 from oslo_concurrency import lockutils
@@ -181,8 +179,8 @@ class SwiftNvramStore(api.NvramStore):
                         # If upload failed during nvram/slot_map update due to
                         # expired keystone token, retry swift-client operation
                         # to allow regeneration of token
-                        LOG.warning(_LW('NVRAM upload failed due to invalid '
-                                        'token. Retrying upload.'))
+                        LOG.warning('NVRAM upload failed due to invalid '
+                                    'token. Retrying upload.')
                         return True
                     # The upload failed.
                     raise api.NVRAMUploadException(instance=inst_name,
@@ -218,7 +216,7 @@ class SwiftNvramStore(api.NvramStore):
                     data = data.encode('ascii')
                 md5 = hashlib.md5(data).hexdigest()
                 if existing_hash == md5:
-                    LOG.info(_LI('NVRAM has not changed for instance: %s'),
+                    LOG.info('NVRAM has not changed for instance: %s',
                              instance.name, instance=instance)
                     return
 
@@ -287,7 +285,7 @@ class SwiftNvramStore(api.NvramStore):
             try:
                 os.remove(f.name)
             except Exception:
-                LOG.warning(_LW('Could not remove temporary file: %s'), f.name)
+                LOG.warning('Could not remove temporary file: %s', f.name)
 
     def delete_slot_map(self, inst_key):
         """Delete the Slot Map from Swift.

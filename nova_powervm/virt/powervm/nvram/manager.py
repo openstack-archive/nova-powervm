@@ -23,8 +23,6 @@ from pypowervm import exceptions as pvm_exc
 import six
 import time
 
-from nova_powervm.virt.powervm.i18n import _LE
-from nova_powervm.virt.powervm.i18n import _LW
 from nova_powervm.virt.powervm.nvram import api
 from nova_powervm.virt.powervm import vm
 
@@ -106,8 +104,7 @@ class NvramManager(object):
         try:
             return self._api.fetch(instance)
         except Exception as e:
-            LOG.exception(_LE('Could not update NVRAM: %s'), e,
-                          instance=instance)
+            LOG.exception('Could not update NVRAM.', instance=instance)
             raise api.NVRAMDownloadException(instance=instance.name,
                                              reason=six.text_type(e))
 
@@ -124,7 +121,7 @@ class NvramManager(object):
             self._api.delete(instance)
         except Exception as e:
             # Delete exceptions should not end the operation
-            LOG.warning(_LW('Could not delete NVRAM: %s'), e,
+            LOG.warning('Could not delete NVRAM: %s', e,
                         instance=instance)
 
     @lockutils.synchronized(LOCK_NVRAM_UPDT_LIST)
