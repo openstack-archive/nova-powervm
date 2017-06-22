@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2016, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -119,10 +119,9 @@ class NvramManager(object):
         # Remove it from the store
         try:
             self._api.delete(instance)
-        except Exception as e:
+        except Exception:
             # Delete exceptions should not end the operation
-            LOG.warning('Could not delete NVRAM: %s', e,
-                        instance=instance)
+            LOG.exception('Could not delete NVRAM.', instance=instance)
 
     @lockutils.synchronized(LOCK_NVRAM_UPDT_LIST)
     def _add_to_list(self, instance):
@@ -166,7 +165,7 @@ class NvramManager(object):
             self._pop_from_list(uuid=instance.uuid)
 
         try:
-            LOG.debug('Updating NVRAM for instance: %s', instance.uuid)
+            LOG.debug('Updating NVRAM.', instance=instance)
             data = vm.get_instance_wrapper(
                 self._adapter, instance, xag=[pvm_const.XAG.NVRAM]).nvram
             LOG.debug('NVRAM for instance: %s', data, instance=instance)

@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -23,6 +23,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 from nova_powervm.virt.powervm import exception as exc
 from nova_powervm.virt.powervm import vm
+
 
 LOCAL_FEED_TASK = 'local_feed_task'
 

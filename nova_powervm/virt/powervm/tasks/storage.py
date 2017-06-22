@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -14,8 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
-
 from pypowervm.tasks import scsi_mapper as pvm_smap
 
 from oslo_log import log as logging
@@ -26,6 +24,7 @@ from nova_powervm.virt.powervm.disk import driver as disk_driver
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import mgmt
+
 
 LOG = logging.getLogger(__name__)
 
@@ -49,15 +48,15 @@ class ConnectVolume(task.Task):
         super(ConnectVolume, self).__init__('connect_vol_%s' % self.vol_id)
 
     def execute(self):
-        LOG.info('Connecting volume %(vol)s to instance %(inst)s',
-                 {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
+        LOG.info('Connecting volume %(vol)s.', {'vol': self.vol_id},
+                 instance=self.vol_drv.instance)
         self.vol_drv.connect_volume(self.slot_mgr)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warning('Volume %(vol)s for instance %(inst)s to be disconnected',
-                    {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
+        LOG.warning('Rolling back connection for volume %(vol)s.',
+                    {'vol': self.vol_id}, instance=self.vol_drv.instance)
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
@@ -68,13 +67,11 @@ class ConnectVolume(task.Task):
             # was connected.  This attempts to clear anything out to make sure
             # the terminate connection runs smoothly.
             self.vol_drv.disconnect_volume(self.slot_mgr)
-        except npvmex.VolumeDetachFailed as e:
+        except npvmex.VolumeDetachFailed:
             # Only log that the volume detach failed.  Should not be blocking
             # due to being in the revert flow.
-            LOG.warning("Unable to disconnect volume for %(inst)s during "
-                        "rollback.  Error was: %(error)s",
-                        {'inst': self.vol_drv.instance.name,
-                         'error': e.message})
+            LOG.exception("Unable to disconnect volume %s during rollback.",
+                          self.vol_id, instance=self.vol_drv.instance)
 
 
 class DisconnectVolume(task.Task):
@@ -97,15 +94,15 @@ class DisconnectVolume(task.Task):
             'disconnect_vol_%s' % self.vol_id)
 
     def execute(self):
-        LOG.info('Disconnecting volume %(vol)s from instance %(inst)s',
-                 {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
+        LOG.info('Disconnecting volume %(vol)s.',
+                 {'vol': self.vol_id}, instance=self.vol_drv.instance)
         self.vol_drv.disconnect_volume(self.slot_mgr)
 
     def revert(self, result, flow_failures):
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warning('Volume %(vol)s for instance %(inst)s to be re-connected',
-                    {'vol': self.vol_id, 'inst': self.vol_drv.instance.name})
+        LOG.warning('Reconnecting volume %(vol)s on disconnect rollback.',
+                    {'vol': self.vol_id}, instance=self.vol_drv.instance)
 
         # Note that the rollback is *instant*.  Resetting the FeedTask ensures
         # immediate rollback.
@@ -117,13 +114,11 @@ class DisconnectVolume(task.Task):
             # in error scenarios.  This is simply useful for debug purposes
             # if there is an operational error.
             self.vol_drv.connect_volume(self.slot_mgr)
-        except npvmex.VolumeAttachFailed as e:
+        except npvmex.VolumeAttachFailed:
             # Only log that the volume attach failed.  Should not be blocking
             # due to being in the revert flow.  See comment above.
-            LOG.warning("Unable to re-connect volume for %(inst)s during "
-                        "rollback.  Error was: %(error)s",
-                        {'inst': self.vol_drv.instance.name,
-                         'error': e.message})
+            LOG.exception("Unable to reconnect volume %s during rollback.",
+                          self.vol_id, instance=self.vol_drv.instance)
 
 
 class CreateDiskForImg(task.Task):
@@ -260,7 +255,7 @@ class InstanceDiskToMgmt(task.Task):
         # Scan the SCSI bus, discover the disk, find its canonical path.
         LOG.info("Discovering device and path for mapping of %(dev_name)s "
                  "on the management partition.",
-                 {'dev_name': self.stg_elem.name})
+                 {'dev_name': self.stg_elem.name}, instance=self.instance)
         self.disk_path = mgmt.discover_vscsi_disk(the_map)
         return self.stg_elem, self.vios_wrap, self.disk_path
 
@@ -273,20 +268,18 @@ class InstanceDiskToMgmt(task.Task):
         if self.vios_wrap is None or self.stg_elem is None:
             # We never even got connected - nothing to do
             return
-        LOG.warning("Unmapping boot disk %(disk_name)s of instance "
-                    "%(instance_name)s from management partition via "
-                    "Virtual I/O Server %(vios_name)s.",
+        LOG.warning("Unmapping boot disk %(disk_name)s from the management "
+                    "partition via Virtual I/O Server %(vioname)s.",
                     {'disk_name': self.stg_elem.name,
-                     'instance_name': self.instance.name,
-                     'vios_name': self.vios_wrap.name})
+                     'vioname': self.vios_wrap.name}, instance=self.instance)
         self.disk_dvr.disconnect_disk_from_mgmt(self.vios_wrap.uuid,
                                                 self.stg_elem.name)
 
         if self.disk_path is None:
             # We did not discover the disk - nothing else to do.
             return
-        LOG.warning("Removing disk %(disk_path)s from the management "
-                    "partition.", {'disk_path': self.disk_path})
+        LOG.warning("Removing disk %(dpath)s from the management partition.",
+                    {'dpath': self.disk_path}, instance=self.instance)
         mgmt.remove_block_dev(self.disk_path)
 
 
@@ -330,15 +323,13 @@ class RemoveInstanceDiskFromMgmt(task.Task):
         # stg_elem is None if boot disk was not mapped to management partition
         if stg_elem is None:
             return
-        LOG.info("Unmapping boot disk %(disk_name)s of instance "
-                 "%(instance_name)s from management partition via Virtual "
-                 "I/O Server %(vios_name)s.",
-                 {'disk_name': stg_elem.name,
-                  'instance_name': self.instance.name,
-                  'vios_name': vios_wrap.name})
+        LOG.info("Unmapping boot disk %(disk_name)s from the management "
+                 "partition via Virtual I/O Server %(vios_name)s.",
+                 {'disk_name': stg_elem.name, 'vios_name': vios_wrap.name},
+                 instance=self.instance)
         self.disk_dvr.disconnect_disk_from_mgmt(vios_wrap.uuid, stg_elem.name)
-        LOG.info("Removing disk %(disk_path)s from the management "
-                 "partition.", {'disk_path': disk_path})
+        LOG.info("Removing disk %(disk_path)s from the management partition.",
+                 {'disk_path': disk_path}, instance=self.instance)
         mgmt.remove_block_dev(disk_path)
 
 
@@ -397,10 +388,9 @@ class CreateAndConnectCfgDrive(task.Task):
         # Delete the virtual optical media. If it fails we don't care.
         try:
             self.mb.dlt_vopt(lpar_wrap.uuid)
-        except Exception as e:
-            LOG.warning('Vopt removal as part of spawn reversion failed '
-                        'with: %(exc)s', {'exc': six.text_type(e)},
-                        instance=self.instance)
+        except Exception:
+            LOG.exception('VOpt removal (as part of reversion) failed.',
+                          instance=self.instance)
 
 
 class DeleteVOpt(task.Task):
@@ -501,9 +491,8 @@ class SaveBDM(task.Task):
         super(SaveBDM, self).__init__('save_bdm_%s' % self.bdm.volume_id)
 
     def execute(self):
-        LOG.info('Saving block device mapping for volume id %(vol_id)s '
-                 'on instance %(inst)s.',
-                 {'vol_id': self.bdm.volume_id, 'inst': self.instance.name})
+        LOG.info('Saving block device mapping for volume id %(vol_id)s.',
+                 {'vol_id': self.bdm.volume_id}, instance=self.instance)
         self.bdm.save()
 
 
@@ -558,6 +547,7 @@ class ExtendDisk(task.Task):
         super(ExtendDisk, self).__init__('extend_disk_%s' % disk_info['type'])
 
     def execute(self):
-        LOG.info('Extending disk size of disk: %(disk)s size: %(size)s.',
-                 {'disk': self.disk_info['type'], 'size': self.size})
+        LOG.info('Extending %(disk_type)s disk to %(size)s GB.',
+                 {'disk_type': self.disk_info['type'], 'size': self.size},
+                 instance=self.instance)
         self.disk_dvr.extend_disk(self.instance, self.disk_info, self.size)

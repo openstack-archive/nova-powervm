@@ -37,6 +37,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import vm
 
+
 LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
@@ -97,8 +98,7 @@ class ConfigDrivePowerVM(object):
         :return iso_path: The path to the ISO
         :return file_name: The file name for the ISO
         """
-        LOG.info("Creating config drive for instance: %s", instance.name,
-                 instance=instance)
+        LOG.info("Creating config drive.", instance=instance)
         extra_md = {}
         if admin_pass is not None:
             extra_md['admin_pass'] = admin_pass
@@ -121,10 +121,8 @@ class ConfigDrivePowerVM(object):
             max_len=pvm_const.MaxLen.VOPT_NAME)
         iso_path = os.path.join(im_path, file_name)
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
-            LOG.info("Config drive ISO being built for instance %(inst)s "
-                     "building to path %(iso_path)s.",
-                     {'inst': instance.name, 'iso_path': iso_path},
-                     instance=instance)
+            LOG.info("Config drive ISO building to path %(iso_path)s.",
+                     {'iso_path': iso_path}, instance=instance)
             # In case, if there's an OSError related failure while
             # creating config drive, retry make drive operation.
 
@@ -210,10 +208,8 @@ class ConfigDrivePowerVM(object):
 
         # Define the function to build and add the mapping
         def add_func(vios_w):
-            LOG.info("Adding cfg drive mapping for instance %(inst)s for "
-                     "Virtual I/O Server %(vios)s",
-                     {'inst': instance.name, 'vios': vios_w.name},
-                     instance=instance)
+            LOG.info("Adding config drive mapping to Virtual I/O Server "
+                     "%(vios)s", {'vios': vios_w.name}, instance=instance)
             mapping = tsk_map.build_vscsi_mapping(self.host_uuid, vios_w,
                                                   lpar_uuid, vopt)
             return tsk_map.add_map(vios_w, mapping)

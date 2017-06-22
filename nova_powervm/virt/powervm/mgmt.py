@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -33,6 +33,7 @@ from pypowervm.tasks import partition as pvm_par
 import retrying
 
 from nova_powervm.virt.powervm import exception as npvmex
+
 
 LOG = logging.getLogger(__name__)
 

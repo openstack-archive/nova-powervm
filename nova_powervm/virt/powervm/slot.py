@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2016, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -23,6 +23,7 @@ from pypowervm.tasks import slot_map
 from pypowervm.tasks import storage as pvm_tstor
 
 from nova_powervm.virt.powervm import exception as p_exc
+
 
 LOG = logging.getLogger(__name__)
 
@@ -177,12 +178,10 @@ class SwiftSlotManager(NovaSlotManager):
             self.store_api.delete_slot_map(key)
         except Exception:
             LOG.warning("Unable to delete the slot map from Swift backing "
-                        "store with ID %(key)s.  Will require "
-                        "manual cleanup.", {'key': key},
-                        instance=self.instance)
+                        "store with ID %(key)s.  Will require manual cleanup.",
+                        {'key': key}, instance=self.instance)
 
 
 class NoopSlotManager(NovaSlotManager):
     """No op Slot Map (for when Swift is not used - which is standard)."""
-
     pass

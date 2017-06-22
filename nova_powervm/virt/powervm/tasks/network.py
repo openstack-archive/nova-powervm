@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -26,6 +26,7 @@ from taskflow import task
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
+
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -60,11 +61,9 @@ class UnplugVifs(task.Task):
         # error up front.
         modifiable, reason = lpar_wrap.can_modify_io()
         if not modifiable:
-            LOG.error('Unable to remove VIFs from instance %(inst)s '
-                      'because the system is not in a correct state.  '
-                      'The reason reported by the system is: %(reason)s',
-                      {'inst': self.instance.name, 'reason': reason},
-                      instance=self.instance)
+            LOG.error("Unable to remove VIFs in the instance's current state. "
+                      "The reason reported by the system is: %(reason)s",
+                      {'reason': reason}, instance=self.instance)
             raise exception.VirtualInterfaceUnplugException(reason=reason)
 
         # Get all the current Client Network Adapters (CNA) on the VM itself.
@@ -149,12 +148,9 @@ class PlugVifs(task.Task):
         # Check to see if the LPAR is OK to add VIFs to.
         modifiable, reason = lpar_wrap.can_modify_io()
         if not modifiable and self.crt_network_infos:
-            LOG.error('Unable to create VIF(s) for instance %(sys)s.  The '
-                      'VM was in a state where VIF plugging is not '
-                      'acceptable.  The reason from the system is: '
-                      '%(reason)s',
-                      {'sys': self.instance.name, 'reason': reason},
-                      instance=self.instance)
+            LOG.error("Unable to create VIF(s) in the instance's current "
+                      "state. The reason reported by the system is: "
+                      "%(reason)s", {'reason': reason}, instance=self.instance)
             raise exception.VirtualInterfaceCreateException()
 
         # TODO(KYLEH): We're setting up to wait for an instance event.  The
@@ -177,9 +173,8 @@ class PlugVifs(task.Task):
         # not wait for the neutron event as that likely won't be sent (it was
         # already done).
         for network_info in self.update_network_infos:
-            LOG.info("Updating VIF with mac %(mac)s for instance %(sys)s",
-                     {'mac': network_info['address'],
-                      'sys': self.instance.name}, instance=self.instance)
+            LOG.info("Updating VIF with mac %(mac)s",
+                     {'mac': network_info['address']}, instance=self.instance)
             vif.plug(self.adapter, self.host_uuid, self.instance,
                      network_info, self.slot_mgr, new_vif=False)
 
@@ -190,10 +185,8 @@ class PlugVifs(task.Task):
                     deadline=CONF.vif_plugging_timeout,
                     error_callback=self._vif_callback_failed):
                 for network_info in self.crt_network_infos:
-                    LOG.info('Creating VIF with mac %(mac)s for instance '
-                             '%(sys)s',
-                             {'mac': network_info['address'],
-                              'sys': self.instance.name},
+                    LOG.info('Creating VIF with mac %(mac)s.',
+                             {'mac': network_info['address']},
                              instance=self.instance)
                     new_vif = vif.plug(
                         self.adapter, self.host_uuid, self.instance,
@@ -202,8 +195,7 @@ class PlugVifs(task.Task):
                                                             pvm_net.CNA):
                         self.cnas.append(new_vif)
         except eventlet.timeout.Timeout:
-            LOG.error('Error waiting for VIF to be created for instance '
-                      '%(sys)s', {'sys': self.instance.name},
+            LOG.error('Error waiting for VIF to be created.',
                       instance=self.instance)
             raise exception.VirtualInterfaceCreateException()
         finally:
@@ -216,9 +208,8 @@ class PlugVifs(task.Task):
         return self.cnas
 
     def _vif_callback_failed(self, event_name, instance):
-        LOG.error('VIF Plug failure for callback on event '
-                  '%(event)s for instance %(uuid)s',
-                  {'event': event_name, 'uuid': instance.uuid})
+        LOG.error('VIF plug failure for callback on event %(event)s.',
+                  {'event': event_name}, instance=instance)
         if CONF.vif_plugging_is_fatal:
             raise exception.VirtualInterfaceCreateException()
 
@@ -247,8 +238,8 @@ class PlugVifs(task.Task):
 
         # The parameters have to match the execute method, plus the response +
         # failures even if only a subset are used.
-        LOG.warning('VIF creation being rolled back for instance %(inst)s',
-                    {'inst': self.instance.name}, instance=self.instance)
+        LOG.warning('VIF creation is being rolled back.',
+                    instance=self.instance)
 
         # Get the current adapters on the system
         cna_w_list = vm.get_cnas(self.adapter, self.instance)
@@ -293,20 +284,19 @@ class PlugMgmtVif(task.Task):
         # return None because the Config Drive step (which may be used...may
         # not be) required the mgmt vif.
         if not CONF.powervm.use_rmc_mgmt_vif:
-            LOG.debug('No management VIF created for instance %s as the conf '
-                      'option use_rmc_mgmt_vif is set to False',
-                      self.instance.name)
+            LOG.debug('No management VIF created because '
+                      'CONF.powervm.use_rmc_mgmt_vif is False',
+                      instance=self.instance)
             return None
 
-        LOG.info('Plugging the Management Network Interface to instance %s',
-                 self.instance.name, instance=self.instance)
+        LOG.info('Plugging the management network interface.',
+                 instance=self.instance)
         # Determine if we need to create the secure RMC VIF.  This should only
         # be needed if there is not a VIF on the secure RMC vSwitch
         vswitch = vif.get_secure_rmc_vswitch(self.adapter, self.host_uuid)
         if vswitch is None:
-            LOG.warning('No management VIF created for instance %s due to '
-                        'lack of Management Virtual Switch',
-                        self.instance.name)
+            LOG.warning('No management VIF created due to lack of management '
+                        'virtual switch', instance=self.instance)
             return None
 
         # This next check verifies that there are no existing NICs on the
@@ -318,8 +308,7 @@ class PlugMgmtVif(task.Task):
             has_mgmt_vif = vswitch.href in [cna.vswitch_uri for cna in vm_cnas]
 
         if has_mgmt_vif:
-            LOG.debug('Management VIF already created for instance %s',
-                      self.instance.name)
+            LOG.debug('Management VIF already exists.', instance=self.instance)
             return None
 
         # Return the created management CNA

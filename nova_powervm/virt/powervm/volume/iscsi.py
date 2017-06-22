@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -29,6 +29,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 from taskflow import task
 
 import six
+
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -113,7 +114,8 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             self._set_devname(device_name)
             self._set_udid(udid)
 
-            LOG.debug('Device attached: %s', device_name)
+            LOG.debug('Device attached: %s', device_name,
+                      instance=self.instance)
 
             # Valid attachment
             return True
@@ -138,7 +140,8 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                      otherwise.
             """
             LOG.debug("Disconnect volume %(vol)s from vios uuid %(uuid)s",
-                      dict(vol=self.volume_id, uuid=vios_w.uuid))
+                      dict(vol=self.volume_id, uuid=vios_w.uuid),
+                      instance=self.instance)
             device_name = None
             try:
                 device_name = self._get_devname()
@@ -158,13 +161,12 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                         instance=self.instance)
                     return False
 
-            except Exception as e:
-                LOG.warning(
-                    "Disconnect Volume: Failed to find disk on Virtual I/O "
-                    "Server %(vios_name)s for volume %(volume_id)s."
-                    " Error: %(error)s",
-                    {'error': e, 'vios_name': vios_w.name,
-                     'volume_id': self.volume_id}, instance=self.instance)
+            except Exception:
+                LOG.exception(
+                    "Disconnect Volume: Failed to find device on Virtual I/O "
+                    "Server %(vios_name)s for volume %(volume_id)s.",
+                    {'vios_name': vios_w.name, 'volume_id': self.volume_id},
+                    instance=self.instance)
                 return False
 
             # We have found the device name
@@ -203,11 +205,9 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             if not any([result['vio_modified']
                         for result in ret['wrapper_task_rets'].values()]):
                 LOG.warning(
-                    "Disconnect Volume: Failed to disconnect the  volume "
-                    "%(volume_id)s on ANY of the Virtual I/O Servers for "
-                    "instance %(inst)s.",
-                    {'inst': self.instance.name, 'volume_id': self.volume_id},
-                    instance=self.instance)
+                    "Disconnect Volume: Failed to disconnect the volume "
+                    "%(volume_id)s on ANY of the Virtual I/O Servers.",
+                    {'volume_id': self.volume_id}, instance=self.instance)
 
         except Exception as e:
             LOG.exception('PowerVM error detaching volume from virtual '

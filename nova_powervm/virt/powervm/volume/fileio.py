@@ -30,6 +30,7 @@ from pypowervm.tasks import partition
 from pypowervm.tasks import scsi_mapper as tsk_map
 from pypowervm.wrappers import storage as pvm_stg
 
+
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
                          information to the live_migration command, it
                          should be added to this dictionary.
         """
-        LOG.debug("Incoming mig_data=%s", mig_data)
+        LOG.debug("Incoming mig_data=%s", mig_data, instance=self.instance)
         # Check if volume is available in destination.
         vol_path = self._get_path()
         if not os.path.exists(vol_path):
@@ -102,15 +103,15 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
             if vios_w.uuid not in self.vios_uuids:
                 return None
 
-            LOG.info("Adding logical volume disk connection between VM "
-                     "%(vm)s and VIOS %(vios)s.",
-                     {'vm': self.instance.name, 'vios': vios_w.name},
-                     instance=self.instance)
+            LOG.info("Adding logical volume disk connection to VIOS %(vios)s.",
+                     {'vios': vios_w.name}, instance=self.instance)
             slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, path)
             if slot_mgr.is_rebuild and not slot:
-                LOG.debug('Detected a device with path %s on VIOS %s on the '
-                          'rebuild that did not exist on the source.  '
-                          'Ignoring.', path, vios_w.uuid)
+                LOG.debug('Detected a device with path %(path)s on VIOS '
+                          '%(vios)s on the rebuild that did not exist on the '
+                          'source. Ignoring.',
+                          {'path': path, 'vios': vios_w.uuid},
+                          instance=self.instance)
                 return None
 
             mapping = tsk_map.build_vscsi_mapping(
@@ -146,8 +147,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
             if vios_w.uuid not in self.vios_uuids:
                 return None
 
-            LOG.info("Disconnecting instance %(inst)s from storage disks.",
-                     {'inst': self.instance.name}, instance=self.instance)
+            LOG.info("Disconnecting storage disks.", instance=self.instance)
             removed_maps = tsk_map.remove_maps(vios_w, self.vm_uuid,
                                                match_func=match_func)
             for rm_map in removed_maps:

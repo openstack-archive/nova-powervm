@@ -1,4 +1,4 @@
-# Copyright 2014, 2016 IBM Corp.
+# Copyright 2014, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -99,7 +99,8 @@ class PowerVMNovaEventHandler(pvm_apt.WrapperEventHandler):
             if inst is None:
                 return None
 
-            LOG.debug('Handle NVRAM event for PowerVM LPAR %s', pvm_uuid)
+            LOG.debug('Handle NVRAM event for PowerVM LPAR %s', pvm_uuid,
+                      instance=inst)
             self._driver.nvram_mgr.store(inst)
 
         # If the state of the vm changed see if it should be handled
@@ -174,8 +175,8 @@ class PowerVMLifecycleEventHandler(object):
             pvm_state = vm.get_vm_qp(self._driver.adapter, pvm_uuid,
                                      'PartitionState')
         except exception.InstanceNotFound:
-            LOG.debug("Instance for LPAR %s was deleted while event was "
-                      "delayed.", pvm_uuid)
+            LOG.debug("LPAR %s was deleted while event was delayed.", pvm_uuid,
+                      instance=inst)
             return
 
         LOG.debug('New state %s for partition %s', pvm_state, pvm_uuid,

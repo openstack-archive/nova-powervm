@@ -69,9 +69,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         self.ssp_name = self._ssp.name
         self.tier_name = self._tier.name
 
-        LOG.info("SSP Storage driver initialized. "
-                 "Cluster '%(clust_name)s'; SSP '%(ssp_name)s'; "
-                 "Tier '%(tier_name)s",
+        LOG.info("SSP Storage driver initialized. Cluster '%(clust_name)s'; "
+                 "SSP '%(ssp_name)s'; Tier '%(tier_name)s",
                  {'clust_name': self.clust_name, 'ssp_name': self.ssp_name,
                   'tier_name': self.tier_name})
 
@@ -140,9 +139,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         # Delay run function to remove the mapping between the VM and the LU
         def rm_func(vios_w):
-            LOG.info("Removing SSP disk connection between VM %(vm)s and "
-                     "VIOS %(vios)s.",
-                     {'vm': instance.name, 'vios': vios_w.name})
+            LOG.info("Removing SSP disk connection to VIOS %(vios)s.",
+                     {'vios': vios_w.name}, instance=instance)
             return tsk_map.remove_maps(vios_w, lpar_uuid,
                                        match_func=match_func)
 
@@ -200,7 +198,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
     def _create_disk_from_image(self, context, instance, image_meta,
                                 image_type=disk_drv.DiskType.BOOT):
-        """Creates a boot disk and links the specified image to it.
+        """Creates a disk and copies the specified image to it.
 
         If the specified image has not already been uploaded, an Image LU is
         created for it.  A Disk LU is then created for the instance and linked
@@ -213,10 +211,9 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         :param image_type: The image type. See disk_drv.DiskType.
         :return: The backing pypowervm LU storage object that was created.
         """
-        LOG.info('SSP: Create %(image_type)s disk from image %(image_id)s '
-                 'for instance %(instance_uuid)s.',
-                 dict(image_type=image_type, image_id=image_meta.id,
-                      instance_uuid=instance.uuid))
+        LOG.info('SSP: Create %(image_type)s disk from image %(image_id)s.',
+                 dict(image_type=image_type, image_id=image_meta.id),
+                 instance=instance)
 
         image_lu = tsk_cs.get_or_upload_image_lu(
             self._tier, self._get_image_name(image_meta),
@@ -225,7 +222,7 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
             image_meta.size, upload_type=tsk_stg.UploadType.IO_STREAM)
 
         boot_lu_name = self._get_disk_name(image_type, instance)
-        LOG.info('SSP: Disk name is %s', boot_lu_name)
+        LOG.info('SSP: Disk name is %s', boot_lu_name, instance=instance)
 
         return tsk_stg.crt_lu(
             self._tier, boot_lu_name, instance.flavor.root_gb,
@@ -262,9 +259,8 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
         # This is the delay apply mapping
         def add_func(vios_w):
-            LOG.info("Adding SSP disk connection between VM %(vm)s and "
-                     "VIOS %(vios)s.",
-                     {'vm': instance.name, 'vios': vios_w.name})
+            LOG.info("Adding SSP disk connection to VIOS %(vios)s.",
+                     {'vios': vios_w.name}, instance=instance)
             mapping = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, lpar_uuid, lu)
             return tsk_map.add_map(vios_w, mapping)

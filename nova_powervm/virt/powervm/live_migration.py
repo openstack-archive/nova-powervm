@@ -35,6 +35,7 @@ from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
 
+
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
@@ -142,9 +143,8 @@ class LiveMigrationDest(LiveMigration):
         :param migrate_data: a PowerVMLiveMigrateData object
         :param vol_drvs: volume drivers for the attached volumes
         """
-        LOG.debug('Running pre live migration on destination.',
-                  instance=self.instance)
-        LOG.debug('Migration data: %s', migrate_data, instance=self.instance)
+        LOG.debug('Running pre live migration on destination. Migration data: '
+                  '%s', migrate_data, instance=self.instance)
 
         # Set the ssh auth key.
         mgmt_task.add_authorized_key(self.drvr.adapter,
@@ -204,7 +204,7 @@ class LiveMigrationDest(LiveMigration):
             try:
                 vol_drv.post_live_migration_at_destination(mig_vol_stor)
             except Exception:
-                LOG.exception("PowerVM error cleaning up destincation host "
+                LOG.exception("PowerVM error cleaning up destination host "
                               "after migration.", instance=self.instance)
                 # It failed.
                 raise LiveMigrationVolume(
@@ -270,7 +270,8 @@ class LiveMigrationSrc(LiveMigration):
         lpar_w = vm.get_instance_wrapper(self.drvr.adapter, self.instance)
         self.lpar_w = lpar_w
 
-        LOG.debug('Dest Migration data: %s', self.mig_data)
+        LOG.debug('Dest Migration data: %s', self.mig_data,
+                  instance=self.instance)
 
         # Check proc compatibility modes
         if (lpar_w.proc_compat_mode and lpar_w.proc_compat_mode not in
@@ -307,7 +308,7 @@ class LiveMigrationSrc(LiveMigration):
             vol_drv.pre_live_migration_on_source(vol_data)
         self.mig_data.vol_data = vol_data
 
-        LOG.debug('Src Migration data: %s', self.mig_data,
+        LOG.debug('Source migration data: %s', self.mig_data,
                   instance=self.instance)
 
         # Create a FeedTask to scrub any orphaned mappings/storage associated
@@ -333,8 +334,8 @@ class LiveMigrationSrc(LiveMigration):
         :param context: security context
         :param migrate_data: a PowerVMLiveMigrateData object
         """
-        LOG.debug("Starting migration.", instance=self.instance)
-        LOG.debug("Migrate data: %s", migrate_data, instance=self.instance)
+        LOG.debug("Starting migration. Migrate data: %s", migrate_data,
+                  instance=self.instance)
 
         # The passed in mig data has more info (dest data added), so replace
         self.mig_data = migrate_data
@@ -376,8 +377,7 @@ class LiveMigrationSrc(LiveMigration):
                 trunk_to_del.delete()
         except Exception:
             with excutils.save_and_reraise_exception(logger=LOG):
-                LOG.exception("Live migration failed.",
-                              instance=self.instance)
+                LOG.exception("Live migration failed.", instance=self.instance)
         finally:
             LOG.debug("Finished migration.", instance=self.instance)
 
@@ -439,9 +439,8 @@ class LiveMigrationSrc(LiveMigration):
             if self.lpar_w.migration_state != 'Not_Migrating':
                 self.migration_recover()
 
-        except Exception as ex:
-            LOG.error("Migration recover failed with error: %s", ex,
-                      instance=self.instance)
+        except Exception:
+            LOG.exception("Migration rollback failed.", instance=self.instance)
         finally:
             LOG.debug("Finished migration rollback.", instance=self.instance)
 
