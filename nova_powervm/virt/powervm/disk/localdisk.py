@@ -1,5 +1,5 @@
 # Copyright 2013 OpenStack Foundation
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -155,8 +155,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Make sure the remove function will run within the transaction manager
         def rm_func(vios_w):
-            LOG.info("Disconnecting instance %(inst)s from storage "
-                     "disks.", {'inst': instance.name})
+            LOG.info("Disconnecting instance from storage disks.",
+                     instance=instance)
             return tsk_map.remove_maps(vios_w, lpar_uuid,
                                        match_func=match_func)
 
@@ -269,9 +269,8 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 self.adapter, name='localdisk', xag=[pvm_const.XAG.VIO_SMAP])
 
         def add_func(vios_w):
-            LOG.info("Adding logical volume disk connection between VM "
-                     "%(vm)s and VIOS %(vios)s.",
-                     {'vm': instance.name, 'vios': vios_w.name})
+            LOG.info("Adding logical volume disk connection to VIOS %(vios)s.",
+                     {'vios': vios_w.name}, instance=instance)
             mapping = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, lpar_uuid, disk_info)
             return tsk_map.add_map(vios_w, mapping)
@@ -282,15 +281,16 @@ class LocalStorage(disk_dvr.DiskAdapter):
         if stg_ftsk.name == 'localdisk':
             stg_ftsk.execute()
 
-    def _validate_resizable(self, vdisk):
+    @staticmethod
+    def _validate_resizable(vdisk):
         """Validates that VDisk supports resizing
 
         :param vdisk: The VDisk to be resized
         :raise ResizeError: If resizing is not supported for the given VDisk.
         """
-        if (vdisk.backstore_type == pvm_stg.BackStoreType.USER_QCOW):
+        if vdisk.backstore_type == pvm_stg.BackStoreType.USER_QCOW:
             raise nova_exc.ResizeError(
-                reason=_("Resizing file-backed instances is not currently"
+                reason=_("Resizing file-backed instances is not currently "
                          "supported."))
 
     def extend_disk(self, instance, disk_info, size):
@@ -327,7 +327,7 @@ class LocalStorage(disk_dvr.DiskAdapter):
 
         # Get the disk name based on the instance and type
         vol_name = self._get_disk_name(disk_info['type'], instance, short=True)
-        LOG.info('Extending disk: %s', vol_name)
+        LOG.info('Extending disk: %s', vol_name, instance=instance)
         try:
             _extend()
         except pvm_exc.Error:

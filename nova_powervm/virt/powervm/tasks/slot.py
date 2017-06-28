@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2016, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -17,6 +17,7 @@
 
 from oslo_log import log as logging
 from taskflow import task
+
 
 LOG = logging.getLogger(__name__)
 
@@ -42,8 +43,8 @@ class SaveSlotStore(task.Task):
         super(SaveSlotStore, self).__init__('save_slot_store')
 
     def execute(self):
-        LOG.debug("Topology for instance %(inst)s: %(topo)s",
-                  {'inst': self.instance.name, 'topo': self.slot_mgr.topology})
+        LOG.debug("Topology: %(topo)s", {'topo': self.slot_mgr.topology},
+                  instance=self.instance)
         self.slot_mgr.save()
 
 

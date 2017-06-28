@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -30,6 +30,8 @@ from pypowervm.utils import transaction as tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
 import six
+
+
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
@@ -178,15 +180,16 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
         itls = hdisk.build_itls(vio_wwpns, t_wwpns, lun)
         if len(itls) == 0:
             LOG.debug('No ITLs for VIOS %(vios)s for volume %(volume_id)s.',
-                      {'vios': vios_w.name, 'volume_id': volume_id})
+                      {'vios': vios_w.name, 'volume_id': volume_id},
+                      instance=self.instance)
             return None, None, None
 
         status, device_name, udid = hdisk.discover_hdisk(self.adapter,
                                                          vios_w.uuid, itls)
 
         if hdisk.good_discovery(status, device_name):
-            LOG.info('Discovered %(hdisk)s on vios %(vios)s for '
-                     'volume %(volume_id)s. Status code: %(status)s.',
+            LOG.info('Discovered %(hdisk)s on vios %(vios)s for volume '
+                     '%(volume_id)s. Status code: %(status)s.',
                      {'hdisk': device_name, 'vios': vios_w.name,
                       'volume_id': volume_id, 'status': str(status)},
                      instance=self.instance)
@@ -217,9 +220,10 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
         slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, udid)
 
         if slot_mgr.is_rebuild and not slot:
-            LOG.debug('Detected a device with UDID %s on VIOS %s on the '
-                      'rebuild that did not exist on the source.  '
-                      'Ignoring.', udid, vios_w.uuid)
+            LOG.debug('Detected a device with UDID %(udid)s on VIOS '
+                      '%(vios)s on the rebuild that did not exist on the '
+                      'source. Ignoring.', {'udid': udid, 'vios': vios_w.uuid},
+                      instance=self.instance)
             return False
 
         if hdisk.good_discovery(status, device_name):
@@ -232,7 +236,8 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
             # Save the UDID for the disk in the connection info.  It is
             # used for the detach.
             self._set_udid(udid)
-            LOG.debug('Device attached: %s', device_name)
+            LOG.debug('Added deferred task to attach device %s', device_name,
+                      instance=self.instance)
 
             # Valid attachment
             return True
@@ -253,7 +258,8 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
                      otherwise.
             """
             LOG.debug("Disconnect volume %(vol)s from vios uuid %(uuid)s",
-                      dict(vol=self.volume_id, uuid=vios_w.uuid))
+                      dict(vol=self.volume_id, uuid=vios_w.uuid),
+                      instance=self.instance)
             udid, device_name = None, None
             try:
                 udid = self._get_udid()
@@ -281,12 +287,12 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
                             instance=self.instance)
                         return False
 
-            except Exception as e:
-                LOG.warning(
+            except Exception:
+                LOG.exception(
                     "Disconnect Volume: Failed to find disk on Virtual I/O "
                     "Server %(vios_name)s for volume %(volume_id)s. Volume "
-                    "UDID: %(volume_uid)s.  Error: %(error)s",
-                    {'error': e, 'volume_uid': udid, 'vios_name': vios_w.name,
+                    "UDID: %(volume_uid)s.",
+                    {'volume_uid': udid, 'vios_name': vios_w.name,
                      'volume_id': self.volume_id}, instance=self.instance)
                 return False
 
@@ -326,9 +332,7 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
                         for result in ret['wrapper_task_rets'].values()]):
                 LOG.warning("Disconnect Volume: Failed to disconnect the "
                             "volume %(volume_id)s on ANY of the Virtual "
-                            "I/O Servers for instance %(inst)s.",
-                            {'inst': self.instance.name,
-                             'volume_id': self.volume_id},
+                            "I/O Servers.", {'volume_id': self.volume_id},
                             instance=self.instance)
 
         except Exception as e:

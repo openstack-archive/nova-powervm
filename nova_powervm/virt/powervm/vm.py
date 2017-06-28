@@ -1,4 +1,4 @@
-# Copyright 2014, 2015, 2016 IBM Corp.
+# Copyright 2014, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -45,6 +45,7 @@ from pypowervm.wrappers import shared_proc_pool as pvm_spp
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as nvex
 from nova_powervm.virt.powervm.i18n import _
+
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -124,7 +125,8 @@ def translate_event(pvm_state, pwr_state):
     elif pvm_state in RESUMING_EVENTS and pwr_state != power_state.RUNNING:
         trans = event.EVENT_LIFECYCLE_RESUMED
 
-    LOG.debug('Translated Event to %s', trans)
+    LOG.debug('Translated {PowerVM state %s; power state %s} to %s',
+              pvm_state, pwr_state, trans)
     return trans
 
 
@@ -677,29 +679,27 @@ def power_off(adapter, instance, opts=None, force_immediate=False,
         entry = get_instance_wrapper(adapter, instance)
 
         # Get the current state and see if we can stop the VM
-        LOG.debug("Powering off request for instance %(inst)s which is in "
-                  "state %(state)s.  Force Immediate Flag: %(force)s.",
-                  {'inst': instance.name, 'state': entry.state,
-                   'force': force_immediate})
+        LOG.debug("Power off requested for instance in state %(state)s. Force "
+                  "Immediate Flag: %(force)s.",
+                  {'state': entry.state, 'force': force_immediate},
+                  instance=instance)
         if entry.state in POWERVM_STOPABLE_STATE:
             # Now stop the lpar
             try:
-                LOG.debug("Power off executing for instance %(inst)s.",
-                          {'inst': instance.name})
+                LOG.debug("Power off executing.", instance=instance)
                 kwargs = {'timeout': timeout} if timeout else {}
                 force_flag = (power.Force.TRUE if force_immediate
                               else power.Force.ON_FAILURE)
                 power.power_off(entry, None, force_immediate=force_flag,
                                 add_parms=opts, **kwargs)
             except Exception as e:
-                LOG.exception("Failed to power of instance.",
+                LOG.exception("Failed to power off instance.",
                               instance=instance)
                 raise exception.InstancePowerOffFailure(
                     reason=six.text_type(e))
             return True
         else:
-            LOG.debug("Power off not required for instance %(inst)s.",
-                      {'inst': instance.name})
+            LOG.debug("Power off not required.", instance=instance)
 
     return False
 
@@ -779,7 +779,7 @@ def get_instance(context, pvm_uuid):
     except exception.InstanceNotFound:
         pass
     except Exception as e:
-        LOG.debug('PowerVM UUID not found. %s', e)
+        LOG.debug('Instance with PowerVM UUID %s not found: %s', pvm_uuid, e)
     return None
 
 

@@ -219,8 +219,7 @@ class PowerVMDriver(driver.ComputeDriver):
         LOG.info('Operation: %(op)s. Virtual machine display name: '
                  '%(display_name)s, name: %(name)s',
                  {'op': op, 'display_name': instance.display_name,
-                  'name': instance.name},
-                 instance=instance)
+                  'name': instance.name}, instance=instance)
 
     def get_info(self, instance):
         """Get the current status of an instance, by name (not ID!)
@@ -627,7 +626,7 @@ class PowerVMDriver(driver.ComputeDriver):
                                 "%(lpar_uuid)s from VIOS %(vios_name)s.",
                                 {'num_maps': len(removals),
                                  'lpar_uuid': pvm_inst_uuid,
-                                 'vios_name': vwrap.name})
+                                 'vios_name': vwrap.name}, instance=instance)
                 return removals
             stg_ftsk.add_functor_subtask(_rm_vscsi_maps)
 
@@ -852,12 +851,12 @@ class PowerVMDriver(driver.ComputeDriver):
         # Power Off the LPAR
         flow.add(tf_vm.PowerOff(self.adapter, instance))
 
-        # Creates the boot image.
+        # Create and populate the rescue disk.
         flow.add(tf_stg.CreateDiskForImg(
             self.disk_dvr, context, instance, image_meta,
             image_type=disk_dvr.DiskType.RESCUE))
 
-        # Connects up the disk to the LPAR
+        # Connect up the disk to the LPAR
         flow.add(tf_stg.ConnectDisk(self.disk_dvr, instance))
 
         # Last step is to power on the system.
@@ -1774,8 +1773,8 @@ class PowerVMDriver(driver.ComputeDriver):
             vol_cls = vol_attach.get_volume_class(driver_type)
             xags.update(set(vol_cls.min_xags()))
 
-        LOG.debug('Instance XAGs for VM %(inst)s is %(xags)s.',
-                  {'inst': instance.name, 'xags': ','.join(xags)})
+        LOG.debug('Instance XAGs: %(xags)s.', {'xags': ','.join(xags)},
+                  instance=instance)
         return list(xags)
 
     def _get_boot_connectivity_type(self, context, bdms, block_device_info):
@@ -1798,7 +1797,8 @@ class PowerVMDriver(driver.ComputeDriver):
         else:
             return boot_conn_type
 
-    def _get_connectivity_type(self, bdm):
+    @staticmethod
+    def _get_connectivity_type(bdm):
         conn_info = bdm.get('connection_info')
         if 'connection-type' in conn_info['data']:
             connectivity_type = conn_info['data']['connection-type']

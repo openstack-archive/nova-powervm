@@ -1,4 +1,4 @@
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -98,8 +98,7 @@ class Create(task.Task):
     def execute(self):
         data = None
         if self.nvram_mgr is not None:
-            LOG.info('Fetching NVRAM for instance %s.',
-                     self.instance.name, instance=self.instance)
+            LOG.info('Fetching NVRAM.', instance=self.instance)
             data = self.nvram_mgr.fetch(self.instance)
             LOG.debug('NVRAM data is: %s', data, instance=self.instance)
 
@@ -114,8 +113,7 @@ class Create(task.Task):
         # build map earlier in the spawn, just before the LPAR is created.
         # Only rebuilds should be passing in None for stg_ftsk.
         if self.stg_ftsk.name == 'create_scrubber':
-            LOG.info('Scrubbing storage for instance %s as part of '
-                     'rebuild.', self.instance.name,
+            LOG.info('Scrubbing storage as part of rebuild.',
                      instance=self.instance)
             self.stg_ftsk.execute()
 
@@ -202,11 +200,12 @@ class PowerOn(task.Task):
         vm.power_on(self.adapter, self.instance, opts=self.pwr_opts)
 
     def revert(self, result, flow_failures):
-        LOG.warning('Powering off instance: %s', self.instance.name)
+        LOG.warning('Rolling back power-on.', instance=self.instance)
 
         if isinstance(result, task_fail.Failure):
             # The power on itself failed...can't power off.
-            LOG.debug('Power on failed.  Not performing power off.')
+            LOG.debug('Power on failed.  Not performing power off.',
+                      instance=self.instance)
             return
 
         vm.power_off(self.adapter, self.instance, force_immediate=True)
@@ -220,7 +219,6 @@ class PowerOff(task.Task):
         """Creates the Task to power off an LPAR.
 
         :param adapter: The adapter for the pypowervm API
-        :param lpar_uuid: The UUID of the lpar that has media.
         :param instance: The nova instance.
         :param force_immediate: Boolean. Perform a VSP hard power off.
         """
@@ -257,8 +255,7 @@ class StoreNvram(task.Task):
         try:
             self.nvram_mgr.store(self.instance, immediate=self.immediate)
         except Exception:
-            LOG.exception('Unable to store NVRAM for instance %(name)s.',
-                          {'name': self.instance.name}, instance=self.instance)
+            LOG.exception('Unable to store NVRAM.', instance=self.instance)
 
 
 class DeleteNvram(task.Task):
@@ -280,13 +277,11 @@ class DeleteNvram(task.Task):
             LOG.info("No op for NVRAM delete.", instance=self.instance)
             return
 
-        LOG.info('Deleting NVRAM for instance: %s',
-                 self.instance.name, instance=self.instance)
+        LOG.info('Deleting NVRAM', instance=self.instance)
         try:
             self.nvram_mgr.remove(self.instance)
         except Exception:
-            LOG.exception('Unable to delete NVRAM for instance %(name)s.',
-                          {'name': self.instance.name}, instance=self.instance)
+            LOG.exception('Unable to delete NVRAM.', instance=self.instance)
 
 
 class Delete(task.Task):
@@ -297,7 +292,6 @@ class Delete(task.Task):
         """Create the Task to delete the VM from the system.
 
         :param adapter: The adapter for the pypowervm API.
-        :param lpar_uuid: The VM's PowerVM UUID.
         :param instance: The nova instance.
         """
         super(Delete, self).__init__('dlt_vm')

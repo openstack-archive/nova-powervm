@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2016, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -32,6 +32,7 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 from swiftclient import exceptions as swft_exc
 from swiftclient import service as swft_srv
+
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -126,7 +127,8 @@ class SwiftNvramStore(api.NvramStore):
     def _store(self, inst_key, inst_name, data, exists=None):
         """Store the NVRAM into the storage service.
 
-        :param instance: instance object
+        :param inst_key: The key by which to store the data in the repository.
+        :param inst_name: The name of the instance.
         :param data: the NVRAM data base64 encoded string
         :param exists: (Optional, Default: None) If specified, tells the upload
                        whether or not the object exists.  Should be a boolean
@@ -216,12 +218,11 @@ class SwiftNvramStore(api.NvramStore):
                     data = data.encode('ascii')
                 md5 = hashlib.md5(data).hexdigest()
                 if existing_hash == md5:
-                    LOG.info('NVRAM has not changed for instance: %s',
-                             instance.name, instance=instance)
+                    LOG.info('NVRAM has not changed.', instance=instance)
                     return
 
         self._store(instance.uuid, instance.name, data, exists=exists)
-        LOG.debug('NVRAM updated for instance: %s', instance.name)
+        LOG.debug('NVRAM updated', instance=instance)
 
     def store_slot_map(self, inst_key, data):
         """Store the Slot Map to Swift.

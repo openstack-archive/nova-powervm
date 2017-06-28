@@ -42,6 +42,7 @@ from pypowervm.wrappers import network as pvm_net
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm import vm
 
+
 LOG = log.getLogger(__name__)
 
 SECURE_RMC_VSWITCH = 'MGMTSWITCH'
@@ -368,25 +369,18 @@ class PvmVifDriver(object):
 
         cna_w = self._find_cna_for_vif(cna_w_list, vif)
         if not cna_w:
-            LOG.warning('Unable to unplug VIF with mac %(mac)s for '
-                        'instance %(inst)s.  The VIF was not found on '
-                        'the instance.',
-                        {'mac': vif['address'], 'inst': self.instance.name},
-                        instance=self.instance)
+            LOG.warning('Unable to unplug VIF with mac %(mac)s.  The VIF was '
+                        'not found on the instance.',
+                        {'mac': vif['address']}, instance=self.instance)
             return None
 
-        LOG.info('Deleting VIF with mac %(mac)s for instance %(inst)s.',
-                 {'mac': vif['address'], 'inst': self.instance.name},
-                 instance=self.instance)
+        LOG.info('Deleting VIF with mac %(mac)s.',
+                 {'mac': vif['address']}, instance=self.instance)
         try:
             cna_w.delete()
         except Exception as e:
-            LOG.error('Unable to unplug VIF with mac %(mac)s for instance '
-                      '%(inst)s.',
-                      {'mac': vif['address'], 'inst': self.instance.name},
-                      instance=self.instance)
-            LOG.exception("PowerVM error during vif unplug.",
-                          instance=self.instance)
+            LOG.exception('Unable to unplug VIF with mac %(mac)s.',
+                          {'mac': vif['address']}, instance=self.instance)
             raise exception.VirtualInterfaceUnplugException(
                 reason=six.text_type(e))
         return cna_w
@@ -485,7 +479,8 @@ class PvmSeaVifDriver(PvmVifDriver):
         if not vlan:
             vlan = int(vif['details']['vlan'])
 
-        LOG.debug("Creating SEA based VIF with VLAN %s", str(vlan))
+        LOG.debug("Creating SEA-based VIF with VLAN %s", str(vlan),
+                  instance=self.instance)
         cna_w = pvm_cna.crt_cna(self.adapter, self.host_uuid, lpar_uuid, vlan,
                                 mac_addr=vif['address'], slot_num=slot_num)
 
@@ -600,11 +595,9 @@ class PvmLBVifDriver(PvmLioVifDriver):
         # Find the CNA for this vif.
         cna_w = self._find_cna_for_vif(cna_w_list, vif)
         if not cna_w:
-            LOG.warning('Unable to unplug VIF with mac %(mac)s for '
-                        'instance %(inst)s.  The VIF was not found on '
-                        'the instance.',
-                        {'mac': vif['address'], 'inst': self.instance.name},
-                        instance=self.instance)
+            LOG.warning('Unable to unplug VIF with mac %(mac)s.  The VIF was '
+                        'not found on the instance.',
+                        {'mac': vif['address']}, instance=self.instance)
             return None
 
         # Find and delete the trunk adapters
@@ -615,12 +608,11 @@ class PvmLBVifDriver(PvmLioVifDriver):
         try:
             utils.execute('brctl', 'delif', vif['network']['bridge'],
                           dev_name, run_as_root=True)
-        except Exception as e:
-            LOG.warning('Unable to delete device %(dev_name)s from bridge '
-                        '%(bridge)s. Error: %(error)s',
-                        {'dev_name': dev_name,
-                         'bridge': vif['network']['bridge'],
-                         'error': e.message}, instance=self.instance)
+        except Exception:
+            LOG.exception(
+                'Unable to delete device %(dev_name)s from bridge %(bridge)s.',
+                {'dev_name': dev_name, 'bridge': vif['network']['bridge']},
+                instance=self.instance)
         for trunk in trunks:
             trunk.delete()
 
@@ -648,10 +640,8 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
             network = napi.get(admin_context, net_id)
             physnet = network.physical_network
 
-        LOG.debug("Plugging vNIC SR-IOV vif for physical network "
-                  "'%(physnet)s' into instance %(inst)s.",
-                  {'physnet': physnet, 'inst': self.instance.name},
-                  instance=self.instance)
+        LOG.debug("Plugging vNIC SR-IOV vif for physical network %(physnet)s.",
+                  {'physnet': physnet}, instance=self.instance)
 
         # Get the msys
         msys = pvm_ms.System.get(self.adapter)[0]
@@ -697,11 +687,9 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
         vnic = vm.get_vnics(
             self.adapter, self.instance, mac=mac, one_result=True)
         if not vnic:
-            LOG.warning('Unable to unplug VIF with mac %(mac)s for '
-                        'instance %(inst)s.  No matching vNIC was found '
-                        'on the instance.  VIF: %(vif)s',
-                        {'mac': mac, 'inst': self.instance.name, 'vif': vif},
-                        instance=self.instance)
+            LOG.warning('Unable to unplug VIF with mac %(mac)s. No matching '
+                        'vNIC was found on the instance. VIF: %(vif)s',
+                        {'mac': mac, 'vif': vif}, instance=self.instance)
             return None
         vnic.delete()
         return vnic
@@ -770,11 +758,9 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         # Find the CNA for this vif.
         cna_w = self._find_cna_for_vif(cna_w_list, vif)
         if not cna_w:
-            LOG.warning('Unable to unplug VIF with mac %(mac)s for '
-                        'instance %(inst)s.  The VIF was not found on '
-                        'the instance.',
-                        {'mac': vif['address'], 'inst': self.instance.name},
-                        instance=self.instance)
+            LOG.warning('Unable to unplug VIF with mac %(mac)s for. The VIF '
+                        'was not found on the instance.',
+                        {'mac': vif['address']}, instance=self.instance)
             return None
 
         # Find and delete the trunk adapters
@@ -822,8 +808,8 @@ class PvmOvsVifDriver(PvmLioVifDriver):
 
         # Save this data for the migration command.
         vea_vlan_mappings[vif['address']] = cna_w.pvid
-        LOG.info("VIF with mac %(mac)s is going on trunk %(dev)s with "
-                 "PVID %(pvid)s",
+        LOG.info("VIF with mac %(mac)s is going on trunk %(dev)s with PVID "
+                 "%(pvid)s",
                  {'mac': vif['address'], 'dev': dev, 'pvid': cna_w.pvid},
                  instance=self.instance)
 

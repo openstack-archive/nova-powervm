@@ -1,5 +1,5 @@
 # Copyright 2013 OpenStack Foundation
-# Copyright 2015, 2016 IBM Corp.
+# Copyright 2015, 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -204,12 +204,10 @@ class DiskAdapter(object):
                       made.
         :raise InstanceDiskMappingFailed: If the mapping could not be done.
         """
-        msg_args = {'instance_name': instance.name}
         lpar_wrap = vm.get_instance_wrapper(self.adapter, instance)
         for stg_elem, vios in self.instance_disk_iter(instance,
                                                       lpar_wrap=lpar_wrap):
-            msg_args['disk_name'] = stg_elem.name
-            msg_args['vios_name'] = vios.name
+            msg_args = {'disk_name': stg_elem.name, 'vios_name': vios.name}
 
             # Create a new mapping.  NOTE: If there's an existing mapping on
             # the other VIOS but not this one, we'll create a second mapping
@@ -218,23 +216,21 @@ class DiskAdapter(object):
             # alternative would be always checking all VIOSes for existing
             # mappings, which increases the response time of the common case by
             # an entire GET of VIOS+VIO_SMAP.
-            LOG.debug("Mapping boot disk %(disk_name)s of instance "
-                      "%(instance_name)s to the management partition from "
-                      "Virtual I/O Server %(vios_name)s.", msg_args)
+            LOG.debug("Mapping boot disk %(disk_name)s to the management "
+                      "partition from Virtual I/O Server %(vios_name)s.",
+                      msg_args, instance=instance)
             try:
                 tsk_map.add_vscsi_mapping(self.host_uuid, vios, self.mp_uuid,
                                           stg_elem)
                 # If that worked, we're done.  add_vscsi_mapping logged.
                 return stg_elem, vios
-            except Exception as e:
-                msg_args['exc'] = e
-                LOG.warning("Failed to map boot disk %(disk_name)s of "
-                            "instance %(instance_name)s to the management "
-                            "partition from Virtual I/O Server "
-                            "%(vios_name)s: %(exc)s", msg_args)
+            except Exception:
+                LOG.exception("Failed to map boot disk %(disk_name)s to the "
+                              "management partition from Virtual I/O Server "
+                              "%(vios_name)s.", msg_args, instance=instance)
                 # Try the next hit, if available.
         # We either didn't find the boot dev, or failed all attempts to map it.
-        raise npvmex.InstanceDiskMappingFailed(**msg_args)
+        raise npvmex.InstanceDiskMappingFailed(instance_name=instance.name)
 
     def disconnect_disk_from_mgmt(self, vios_uuid, disk_name):
         """Disconnect a disk from the management partition.
