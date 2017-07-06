@@ -316,6 +316,21 @@ def plug_secure_rmc_vif(adapter, instance, host_uuid, slot_mgr):
     return cna_w
 
 
+def _get_trunk_dev_name(vif):
+    """Returns the device name for the trunk adapter.
+
+    A given VIF will have a trunk adapter and a
+    client adapter.  This will return the trunk adapter's name as it
+    will appear on the management VM.
+
+    :param vif: The nova network interface
+    :return: The device name.
+    """
+    if 'devname' in vif:
+        return vif['devname']
+    return ("nic" + vif['id'])[:network_model.NIC_NAME_LEN]
+
+
 @six.add_metaclass(abc.ABCMeta)
 class PvmVifDriver(object):
     """Represents an abstract class for a PowerVM Vif Driver.
@@ -491,21 +506,6 @@ class PvmSeaVifDriver(PvmVifDriver):
 class PvmLioVifDriver(PvmVifDriver):
     """An abstract VIF driver that uses Linux I/O to host."""
 
-    @staticmethod
-    def get_trunk_dev_name(vif):
-        """Returns the device name for the trunk adapter.
-
-        A given VIF in the Linux I/O model will have a trunk adapter and a
-        client adapter.  This will return the trunk adapter's name as it
-        will appear on the management VM.
-
-        :param vif: The nova network interface
-        :return: The device name.
-        """
-        if 'devname' in vif:
-            return vif['devname']
-        return ("nic" + vif['id'])[:network_model.NIC_NAME_LEN]
-
     def plug(self, vif, slot_num, new_vif=True):
         """Plugs a virtual interface (network) into a VM.
 
@@ -524,7 +524,7 @@ class PvmLioVifDriver(PvmVifDriver):
         :return: The new vif that was created.  Only returned if new_vif is
                  set to True.  Otherwise None is expected.
         """
-        dev_name = self.get_trunk_dev_name(vif)
+        dev_name = _get_trunk_dev_name(vif)
 
         if new_vif:
             # Create the trunk and client adapter.
@@ -571,7 +571,7 @@ class PvmLBVifDriver(PvmLioVifDriver):
         # Similar to libvirt's vif.py plug_bridge.  Need to attach the
         # interface to the bridge.
         linux_net.LinuxBridgeInterfaceDriver.ensure_bridge(
-            vif['network']['bridge'], self.get_trunk_dev_name(vif))
+            vif['network']['bridge'], _get_trunk_dev_name(vif))
 
         return cna_w
 
@@ -603,7 +603,7 @@ class PvmLBVifDriver(PvmLioVifDriver):
         # Find and delete the trunk adapters
         trunks = pvm_cna.find_trunks(self.adapter, cna_w)
 
-        dev_name = self.get_trunk_dev_name(vif)
+        dev_name = _get_trunk_dev_name(vif)
         utils.execute('ip', 'link', 'set', dev_name, 'down', run_as_root=True)
         try:
             utils.execute('brctl', 'delif', vif['network']['bridge'],
@@ -695,7 +695,28 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
         return vnic
 
 
-class PvmOvsVifDriver(PvmLioVifDriver):
+class PvmMetaAttrs(list):
+    """Represents meta attributes for a PowerVM Vif Driver.
+
+    """
+
+    def __init__(self, vif, instance):
+        """Initializes meta attributes.
+
+        :param vif: The virtual interface for the instance
+        :param instance: The nova instance that the vif action will be run
+                         against.
+        """
+        self.append('iface-id=%s' % (vif.get('ovs_interfaceid') or vif['id']))
+        self.append('iface-status=active')
+        self.append('attached-mac=%s' % vif['address'])
+        self.append('vm-uuid=%s' % instance.uuid)
+
+    def __str__(self):
+        return ','.join(self)
+
+
+class PvmOvsVifDriver(PvmVifDriver):
     """The Open vSwitch VIF driver for PowerVM."""
 
     def plug(self, vif, slot_num, new_vif=True):
@@ -714,18 +735,26 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         :return: The new vif that was created.  Only returned if new_vif is
                  set to True.  Otherwise None is expected.
         """
-        cna_w = super(PvmOvsVifDriver, self).plug(vif, slot_num,
-                                                  new_vif=new_vif)
-        dev_name = self.get_trunk_dev_name(vif)
-        # There will only be one trunk wrap, as we have created with just the
-        # mgmt lpar.  Next step is to connect to the OVS.
-        mtu = vif['network'].get_meta('mtu')
-        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev_name,
-                                      self.get_ovs_interfaceid(vif),
-                                      vif['address'], self.instance.uuid,
-                                      mtu=mtu)
+        if not new_vif:
+            return None
 
-        return cna_w
+        lpar_uuid = vm.get_pvm_uuid(self.instance)
+        mgmt_uuid = pvm_par.get_mgmt_partition(self.adapter).uuid
+
+        # There will only be one trunk wrap, as we have created with just
+        # the mgmt lpar.  Next step is to connect to the OVS.
+        mtu = vif['network'].get_meta('mtu')
+        dev_name = _get_trunk_dev_name(vif)
+
+        meta_attrs = PvmMetaAttrs(vif, self.instance)
+
+        # Create the trunk and client adapter.
+        return pvm_cna.crt_p2p_cna(
+            self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
+            CONF.powervm.pvm_vswitch_for_novalink_io, crt_vswitch=True,
+            mac_addr=vif['address'], dev_name=dev_name,
+            slot_num=slot_num, ovs_bridge=vif['network']['bridge'],
+            ovs_ext_ids=str(meta_attrs), configured_mtu=mtu)[0]
 
     @staticmethod
     def get_ovs_interfaceid(vif):
@@ -765,8 +794,6 @@ class PvmOvsVifDriver(PvmLioVifDriver):
 
         # Find and delete the trunk adapters
         trunks = pvm_cna.find_trunks(self.adapter, cna_w)
-        dev = self.get_trunk_dev_name(vif)
-        linux_net.delete_ovs_vif_port(vif['network']['bridge'], dev)
         for trunk in trunks:
             trunk.delete()
 
@@ -790,21 +817,20 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         """
         self._cleanup_orphan_adapters(vif,
                                       CONF.powervm.pvm_vswitch_for_novalink_io)
-        mgmt_wrap = pvm_par.get_this_partition(self.adapter)
-        dev = self.get_trunk_dev_name(vif)
+        mgmt_wrap = pvm_par.get_mgmt_partition(self.adapter)
+        dev = _get_trunk_dev_name(vif)
+
+        meta_attrs = PvmMetaAttrs(vif, self.instance)
+
+        mtu = vif['network'].get_meta('mtu')
 
         # Find a specific free VLAN and create the Trunk in a single atomic
         # action.
         cna_w = pvm_cna.crt_trunk_with_free_vlan(
             self.adapter, self.host_uuid, [mgmt_wrap.uuid],
-            CONF.powervm.pvm_vswitch_for_novalink_io, dev_name=dev)[0]
-
-        # Bring the vif up.  This signals to neutron that its ready for vif
-        # plugging
-        utils.execute('ip', 'link', 'set', dev, 'up', run_as_root=True)
-        linux_net.create_ovs_vif_port(vif['network']['bridge'], dev,
-                                      self.get_ovs_interfaceid(vif),
-                                      vif['address'], self.instance.uuid)
+            CONF.powervm.pvm_vswitch_for_novalink_io, dev_name=dev,
+            ovs_bridge=vif['network']['bridge'],
+            ovs_ext_ids=str(meta_attrs), configured_mtu=mtu)[0]
 
         # Save this data for the migration command.
         vea_vlan_mappings[vif['address']] = cna_w.pvid
@@ -838,12 +864,8 @@ class PvmOvsVifDriver(PvmLioVifDriver):
             self.adapter, parent_type=pvm_ms.System, one_result=True,
             name=CONF.powervm.pvm_vswitch_for_novalink_io).switch_id
 
-        # Delete port from OVS
-        linux_net.delete_ovs_vif_port(vif['network']['bridge'],
-                                      self.get_trunk_dev_name(vif))
-
         # Find the trunk
-        mgmt_wrap = pvm_par.get_this_partition(self.adapter)
+        mgmt_wrap = pvm_par.get_mgmt_partition(self.adapter)
         child_adpts = pvm_net.CNA.get(self.adapter, parent=mgmt_wrap)
         trunk = None
         for adpt in child_adpts:
@@ -889,8 +911,8 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         :param vif: The virtual interface of an instance.  This may be
                     called network_info in other portions of the code.
         """
-        linux_net.delete_ovs_vif_port(vif['network']['bridge'],
-                                      self.get_trunk_dev_name(vif))
+        self._cleanup_orphan_adapters(vif,
+                                      CONF.powervm.pvm_vswitch_for_novalink_io)
 
     def _cleanup_orphan_adapters(self, vif, vswitch_name):
         """Finds and removes trunk VEAs that have no corresponding CNA."""
@@ -898,6 +920,4 @@ class PvmOvsVifDriver(PvmLioVifDriver):
         orphans = pvm_cna.find_orphaned_trunks(self.adapter, vswitch_name)
         for orphan in orphans:
             if vm.norm_mac(orphan.mac) == vif['address']:
-                linux_net.delete_ovs_vif_port(vif['network']['bridge'],
-                                              self.get_trunk_dev_name(vif))
                 orphan.delete()

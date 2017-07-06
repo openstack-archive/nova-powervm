@@ -346,6 +346,17 @@ class TestVifFunctions(test.TestCase):
                                         mock_vif)
         mock_drv.post_live_migrate_at_source.assert_called_once_with(mock_vif)
 
+    def test_get_trunk_dev_name(self):
+        mock_vif = {'devname': 'tap_test', 'id': '1234567890123456'}
+
+        # Test when the dev name is available
+        self.assertEqual('tap_test', vif._get_trunk_dev_name(mock_vif))
+
+        # And when it isn't.  Should also cut off a few characters from the id
+        del mock_vif['devname']
+        self.assertEqual('nic12345678901',
+                         vif._get_trunk_dev_name(mock_vif))
+
 
 class TestVifSriovDriver(test.TestCase):
 
@@ -674,20 +685,17 @@ class TestVifLBDriver(test.TestCase):
     @mock.patch('nova.network.linux_net.LinuxBridgeInterfaceDriver.'
                 'ensure_bridge')
     @mock.patch('nova.utils.execute')
-    @mock.patch('nova.network.linux_net.create_ovs_vif_port')
-    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
-                'get_trunk_dev_name')
+    @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name')
     @mock.patch('pypowervm.tasks.cna.crt_p2p_cna')
     @mock.patch('pypowervm.tasks.partition.get_this_partition')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_plug(
             self, mock_pvm_uuid, mock_mgmt_lpar, mock_p2p_cna,
-            mock_trunk_dev_name, mock_crt_ovs_vif_port, mock_exec,
-            mock_ensure_bridge):
+            mock_trunk_dev_name, mock_exec, mock_ensure_bridge):
         # Mock the data
         mock_pvm_uuid.return_value = 'lpar_uuid'
         mock_mgmt_lpar.return_value = mock.Mock(uuid='mgmt_uuid')
-        mock_trunk_dev_name.return_value = 'device'
+        mock_trunk_dev_name.return_value = 'tap_dev'
 
         cna_w, trunk_wraps = mock.MagicMock(), [mock.MagicMock()]
         mock_p2p_cna.return_value = cna_w, trunk_wraps
@@ -721,8 +729,7 @@ class TestVifLBDriver(test.TestCase):
 
     @mock.patch('nova.utils.execute')
     @mock.patch('pypowervm.tasks.cna.find_trunks')
-    @mock.patch('nova_powervm.virt.powervm.vif.PvmLBVifDriver.'
-                'get_trunk_dev_name')
+    @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name')
     @mock.patch('nova_powervm.virt.powervm.vif.PvmLBVifDriver.'
                 '_find_cna_for_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
@@ -782,15 +789,12 @@ class TestVifOvsDriver(test.TestCase):
         self.inst = mock.MagicMock(uuid='inst_uuid')
         self.drv = vif.PvmOvsVifDriver(self.adpt, 'host_uuid', self.inst)
 
-    @mock.patch('nova.utils.execute')
-    @mock.patch('nova.network.linux_net.create_ovs_vif_port')
-    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
-                'get_trunk_dev_name')
-    @mock.patch('pypowervm.tasks.cna.crt_p2p_cna')
-    @mock.patch('pypowervm.tasks.partition.get_this_partition')
+    @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name')
+    @mock.patch('pypowervm.tasks.cna.crt_p2p_cna', autospec=True)
+    @mock.patch('pypowervm.tasks.partition.get_mgmt_partition', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_plug(self, mock_pvm_uuid, mock_mgmt_lpar, mock_p2p_cna,
-                  mock_trunk_dev_name, mock_crt_ovs_vif_port, mock_exec):
+                  mock_trunk_dev_name):
         # Mock the data
         mock_pvm_uuid.return_value = 'lpar_uuid'
         mock_mgmt_lpar.return_value = mock.Mock(uuid='mgmt_uuid')
@@ -800,29 +804,23 @@ class TestVifOvsDriver(test.TestCase):
         mock_p2p_cna.return_value = cna_w, trunk_wraps
 
         # Run the plug
-        network_model = model.Model({'bridge': 'br0', 'meta': {'mtu': 1450}})
-        mock_vif = model.VIF(address='aa:bb:cc:dd:ee:ff', id='vif_id',
-                             network=network_model)
+        net_model = model.Model({'bridge': 'br-int', 'meta': {'mtu': 1450}})
+        vif = model.VIF(address='aa:bb:cc:dd:ee:ff', id='vif_id',
+                        devname='tap-dev', network=net_model)
         slot_num = 5
-        self.drv.plug(mock_vif, slot_num)
+        self.drv.plug(vif, slot_num)
 
         # Validate the calls
-        mock_crt_ovs_vif_port.assert_called_once_with(
-            'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff',
-            'inst_uuid', mtu=1450)
+        ovs_ext_ids = ('iface-id=vif_id,iface-status=active,'
+                       'attached-mac=aa:bb:cc:dd:ee:ff,vm-uuid=inst_uuid')
         mock_p2p_cna.assert_called_once_with(
             self.adpt, 'host_uuid', 'lpar_uuid', ['mgmt_uuid'],
             'NovaLinkVEABridge', crt_vswitch=True,
-            mac_addr='aa:bb:cc:dd:ee:ff', slot_num=slot_num, dev_name='device')
-        mock_exec.assert_called_with('ip', 'link', 'set', 'device', 'up',
-                                     run_as_root=True)
+            mac_addr='aa:bb:cc:dd:ee:ff', slot_num=slot_num, dev_name='device',
+            ovs_bridge='br-int', ovs_ext_ids=ovs_ext_ids, configured_mtu=1450)
 
-    @mock.patch('nova.utils.execute')
-    @mock.patch('nova.network.linux_net.create_ovs_vif_port')
-    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
-                'get_trunk_dev_name')
-    def test_plug_existing_vif(self, mock_trunk_dev_name,
-                               mock_crt_ovs_vif_port, mock_exec):
+    @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name')
+    def test_plug_existing_vif(self, mock_trunk_dev_name):
         # Mock the data
         mock_trunk_dev_name.return_value = 'device'
         # Run the plug
@@ -832,34 +830,15 @@ class TestVifOvsDriver(test.TestCase):
         slot_num = 5
         resp = self.drv.plug(mock_vif, slot_num, new_vif=False)
 
-        # Validate the calls
-        mock_crt_ovs_vif_port.assert_called_once_with(
-            'br0', 'device', 'vif_id', 'aa:bb:cc:dd:ee:ff',
-            'inst_uuid', mtu=1500)
-        mock_exec.assert_called_with('ip', 'link', 'set', 'device', 'up',
-                                     run_as_root=True)
         self.assertIsNone(resp)
 
-    def test_get_trunk_dev_name(self):
-        mock_vif = {'devname': 'tap_test', 'id': '1234567890123456'}
-
-        # Test when the dev name is available
-        self.assertEqual('tap_test', self.drv.get_trunk_dev_name(mock_vif))
-
-        # And when it isn't.  Should also cut off a few characters from the id
-        del mock_vif['devname']
-        self.assertEqual('nic12345678901',
-                         self.drv.get_trunk_dev_name(mock_vif))
-
-    @mock.patch('pypowervm.tasks.cna.find_trunks')
-    @mock.patch('nova.network.linux_net.delete_ovs_vif_port')
-    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
-                'get_trunk_dev_name')
+    @mock.patch('pypowervm.tasks.cna.find_trunks', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name')
     @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
                 '_find_cna_for_vif')
     @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
     def test_unplug(self, mock_get_cnas, mock_find_cna, mock_trunk_dev_name,
-                    mock_del_ovs_port, mock_find_trunks):
+                    mock_find_trunks):
         # Set up the mocks
         mock_cna = mock.Mock()
         mock_get_cnas.return_value = [mock_cna, mock.Mock()]
@@ -880,15 +859,12 @@ class TestVifOvsDriver(test.TestCase):
         self.assertTrue(t2.delete.called)
         self.assertTrue(mock_cna.delete.called)
 
-        # Validate the OVS port delete call was made
-        mock_del_ovs_port.assert_called_with('br-int', 'fake_dev')
-
-    @mock.patch('pypowervm.tasks.cna.find_trunks')
-    @mock.patch('pypowervm.wrappers.network.CNA.search')
-    @mock.patch('pypowervm.util.sanitize_mac_for_api')
+    @mock.patch('pypowervm.tasks.cna.find_trunks', autospec=True)
+    @mock.patch('pypowervm.wrappers.network.CNA', autospec=True)
+    @mock.patch('pypowervm.util.sanitize_mac_for_api', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
     def test_pre_live_migrate_at_source(self, mock_pvm_uuid, mock_sanitize,
-                                        mock_cna_search, mock_trunk_find):
+                                        mock_cna, mock_trunk_find):
         # Set up the mocks
         vif = {'address': 'aa:bb:cc:dd:ee:ff'}
         mock_sanitize.return_value = 'AABBCCDDEEFF'
@@ -900,22 +876,20 @@ class TestVifOvsDriver(test.TestCase):
 
         # Make sure the APIs were called correctly
         mock_sanitize.assert_called_once_with(vif['address'])
-        mock_cna_search.assert_called_once_with(
+        mock_cna.search.assert_called_once_with(
             self.adpt, parent_type=pvm_lpar.LPAR.schema_type,
             parent_uuid='pvm_uuid', one_result=True, mac='AABBCCDDEEFF')
         mock_trunk_find.assert_called_once_with(self.adpt, mock.ANY)
 
-    @mock.patch('nova.network.linux_net.create_ovs_vif_port')
-    @mock.patch('nova.utils.execute')
-    @mock.patch('pypowervm.tasks.cna.crt_trunk_with_free_vlan')
+    @mock.patch('pypowervm.tasks.cna.crt_trunk_with_free_vlan', autospec=True)
     @mock.patch('pypowervm.tasks.cna.find_orphaned_trunks', autospec=True)
-    @mock.patch('pypowervm.tasks.partition.get_this_partition')
+    @mock.patch('pypowervm.tasks.partition.get_mgmt_partition', autospec=True)
     def test_pre_live_migrate_at_destination(
-            self, mock_part_get, mock_find_trunks, mock_trunk_crt,
-            mock_execute, mock_crt_ovs_port):
+            self, mock_part_get, mock_find_trunks, mock_trunk_crt):
         # Mock the vif
-        vif = {'devname': 'tap-dev', 'address': 'aa:bb:cc:dd:ee:ff',
-               'network': {'bridge': 'br-int'}, 'id': 'vif_id'}
+        net_model = model.Model({'bridge': 'br-int', 'meta': {'mtu': 1450}})
+        vif = model.VIF(address='aa:bb:cc:dd:ee:ff', id='vif_id',
+                        devname='tap-dev', network=net_model)
 
         # Mock out the management partition
         mock_mgmt_wrap = mock.MagicMock()
@@ -933,29 +907,24 @@ class TestVifOvsDriver(test.TestCase):
         self.assertEqual(vea_vlan_mappings['aa:bb:cc:dd:ee:ff'], 2)
 
         # Now validate it called the things it needed to
-        mock_execute.assert_has_calls(
-            [mock.call('ovs-vsctl', '--timeout=120', '--', '--if-exists',
-                       'del-port', 'br-int', 'tap-dev', run_as_root=True),
-             mock.call('ip', 'link', 'set', 'tap-dev', 'up',
-                       run_as_root=True)])
+        ovs_ext_ids = ('iface-id=vif_id,iface-status=active,'
+                       'attached-mac=aa:bb:cc:dd:ee:ff,vm-uuid=inst_uuid')
         mock_trunk_crt.assert_called_once_with(
             self.adpt, 'host_uuid', ['mgmt_uuid'],
-            CONF.powervm.pvm_vswitch_for_novalink_io, dev_name='tap-dev')
+            CONF.powervm.pvm_vswitch_for_novalink_io, dev_name='tap-dev',
+            ovs_bridge='br-int', ovs_ext_ids=ovs_ext_ids,
+            configured_mtu=1450)
         mock_find_trunks.assert_called_once_with(
             self.adpt, CONF.powervm.pvm_vswitch_for_novalink_io)
         mock_orphan_wrap.delete.assert_called_once_with()
-        mock_crt_ovs_port.assert_called_once_with(
-            'br-int', 'tap-dev', 'vif_id', 'aa:bb:cc:dd:ee:ff', self.inst.uuid)
 
-    @mock.patch('nova.network.linux_net.delete_ovs_vif_port')
-    @mock.patch('pypowervm.wrappers.network.CNA.get')
-    @mock.patch('pypowervm.tasks.partition.get_this_partition')
-    @mock.patch('pypowervm.wrappers.network.VSwitch.search')
+    @mock.patch('pypowervm.wrappers.network.CNA', autospec=True)
+    @mock.patch('pypowervm.tasks.partition.get_mgmt_partition', autospec=True)
+    @mock.patch('pypowervm.wrappers.network.VSwitch', autospec=True)
     def test_rollback_live_migration_at_destination(
-            self, mock_vs_search, mock_get_part, mock_cna_get,
-            mock_delete_ovs_port):
+            self, mock_vs, mock_get_part, mock_cna):
         # All the fun mocking
-        mock_vs_search.return_value = mock.MagicMock(switch_id=5)
+        mock_vs.search.return_value = mock.MagicMock(switch_id=5)
 
         # Since this gets passed through conductor, the VLAN's switch to string
         # format.
@@ -971,32 +940,31 @@ class TestVifOvsDriver(test.TestCase):
         trunk2 = mock.Mock(pvid=3, vswitch_id=5, trunk_pri=1)
         trunk3 = mock.Mock(pvid=4, vswitch_id=5, trunk_pri=None)
         trunk4 = mock.Mock(pvid=4, vswitch_id=5, trunk_pri=1)
-        mock_cna_get.return_value = [trunk1, trunk2, trunk3, trunk4]
+        mock_cna.get.return_value = [trunk1, trunk2, trunk3, trunk4]
 
         # Invoke
         self.drv.rollback_live_migration_at_destination(vif, vea_vlan_mappings)
-
-        # Make sure the OVS port was deleted
-        mock_delete_ovs_port.assert_called_once_with('br-int', 'tap-dev')
 
         # Make sure the trunk was deleted
         trunk4.delete.assert_called_once()
 
         # Now make sure the calls were done correctly to actually produce a
         # trunk adapter
-        mock_vs_search.assert_called_once_with(
+        mock_vs.search.assert_called_once_with(
             self.drv.adapter, parent_type=pvm_ms.System, one_result=True,
             name=CONF.powervm.pvm_vswitch_for_novalink_io)
         mock_get_part.assert_called_once_with(self.drv.adapter)
-        mock_cna_get.assert_called_once_with(
+        mock_cna.get.assert_called_once_with(
             self.drv.adapter, parent=mock_vio)
 
-    @mock.patch('nova.network.linux_net.delete_ovs_vif_port')
-    def test_post_live_migrate_at_source(self, mock_delete_ovs_port):
+    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
+                '_cleanup_orphan_adapters')
+    def test_post_live_migrate_at_source(self, mock_orphan_cleanup):
         # Mock the vif
         vif = {'devname': 'tap-dev', 'address': 'aa:bb:cc:dd:ee:ff',
                'network': {'bridge': 'br-int'}, 'id': 'vif_id'}
         # Invoke and test
         self.drv.post_live_migrate_at_source(vif)
-        # Now validate it called the things it needed to
-        mock_delete_ovs_port.assert_called_once_with('br-int', 'tap-dev')
+        # Validate that the cleanup is called
+        mock_orphan_cleanup.assert_called_once_with(
+            vif, CONF.powervm.pvm_vswitch_for_novalink_io)
