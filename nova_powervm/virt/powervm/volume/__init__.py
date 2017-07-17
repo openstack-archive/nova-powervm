@@ -41,6 +41,7 @@ _STATIC_VOLUME_MAPPINGS = {
              'LocalVolumeAdapter',
     'nfs': 'nova_powervm.virt.powervm.volume.nfs.NFSVolumeAdapter',
     'gpfs': 'nova_powervm.virt.powervm.volume.gpfs.GPFSVolumeAdapter',
+    'rbd': 'nova_powervm.virt.powervm.volume.rbd.RBDVolumeAdapter',
 }
 
 
