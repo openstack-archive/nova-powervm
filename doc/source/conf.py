@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # nova-powervm documentation build configuration file, created by
 # sphinx-quickstart on Tue Feb  3 09:06:25 2015.
