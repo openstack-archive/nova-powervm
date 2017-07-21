@@ -7,7 +7,7 @@ What is DevStack?
 
 DevStack is a script to quickly create an OpenStack development environment.
 
-Find out more `here <http://docs.openstack.org/developer/devstack/>`_.
+Find out more `here <https://docs.openstack.org/devstack/latest/>`_.
 
 
 What are DevStack plugins?
@@ -21,7 +21,7 @@ plugins, with the appropriate local.conf settings for your environment, will all
 clone down DevStack, configure, run stack.sh, and end up with a working OpenStack/Novalink PowerVM
 environment with no other scripting required.
 
-More details can be `found here. <http://docs.openstack.org/developer/devstack/plugins.html>`_
+More details can be `found here. <https://docs.openstack.org/devstack/latest/plugins.html>`_
 
 
 How to use the NovaLink DevStack plugins:
@@ -73,7 +73,7 @@ How to use the NovaLink DevStack plugins:
         * https://github.com/openstack/nova-powervm/blob/master/devstack/README.rst
 
     * networking-powervm
-        * http://docs.openstack.org/developer/networking-powervm/devref/index.html
+        * http://networking-powervm.readthedocs.io/en/latest/devref/index.html
         * https://github.com/openstack/networking-powervm/blob/master/devstack/README.rst
 
     * ceilometer-powervm

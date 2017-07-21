@@ -27,7 +27,7 @@ mirror those of the Nova project.
 Documentation on Nova can be found at the `Nova Devref`_.
 
 .. _`PowerVM`: http://www-03.ibm.com/systems/power/software/virtualization/
-.. _`Nova Devref`: http://docs.openstack.org/developer/nova
+.. _`Nova Devref`: https://docs.openstack.org/nova/latest/
 
 Nova-PowerVM Overview
 =====================
