@@ -657,14 +657,11 @@ def power_on(adapter, instance, opts=None):
     return False
 
 
-def power_off(adapter, instance, opts=None, force_immediate=False,
-              timeout=None):
+def power_off(adapter, instance, force_immediate=False, timeout=None):
     """Powers off a VM.
 
     :param adapter: A pypowervm.adapter.Adapter.
     :param instance: The nova instance to power off.
-    :param opts: (Optional) Additional parameters to the pypowervm power_off
-                 method.  See that method's docstring for details.
     :param force_immediate: (Optional, Default False) Should it be immediately
                             shut down.
     :param timeout: (Optional, Default None) How long to wait for the job
@@ -688,10 +685,11 @@ def power_off(adapter, instance, opts=None, force_immediate=False,
             try:
                 LOG.debug("Power off executing.", instance=instance)
                 kwargs = {'timeout': timeout} if timeout else {}
-                force_flag = (power.Force.TRUE if force_immediate
-                              else power.Force.ON_FAILURE)
-                power.power_off(entry, None, force_immediate=force_flag,
-                                add_parms=opts, **kwargs)
+                if force_immediate:
+                    power.PowerOp.stop(
+                        entry, opts=popts.PowerOffOpts().vsp_hard(), **kwargs)
+                else:
+                    power.power_off_progressive(entry, **kwargs)
             except Exception as e:
                 LOG.exception("Failed to power off instance.",
                               instance=instance)
@@ -717,8 +715,11 @@ def reboot(adapter, instance, hard):
         try:
             entry = get_instance_wrapper(adapter, instance)
             if entry.state != pvm_bp.LPARState.NOT_ACTIVATED:
-                power.power_off(entry, None, force_immediate=hard,
-                                add_parms=popts.PowerOffOpts().restart())
+                if hard:
+                    power.PowerOp.stop(
+                        entry, opts=popts.PowerOffOpts().vsp_hard().restart())
+                else:
+                    power.power_off_progressive(entry, restart=True)
             else:
                 # pypowervm does NOT throw an exception if "already down".
                 # Any other exception from pypowervm is a legitimate failure;

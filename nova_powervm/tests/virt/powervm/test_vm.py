@@ -27,7 +27,6 @@ from nova import test
 from nova.virt import event
 from pypowervm import exceptions as pvm_exc
 from pypowervm.helpers import log_helper as pvm_log
-from pypowervm.tasks import power
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.tests.test_utils import pvmhttp
 from pypowervm.utils import lpar_builder as lpar_bld
@@ -37,6 +36,7 @@ from pypowervm.wrappers import logical_partition as pvm_lpar
 from nova_powervm.tests.virt import powervm
 from nova_powervm.virt.powervm import exception as nvex
 from nova_powervm.virt.powervm import vm
+
 
 LPAR_HTTPRESP_FILE = "lpar.txt"
 LPAR_MAPPING = (
@@ -572,16 +572,18 @@ class TestVM(test.TestCase):
             mock_lock.assert_called_once_with('power_%s' % instance.uuid)
             mock_lock.reset_mock()
 
-    @mock.patch('pypowervm.tasks.power.power_off')
+    @mock.patch('pypowervm.tasks.power.PowerOp', autospec=True)
+    @mock.patch('pypowervm.tasks.power.power_off_progressive', autospec=True)
     @mock.patch('oslo_concurrency.lockutils.lock')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
-    def test_power_off(self, mock_wrap, mock_lock, mock_power_off):
+    def test_power_off(self, mock_wrap, mock_lock, mock_power_off, mock_pop):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         entry = mock.Mock(state=pvm_bp.LPARState.NOT_ACTIVATED)
         mock_wrap.return_value = entry
 
         self.assertFalse(vm.power_off(None, instance))
-        mock_power_off.assert_not_called()
+        self.assertEqual(0, mock_power_off.call_count)
+        self.assertEqual(0, mock_pop.stop.call_count)
         mock_lock.assert_called_once_with('power_%s' % instance.uuid)
 
         stop_states = [
@@ -592,21 +594,24 @@ class TestVM(test.TestCase):
         for stop_state in stop_states:
             entry.state = stop_state
             mock_power_off.reset_mock()
+            mock_pop.stop.reset_mock()
             mock_lock.reset_mock()
             self.assertTrue(vm.power_off(None, instance))
-            mock_power_off.assert_called_once_with(
-                entry, None, force_immediate=power.Force.ON_FAILURE,
-                add_parms=None)
+            mock_power_off.assert_called_once_with(entry)
+            self.assertEqual(0, mock_pop.stop.call_count)
             mock_lock.assert_called_once_with('power_%s' % instance.uuid)
             mock_power_off.reset_mock()
             mock_lock.reset_mock()
             self.assertTrue(vm.power_off(
                 None, instance, force_immediate=True, timeout=5))
-            mock_power_off.assert_called_once_with(
-                entry, None, force_immediate=True, add_parms=None, timeout=5)
+            self.assertEqual(0, mock_power_off.call_count)
+            mock_pop.stop.assert_called_once_with(
+                entry, opts=mock.ANY, timeout=5)
+            self.assertEqual('PowerOff(immediate=true, operation=shutdown)',
+                             str(mock_pop.stop.call_args[1]['opts']))
             mock_lock.assert_called_once_with('power_%s' % instance.uuid)
 
-    @mock.patch('pypowervm.tasks.power.power_off')
+    @mock.patch('pypowervm.tasks.power.power_off_progressive', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     def test_power_off_negative(self, mock_wrap, mock_power_off):
         """Negative tests."""
@@ -622,9 +627,11 @@ class TestVM(test.TestCase):
 
     @mock.patch('oslo_concurrency.lockutils.lock')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
-    @mock.patch('pypowervm.tasks.power.power_on')
-    @mock.patch('pypowervm.tasks.power.power_off')
-    def test_reboot(self, mock_pwroff, mock_pwron, mock_giw, mock_lock):
+    @mock.patch('pypowervm.tasks.power.power_on', autospec=True)
+    @mock.patch('pypowervm.tasks.power.power_off_progressive', autospec=True)
+    @mock.patch('pypowervm.tasks.power.PowerOp', autospec=True)
+    def test_reboot(self, mock_pop, mock_pwroff, mock_pwron, mock_giw,
+                    mock_lock):
         entry = mock.Mock()
         inst = mock.Mock(uuid='uuid')
         mock_giw.return_value = entry
@@ -633,7 +640,8 @@ class TestVM(test.TestCase):
         entry.state = pvm_bp.LPARState.NOT_ACTIVATED
         vm.reboot('adapter', inst, True)
         mock_pwron.assert_called_once_with(entry, None)
-        mock_pwroff.assert_not_called()
+        self.assertEqual(0, mock_pwroff.call_count)
+        self.assertEqual(0, mock_pop.stop.call_count)
         mock_lock.assert_called_once_with('power_uuid')
 
         mock_pwron.reset_mock()
@@ -642,23 +650,22 @@ class TestVM(test.TestCase):
         # VM is in an active state
         entry.state = pvm_bp.LPARState.RUNNING
         vm.reboot('adapter', inst, True)
-        mock_pwron.assert_not_called()
-        mock_pwroff.assert_called_once_with(entry, None, force_immediate=True,
-                                            add_parms=mock.ANY)
-        self.assertEqual('PowerOff(restart=true)',
-                         str(mock_pwroff.call_args[1]['add_parms']))
+        self.assertEqual(0, mock_pwron.call_count)
+        self.assertEqual(0, mock_pwroff.call_count)
+        mock_pop.stop.assert_called_once_with(entry, opts=mock.ANY)
+        self.assertEqual(
+            'PowerOff(immediate=true, operation=shutdown, restart=true)',
+            str(mock_pop.stop.call_args[1]['opts']))
         mock_lock.assert_called_once_with('power_uuid')
 
-        mock_pwroff.reset_mock()
+        mock_pop.stop.reset_mock()
         mock_lock.reset_mock()
 
         # Same, but soft
         vm.reboot('adapter', inst, False)
-        mock_pwron.assert_not_called()
-        mock_pwroff.assert_called_once_with(entry, None, force_immediate=False,
-                                            add_parms=mock.ANY)
-        self.assertEqual('PowerOff(restart=true)',
-                         str(mock_pwroff.call_args[1]['add_parms']))
+        self.assertEqual(0, mock_pwron.call_count)
+        mock_pwroff.assert_called_once_with(entry, restart=True)
+        self.assertEqual(0, mock_pop.stop.call_count)
         mock_lock.assert_called_once_with('power_uuid')
 
         mock_pwroff.reset_mock()
@@ -668,11 +675,9 @@ class TestVM(test.TestCase):
         mock_pwroff.side_effect = Exception()
         self.assertRaises(exception.InstanceRebootFailure, vm.reboot,
                           'adapter', inst, False)
-        mock_pwron.assert_not_called()
-        mock_pwroff.assert_called_once_with(entry, None, force_immediate=False,
-                                            add_parms=mock.ANY)
-        self.assertEqual('PowerOff(restart=true)',
-                         str(mock_pwroff.call_args[1]['add_parms']))
+        self.assertEqual(0, mock_pwron.call_count)
+        mock_pwroff.assert_called_once_with(entry, restart=True)
+        self.assertEqual(0, mock_pop.stop.call_count)
         mock_lock.assert_called_once_with('power_uuid')
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
