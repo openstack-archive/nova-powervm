@@ -232,6 +232,7 @@ class VMBuilder(object):
     _PVM_DED_SHAR_MODE = 'powervm:dedicated_sharing_mode'
     _PVM_SHAR_PROC_POOL = 'powervm:shared_proc_pool_name'
     _PVM_SRR_CAPABILITY = 'powervm:srr_capability'
+    _PVM_PPT_RATIO = 'powervm:ppt_ratio'
 
     # Map of PowerVM extra specs to the lpar builder attributes.
     # '' is used for attributes that are not implemented yet.
@@ -249,6 +250,7 @@ class VMBuilder(object):
         'powervm:shared_weight': lpar_bldr.UNCAPPED_WEIGHT,
         'powervm:availability_priority': lpar_bldr.AVAIL_PRIORITY,
         'powervm:enable_lpar_metric': lpar_bldr.ENABLE_LPAR_METRIC,
+        _PVM_PPT_RATIO: lpar_bldr.PPT_RATIO,
         _PVM_UNCAPPED: None,
         _PVM_DED_SHAR_MODE: None,
         _PVM_PROC_COMPAT: None,

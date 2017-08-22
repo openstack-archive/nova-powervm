@@ -181,6 +181,11 @@ class TestVMBuilder(test.TestCase):
         test_attrs = dict(lpar_attrs, srr_capability=False)
         self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
 
+        # Test PPT set
+        flavor.extra_specs = {'powervm:ppt_ratio': '1:64'}
+        test_attrs = dict(lpar_attrs, ppt_ratio='1:64')
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+
     @mock.patch('pypowervm.wrappers.shared_proc_pool.SharedProcPool.search')
     def test_spp_pool_id(self, mock_search):
         # The default pool is always zero.  Validate the path.
