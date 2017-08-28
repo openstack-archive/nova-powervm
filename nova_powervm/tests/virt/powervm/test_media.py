@@ -43,7 +43,7 @@ class TestConfigDrivePowerVM(test.TestCase):
     @mock.patch('nova.virt.configdrive.ConfigDriveBuilder.make_drive')
     def test_crt_cfg_dr_iso(self, mock_mkdrv, mock_meta):
         """Validates that the image creation method works."""
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'host_uuid')
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
         mock_instance = mock.MagicMock()
         mock_instance.name = 'fake-instance'
         mock_instance.uuid = '1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f'
@@ -92,7 +92,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         mock_upld.return_value = (mock.Mock(), None)
 
         # Run
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
         cfg_dr_builder.create_cfg_drv_vopt(mock.MagicMock(), mock.MagicMock(),
                                            mock.MagicMock(), 'fake_lpar')
         self.assertTrue(mock_upld.called)
@@ -107,7 +107,7 @@ class TestConfigDrivePowerVM(test.TestCase):
                          mock_add_map):
         # Create objects to test with
         mock_instance = mock.MagicMock(name='fake-instance')
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
         vopt = mock.Mock()
         mock_vios = mock.Mock(spec=pvm_vios.VIOS)
         mock_vios.configure_mock(name='vios name')
@@ -121,7 +121,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         mock_wrapper_task.add_functor_subtask.side_effect = call_param
 
         def validate_build(host_uuid, vios_w, lpar_uuid, vopt_elem):
-            self.assertEqual('fake_host', host_uuid)
+            self.assertEqual(None, host_uuid)
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('lpar_uuid', lpar_uuid)
             self.assertEqual(vopt, vopt_elem)
@@ -147,7 +147,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         network_info = [{'type': 'lbr'}, {'type': 'pvm_sea'},
                         {'type': 'ovs'}]
 
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
 
         resp = cfg_dr_builder._sanitize_network_info(network_info)
         expected_ret = [{'type': 'vif'}, {'type': 'vif'},
@@ -159,7 +159,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         mock_cna.mac = "FAD4433ED120"
 
         # Run
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
         vif = cfg_dr_builder._mgmt_cna_to_vif(mock_cna)
 
         # Validate
@@ -201,7 +201,7 @@ class TestConfigDrivePowerVM(test.TestCase):
         mock_find_maps.return_value = []
 
         # Invoke the operation
-        cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        cfg_dr = m.ConfigDrivePowerVM(self.apt)
         cfg_dr.dlt_vopt('2', remove_mappings=False)
 
         # Verify expected methods were called
@@ -214,7 +214,7 @@ class TestConfigDrivePowerVM(test.TestCase):
     @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
     def test_add_dlt_vopt_tasks(self, mock_find_maps, mock_gen_match_func):
         # Init objects to test with
-        cfg_dr = m.ConfigDrivePowerVM(self.apt, 'fake_host')
+        cfg_dr = m.ConfigDrivePowerVM(self.apt)
         stg_ftsk = mock.MagicMock()
         cfg_dr.vios_uuid = 'vios_uuid'
         lpar_uuid = 'lpar_uuid'

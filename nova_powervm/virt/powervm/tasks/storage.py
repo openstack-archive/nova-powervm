@@ -24,6 +24,7 @@ from nova_powervm.virt.powervm.disk import driver as disk_driver
 from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import media
 from nova_powervm.virt.powervm import mgmt
+from nova_powervm.virt.powervm import vm
 
 
 LOG = logging.getLogger(__name__)
@@ -337,7 +338,7 @@ class CreateAndConnectCfgDrive(task.Task):
 
     """The task to create the configuration drive."""
 
-    def __init__(self, adapter, host_uuid, instance, injected_files,
+    def __init__(self, adapter, instance, injected_files,
                  network_info, admin_pass, stg_ftsk=None):
         """Create the Task that create and connect the config drive.
 
@@ -346,7 +347,6 @@ class CreateAndConnectCfgDrive(task.Task):
         the vscsi drive.
 
         :param adapter: The adapter for the pypowervm API
-        :param host_uuid: The host UUID of the system.
         :param instance: The nova instance
         :param injected_files: A list of file paths that will be injected into
                                the ISO.
@@ -362,7 +362,6 @@ class CreateAndConnectCfgDrive(task.Task):
         super(CreateAndConnectCfgDrive, self).__init__(
             'cfg_drive', requires=['lpar_wrap', 'mgmt_cna'])
         self.adapter = adapter
-        self.host_uuid = host_uuid
         self.instance = instance
         self.injected_files = injected_files
         self.network_info = network_info
@@ -371,7 +370,7 @@ class CreateAndConnectCfgDrive(task.Task):
         self.stg_ftsk = stg_ftsk
 
     def execute(self, lpar_wrap, mgmt_cna):
-        self.mb = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
+        self.mb = media.ConfigDrivePowerVM(self.adapter)
         self.mb.create_cfg_drv_vopt(self.instance, self.injected_files,
                                     self.network_info, lpar_wrap.uuid,
                                     admin_pass=self.ad_pass,
@@ -397,14 +396,11 @@ class DeleteVOpt(task.Task):
 
     """The task to delete the virtual optical."""
 
-    def __init__(self, adapter, host_uuid, instance, lpar_uuid,
-                 stg_ftsk=None):
+    def __init__(self, adapter, instance, stg_ftsk=None):
         """Creates the Task to delete the instances virtual optical media.
 
         :param adapter: The adapter for the pypowervm API
-        :param host_uuid: The host UUID of the system.
         :param instance: The nova instance.
-        :param lpar_uuid: The UUID of the lpar that has media.
         :param stg_ftsk: (Optional) The pypowervm transaction FeedTask for the
                          I/O Operations.  If provided, the Virtual I/O Server
                          mapping updates will be added to the FeedTask.  This
@@ -414,14 +410,13 @@ class DeleteVOpt(task.Task):
         """
         super(DeleteVOpt, self).__init__('vopt_delete')
         self.adapter = adapter
-        self.host_uuid = host_uuid
         self.instance = instance
-        self.lpar_uuid = lpar_uuid
         self.stg_ftsk = stg_ftsk
 
     def execute(self):
-        media_builder = media.ConfigDrivePowerVM(self.adapter, self.host_uuid)
-        media_builder.dlt_vopt(self.lpar_uuid, stg_ftsk=self.stg_ftsk)
+        media_builder = media.ConfigDrivePowerVM(self.adapter)
+        media_builder.dlt_vopt(vm.get_pvm_uuid(self.instance),
+                               stg_ftsk=self.stg_ftsk)
 
 
 class DetachDisk(task.Task):

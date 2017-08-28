@@ -41,10 +41,10 @@ class TestStorage(test.TestCase):
 
         # Test with no FeedTask
         task = tf_stg.CreateAndConnectCfgDrive(
-            self.adapter, 'host_uuid', self.instance, 'injected_files',
+            self.adapter, self.instance, 'injected_files',
             'network_info', 'admin_pass')
         task.execute(lpar_w, 'mgmt_cna')
-        self.mock_cfg_drv.assert_called_once_with(self.adapter, 'host_uuid')
+        self.mock_cfg_drv.assert_called_once_with(self.adapter)
         self.mock_mb.create_cfg_drv_vopt.assert_called_once_with(
             self.instance, 'injected_files', 'network_info', lpar_w.uuid,
             admin_pass='admin_pass', mgmt_cna='mgmt_cna', stg_ftsk=None)
@@ -67,10 +67,10 @@ class TestStorage(test.TestCase):
 
         # With a specified FeedTask
         task = tf_stg.CreateAndConnectCfgDrive(
-            self.adapter, 'host_uuid', self.instance, 'injected_files',
+            self.adapter, self.instance, 'injected_files',
             'network_info', 'admin_pass', stg_ftsk='stg_ftsk')
         task.execute(lpar_w, 'mgmt_cna')
-        self.mock_cfg_drv.assert_called_once_with(self.adapter, 'host_uuid')
+        self.mock_cfg_drv.assert_called_once_with(self.adapter)
         self.mock_mb.create_cfg_drv_vopt.assert_called_once_with(
             self.instance, 'injected_files', 'network_info', lpar_w.uuid,
             admin_pass='admin_pass', mgmt_cna='mgmt_cna', stg_ftsk='stg_ftsk')
@@ -80,22 +80,26 @@ class TestStorage(test.TestCase):
         task.revert(lpar_w, 'mgmt_cna', 'result', 'flow_failures')
         self.mock_mb.assert_not_called()
 
-    def test_delete_vopt(self):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    def test_delete_vopt(self, mock_pvm_uuid):
         # Test with no FeedTask
-        task = tf_stg.DeleteVOpt(self.adapter, 'huuid', self.instance, 'luuid')
+        mock_pvm_uuid.return_value = 'pvm_uuid'
+        task = tf_stg.DeleteVOpt(self.adapter, self.instance)
         task.execute()
-        self.mock_cfg_drv.assert_called_once_with(self.adapter, 'huuid')
-        self.mock_mb.dlt_vopt.assert_called_once_with('luuid', stg_ftsk=None)
+        self.mock_cfg_drv.assert_called_once_with(self.adapter)
+        self.mock_mb.dlt_vopt.assert_called_once_with(
+            'pvm_uuid', stg_ftsk=None)
 
         self.mock_cfg_drv.reset_mock()
         self.mock_mb.reset_mock()
 
         # With a specified FeedTask
-        task = tf_stg.DeleteVOpt(self.adapter, 'huuid', self.instance, 'luuid',
+        task = tf_stg.DeleteVOpt(self.adapter, self.instance,
                                  stg_ftsk='ftsk')
         task.execute()
-        self.mock_cfg_drv.assert_called_once_with(self.adapter, 'huuid')
-        self.mock_mb.dlt_vopt.assert_called_once_with('luuid', stg_ftsk='ftsk')
+        self.mock_cfg_drv.assert_called_once_with(self.adapter)
+        self.mock_mb.dlt_vopt.assert_called_once_with(
+            'pvm_uuid', stg_ftsk='ftsk')
 
     def test_delete_disk(self):
         stor_adpt_mappings = mock.Mock()
