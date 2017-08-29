@@ -16,6 +16,7 @@
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 
+from nova import exception as nova_exc
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import vm
@@ -121,6 +122,13 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             return True
 
         return False
+
+    def extend_volume(self):
+        """Rescan virtual disk so client VM can see extended size."""
+        udid = self._get_udid()
+        if udid is None:
+            raise nova_exc.InvalidBDM()
+        self._extend_volume(udid)
 
     def _disconnect_volume(self, slot_mgr):
         """Disconnect the volume.
