@@ -248,6 +248,7 @@ class VMBuilder(object):
         'powervm:dedicated_proc': lpar_bldr.DED_PROCS,
         'powervm:shared_weight': lpar_bldr.UNCAPPED_WEIGHT,
         'powervm:availability_priority': lpar_bldr.AVAIL_PRIORITY,
+        'powervm:enable_lpar_metric': lpar_bldr.ENABLE_LPAR_METRIC,
         _PVM_UNCAPPED: None,
         _PVM_DED_SHAR_MODE: None,
         _PVM_PROC_COMPAT: None,
@@ -327,6 +328,10 @@ class VMBuilder(object):
             # derive the complex type
             if bldr_key is None:
                 self._build_complex_type(key, attrs, instance.flavor)
+            elif bldr_key == lpar_bldr.ENABLE_LPAR_METRIC:
+                lpar_metric = self._flavor_bool(
+                    instance.flavor.extra_specs[key], key)
+                attrs[bldr_key] = lpar_metric
             else:
                 # We found a direct mapping
                 attrs[bldr_key] = instance.flavor.extra_specs[key]

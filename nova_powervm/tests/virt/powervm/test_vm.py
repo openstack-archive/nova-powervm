@@ -121,6 +121,20 @@ class TestVMBuilder(test.TestCase):
         self.san_lpar_name.assert_called_with(instance.name)
         self.san_lpar_name.reset_mock()
 
+        # Test the Enable LPAR Metrics for true value
+        flavor.extra_specs = {'powervm:enable_lpar_metric': 'true'}
+        test_attrs = dict(lpar_attrs, enable_lpar_metric=True)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
+
+        # Test the Enable LPAR Metrics for false value
+        flavor.extra_specs = {'powervm:enable_lpar_metric': 'false'}
+        test_attrs = dict(lpar_attrs, enable_lpar_metric=False)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+        self.san_lpar_name.assert_called_with(instance.name)
+        self.san_lpar_name.reset_mock()
+
         # Test processor compatibility
         flavor.extra_specs = {'powervm:processor_compatibility': 'POWER8'}
         test_attrs = dict(lpar_attrs, processor_compatibility='POWER8')
