@@ -52,6 +52,13 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
 
     capabilities = {
         'shared_storage': True,
+        # NOTE(efried): Whereas the SSP disk driver definitely does image
+        # caching, it's not through the nova.virt.imagecache.ImageCacheManager
+        # API.  Setting `has_imagecache` to True here would have the side
+        # effect of having a periodic task try to call this class's
+        # manage_image_cache method (not implemented here; and a no-op in the
+        # superclass) which would be harmless, but unnecessary.
+        'has_imagecache': False,
         'snapshot': True,
     }
 

@@ -433,6 +433,7 @@ class TestLocalDisk(test.TestCase):
     def test_capabilities_non_mgmt_vios(self):
         local = self.get_ls(self.apt)
         self.assertFalse(local.capabilities.get('shared_storage'))
+        self.assertTrue(local.capabilities.get('has_imagecache'))
         # With the default setup, the management partition isn't the VIOS.
         self.assertFalse(local.capabilities.get('snapshot'))
 
@@ -441,4 +442,5 @@ class TestLocalDisk(test.TestCase):
         self.vio_to_vg.uuid = self.mgmt_uuid.return_value
         local = self.get_ls(self.apt)
         self.assertFalse(local.capabilities.get('shared_storage'))
+        self.assertTrue(local.capabilities.get('has_imagecache'))
         self.assertTrue(local.capabilities.get('snapshot'))
