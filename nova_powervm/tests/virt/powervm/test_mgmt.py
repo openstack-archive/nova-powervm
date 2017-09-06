@@ -54,9 +54,9 @@ class TestMgmt(test.TestCase):
         mock_get_partition.assert_not_called()
 
     @mock.patch('glob.glob')
-    @mock.patch('nova.utils.execute')
+    @mock.patch('nova.privsep.dac_admin.writefile')
     @mock.patch('os.path.realpath')
-    def test_discover_vscsi_disk(self, mock_realpath, mock_exec, mock_glob):
+    def test_discover_vscsi_disk(self, mock_realpath, mock_dacw, mock_glob):
         scanpath = '/sys/bus/vio/devices/30000005/host*/scsi_host/host*/scan'
         udid = ('275b5d5f88fa5611e48be9000098be9400'
                 '13fb2aa55a2d7b8d150cb1b7b6bc04d6')
@@ -70,15 +70,13 @@ class TestMgmt(test.TestCase):
         mgmt.discover_vscsi_disk(mapping)
         mock_glob.assert_has_calls(
             [mock.call(scanpath), mock.call('/dev/disk/by-id/*' + udid[-32:])])
-        mock_exec.assert_called_with('tee', '-a', scanpath,
-                                     process_input='- - -', run_as_root=True)
+        mock_dacw.assert_called_with(scanpath, 'a', '- - -')
         mock_realpath.assert_called_with(devlink)
 
     @mock.patch('retrying.retry')
     @mock.patch('glob.glob')
-    @mock.patch('nova.utils.execute')
-    def test_discover_vscsi_disk_not_one_result(self, mock_exec, mock_glob,
-                                                mock_retry):
+    @mock.patch('nova.privsep.dac_admin.writefile', new=mock.Mock())
+    def test_discover_vscsi_disk_not_one_result(self, mock_glob, mock_retry):
         """Zero or more than one disk is found by discover_vscsi_disk."""
         def validate_retry(kwargs):
             self.assertIn('retry_on_result', kwargs)
@@ -121,8 +119,8 @@ class TestMgmt(test.TestCase):
     @mock.patch('time.sleep')
     @mock.patch('os.path.realpath')
     @mock.patch('os.stat')
-    @mock.patch('nova.utils.execute')
-    def test_remove_block_dev(self, mock_exec, mock_stat, mock_realpath,
+    @mock.patch('nova.privsep.dac_admin.writefile')
+    def test_remove_block_dev(self, mock_dacw, mock_stat, mock_realpath,
                               mock_sleep):
         link = '/dev/link/foo'
         realpath = '/dev/sde'
@@ -135,39 +133,36 @@ class TestMgmt(test.TestCase):
         mock_realpath.assert_called_with(link)
         mock_stat.assert_has_calls([mock.call(realpath), mock.call(delpath),
                                     mock.call(realpath)])
-        mock_exec.assert_called_with('tee', '-a', delpath, process_input='1',
-                                     run_as_root=True)
+        mock_dacw.assert_called_with(delpath, 'a', '1')
         self.assertEqual(0, mock_sleep.call_count)
 
         # Device param not found
-        mock_exec.reset_mock()
+        mock_dacw.reset_mock()
         mock_stat.reset_mock()
         mock_stat.side_effect = (OSError(), None, None)
         self.assertRaises(exception.InvalidDevicePath, mgmt.remove_block_dev,
                           link)
-        # stat was called once; exec was not called
+        # stat was called once; privsep write was not called
         self.assertEqual(1, mock_stat.call_count)
-        self.assertEqual(0, mock_exec.call_count)
+        mock_dacw.assert_not_called()
 
         # Delete special file not found
-        mock_exec.reset_mock()
         mock_stat.reset_mock()
         mock_stat.side_effect = (None, OSError(), None)
         self.assertRaises(exception.InvalidDevicePath, mgmt.remove_block_dev,
                           link)
-        # stat was called twice; exec was not called
+        # stat was called twice; privsep write was not called
         self.assertEqual(2, mock_stat.call_count)
-        self.assertEqual(0, mock_exec.call_count)
+        mock_dacw.assert_not_called()
 
         # Deletion was attempted, but device is still there
-        mock_exec.reset_mock()
         mock_stat.reset_mock()
         mock_sleep.reset_mock()
         mock_stat.side_effect = lambda path: 1
         self.assertRaises(
             npvmex.DeviceDeletionException, mgmt.remove_block_dev, link)
-        # stat was called many times; exec was called once
+        # stat was called many times; privsep write was called once
         self.assertTrue(mock_stat.call_count > 4)
-        self.assertEqual(1, mock_exec.call_count)
+        mock_dacw.assert_called_with(delpath, 'a', '1')
         # sleep was called many times
         self.assertTrue(mock_sleep.call_count)

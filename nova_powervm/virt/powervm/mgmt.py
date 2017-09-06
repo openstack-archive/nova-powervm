@@ -24,7 +24,7 @@ The PowerVM Nova Compute service runs on the management partition.
 """
 import glob
 from nova import exception
-from nova import utils
+from nova.privsep import dac_admin
 import os
 from os import path
 from oslo_concurrency import lockutils
@@ -47,15 +47,6 @@ def mgmt_uuid(adapter):
     if not _MP_UUID:
         _MP_UUID = pvm_par.get_this_partition(adapter).uuid
     return _MP_UUID
-
-
-def _tee_as_root(fpath, payload):
-    """Executes 'echo $payload | sudo tee -a $fpath'.
-
-    :param fpath: The file system path to which to tee.
-    :param payload: The string to pipe to the file.
-    """
-    utils.execute('tee', '-a', fpath, process_input=payload, run_as_root=True)
 
 
 def discover_vscsi_disk(mapping, scan_timeout=300):
@@ -96,8 +87,8 @@ def discover_vscsi_disk(mapping, scan_timeout=300):
     # This glob should yield exactly one result, but use the loop just in case.
     for scanpath in glob.glob(
             '/sys/bus/vio/devices/%x/host*/scsi_host/host*/scan' % lslot):
-        # echo '- - -' | sudo tee -a /path/to/scan
-        _tee_as_root(scanpath, '- - -')
+        # Writing '- - -' to this sysfs file triggers bus rescan
+        dac_admin.writefile(scanpath, 'a', '- - -')
 
     # Now see if our device showed up.  If so, we can reliably match it based
     # on its Linux ID, which ends with the disk's UDID.
@@ -161,7 +152,8 @@ def remove_block_dev(devpath, scan_timeout=10):
     LOG.debug("Deleting block device %(devpath)s from the management "
               "partition via special file %(delpath)s.",
               {'devpath': devpath, 'delpath': delpath})
-    _tee_as_root(delpath, '1')
+    # Writing '1' to this sysfs file deletes the block device and rescans.
+    dac_admin.writefile(delpath, 'a', '1')
 
     # The bus scan is asynchronous.  Need to poll, waiting for the device to
     # disappear.  Stop when stat raises OSError (dev file not found) - which is
