@@ -38,13 +38,15 @@ class TestNvramManager(test.TestCase):
             fixtures.MockPatchObject(self.fake_store, 'fetch')).mock
         self.mock_remove = self.useFixture(
             fixtures.MockPatchObject(self.fake_store, 'delete')).mock
+        self.mock_exp_remove = self.useFixture(
+            fixtures.MockPatchObject(self.fake_exp_store, 'delete')).mock
 
     @mock.patch('nova_powervm.virt.powervm.nvram.manager.LOG.exception')
     @mock.patch.object(vm, 'get_instance_wrapper')
     def test_store_with_exception(self, mock_get_inst, mock_log):
         mock_get_inst.side_effect = pvm_exc.HttpError(mock.Mock())
         mgr = manager.NvramManager(self.fake_store, mock.Mock(), mock.Mock())
-        mgr.store(powervm.TEST_INST1)
+        mgr.store(powervm.TEST_INST1.uuid)
         self.assertEqual(1, mock_log.call_count)
 
     @mock.patch('nova_powervm.virt.powervm.nvram.manager.LOG.warning')
@@ -52,18 +54,18 @@ class TestNvramManager(test.TestCase):
     def test_store_with_not_found_exc(self, mock_get_inst, mock_log):
         mock_get_inst.side_effect = pvm_exc.HttpNotFound(mock.Mock())
         mgr = manager.NvramManager(self.fake_store, mock.Mock(), mock.Mock())
-        mgr.store(powervm.TEST_INST1)
+        mgr.store(powervm.TEST_INST1.uuid)
         mock_log.assert_not_called()
 
     @mock.patch.object(vm, 'get_instance_wrapper')
     def test_manager(self, mock_get_inst):
 
         mgr = manager.NvramManager(self.fake_store, mock.Mock(), mock.Mock())
-        mgr.store(powervm.TEST_INST1)
+        mgr.store(powervm.TEST_INST1.uuid)
         mgr.store(powervm.TEST_INST2)
 
         mgr.fetch(powervm.TEST_INST2)
-
+        mgr.fetch(powervm.TEST_INST2.uuid)
         mgr.remove(powervm.TEST_INST2)
 
         # Simulate a quick repeated stores of the same LPAR by poking the Q.
@@ -74,10 +76,13 @@ class TestNvramManager(test.TestCase):
 
         mgr.shutdown()
         self.mock_store.assert_has_calls(
-            [mock.call(powervm.TEST_INST1, mock.ANY),
-             mock.call(powervm.TEST_INST2, mock.ANY)])
-        self.mock_fetch.assert_called_with(powervm.TEST_INST2)
-        self.mock_remove.assert_called_with(powervm.TEST_INST2)
+            [mock.call(powervm.TEST_INST1.uuid, mock.ANY),
+             mock.call(powervm.TEST_INST2.uuid, mock.ANY)])
+        self.mock_fetch.assert_has_calls(
+            [mock.call(powervm.TEST_INST2.uuid)] * 2)
+        self.mock_remove.assert_called_once_with(powervm.TEST_INST2.uuid)
+
+        self.mock_remove.reset_mock()
 
         # Test when fetch returns an exception
         mgr_exp = manager.NvramManager(self.fake_exp_store,
@@ -86,5 +91,5 @@ class TestNvramManager(test.TestCase):
                           mgr_exp.fetch, powervm.TEST_INST2)
 
         # Test exception being logged but not raised during remove
-        mgr_exp.remove(powervm.TEST_INST2)
-        self.mock_remove.assert_called_with(powervm.TEST_INST2)
+        mgr_exp.remove(powervm.TEST_INST2.uuid)
+        self.mock_exp_remove.assert_called_once_with(powervm.TEST_INST2.uuid)

@@ -32,7 +32,7 @@ class TestVMTasks(test.TestCase):
     def setUp(self):
         super(TestVMTasks, self).setUp()
         self.apt = mock.Mock()
-        self.instance = mock.Mock()
+        self.instance = mock.Mock(uuid='fake-uuid')
 
     @mock.patch('pypowervm.utils.transaction.FeedTask')
     @mock.patch('pypowervm.tasks.partition.build_active_vio_feed_task')

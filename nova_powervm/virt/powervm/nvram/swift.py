@@ -30,6 +30,7 @@ from nova_powervm.virt.powervm.nvram import api
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from oslo_utils import excutils
+from oslo_utils import uuidutils
 from swiftclient import exceptions as swft_exc
 from swiftclient import service as swft_srv
 
@@ -124,11 +125,10 @@ class SwiftNvramStore(api.NvramStore):
             container=container)
         return self._get_name_from_listing(results)
 
-    def _store(self, inst_key, inst_name, data, exists=None):
+    def _store(self, inst_key, data, exists=None):
         """Store the NVRAM into the storage service.
 
         :param inst_key: The key by which to store the data in the repository.
-        :param inst_name: The name of the instance.
         :param data: the NVRAM data base64 encoded string
         :param exists: (Optional, Default: None) If specified, tells the upload
                        whether or not the object exists.  Should be a boolean
@@ -185,7 +185,7 @@ class SwiftNvramStore(api.NvramStore):
                                     'token. Retrying upload.')
                         return True
                     # The upload failed.
-                    raise api.NVRAMUploadException(instance=inst_name,
+                    raise api.NVRAMUploadException(instance=inst_key,
                                                    reason=result)
             return False
         try:
@@ -194,23 +194,25 @@ class SwiftNvramStore(api.NvramStore):
             # The upload failed.
             reason = (_('Unable to store NVRAM after %d attempts') %
                       re.last_attempt.attempt_number)
-            raise api.NVRAMUploadException(instance=inst_name, reason=reason)
+            raise api.NVRAMUploadException(instance=inst_key, reason=reason)
 
     @lockutils.synchronized('nvram')
     def store(self, instance, data, force=True):
         """Store the NVRAM into the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         :param data: the NVRAM data base64 encoded string
         :param force: boolean whether an update should always be saved,
                       otherwise, check to see if it's changed.
         """
-        exists = self._exists(instance.uuid)
+        inst_uuid = (instance if
+                     uuidutils.is_uuid_like(instance) else instance.uuid)
+        exists = self._exists(inst_uuid)
         if not force and exists:
             # See if the entry exists and has not changed.
             results = self._run_operation('stat', options={'long': True},
                                           container=self.container,
-                                          objects=[instance.uuid])
+                                          objects=[inst_uuid])
             result = results[0]
             if result['success']:
                 existing_hash = result['headers']['etag']
@@ -218,11 +220,12 @@ class SwiftNvramStore(api.NvramStore):
                     data = data.encode('ascii')
                 md5 = hashlib.md5(data).hexdigest()
                 if existing_hash == md5:
-                    LOG.info('NVRAM has not changed.', instance=instance)
+                    LOG.info(('NVRAM has not changed for instance with '
+                             'UUID %s.'), inst_uuid)
                     return
 
-        self._store(instance.uuid, instance.name, data, exists=exists)
-        LOG.debug('NVRAM updated', instance=instance)
+        self._store(inst_uuid, data, exists=exists)
+        LOG.debug('NVRAM updated for instance with UUID %s', inst_uuid)
 
     def store_slot_map(self, inst_key, data):
         """Store the Slot Map to Swift.
@@ -230,7 +233,7 @@ class SwiftNvramStore(api.NvramStore):
         :param inst_key: The instance key to use for the storage operation.
         :param data: The data of the object to store.  This should be a string.
         """
-        self._store(inst_key, inst_key, data)
+        self._store(inst_key, data)
 
     def fetch_slot_map(self, inst_key):
         """Fetch the Slot Map object.
@@ -243,12 +246,14 @@ class SwiftNvramStore(api.NvramStore):
     def fetch(self, instance):
         """Fetch the NVRAM from the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object or instance UUID.
         :returns: the NVRAM data base64 encoded string
         """
-        data, result = self._fetch(instance.uuid)
+        inst_uuid = (instance if
+                     uuidutils.is_uuid_like(instance) else instance.uuid)
+        data, result = self._fetch(inst_uuid)
         if not data:
-            raise api.NVRAMDownloadException(instance=instance.name,
+            raise api.NVRAMDownloadException(instance=inst_uuid,
                                              reason=result)
         return data
 
@@ -304,12 +309,15 @@ class SwiftNvramStore(api.NvramStore):
     def delete(self, instance):
         """Delete the NVRAM into the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         """
+        inst_uuid = (instance if
+                     uuidutils.is_uuid_like(instance) else instance.uuid)
         for result in self._run_operation('delete', container=self.container,
-                                          objects=[instance.uuid]):
+                                          objects=[inst_uuid]):
 
-            LOG.debug('Delete result: %s', str(result), instance=instance)
+            LOG.debug('Delete result for instance with UUID %(inst_uuid)s: '
+                      '%(res)s', {'inst_uuid': inst_uuid, 'res': result})
             if not result['success']:
-                raise api.NVRAMDeleteException(instance=instance.name,
+                raise api.NVRAMDeleteException(instance=inst_uuid,
                                                reason=result)

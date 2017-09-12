@@ -60,6 +60,33 @@ class TestPowerVMNovaEventHandler(test.TestCase):
         self.handler = event.PowerVMNovaEventHandler(self.mock_driver)
 
     @mock.patch('nova_powervm.virt.powervm.event._get_instance')
+    def test_get_inst_uuid(self, mock_get_instance):
+        fake_inst1 = mock.Mock(uuid='uuid1')
+        fake_inst2 = mock.Mock(uuid='uuid2')
+        mock_get_instance.side_effect = lambda i, u: {
+            'fake_pvm_uuid1': fake_inst1,
+            'fake_pvm_uuid2': fake_inst2}.get(u)
+
+        self.assertEqual(
+            (fake_inst1, 'uuid1'),
+            self.handler._get_inst_uuid(fake_inst1, 'fake_pvm_uuid1'))
+        self.assertEqual(
+            (fake_inst2, 'uuid2'),
+            self.handler._get_inst_uuid(fake_inst2, 'fake_pvm_uuid2'))
+        self.assertEqual(
+            (None, 'uuid1'),
+            self.handler._get_inst_uuid(None, 'fake_pvm_uuid1'))
+        self.assertEqual(
+            (fake_inst2, 'uuid2'),
+            self.handler._get_inst_uuid(fake_inst2, 'fake_pvm_uuid2'))
+        self.assertEqual(
+            (fake_inst1, 'uuid1'),
+            self.handler._get_inst_uuid(fake_inst1, 'fake_pvm_uuid1'))
+        mock_get_instance.assert_has_calls(
+            [mock.call(fake_inst1, 'fake_pvm_uuid1'),
+             mock.call(fake_inst2, 'fake_pvm_uuid2')])
+
+    @mock.patch('nova_powervm.virt.powervm.event._get_instance')
     def test_handle_inst_event(self, mock_get_instance):
         # If no event we care about, or NVRAM but no nvram_mgr, nothing happens
         self.mock_driver.nvram_mgr = None
@@ -89,24 +116,48 @@ class TestPowerVMNovaEventHandler(test.TestCase):
         self.mock_lceh_process.assert_not_called()
 
         mock_get_instance.reset_mock()
-        mock_get_instance.return_value = 'inst'
+        fake_inst = mock.Mock(uuid='fake-uuid')
+        mock_get_instance.return_value = fake_inst
 
         # NVRAM only - no PartitionState handling, instance is returned
-        self.assertEqual('inst', self.handler._handle_inst_event(
+        self.assertEqual(fake_inst, self.handler._handle_inst_event(
             None, 'uuid', ['NVRAM', 'baz']))
         mock_get_instance.assert_called_once_with(None, 'uuid')
-        self.mock_driver.nvram_mgr.store.assert_called_once_with('inst')
+        self.mock_driver.nvram_mgr.store.assert_called_once_with('fake-uuid')
         self.mock_lceh_process.assert_not_called()
 
         mock_get_instance.reset_mock()
         self.mock_driver.nvram_mgr.store.reset_mock()
+        self.handler._uuid_cache.clear()
 
         # Both event types
-        self.assertEqual('inst', self.handler._handle_inst_event(
+        self.assertEqual(fake_inst, self.handler._handle_inst_event(
             None, 'uuid', ['PartitionState', 'NVRAM']))
         mock_get_instance.assert_called_once_with(None, 'uuid')
-        self.mock_driver.nvram_mgr.store.assert_called_once_with('inst')
-        self.mock_lceh_process.assert_called_once_with('inst', 'uuid')
+        self.mock_driver.nvram_mgr.store.assert_called_once_with('fake-uuid')
+        self.mock_lceh_process.assert_called_once_with(fake_inst, 'uuid')
+
+        mock_get_instance.reset_mock()
+        self.mock_driver.nvram_mgr.store.reset_mock()
+        self.handler._uuid_cache.clear()
+
+        # Handle multiple NVRAM and PartitionState events
+        self.assertEqual(fake_inst, self.handler._handle_inst_event(
+            None, 'uuid', ['NVRAM']))
+        self.assertEqual(None, self.handler._handle_inst_event(
+            None, 'uuid', ['NVRAM']))
+        self.assertEqual(None, self.handler._handle_inst_event(
+            None, 'uuid', ['PartitionState']))
+        self.assertEqual(fake_inst, self.handler._handle_inst_event(
+            fake_inst, 'uuid', ['NVRAM']))
+        self.assertEqual(fake_inst, self.handler._handle_inst_event(
+            fake_inst, 'uuid', ['NVRAM', 'PartitionState']))
+        mock_get_instance.assert_called_once_with(None, 'uuid')
+        self.mock_driver.nvram_mgr.store.assert_has_calls(
+            [mock.call('fake-uuid')] * 4)
+        self.mock_lceh_process.assert_has_calls(
+            [mock.call(None, 'uuid'),
+             mock.call(fake_inst, 'uuid')])
 
     @mock.patch('nova_powervm.virt.powervm.event.PowerVMNovaEventHandler.'
                 '_handle_inst_event')
@@ -166,6 +217,69 @@ class TestPowerVMNovaEventHandler(test.TestCase):
              mock.call(None, 'uuid3', ['PartitionState', 'baz', 'NVRAM']),
              # inst1 pulled from the cache based on uuid1
              mock.call('inst1', 'uuid1', ['blah', 'PartitionState'])])
+
+    @mock.patch('nova_powervm.virt.powervm.event._get_instance')
+    @mock.patch('pypowervm.util.get_req_path_uuid', autospec=True)
+    def test_uuid_cache(self, mock_get_rpu, mock_get_instance):
+        deluri = pvm_evt.EventType.DELETE_URI
+        moduri = pvm_evt.EventType.MODIFY_URI
+
+        fake_inst1 = mock.Mock(uuid='uuid1')
+        fake_inst2 = mock.Mock(uuid='uuid2')
+        fake_inst4 = mock.Mock(uuid='uuid4')
+        mock_get_instance.side_effect = lambda i, u: {
+            'fake_pvm_uuid1': fake_inst1,
+            'fake_pvm_uuid2': fake_inst2,
+            'fake_pvm_uuid4': fake_inst4}.get(u)
+        mock_get_rpu.side_effect = lambda d, **k: d.split('/')[1]
+
+        uuid_det = (('fake_pvm_uuid1', 'NVRAM', moduri),
+                    ('fake_pvm_uuid2', 'NVRAM', moduri),
+                    ('fake_pvm_uuid4', 'NVRAM', moduri),
+                    ('fake_pvm_uuid1', 'NVRAM', moduri),
+                    ('fake_pvm_uuid2', '', deluri),
+                    ('fake_pvm_uuid2', 'NVRAM', moduri),
+                    ('fake_pvm_uuid1', '', deluri),
+                    ('fake_pvm_uuid3', '', deluri))
+        events = [
+            mock.Mock(etype=etype, data='LogicalPartition/' + uuid,
+                      detail=detail) for uuid, detail, etype in uuid_det]
+        self.handler.process(events[0:4])
+        mock_get_instance.assert_has_calls([
+            mock.call(None, 'fake_pvm_uuid1'),
+            mock.call(None, 'fake_pvm_uuid2'),
+            mock.call(None, 'fake_pvm_uuid4')])
+        self.assertEqual({
+            'fake_pvm_uuid1': 'uuid1',
+            'fake_pvm_uuid2': 'uuid2',
+            'fake_pvm_uuid4': 'uuid4'}, self.handler._uuid_cache)
+
+        mock_get_instance.reset_mock()
+
+        # Test the cache with a second process call
+        self.handler.process(events[4:7])
+        mock_get_instance.assert_has_calls([
+            mock.call(None, 'fake_pvm_uuid2')])
+        self.assertEqual({
+            'fake_pvm_uuid2': 'uuid2',
+            'fake_pvm_uuid4': 'uuid4'}, self.handler._uuid_cache)
+
+        mock_get_instance.reset_mock()
+
+        # Make sure a delete to a non-cached UUID doesn't blow up
+        self.handler.process([events[7]])
+        mock_get_instance.assert_not_called()
+
+        mock_get_rpu.reset_mock()
+        mock_get_instance.reset_mock()
+
+        clear_events = [mock.Mock(etype=pvm_evt.EventType.NEW_CLIENT),
+                        mock.Mock(etype=pvm_evt.EventType.CACHE_CLEARED)]
+        # This should clear the cache
+        self.handler.process(clear_events)
+        self.assertEqual(dict(), self.handler._uuid_cache)
+        self.assertEqual(0, mock_get_rpu.call_count)
+        mock_get_instance.assert_not_called()
 
 
 class TestPowerVMLifecycleEventHandler(test.TestCase):

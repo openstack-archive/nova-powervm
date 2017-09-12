@@ -47,7 +47,7 @@ class NvramStore(object):
     def store(self, instance, data, force=True):
         """Store the NVRAM into the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         :param data: the NVRAM data base64 encoded string
         :param force: boolean whether an update should always be saved,
                       otherwise, check to see if it's changed.
@@ -57,7 +57,7 @@ class NvramStore(object):
     def fetch(self, instance):
         """Fetch the NVRAM from the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         :returns: the NVRAM data base64 encoded string
         """
 
@@ -65,5 +65,5 @@ class NvramStore(object):
     def delete(self, instance):
         """Delete the NVRAM from the storage service.
 
-        :param instance: instance object
+        :param instance: The nova instance object OR instance UUID.
         """
