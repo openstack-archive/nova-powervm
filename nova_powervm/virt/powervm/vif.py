@@ -20,9 +20,7 @@ import six
 from nova import context as ctx
 from nova import exception
 from nova import network as net_api
-from nova.network import linux_net
 from nova.network import model as network_model
-from nova import utils
 from oslo_config import cfg
 from oslo_log import log
 from oslo_serialization import jsonutils
@@ -53,15 +51,12 @@ EVENT_PROVIDER_ID = 'NOVA_PVM_VIF'
 
 VIF_TYPE_PVM_SEA = 'pvm_sea'
 VIF_TYPE_PVM_OVS = 'ovs'
-VIF_TYPE_PVM_BRIDGE = 'bridge'
 VIF_TYPE_PVM_SRIOV = 'pvm_sriov'
 
 VIF_MAPPING = {VIF_TYPE_PVM_SEA:
                'nova_powervm.virt.powervm.vif.PvmSeaVifDriver',
                VIF_TYPE_PVM_OVS:
                'nova_powervm.virt.powervm.vif.PvmOvsVifDriver',
-               VIF_TYPE_PVM_BRIDGE:
-               'nova_powervm.virt.powervm.vif.PvmLBVifDriver',
                VIF_TYPE_PVM_SRIOV:
                'nova_powervm.virt.powervm.vif.PvmVnicSriovVifDriver'}
 
@@ -500,124 +495,6 @@ class PvmSeaVifDriver(PvmVifDriver):
                                 mac_addr=vif['address'], slot_num=slot_num)
 
         return cna_w
-
-
-@six.add_metaclass(abc.ABCMeta)
-class PvmLioVifDriver(PvmVifDriver):
-    """An abstract VIF driver that uses Linux I/O to host."""
-
-    def plug(self, vif, slot_num, new_vif=True):
-        """Plugs a virtual interface (network) into a VM.
-
-        Creates a 'peer to peer' connection between the Management partition
-        hosting the Linux I/O and the client VM.  There will be one trunk
-        adapter for a given client adapter.
-
-        The device will be 'up' on the mgmt partition.
-
-        :param vif: The virtual interface to plug into the instance.
-        :param slot_num: Which slot number to plug the VIF into.  May be None.
-        :param new_vif: (Optional, Default: True) If set, indicates that it is
-                        a brand new VIF.  If False, it indicates that the VIF
-                        is already on the client but should be treated on the
-                        bridge.
-        :return: The new vif that was created.  Only returned if new_vif is
-                 set to True.  Otherwise None is expected.
-        """
-        dev_name = _get_trunk_dev_name(vif)
-
-        if new_vif:
-            # Create the trunk and client adapter.
-            lpar_uuid = vm.get_pvm_uuid(self.instance)
-            mgmt_uuid = pvm_par.get_this_partition(self.adapter).uuid
-            cna_w = pvm_cna.crt_p2p_cna(
-                self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
-                CONF.powervm.pvm_vswitch_for_novalink_io, crt_vswitch=True,
-                mac_addr=vif['address'], dev_name=dev_name,
-                slot_num=slot_num)[0]
-        else:
-            cna_w = None
-
-        # Make sure to just run the up just in case.
-        utils.execute('ip', 'link', 'set', dev_name, 'up', run_as_root=True)
-
-        return cna_w
-
-
-class PvmLBVifDriver(PvmLioVifDriver):
-    """The Linux Bridge VIF driver for PowerVM."""
-
-    def plug(self, vif, slot_num, new_vif=True):
-        """Plugs a virtual interface (network) into a VM.
-
-        Extends the base Lio implementation.  Will make sure that the bridge
-        supports the trunk adapter.
-
-        :param vif: The virtual interface to plug into the instance.
-        :param slot_num: Which slot number to plug the VIF into.  May be None.
-        :param new_vif: (Optional, Default: True) If set, indicates that it is
-                        a brand new VIF.  If False, it indicates that the VIF
-                        is already on the client but should be treated on the
-                        bridge.
-        :return: The new vif that was created.  Only returned if new_vif is
-                 set to True.  Otherwise None is expected.
-        """
-        # Only call the parent if it is truly a new VIF
-        if new_vif:
-            cna_w = super(PvmLBVifDriver, self).plug(vif, slot_num)
-        else:
-            cna_w = None
-
-        # Similar to libvirt's vif.py plug_bridge.  Need to attach the
-        # interface to the bridge.
-        linux_net.LinuxBridgeInterfaceDriver.ensure_bridge(
-            vif['network']['bridge'], _get_trunk_dev_name(vif))
-
-        return cna_w
-
-    def unplug(self, vif, cna_w_list=None):
-        """Unplugs a virtual interface (network) from a VM.
-
-        Extends the base implementation, but before invoking it will remove
-        itself from the bridge it is connected to and delete the corresponding
-        trunk device on the mgmt partition.
-
-        :param vif: The virtual interface to plug into the instance.
-        :param cna_w_list: (Optional, Default: None) The list of Client Network
-                           Adapters from pypowervm.  Providing this input
-                           allows for an improvement in operation speed.
-        :return cna_w: The deleted Client Network Adapter.
-        """
-        # Need to find the adapters if they were not provided
-        if not cna_w_list:
-            cna_w_list = vm.get_cnas(self.adapter, self.instance)
-
-        # Find the CNA for this vif.
-        cna_w = self._find_cna_for_vif(cna_w_list, vif)
-        if not cna_w:
-            LOG.warning('Unable to unplug VIF with mac %(mac)s.  The VIF was '
-                        'not found on the instance.',
-                        {'mac': vif['address']}, instance=self.instance)
-            return None
-
-        # Find and delete the trunk adapters
-        trunks = pvm_cna.find_trunks(self.adapter, cna_w)
-
-        dev_name = _get_trunk_dev_name(vif)
-        utils.execute('ip', 'link', 'set', dev_name, 'down', run_as_root=True)
-        try:
-            utils.execute('brctl', 'delif', vif['network']['bridge'],
-                          dev_name, run_as_root=True)
-        except Exception:
-            LOG.exception(
-                'Unable to delete device %(dev_name)s from bridge %(bridge)s.',
-                {'dev_name': dev_name, 'bridge': vif['network']['bridge']},
-                instance=self.instance)
-        for trunk in trunks:
-            trunk.delete()
-
-        # Now delete the client CNA
-        return super(PvmLBVifDriver, self).unplug(vif, cna_w_list=cna_w_list)
 
 
 class PvmVnicSriovVifDriver(PvmVifDriver):
