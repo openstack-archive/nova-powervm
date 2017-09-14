@@ -50,14 +50,12 @@ CFG_DRV_SUFFIX = ".iso"
 
 class ConfigDrivePowerVM(object):
 
-    def __init__(self, adapter, host_uuid):
+    def __init__(self, adapter):
         """Creates the config drive manager for PowerVM.
 
         :param adapter: The pypowervm adapter to communicate with the system.
-        :param host_uuid: The UUID of the host system.
         """
         self.adapter = adapter
-        self.host_uuid = host_uuid
 
         # Validate that the virtual optical exists
         self.vios_uuid, self.vg_uuid = tsk_vopt.validate_vopt_repo_exists(
@@ -210,7 +208,7 @@ class ConfigDrivePowerVM(object):
         def add_func(vios_w):
             LOG.info("Adding config drive mapping to Virtual I/O Server "
                      "%(vios)s", {'vios': vios_w.name}, instance=instance)
-            mapping = tsk_map.build_vscsi_mapping(self.host_uuid, vios_w,
+            mapping = tsk_map.build_vscsi_mapping(None, vios_w,
                                                   lpar_uuid, vopt)
             return tsk_map.add_map(vios_w, mapping)
 

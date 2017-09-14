@@ -432,7 +432,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # after all the other I/O.
         if configdrive.required_by(instance) and not recreate:
             flow_spawn.add(tf_stg.CreateAndConnectCfgDrive(
-                self.adapter, self.host_uuid, instance, injected_files,
+                self.adapter, instance, injected_files,
                 network_info, admin_password, stg_ftsk=stg_ftsk))
 
         # Add the transaction manager flow to the end of the 'I/O
@@ -591,8 +591,7 @@ class PowerVMDriver(driver.ComputeDriver):
             # manager.
             if configdrive.required_by(instance):
                 flow.add(tf_stg.DeleteVOpt(
-                    self.adapter, self.host_uuid, instance, pvm_inst_uuid,
-                    stg_ftsk=stg_ftsk))
+                    self.adapter, instance, stg_ftsk=stg_ftsk))
 
             # Determine if there are volumes to disconnect.  If so, remove each
             # volume (within the transaction manager)
