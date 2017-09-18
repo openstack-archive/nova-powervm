@@ -54,7 +54,7 @@ class TestMgmt(test.TestCase):
         mock_get_partition.assert_not_called()
 
     @mock.patch('glob.glob')
-    @mock.patch('nova.privsep.dac_admin.writefile')
+    @mock.patch('nova.privsep.path.writefile')
     @mock.patch('os.path.realpath')
     def test_discover_vscsi_disk(self, mock_realpath, mock_dacw, mock_glob):
         scanpath = '/sys/bus/vio/devices/30000005/host*/scsi_host/host*/scan'
@@ -75,7 +75,7 @@ class TestMgmt(test.TestCase):
 
     @mock.patch('retrying.retry')
     @mock.patch('glob.glob')
-    @mock.patch('nova.privsep.dac_admin.writefile', new=mock.Mock())
+    @mock.patch('nova.privsep.path.writefile', new=mock.Mock())
     def test_discover_vscsi_disk_not_one_result(self, mock_glob, mock_retry):
         """Zero or more than one disk is found by discover_vscsi_disk."""
         def validate_retry(kwargs):
@@ -119,7 +119,7 @@ class TestMgmt(test.TestCase):
     @mock.patch('time.sleep')
     @mock.patch('os.path.realpath')
     @mock.patch('os.stat')
-    @mock.patch('nova.privsep.dac_admin.writefile')
+    @mock.patch('nova.privsep.path.writefile')
     def test_remove_block_dev(self, mock_dacw, mock_stat, mock_realpath,
                               mock_sleep):
         link = '/dev/link/foo'

@@ -24,9 +24,8 @@ The PowerVM Nova Compute service runs on the management partition.
 """
 import glob
 from nova import exception
-from nova.privsep import dac_admin
+from nova.privsep import path as priv_path
 import os
-from os import path
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from pypowervm.tasks import partition as pvm_par
@@ -88,7 +87,7 @@ def discover_vscsi_disk(mapping, scan_timeout=300):
     for scanpath in glob.glob(
             '/sys/bus/vio/devices/%x/host*/scsi_host/host*/scan' % lslot):
         # Writing '- - -' to this sysfs file triggers bus rescan
-        dac_admin.writefile(scanpath, 'a', '- - -')
+        priv_path.writefile(scanpath, 'a', '- - -')
 
     # Now see if our device showed up.  If so, we can reliably match it based
     # on its Linux ID, which ends with the disk's UDID.
@@ -114,7 +113,7 @@ def discover_vscsi_disk(mapping, scan_timeout=300):
                                                   count=len(disks))
 
     # The by-id path is a symlink.  Resolve to the /dev/sdX path
-    dpath = path.realpath(disks[0])
+    dpath = os.path.realpath(disks[0])
     LOG.debug("Discovered VSCSI disk with UDID %(udid)s on slot %(slot)x at "
               "path %(devname)s.",
               {'udid': udid, 'slot': lslot, 'devname': dpath})
@@ -138,7 +137,7 @@ def remove_block_dev(devpath, scan_timeout=10):
                                     afterward.
     """
     # Resolve symlinks, if any, to get to the /dev/sdX path
-    devpath = path.realpath(devpath)
+    devpath = os.path.realpath(devpath)
     try:
         os.stat(devpath)
     except OSError:
@@ -153,7 +152,7 @@ def remove_block_dev(devpath, scan_timeout=10):
               "partition via special file %(delpath)s.",
               {'devpath': devpath, 'delpath': delpath})
     # Writing '1' to this sysfs file deletes the block device and rescans.
-    dac_admin.writefile(delpath, 'a', '1')
+    priv_path.writefile(delpath, 'a', '1')
 
     # The bus scan is asynchronous.  Need to poll, waiting for the device to
     # disappear.  Stop when stat raises OSError (dev file not found) - which is
