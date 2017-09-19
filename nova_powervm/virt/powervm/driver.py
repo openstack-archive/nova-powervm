@@ -972,11 +972,11 @@ class PowerVMDriver(driver.ComputeDriver):
         out, err = n_utils.execute('env', 'LANG=C', 'uptime')
         return out
 
-    def attach_interface(self, instance, image_meta, vif):
+    def attach_interface(self, context, instance, image_meta, vif):
         """Attach an interface to the instance."""
         self.plug_vifs(instance, [vif])
 
-    def detach_interface(self, instance, vif):
+    def detach_interface(self, context, instance, vif):
         """Detach an interface from the instance."""
         self.unplug_vifs(instance, [vif])
 
