@@ -1724,7 +1724,7 @@ class PowerVMDriver(driver.ComputeDriver):
         lpar_uuid = vm.get_pvm_uuid(instance)
 
         # Build the connection to the VNC.
-        host = CONF.vnc.vncserver_proxyclient_address
+        host = CONF.vnc.server_proxyclient_address
         use_x509_auth = CONF.powervm.vnc_use_x509_auth
         ca_certs = CONF.powervm.vnc_ca_certs
         server_key = CONF.powervm.vnc_server_key
