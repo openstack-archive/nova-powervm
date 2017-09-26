@@ -96,7 +96,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         # Get the File Path
         fio = pvm_stg.FileIO.bld(
             self.adapter, path,
-            backstore_type=pvm_stg.BackStoreType.USER_QCOW)
+            backstore_type=pvm_stg.BackStoreType.FILE_IO)
 
         def add_func(vios_w):
             # If the vios doesn't match, just return
