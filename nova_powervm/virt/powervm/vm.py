@@ -22,6 +22,7 @@ import re
 import six
 
 from nova.compute import power_state
+from nova.compute import task_states
 from nova import exception
 from nova import objects
 from nova.virt import event
@@ -334,6 +335,17 @@ class VMBuilder(object):
                 lpar_metric = self._flavor_bool(
                     instance.flavor.extra_specs[key], key)
                 attrs[bldr_key] = lpar_metric
+            elif bldr_key == lpar_bldr.PPT_RATIO:
+                if (instance.task_state == task_states.REBUILD_SPAWNING and not
+                   self.host_w.get_capability(
+                       'physical_page_table_ratio_capable')):
+                    # We still want to be able to rebuild from hosts that
+                    # support setting the PPT ratio to hosts that don't support
+                    # setting the PPT ratio.
+                    LOG.info("Ignoring PPT ratio on rebuild to PPT ratio "
+                             "unsupported host.", instance=instance)
+                else:
+                    attrs[bldr_key] = instance.flavor.extra_specs[key]
             else:
                 # We found a direct mapping
                 attrs[bldr_key] = instance.flavor.extra_specs[key]
