@@ -124,7 +124,7 @@ class NovaSlotManager(slot_map.SlotMapStore):
         pv_vscsi_vol_to_vio = {}
         fabric_names = []
         for bdm, vol_drv in vol_drv_iter:
-            if vol_drv.vol_type() in ['vscsi', 'fileio']:
+            if vol_drv.vol_type() in ['vscsi', 'fileio', 'rbd']:
                 self._pv_vscsi_vol_to_vio(vol_drv, pv_vscsi_vol_to_vio)
             elif len(fabric_names) == 0 and vol_drv.vol_type() == 'npiv':
                 fabric_names = vol_drv._fabric_names()
