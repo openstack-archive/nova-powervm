@@ -19,6 +19,7 @@ import os
 import six
 from taskflow import task
 
+from nova import exception as nova_exc
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import vm
@@ -135,6 +136,12 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
 
         self.stg_ftsk.add_post_execute(task.FunctorTask(
             set_slot_info, name='file_io_slot_%s' % path))
+
+    def extend_volume(self):
+        path = self._get_path()
+        if path is None:
+            raise nova_exc.InvalidBDM()
+        self._extend_volume(path)
 
     def _disconnect_volume(self, slot_mgr):
         # Build the match function

@@ -94,7 +94,8 @@ class PowerVMDriver(driver.ComputeDriver):
         "supports_recreate": True,
         "supports_migrate_to_same_host": False,
         "supports_attach_interface": True,
-        "supports_device_tagging": False
+        "supports_device_tagging": False,
+        "supports_extend_volume": True
     }
 
     def __init__(self, virtapi):
@@ -742,6 +743,12 @@ class PowerVMDriver(driver.ComputeDriver):
         # detach flows do not (currently) modify system metadata.  May need
         # to revise in the future as volume connectors evolve.
         instance.save()
+
+    def extend_volume(self, connection_info, instance):
+        """Resize an attached volume"""
+        vol_drv = vol_attach.build_volume_driver(
+            self.adapter, self.host_uuid, instance, connection_info)
+        vol_drv.extend_volume()
 
     def detach_volume(self, connection_info, instance, mountpoint,
                       encryption=None):

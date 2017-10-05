@@ -17,7 +17,10 @@
 import abc
 import six
 
+from oslo_log import log as logging
+from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import partition as pvm_partition
+from pypowervm.tasks import storage as tsk_stg
 from pypowervm.utils import transaction as pvm_tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -25,6 +28,7 @@ from nova_powervm.virt.powervm import exception as exc
 from nova_powervm.virt.powervm import vm
 
 
+LOG = logging.getLogger(__name__)
 LOCAL_FEED_TASK = 'local_feed_task'
 
 
@@ -227,6 +231,35 @@ class PowerVMVolumeAdapter(object):
 
         if self.stg_ftsk.name == LOCAL_FEED_TASK:
             self.stg_ftsk.execute()
+
+    def extend_volume(self):
+        raise NotImplementedError()
+
+    def _extend_volume(self, udid):
+        """Rescan virtual disk so client VM can see extended size"""
+        resized = False
+        error = False
+        for vios_uuid in self.vios_uuids:
+            try:
+                LOG.debug("Rescanning volume %(vol)s for vios uuid %(uuid)s",
+                          dict(vol=self.volume_id, uuid=vios_uuid),
+                          instance=self.instance)
+                tsk_stg.rescan_vstor(vios_uuid, udid, adapter=self.adapter)
+                resized = True
+            except pvm_exc.VstorNotFound:
+                LOG.info("Failed to find volume %(vol)s for VIOS "
+                         "UUID %(uuid)s during extend operation.",
+                         {'vol': self.volume_id, 'uuid': vios_uuid},
+                         instance=self.instance)
+            except pvm_exc.JobRequestFailed as e:
+                error = True
+                LOG.error("Failed to rescan volume %(vol)s for VIOS "
+                          "UUID %(uuid)s. %(reason)s",
+                          {'vol': self.volume_id, 'uuid': vios_uuid,
+                           'reason': six.text_type(e)}, instance=self.instance)
+        if not resized or error:
+            raise exc.VolumeExtendFailed(volume_id=self.volume_id,
+                                         instance_name=self.instance.name)
 
     def disconnect_volume(self, slot_mgr):
         """Disconnect the volume.
