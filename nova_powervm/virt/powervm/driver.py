@@ -39,6 +39,7 @@ from pypowervm.helpers import log_helper as log_hlp
 from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.tasks import cna as pvm_cna
 from pypowervm.tasks import memory as pvm_mem
+from pypowervm.tasks.monitor import host_cpu as pvm_hcpu
 from pypowervm.tasks import partition as pvm_par
 from pypowervm.tasks import power_opts as pvm_popts
 from pypowervm.tasks import scsi_mapper as pvm_smap
@@ -130,8 +131,8 @@ class PowerVMDriver(driver.ComputeDriver):
         self._setup_rebuild_store()
 
         # Init Host CPU Statistics
-        self.host_cpu_stats = pvm_host.HostCPUStats(self.adapter,
-                                                    self.host_uuid)
+        self.host_cpu_cache = pvm_hcpu.HostCPUMetricCache(self.adapter,
+                                                          self.host_uuid)
 
         # Cache for instance overhead.
         # Key: max_mem (int MB)
@@ -298,7 +299,16 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def get_host_cpu_stats(self):
         """Return the current CPU state of the host."""
-        return self.host_cpu_stats.get_host_cpu_stats()
+        self.host_cpu_cache.refresh()
+        return {
+            'kernel': self.host_cpu_cache.total_fw_cycles,
+            'user': self.host_cpu_cache.total_user_cycles,
+            'idle': (self.host_cpu_cache.total_cycles -
+                     self.host_cpu_cache.total_user_cycles -
+                     self.host_cpu_cache.total_fw_cycles),
+            # Not reported by PowerVM
+            'iowait': 0,
+            'frequency': self.host_cpu_cache.cpu_freq}
 
     def instance_on_disk(self, instance):
         """Checks access of instance files on the host.

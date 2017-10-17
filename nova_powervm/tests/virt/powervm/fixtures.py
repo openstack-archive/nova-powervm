@@ -48,13 +48,14 @@ class DiskAdapter(fixtures.Fixture):
         self.std_disk_adpt = self.std_disk_adpt_fx.mock
 
 
-class HostCPUStats(fixtures.Fixture):
-    """Mock out the HostCPUStats."""
+class HostCPUMetricCache(fixtures.Fixture):
+    """Mock out the HostCPUMetricCache."""
 
     def setUp(self):
-        super(HostCPUStats, self).setUp()
+        super(HostCPUMetricCache, self).setUp()
         self.host_cpu_stats = self.useFixture(
-            fixtures.MockPatch('nova_powervm.virt.powervm.host.HostCPUStats'))
+            fixtures.MockPatch('pypowervm.tasks.monitor.host_cpu.'
+                               'HostCPUMetricCache'))
 
 
 class ComprehensiveScrub(fixtures.Fixture):
@@ -120,7 +121,7 @@ class PowerVMComputeDriver(fixtures.Fixture):
         super(PowerVMComputeDriver, self).setUp()
 
         # Set up the mock CPU stats (init_host uses it)
-        self.useFixture(HostCPUStats())
+        self.useFixture(HostCPUMetricCache())
 
         self.scrubber = ComprehensiveScrub()
         self.useFixture(self.scrubber)
