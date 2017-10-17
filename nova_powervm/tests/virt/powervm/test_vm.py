@@ -21,6 +21,7 @@ import logging
 import mock
 
 from nova.compute import power_state
+from nova.compute import task_states
 from nova import exception
 from nova import objects
 from nova import test
@@ -185,6 +186,15 @@ class TestVMBuilder(test.TestCase):
         flavor.extra_specs = {'powervm:ppt_ratio': '1:64'}
         test_attrs = dict(lpar_attrs, ppt_ratio='1:64')
         self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+
+        # Test PPT ratio not set when rebuilding to non-supported host
+        flavor.extra_specs = {'powervm:ppt_ratio': '1:4096'}
+        instance.task_state = task_states.REBUILD_SPAWNING
+        test_attrs = dict(lpar_attrs)
+        self.lpar_b.host_w.get_capability.return_value = False
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+        self.lpar_b.host_w.get_capability.assert_called_once_with(
+            'physical_page_table_ratio_capable')
 
     @mock.patch('pypowervm.wrappers.shared_proc_pool.SharedProcPool.search')
     def test_spp_pool_id(self, mock_search):
