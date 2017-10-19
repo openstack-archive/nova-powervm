@@ -318,7 +318,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_pwron_opts.return_value = 'fake-opts'
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.IMAGE1,
-                       'injected_files', 'admin_password')
+                       'injected_files', 'admin_password', {})
 
         # _vol_drv_iter not called from spawn because not recreate; but still
         # called from _add_volume_connection_tasks.
@@ -362,7 +362,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.IMAGE1,
-                       'injected_files', 'admin_password')
+                       'injected_files', 'admin_password', {})
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
@@ -408,7 +408,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.IMAGE1,
-                       'injected_files', 'admin_password',
+                       'injected_files', 'admin_password', {},
                        block_device_info=block_device_info)
 
         self.assertTrue(mock_boot_from_vol.called)
@@ -468,7 +468,7 @@ class TestPowerVMDriver(test.TestCase):
         block_device_info = self._fake_bdms()
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.IMAGE1,
-                       'injected_files', 'admin_password',
+                       'injected_files', 'admin_password', {},
                        block_device_info=block_device_info)
 
         self.assertTrue(mock_boot_from_vol.called)
@@ -514,7 +514,7 @@ class TestPowerVMDriver(test.TestCase):
         block_device_info = self._fake_bdms()
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.IMAGE1,
-                       'injected_files', 'admin_password',
+                       'injected_files', 'admin_password', {},
                        block_device_info=block_device_info)
 
         self.assertTrue(mock_boot_from_vol.called)
@@ -573,7 +573,7 @@ class TestPowerVMDriver(test.TestCase):
         self.inst.task_state = task_states.REBUILD_SPAWNING
         # Invoke the method.
         self.drv.spawn('context', self.inst, powervm.EMPTY_IMAGE,
-                       'injected_files', 'admin_password')
+                       'injected_files', 'admin_password', {})
         xags = {pvm_const.XAG.VIO_FMAP, pvm_const.XAG.VIO_SMAP,
                 pvm_const.XAG.VIO_STOR}
         calls = [mock.call(self.drv.adapter, xag=xags),
@@ -633,7 +633,7 @@ class TestPowerVMDriver(test.TestCase):
         # Invoke the method.
         self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', self.inst,
                           powervm.IMAGE1, 'injected_files', 'admin_password',
-                          block_device_info=block_device_info)
+                          {}, block_device_info=block_device_info)
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
@@ -673,7 +673,7 @@ class TestPowerVMDriver(test.TestCase):
         block_device_info = self._fake_bdms()
         # Invoke the method.
         self.drv.spawn('context', self.inst_ibmi, powervm.IMAGE1,
-                       'injected_files', 'admin_password',
+                       'injected_files', 'admin_password', {},
                        block_device_info=block_device_info)
 
         self.assertTrue(mock_boot_from_vol.called)
@@ -731,7 +731,7 @@ class TestPowerVMDriver(test.TestCase):
         mock_boot_conn_type.return_value = 'vscsi'
         # Invoke the method.
         self.drv.spawn('context', self.inst_ibmi, powervm.IMAGE1,
-                       'injected_files', 'admin_password')
+                       'injected_files', 'admin_password', {})
 
         # Assert the correct tasks were called
         self.assertTrue(mock_plug_vifs.called)
@@ -768,7 +768,7 @@ class TestPowerVMDriver(test.TestCase):
         # Invoke the method.
         self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', self.inst,
                           powervm.IMAGE1, 'injected_files', 'admin_password',
-                          block_device_info=None)
+                          {}, block_device_info=None)
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
@@ -804,7 +804,7 @@ class TestPowerVMDriver(test.TestCase):
         # Invoke the method.
         self.assertRaises(exc.Forbidden, self.drv.spawn, 'context', self.inst,
                           powervm.IMAGE1, 'injected_files', 'admin_password',
-                          block_device_info=block_device_info)
+                          {}, block_device_info=block_device_info)
 
         # Create LPAR was called
         self.crt_lpar.assert_called_with(self.apt, self.drv.host_wrapper,
