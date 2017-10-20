@@ -1673,7 +1673,7 @@ class TestPowerVMDriver(test.TestCase):
 
         # Failure
         mock_vterm.side_effect = pvm_exc.VNCBasedTerminalFailedToOpen(err='xx')
-        self.assertRaises(exc.InternalError, self.drv.get_vnc_console,
+        self.assertRaises(exc.ConsoleTypeUnavailable, self.drv.get_vnc_console,
                           mock.ANY, self.inst)
 
         # 404

@@ -1734,10 +1734,17 @@ class PowerVMDriver(driver.ComputeDriver):
                 server_cert=server_cert, server_key=server_key)
         except pvm_exc.HttpNotFound:
             raise exception.InstanceNotFound(instance_id=instance.uuid)
-        except pvm_exc.Error:
+        except pvm_exc.Error as exc:
             # Otherwise wrapper the error in an exception that can be handled
             LOG.exception("Unable to open console.", instance=instance)
-            raise exception.InternalError(err=_("Unable to open console."))
+            msg = (_("VNC based terminal for instance %(instance_name)s "
+                     "failed to open: %(exc_msg)s")
+                   % {'instance_name': instance.name,
+                      'exc_msg': exc.args[0]})
+            # Need to raise ConsoleTypeUnavailable with overwritten message
+            # because otherwise the exception will not be caught. It is
+            # disallowed to send a non-nova exception over the wire.
+            raise exception.ConsoleTypeUnavailable(msg)
 
         # Note that the VNC viewer will wrap the internal_access_path with
         # the HTTP content.
