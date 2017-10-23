@@ -6,49 +6,45 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 4.0.1.dev5\n"
+"Project-Id-Version: nova_powervm 5.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2017-04-20 10:07-0400\n"
-"PO-Revision-Date: 2017-04-20 10:07-0400\n"
+"POT-Creation-Date: 2017-10-03 04:15-0400\n"
+"PO-Revision-Date: 2017-10-03 04:15-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.4.0\n"
+"Generated-By: Babel 2.5.1\n"
+"Language: en_US\n"
+"Plural-Forms: nplurals=2; plural=n != 1;"
 
-#: nova_powervm/virt/powervm/driver.py:207
+#: nova_powervm/virt/powervm/driver.py:211
 #, python-format
 msgid "Expected exactly one host; found %d"
-msgstr "Se esperaba un único host exactamente; se han encontrado %d"
+msgstr "Se esperaba exactamente un solo host; se han encontrado %d"
 
-#: nova_powervm/virt/powervm/driver.py:1044
+#: nova_powervm/virt/powervm/driver.py:1002
 #, python-format
 msgid "Plug vif failed because instance %s was not found."
 msgstr "La conexión de vif ha fallado porque no se ha encontrado la instancia %s."
 
-#: nova_powervm/virt/powervm/driver.py:1049
+#: nova_powervm/virt/powervm/driver.py:1007
 msgid "Plug vif failed because of an unexpected error."
 msgstr "La conexión de vif ha fallado debido a un error inesperado."
 
-#: nova_powervm/virt/powervm/driver.py:1140
+#: nova_powervm/virt/powervm/driver.py:1097
 msgid "Cannot reduce disk size."
 msgstr "No se puede reducir el tamaño de disco."
 
-#: nova_powervm/virt/powervm/driver.py:1154
-#: nova_powervm/virt/powervm/driver.py:1265
+#: nova_powervm/virt/powervm/driver.py:1111
+#: nova_powervm/virt/powervm/driver.py:1219
 msgid "Cannot migrate local disks."
 msgstr "No se puede migrar los discos locales."
 
-#: nova_powervm/virt/powervm/driver.py:1789
-#, python-format
-msgid "Unable to open console since virtual machine %s does not exist."
-msgstr "No se puede abrir la consola porque no existe la máquina virtual %s."
-
-#: nova_powervm/virt/powervm/driver.py:1794
-#, python-format
-msgid "Unable to open console.  Error is: %s"
-msgstr "No se puede abrir la consola.  El error es: %s"
+#: nova_powervm/virt/powervm/driver.py:1740
+msgid "Unable to open console."
+msgstr "No se puede abrir la consola."
 
 #: nova_powervm/virt/powervm/exception.py:38
 #, python-format
@@ -163,7 +159,7 @@ msgstr ""
 
 #: nova_powervm/virt/powervm/exception.py:115
 #, python-format
-msgid "PowerVM API Failed to complete for instance=%(inst_name)s.%(reason)s"
+msgid "PowerVM API failed to complete for instance=%(inst_name)s.%(reason)s"
 msgstr "La interfaz de programación de aplicaciones de PowerVM no se ha podido completar para la instancia=%(inst_name)s.%(reason)s"
 
 #: nova_powervm/virt/powervm/exception.py:120
@@ -189,6 +185,15 @@ msgstr "No hay servidores de E/S virtuales activos disponibles."
 #, python-format
 msgid "Unable to rebuild virtual machine on new host.  Error is %(error)s"
 msgstr "No se puede recrear la máquina virtual en el host nuevo.  El error es %(error)s"
+
+#: nova_powervm/virt/powervm/exception.py:138
+#, python-format
+msgid ""
+"The %(then_opt)s option is required if %(if_opt)s is specified as "
+"'%(if_value)s'."
+msgstr ""
+"La opción %(then_opt)s es necesaria si %(if_opt)s se especifica como "
+"'%(if_value)s'."
 
 #: nova_powervm/virt/powervm/live_migration.py:44
 #, python-format
@@ -224,7 +229,7 @@ msgstr ""
 "origen (%(source_mrs)d MB) no coincide con el tamaño de región de memoria del "
 "destino (%(target_mrs)d MB)."
 
-#: nova_powervm/virt/powervm/live_migration.py:276
+#: nova_powervm/virt/powervm/live_migration.py:279
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because its processor compatibility mode %(mode)s is "
@@ -233,7 +238,7 @@ msgstr ""
 "No se puede migrar %(name)s porque su modalidad de compatibilidad del procesador %(mode)s no "
 "se encuentra en la lista de modalidades \"%(modes)s\" admitidas por el host de destino."
 
-#: nova_powervm/virt/powervm/live_migration.py:291
+#: nova_powervm/virt/powervm/live_migration.py:294
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because the migration state is: "
@@ -242,7 +247,7 @@ msgstr ""
 "La migración en directo de la instancia '%(name)s' ha fallado debido a que el estado de la migración es: "
 "%(state)s"
 
-#: nova_powervm/virt/powervm/live_migration.py:453
+#: nova_powervm/virt/powervm/live_migration.py:456
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because it is not ready. "
@@ -251,11 +256,11 @@ msgstr ""
 "La migración en vivo de la instancia '%(name)s' ha fallado porque no está lista. "
 "Razón: %(reason)s"
 
-#: nova_powervm/virt/powervm/vif.py:83
+#: nova_powervm/virt/powervm/vif.py:82
 msgid "vif_type parameter must be present for this vif_driver implementation"
 msgstr "El parámetro vif_type debe estar presente para esta implementación de vif_driver."
 
-#: nova_powervm/virt/powervm/vif.py:93
+#: nova_powervm/virt/powervm/vif.py:92
 #, python-format
 msgid ""
 "Unable to find appropriate PowerVM VIF Driver for VIF type %(vif_type)s on "
@@ -264,7 +269,7 @@ msgstr ""
 "No se puede encontrar el controlador de VIF de PowerVM para el tipo de VIF %(vif_type)s en "
 "la instancia %(instance)s"
 
-#: nova_powervm/virt/powervm/vif.py:650
+#: nova_powervm/virt/powervm/vif.py:655
 #, python-format
 msgid ""
 "Unable to find acceptable Ethernet ports on physical network '%(physnet)s' "
@@ -273,17 +278,17 @@ msgstr ""
 "No se pueden encontrar puertos Ethernet aceptables en la red física '%(physnet)s' "
 "de la instancia %(inst)s para el VIF basado en SRIOV con dirección MAC %(vif_mac)s."
 
-#: nova_powervm/virt/powervm/vm.py:417
+#: nova_powervm/virt/powervm/vm.py:416
 #, python-format
 msgid "Multiple Shared Processing Pools with name %(pool)s."
 msgstr "Varias agrupaciones de proceso compartidas con el nombre %(pool)s."
 
-#: nova_powervm/virt/powervm/vm.py:421
+#: nova_powervm/virt/powervm/vm.py:420
 #, python-format
 msgid "Unable to find Shared Processing Pool %(pool)s"
 msgstr "No se puede encontrar la agrupación de proceso compartida %(pool)s"
 
-#: nova_powervm/virt/powervm/vm.py:443
+#: nova_powervm/virt/powervm/vm.py:442
 #, python-format
 msgid ""
 "Flavor attribute %(attr)s must be either True or False.  Current value "
@@ -292,11 +297,15 @@ msgstr ""
 "El atributo de tipo %(attr)s debe ser True o False.  El valor actual "
 "No se permite %(val)s."
 
-#: nova_powervm/virt/powervm/disk/driver.py:117
+#: nova_powervm/virt/powervm/disk/driver.py:128
 msgid "The configured disk driver does not support migration or resize."
 msgstr "El controlador de disco configurado no admite la migración ni el redimensionamiento."
 
-#: nova_powervm/virt/powervm/disk/ssp.py:113
+#: nova_powervm/virt/powervm/disk/localdisk.py:293
+msgid "Resizing file-backed instances is not currently supported."
+msgstr "El redimensionamiento de instancias con archivos de copia de seguridad no está soportado actualmente."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:111
 #, python-format
 msgid ""
 "The host is not a member of the same SSP cluster. The source host cluster: "
@@ -331,21 +340,21 @@ msgstr ""
 msgid "The configuration option '%(option)s' must be set."
 msgstr "La opción de configuración '%(option)s' debe establecerse."
 
-#: nova_powervm/virt/powervm/nvram/swift.py:193
+#: nova_powervm/virt/powervm/nvram/swift.py:195
 #, python-format
 msgid "Unable to store NVRAM after %d attempts"
-msgstr "No se puede almacenar la NVRAM después de %d intentos"
+msgstr "No se puede almacenar NVRAM después de %d intentos"
 
-#: nova_powervm/virt/powervm/nvram/swift.py:266
+#: nova_powervm/virt/powervm/nvram/swift.py:267
 msgid "Object does not exist in Swift."
 msgstr "El objeto no existe en Swift."
 
-#: nova_powervm/virt/powervm/volume/__init__.py:61
+#: nova_powervm/virt/powervm/volume/__init__.py:62
 #, python-format
 msgid "Invalid connection type of %s"
 msgstr "Tipo de conexión no válido de %s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:522
+#: nova_powervm/virt/powervm/volume/npiv.py:517
 msgid ""
 "Unable to find a Virtual I/O Server that hosts the NPIV port map for the "
 "server."
@@ -373,6 +382,6 @@ msgstr ""
 "El volumen %(volume_id)s necesitaba %(vios_req)d servidores de E/S virtuales, pero el disco "
 "solo se ha encontrado en %(vios_act)d servidores de E/S virtuales."
 
-# ENGL1SH_VERS10N 00103_14 DO NOT REMOVE OR CHANGE THIS LINE
+# ENGL1SH_VERS10N 49196_14 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 28
-# T9N_SH1P_STR1NG PV133AAP001 2
+# T9N_SH1P_STR1NG VC140AAP001 2
