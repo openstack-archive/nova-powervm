@@ -6,49 +6,45 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 4.0.1.dev5\n"
+"Project-Id-Version: nova_powervm 5.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2017-04-20 10:07-0400\n"
-"PO-Revision-Date: 2017-04-20 10:07-0400\n"
+"POT-Creation-Date: 2017-10-03 04:15-0400\n"
+"PO-Revision-Date: 2017-10-03 04:15-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.4.0\n"
+"Generated-By: Babel 2.5.1\n"
+"Language: en_US\n"
+"Plural-Forms: nplurals=1; plural=0;"
 
-#: nova_powervm/virt/powervm/driver.py:207
+#: nova_powervm/virt/powervm/driver.py:211
 #, python-format
 msgid "Expected exactly one host; found %d"
 msgstr "予期されたホストは 1 つのみです。検出されたのは %d 個です"
 
-#: nova_powervm/virt/powervm/driver.py:1044
+#: nova_powervm/virt/powervm/driver.py:1002
 #, python-format
 msgid "Plug vif failed because instance %s was not found."
 msgstr "インスタンス %s が見つからなかったため、Plug vif は失敗しました。"
 
-#: nova_powervm/virt/powervm/driver.py:1049
+#: nova_powervm/virt/powervm/driver.py:1007
 msgid "Plug vif failed because of an unexpected error."
 msgstr "予期しないエラーが発生したため、Plug vif は失敗しました。"
 
-#: nova_powervm/virt/powervm/driver.py:1140
+#: nova_powervm/virt/powervm/driver.py:1097
 msgid "Cannot reduce disk size."
 msgstr "ディスク・サイズを削減できません。"
 
-#: nova_powervm/virt/powervm/driver.py:1154
-#: nova_powervm/virt/powervm/driver.py:1265
+#: nova_powervm/virt/powervm/driver.py:1111
+#: nova_powervm/virt/powervm/driver.py:1219
 msgid "Cannot migrate local disks."
 msgstr "ローカル・ディスクをマイグレーションできません。"
 
-#: nova_powervm/virt/powervm/driver.py:1789
-#, python-format
-msgid "Unable to open console since virtual machine %s does not exist."
-msgstr "仮想マシン %s が存在しないため、コンソールを開くことができません。"
-
-#: nova_powervm/virt/powervm/driver.py:1794
-#, python-format
-msgid "Unable to open console.  Error is: %s"
-msgstr "コンソールを開くことができません。 エラー: %s"
+#: nova_powervm/virt/powervm/driver.py:1740
+msgid "Unable to open console."
+msgstr "コンソールを開くことができません。"
 
 #: nova_powervm/virt/powervm/exception.py:38
 #, python-format
@@ -57,7 +53,7 @@ msgid ""
 "media within.  Unable to create the media repository."
 msgstr ""
 "仮想光メディアの保管場所となるボリューム・グループ %(vol_grp)s が"
-"見つかりません。メディア・リポジトリーを作成できません。"
+"見つかりません。  メディア・リポジトリーを作成できません。"
 
 #: nova_powervm/virt/powervm/exception.py:45
 #, python-format
@@ -84,7 +80,7 @@ msgid ""
 "attempting to delete it.  Polled %(polls)d times over %(timeout)d seconds."
 msgstr ""
 "デバイス %(devpath)s は、削除の試行後にも依然として管理区画上に存在します。"
-"%(timeout)d 秒にわたって %(polls)d 回ポーリングが行われました。"
+"  %(timeout)d 秒にわたって %(polls)d 回ポーリングが行われました。"
 
 #: nova_powervm/virt/powervm/exception.py:64
 #, python-format
@@ -131,7 +127,7 @@ msgid ""
 "No cluster_name specified.  Refusing to select one of the %(clust_count)d "
 "Clusters found."
 msgstr ""
-"cluster_name が指定されていません。見つかった %(clust_count)d 個の"
+"cluster_name が指定されていません。  見つかった %(clust_count)d 個の"
 "クラスターのうち 1 つを選択することを拒否しています。"
 
 #: nova_powervm/virt/powervm/exception.py:100
@@ -163,7 +159,7 @@ msgstr ""
 
 #: nova_powervm/virt/powervm/exception.py:115
 #, python-format
-msgid "PowerVM API Failed to complete for instance=%(inst_name)s.%(reason)s"
+msgid "PowerVM API failed to complete for instance=%(inst_name)s.%(reason)s"
 msgstr "PowerVM API はインスタンス %(inst_name)s について完了しませんでした。%(reason)s"
 
 #: nova_powervm/virt/powervm/exception.py:120
@@ -175,9 +171,9 @@ msgid ""
 "connectivity between the PowerVM NovaLink and the Virtual I/O Servers and "
 "then restart the Nova Compute Agent."
 msgstr ""
-"使用可能な Virtual I/O Server がありません。ドライバーは、VIOS がアクティブに"
-"なるまで %(wait_time)d 秒間待機しようとしました。使用可能な Virtual I/O "
-"Server がない場合、計算エージェントは開始できません。PowerVM NovaLink と "
+"使用可能な Virtual I/O Server がありません。  ドライバーは、VIOS がアクティブに"
+"なるまで %(wait_time)d 秒間待機しようとしました。  使用可能な Virtual I/O "
+"Server がない場合、計算エージェントは開始できません。  PowerVM NovaLink と "
 "Virtual I/O Server の間の RMC 接続を調べて、Nova 計算エージェントを再始動して"
 "ください。"
 
@@ -188,7 +184,15 @@ msgstr "使用可能なアクティブ Virtual I/O Server がありません。"
 #: nova_powervm/virt/powervm/exception.py:133
 #, python-format
 msgid "Unable to rebuild virtual machine on new host.  Error is %(error)s"
-msgstr "新規ホスト上で仮想マシンを再構築できません。エラーは %(error)s です"
+msgstr "新規ホスト上で仮想マシンを再構築できません。  エラーは %(error)s です"
+
+#: nova_powervm/virt/powervm/exception.py:138
+#, python-format
+msgid ""
+"The %(then_opt)s option is required if %(if_opt)s is specified as "
+"'%(if_value)s'."
+msgstr ""
+"%(if_opt)s が「%(if_value)s」と指定されている場合、%(then_opt)s オプションが必要です。"
 
 #: nova_powervm/virt/powervm/live_migration.py:44
 #, python-format
@@ -224,7 +228,7 @@ msgstr ""
 "領域サイズ (%(target_mrs)d MB) と一致しないため、インスタンス"
 "「%(name)s」をマイグレーションできません。"
 
-#: nova_powervm/virt/powervm/live_migration.py:276
+#: nova_powervm/virt/powervm/live_migration.py:279
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because its processor compatibility mode %(mode)s is "
@@ -233,7 +237,7 @@ msgstr ""
 "プロセッサー互換モード %(mode)s が、ターゲット・ホストでサポートされるモード"
 "「%(modes)s」のリストにないため、%(name)s はマイグレーションできません。"
 
-#: nova_powervm/virt/powervm/live_migration.py:291
+#: nova_powervm/virt/powervm/live_migration.py:294
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because the migration state is: "
@@ -242,20 +246,20 @@ msgstr ""
 "マイグレーション状態が %(state)s であるため、インスタンス「%(name)s」を"
 "ライブ・マイグレーションできませんでした"
 
-#: nova_powervm/virt/powervm/live_migration.py:453
+#: nova_powervm/virt/powervm/live_migration.py:456
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because it is not ready. "
 "Reason: %(reason)s"
 msgstr ""
-"準備ができていないため、インスタンス「%(name)s」のライブ・マイグレーションが失敗しました。"
+"準備ができていないため、インスタンス「%(name)s」のライブ・マイグレーションが失敗しました。 "
 "理由: %(reason)s"
 
-#: nova_powervm/virt/powervm/vif.py:83
+#: nova_powervm/virt/powervm/vif.py:82
 msgid "vif_type parameter must be present for this vif_driver implementation"
 msgstr "この vif_driver 実装には vif_type パラメーターを指定する必要があります。"
 
-#: nova_powervm/virt/powervm/vif.py:93
+#: nova_powervm/virt/powervm/vif.py:92
 #, python-format
 msgid ""
 "Unable to find appropriate PowerVM VIF Driver for VIF type %(vif_type)s on "
@@ -264,7 +268,7 @@ msgstr ""
 "インスタンス %(instance)s 上で VIF タイプ %(vif_type)s に対して適切な "
 "PowerVM VIF ドライバーが見つかりません"
 
-#: nova_powervm/virt/powervm/vif.py:650
+#: nova_powervm/virt/powervm/vif.py:655
 #, python-format
 msgid ""
 "Unable to find acceptable Ethernet ports on physical network '%(physnet)s' "
@@ -273,17 +277,17 @@ msgstr ""
 "SRIOV ベースの VIF (MAC アドレス %(vif_mac)s) のインスタンス %(inst)s について"
 "物理ネットワーク「%(physnet)s」上に受け入れ可能なイーサネット・ポートが見つかりません。"
 
-#: nova_powervm/virt/powervm/vm.py:417
+#: nova_powervm/virt/powervm/vm.py:416
 #, python-format
 msgid "Multiple Shared Processing Pools with name %(pool)s."
 msgstr "%(pool)s という名前の共用処理プールが複数あります。"
 
-#: nova_powervm/virt/powervm/vm.py:421
+#: nova_powervm/virt/powervm/vm.py:420
 #, python-format
 msgid "Unable to find Shared Processing Pool %(pool)s"
 msgstr "共用処理プール %(pool)s が見つかりません"
 
-#: nova_powervm/virt/powervm/vm.py:443
+#: nova_powervm/virt/powervm/vm.py:442
 #, python-format
 msgid ""
 "Flavor attribute %(attr)s must be either True or False.  Current value "
@@ -292,60 +296,64 @@ msgstr ""
 "フレーバー属性 %(attr)s は True または False でなければなりません。"
 "現行値 %(val)s は許可されません。"
 
-#: nova_powervm/virt/powervm/disk/driver.py:117
+#: nova_powervm/virt/powervm/disk/driver.py:128
 msgid "The configured disk driver does not support migration or resize."
 msgstr "この構成済みディスク・ドライバーはマイグレーションもサイズ変更もサポートしていません。"
 
-#: nova_powervm/virt/powervm/disk/ssp.py:113
+#: nova_powervm/virt/powervm/disk/localdisk.py:293
+msgid "Resizing file-backed instances is not currently supported."
+msgstr "ファイル支援のインスタンスのサイズ変更は、現在サポートされていません。"
+
+#: nova_powervm/virt/powervm/disk/ssp.py:111
 #, python-format
 msgid ""
 "The host is not a member of the same SSP cluster. The source host cluster: "
 "%(source_clust_name)s. The source host SSP: %(source_ssp_name)s."
 msgstr ""
-"このホストは同じ SSP クラスターのメンバーではありません。ソース・ホスト・"
-"クラスター: %(source_clust_name)s。ソース・ホスト SSP: %(source_ssp_name)s。"
+"このホストは同じ SSP クラスターのメンバーではありません。 ソース・ホスト・"
+"クラスター: %(source_clust_name)s。 ソース・ホスト SSP: %(source_ssp_name)s。"
 
 #: nova_powervm/virt/powervm/nvram/api.py:25
 #, python-format
 msgid ""
 "The NVRAM could not be stored for instance %(instance)s. Reason: %(reason)s"
 msgstr ""
-"インスタンス %(instance)s について NVRAM を格納できませんでした。理由: %(reason)s"
+"インスタンス %(instance)s について NVRAM を格納できませんでした。 理由: %(reason)s"
 
 #: nova_powervm/virt/powervm/nvram/api.py:30
 #, python-format
 msgid ""
 "The NVRAM could not be fetched for instance %(instance)s. Reason: %(reason)s"
 msgstr ""
-"インスタンス %(instance)s について NVRAM を取り出すことができませんでした。理由: %(reason)s"
+"インスタンス %(instance)s について NVRAM を取り出すことができませんでした。 理由: %(reason)s"
 
 #: nova_powervm/virt/powervm/nvram/api.py:35
 #, python-format
 msgid ""
 "The NVRAM could not be deleted for instance %(instance)s. Reason: %(reason)s"
 msgstr ""
-"インスタンス %(instance)s について NVRAM を削除できませんでした。理由: %(reason)s"
+"インスタンス %(instance)s について NVRAM を削除できませんでした。 理由: %(reason)s"
 
 #: nova_powervm/virt/powervm/nvram/api.py:40
 #, python-format
 msgid "The configuration option '%(option)s' must be set."
 msgstr "構成オプション「%(option)s」を設定する必要があります。"
 
-#: nova_powervm/virt/powervm/nvram/swift.py:193
+#: nova_powervm/virt/powervm/nvram/swift.py:195
 #, python-format
 msgid "Unable to store NVRAM after %d attempts"
 msgstr "%d 回試みましたが NVRAM を保管できません。"
 
-#: nova_powervm/virt/powervm/nvram/swift.py:266
+#: nova_powervm/virt/powervm/nvram/swift.py:267
 msgid "Object does not exist in Swift."
 msgstr "オブジェクトが Swift に存在しません。"
 
-#: nova_powervm/virt/powervm/volume/__init__.py:61
+#: nova_powervm/virt/powervm/volume/__init__.py:62
 #, python-format
 msgid "Invalid connection type of %s"
 msgstr "%s の接続タイプが無効です"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:522
+#: nova_powervm/virt/powervm/volume/npiv.py:517
 msgid ""
 "Unable to find a Virtual I/O Server that hosts the NPIV port map for the "
 "server."
@@ -359,7 +367,7 @@ msgid ""
 "Failed to discover valid hdisk on any Virtual I/O Server for volume "
 "%(volume_id)s."
 msgstr ""
-"Virtual I/O Server 上でボリュームに対して有効な hdisk をディスカバーできませんでした"
+"Virtual I/O Server 上でボリュームに対して有効な hdisk をディスカバーできませんでした "
 "%(volume_id)s."
 
 #: nova_powervm/virt/powervm/volume/volume.py:121
@@ -369,10 +377,10 @@ msgid ""
 "Volume %(volume_id)s required %(vios_req)d Virtual I/O Servers, but the disk "
 "was only found on %(vios_act)d Virtual I/O Servers."
 msgstr ""
-"必要な数の Virtual I/O Server 上で hdisk をディスカバーできませんでした。"
+"必要な数の Virtual I/O Server 上で hdisk をディスカバーできませんでした。  "
 "ボリューム %(volume_id)s には %(vios_req)d 個の Virtual I/O Server が必要でした"
 "が、ディスクは %(vios_act)d 個の Virtual I/O Server 上でのみ検出されました。"
 
-# ENGL1SH_VERS10N 00103_14 DO NOT REMOVE OR CHANGE THIS LINE
+# ENGL1SH_VERS10N 49196_14 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 28
-# T9N_SH1P_STR1NG PV133AAP001 2
+# T9N_SH1P_STR1NG VC140AAP001 2

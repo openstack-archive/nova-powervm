@@ -6,49 +6,45 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nova_powervm 4.0.1.dev5\n"
+"Project-Id-Version: nova_powervm 5.0.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2017-04-20 10:07-0400\n"
-"PO-Revision-Date: 2017-04-20 10:07-0400\n"
+"POT-Creation-Date: 2017-10-03 04:15-0400\n"
+"PO-Revision-Date: 2017-10-03 04:15-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.4.0\n"
+"Generated-By: Babel 2.5.1\n"
+"Language: en_US\n"
+"Plural-Forms: nplurals=2; plural=n>1;"
 
-#: nova_powervm/virt/powervm/driver.py:207
+#: nova_powervm/virt/powervm/driver.py:211
 #, python-format
 msgid "Expected exactly one host; found %d"
 msgstr "Précisément un hôte attendu ; trouvé %d"
 
-#: nova_powervm/virt/powervm/driver.py:1044
+#: nova_powervm/virt/powervm/driver.py:1002
 #, python-format
 msgid "Plug vif failed because instance %s was not found."
 msgstr "Echec de connexion vif car l'instance %s est introuvable."
 
-#: nova_powervm/virt/powervm/driver.py:1049
+#: nova_powervm/virt/powervm/driver.py:1007
 msgid "Plug vif failed because of an unexpected error."
 msgstr "Echec de connexion vif en raison d'une erreur inattendue."
 
-#: nova_powervm/virt/powervm/driver.py:1140
+#: nova_powervm/virt/powervm/driver.py:1097
 msgid "Cannot reduce disk size."
 msgstr "Impossible de réduire la taille du disque."
 
-#: nova_powervm/virt/powervm/driver.py:1154
-#: nova_powervm/virt/powervm/driver.py:1265
+#: nova_powervm/virt/powervm/driver.py:1111
+#: nova_powervm/virt/powervm/driver.py:1219
 msgid "Cannot migrate local disks."
 msgstr "Impossible de migrer des disques locaux."
 
-#: nova_powervm/virt/powervm/driver.py:1789
-#, python-format
-msgid "Unable to open console since virtual machine %s does not exist."
-msgstr "Impossible d'ouvrir la console car la machine virtuelle %s n'existe pas."
-
-#: nova_powervm/virt/powervm/driver.py:1794
-#, python-format
-msgid "Unable to open console.  Error is: %s"
-msgstr "Impossible d'ouvrir la console.  Erreur : %s"
+#: nova_powervm/virt/powervm/driver.py:1740
+msgid "Unable to open console."
+msgstr "Impossible d'ouvrir la console."
 
 #: nova_powervm/virt/powervm/exception.py:38
 #, python-format
@@ -163,7 +159,7 @@ msgstr ""
 
 #: nova_powervm/virt/powervm/exception.py:115
 #, python-format
-msgid "PowerVM API Failed to complete for instance=%(inst_name)s.%(reason)s"
+msgid "PowerVM API failed to complete for instance=%(inst_name)s.%(reason)s"
 msgstr "Echec de l'API PowerVM pour l'instance=%(inst_name)s.%(reason)s"
 
 #: nova_powervm/virt/powervm/exception.py:120
@@ -189,6 +185,15 @@ msgstr "Aucun serveur Virtual I/O Server actif disponible."
 #, python-format
 msgid "Unable to rebuild virtual machine on new host.  Error is %(error)s"
 msgstr "Impossible de régénérer la machine virtuelle sur le nouvel hôte.  Erreur : %(error)s"
+
+#: nova_powervm/virt/powervm/exception.py:138
+#, python-format
+msgid ""
+"The %(then_opt)s option is required if %(if_opt)s is specified as "
+"'%(if_value)s'."
+msgstr ""
+"L'option %(then_opt)s est obligatoire si %(if_opt)s est spécifié comme "
+"'%(if_value)s'."
 
 #: nova_powervm/virt/powervm/live_migration.py:44
 #, python-format
@@ -224,7 +229,7 @@ msgstr ""
 "mémoire de la source (%(source_mrs)d Mo) ne correspond pas à celle de "
 "la cible (%(target_mrs)d Mo)."
 
-#: nova_powervm/virt/powervm/live_migration.py:276
+#: nova_powervm/virt/powervm/live_migration.py:279
 #, python-format
 msgid ""
 "Cannot migrate %(name)s because its processor compatibility mode %(mode)s is "
@@ -233,7 +238,7 @@ msgstr ""
 "Impossible de migrer %(name)s car son mode compatibilité processeur %(mode)s "
 "n'est pas ds la liste de modes \"%(modes)s\" pris en charge par l'hôte cible."
 
-#: nova_powervm/virt/powervm/live_migration.py:291
+#: nova_powervm/virt/powervm/live_migration.py:294
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because the migration state is: "
@@ -242,7 +247,7 @@ msgstr ""
 "La migration active de l'instance '%(name)s' car l'état de migration est "
 "%(state)s"
 
-#: nova_powervm/virt/powervm/live_migration.py:453
+#: nova_powervm/virt/powervm/live_migration.py:456
 #, python-format
 msgid ""
 "Live migration of instance '%(name)s' failed because it is not ready. "
@@ -251,11 +256,11 @@ msgstr ""
 "Echec de la migration active de l'instance '%(name)s' car non prête. "
 "Motif : %(reason)s"
 
-#: nova_powervm/virt/powervm/vif.py:83
+#: nova_powervm/virt/powervm/vif.py:82
 msgid "vif_type parameter must be present for this vif_driver implementation"
 msgstr "Le paramètre vif_type doit être présent pour cette implémentation de vif_driver."
 
-#: nova_powervm/virt/powervm/vif.py:93
+#: nova_powervm/virt/powervm/vif.py:92
 #, python-format
 msgid ""
 "Unable to find appropriate PowerVM VIF Driver for VIF type %(vif_type)s on "
@@ -264,7 +269,7 @@ msgstr ""
 "Pilote VIF PowerVM approprié introuvable pour le type VIF %(vif_type)s sur "
 "l'instance %(instance)s"
 
-#: nova_powervm/virt/powervm/vif.py:650
+#: nova_powervm/virt/powervm/vif.py:655
 #, python-format
 msgid ""
 "Unable to find acceptable Ethernet ports on physical network '%(physnet)s' "
@@ -274,17 +279,17 @@ msgstr ""
 "'%(physnet)s' pour l'instance %(inst)s pour SRIOV basé VIF avec adresse MAC "
 " %(vif_mac)s."
 
-#: nova_powervm/virt/powervm/vm.py:417
+#: nova_powervm/virt/powervm/vm.py:416
 #, python-format
 msgid "Multiple Shared Processing Pools with name %(pool)s."
 msgstr "Plusieurs pools de traitement partagé avec le nom %(pool)s."
 
-#: nova_powervm/virt/powervm/vm.py:421
+#: nova_powervm/virt/powervm/vm.py:420
 #, python-format
 msgid "Unable to find Shared Processing Pool %(pool)s"
 msgstr "Impossible de trouver le pool de traitement partagé %(pool)s"
 
-#: nova_powervm/virt/powervm/vm.py:443
+#: nova_powervm/virt/powervm/vm.py:442
 #, python-format
 msgid ""
 "Flavor attribute %(attr)s must be either True or False.  Current value "
@@ -293,11 +298,15 @@ msgstr ""
 "L'attribut de style %(attr)s doit être True ou False. La valeur en cours "
 "%(val)s n'est pas admise."
 
-#: nova_powervm/virt/powervm/disk/driver.py:117
+#: nova_powervm/virt/powervm/disk/driver.py:128
 msgid "The configured disk driver does not support migration or resize."
 msgstr "Le pilote de disque configuré ne prend pas en charge la migration ou le redimensionnement."
 
-#: nova_powervm/virt/powervm/disk/ssp.py:113
+#: nova_powervm/virt/powervm/disk/localdisk.py:293
+msgid "Resizing file-backed instances is not currently supported."
+msgstr "Le redimensionnement des instances à base de fichiers n'est pas pris en charge actuellement."
+
+#: nova_powervm/virt/powervm/disk/ssp.py:111
 #, python-format
 msgid ""
 "The host is not a member of the same SSP cluster. The source host cluster: "
@@ -332,21 +341,21 @@ msgstr ""
 msgid "The configuration option '%(option)s' must be set."
 msgstr "L'option de configuration '%(option)s' doit être définie."
 
-#: nova_powervm/virt/powervm/nvram/swift.py:193
+#: nova_powervm/virt/powervm/nvram/swift.py:195
 #, python-format
 msgid "Unable to store NVRAM after %d attempts"
 msgstr "Impossible de stocker la mémoire rémanente après %d tentatives"
 
-#: nova_powervm/virt/powervm/nvram/swift.py:266
+#: nova_powervm/virt/powervm/nvram/swift.py:267
 msgid "Object does not exist in Swift."
 msgstr "L'objet n'existe pas dans Swift."
 
-#: nova_powervm/virt/powervm/volume/__init__.py:61
+#: nova_powervm/virt/powervm/volume/__init__.py:62
 #, python-format
 msgid "Invalid connection type of %s"
 msgstr "Type de connexion non valide : %s"
 
-#: nova_powervm/virt/powervm/volume/npiv.py:522
+#: nova_powervm/virt/powervm/volume/npiv.py:517
 msgid ""
 "Unable to find a Virtual I/O Server that hosts the NPIV port map for the "
 "server."
@@ -374,6 +383,6 @@ msgstr ""
 "Volume %(volume_id)s requérant %(vios_req)d serveurs VIOS, mais le disque "
 "a été détecté seulement sur %(vios_act)d serveurs Virtual I/O Server."
 
-# ENGL1SH_VERS10N 00103_14 DO NOT REMOVE OR CHANGE THIS LINE
+# ENGL1SH_VERS10N 49196_14 DO NOT REMOVE OR CHANGE THIS LINE
 # T9N_SRC_ID 28
-# T9N_SH1P_STR1NG PV133AAP001 2
+# T9N_SH1P_STR1NG VC140AAP001 2
