@@ -268,21 +268,34 @@ class VMBuilder(object):
             pvm_bp.DedicatedSharingMode.SHARE_IDLE_PROCS_ALWAYS
     }
 
-    def __init__(self, host_w, adapter, slot_mgr=None):
+    def __init__(self, host_w, adapter, slot_mgr=None, cur_lpar_w=None):
         """Initialize the converter.
 
         :param host_w: The host system wrapper.
         :param adapter: The pypowervm.adapter.Adapter for the PowerVM REST API.
         :param slot_mgr: NovaSlotManager for setting/saving the maximum number
                          of virtual slots on the VM.
+        :param cur_lpar_w: The LPAR wrapper of the instance. Passing in this
+                           parameter signifies a resize operation.
         """
         self.adapter = adapter
         self.host_w = host_w
         kwargs = dict(uncapped_weight=CONF.powervm.uncapped_proc_weight,
                       proc_units_factor=CONF.powervm.proc_units_factor)
+        if cur_lpar_w:
+            # Maintain the existing attributes in DefaultStandardize
+            kwargs['max_slots'] = cur_lpar_w.io_config.max_virtual_slots
+            kwargs['spp'] = cur_lpar_w.proc_config.shared_proc_cfg.pool_id
+            kwargs['avail_priority'] = cur_lpar_w.avail_priority
+            kwargs['srr'] = cur_lpar_w.srr_enabled
+            kwargs['proc_compat'] = cur_lpar_w.proc_compat_mode
+            kwargs['enable_lpar_metric'] = (
+                cur_lpar_w.allow_perf_data_collection)
         if slot_mgr is not None:
             # This will already default if not set
-            kwargs['max_slots'] = slot_mgr.build_map.get_max_vslots()
+            max_vslots = slot_mgr.build_map.get_max_vslots()
+            if max_vslots > kwargs.get('max_slots', 0):
+                kwargs['max_slots'] = max_vslots
         self.stdz = lpar_bldr.DefaultStandardize(self.host_w, **kwargs)
 
     def lpar_builder(self, instance):
@@ -598,7 +611,8 @@ def update(adapter, host_wrapper, instance, entry=None, name=None):
     if not entry:
         entry = get_instance_wrapper(adapter, instance)
 
-    lpar_b = VMBuilder(host_wrapper, adapter).lpar_builder(instance)
+    lpar_b = VMBuilder(host_wrapper, adapter, cur_lpar_w=entry).lpar_builder(
+        instance)
     lpar_b.rebuild(entry)
 
     # Set the new name if the instance name is not desired.

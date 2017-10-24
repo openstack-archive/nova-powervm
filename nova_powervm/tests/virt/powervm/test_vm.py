@@ -68,6 +68,36 @@ class TestVMBuilder(test.TestCase):
             'pypowervm.util.sanitize_partition_name_for_api')).mock
         self.san_lpar_name.side_effect = lambda name: name
 
+    def test_resize_attributes_maintained(self):
+        lpar_w = mock.MagicMock()
+        lpar_w.io_config.max_virtual_slots = 200
+        lpar_w.proc_config.shared_proc_cfg.pool_id = 56
+        lpar_w.avail_priority = 129
+        lpar_w.srr_enabled = False
+        lpar_w.proc_compat_mode = 'POWER7'
+        lpar_w.allow_perf_data_collection = True
+        vm_bldr = vm.VMBuilder(self.host_w, self.adpt, cur_lpar_w=lpar_w)
+        self.assertEqual(200, vm_bldr.stdz.max_slots)
+        self.assertEqual(56, vm_bldr.stdz.spp)
+        self.assertEqual(129, vm_bldr.stdz.avail_priority)
+        self.assertFalse(vm_bldr.stdz.srr)
+        self.assertEqual('POWER7', vm_bldr.stdz.proc_compat)
+        self.assertTrue(vm_bldr.stdz.enable_lpar_metric)
+
+    def test_max_vslots_is_the_greater(self):
+        lpar_w = mock.MagicMock()
+        lpar_w.io_config.max_virtual_slots = 64
+        lpar_w.proc_config.shared_proc_cfg.pool_id = 56
+        lpar_w.avail_priority = 129
+        lpar_w.srr_enabled = False
+        lpar_w.proc_compat_mode = 'POWER7'
+        lpar_w.allow_perf_data_collection = True
+        slot_mgr = mock.MagicMock()
+        slot_mgr.build_map.get_max_vslots.return_value = 128
+        vm_bldr = vm.VMBuilder(
+            self.host_w, self.adpt, slot_mgr=slot_mgr, cur_lpar_w=lpar_w)
+        self.assertEqual(128, vm_bldr.stdz.max_slots)
+
     def test_conf_values(self):
         # Test driver CONF values are passed to the standardizer
         self.flags(uncapped_proc_weight=75, proc_units_factor=.25,
