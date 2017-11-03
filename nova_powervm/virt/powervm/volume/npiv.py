@@ -77,6 +77,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         for fabric in self._fabric_names():
             self._add_maps_for_fabric(fabric, slot_mgr)
 
+    def extend_volume(self):
+        # The compute node does not need to take any additional steps for the
+        # client to see the extended volume.
+        pass
+
     def _disconnect_volume(self, slot_mgr):
         """Disconnect the volume.
 

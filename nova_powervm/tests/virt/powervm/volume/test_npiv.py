@@ -194,6 +194,10 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv.instance.system_metadata = {meta_st_key: fabric_state,
                                                  meta_fb_key: meta_fb_map}
 
+    def test_extend_volume(self):
+        # Ensure the method is implemented
+        self.vol_drv.extend_volume()
+
     @mock.patch('pypowervm.tasks.vfc_mapper.remove_maps')
     @mock.patch('pypowervm.tasks.vfc_mapper.find_vios_for_vfc_wwpns')
     def test_disconnect_volume(self, mock_find_vios, mock_remove_maps):
