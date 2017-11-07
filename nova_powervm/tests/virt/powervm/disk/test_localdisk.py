@@ -33,7 +33,7 @@ from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm import vm
 
 
-class TestLocalDisk(test.TestCase):
+class TestLocalDisk(test.NoDBTestCase):
     """Unit Tests for the LocalDisk storage driver."""
 
     def setUp(self):

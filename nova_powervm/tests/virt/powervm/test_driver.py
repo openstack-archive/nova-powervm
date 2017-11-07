@@ -53,7 +53,7 @@ LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
 
-class TestPowerVMDriverInit(test.TestCase):
+class TestPowerVMDriverInit(test.NoDBTestCase):
     """A test class specifically for the driver setup.
 
     Handles testing the configuration of the agent with the backing REST API.
@@ -86,7 +86,7 @@ class TestPowerVMDriverInit(test.TestCase):
         mock_evt_listener.subscribe.assert_called_once_with('evt_hdlr')
 
 
-class TestPowerVMDriver(test.TestCase):
+class TestPowerVMDriver(test.NoDBTestCase):
     def setUp(self):
         super(TestPowerVMDriver, self).setUp()
 

@@ -21,7 +21,7 @@ from nova import test
 from nova_powervm.virt.powervm.tasks import image as tsk_img
 
 
-class TestImage(test.TestCase):
+class TestImage(test.NoDBTestCase):
     def test_update_task_state(self):
         def func(task_state, expected_state='delirious'):
             self.assertEqual('task_state', task_state)

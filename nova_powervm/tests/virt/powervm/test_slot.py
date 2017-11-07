@@ -24,7 +24,7 @@ from nova_powervm.virt.powervm import slot
 from pypowervm import exceptions as pvm_exc
 
 
-class TestNovaSlotManager(test.TestCase):
+class TestNovaSlotManager(test.NoDBTestCase):
 
     def setUp(self):
         super(TestNovaSlotManager, self).setUp()
@@ -53,7 +53,7 @@ class TestNovaSlotManager(test.TestCase):
         self.assertTrue(slot_mgr.is_rebuild)
 
 
-class TestSwiftSlotManager(test.TestCase):
+class TestSwiftSlotManager(test.NoDBTestCase):
 
     def setUp(self):
         super(TestSwiftSlotManager, self).setUp()

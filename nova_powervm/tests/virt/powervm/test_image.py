@@ -27,7 +27,7 @@ else:
     _BUILTIN = 'builtins'
 
 
-class TestImage(test.TestCase):
+class TestImage(test.NoDBTestCase):
 
     @mock.patch('nova.utils.temporary_chown')
     @mock.patch(_BUILTIN + '.open')

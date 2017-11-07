@@ -23,7 +23,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 from nova_powervm.virt.powervm.disk import imagecache as imagecache
 
 
-class TestImageCache(test.TestCase):
+class TestImageCache(test.NoDBTestCase):
     """Unit Tests for the LocalDisk storage driver."""
 
     def setUp(self):

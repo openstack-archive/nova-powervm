@@ -27,7 +27,7 @@ from pypowervm.wrappers import virtual_io_server as pvm_vios
 from nova_powervm.virt.powervm import media as m
 
 
-class TestConfigDrivePowerVM(test.TestCase):
+class TestConfigDrivePowerVM(test.NoDBTestCase):
     """Unit Tests for the ConfigDrivePowerVM class."""
 
     def setUp(self):

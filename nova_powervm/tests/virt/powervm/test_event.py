@@ -24,7 +24,7 @@ from pypowervm.wrappers import event as pvm_evt
 from nova_powervm.virt.powervm import event
 
 
-class TestGetInstance(test.TestCase):
+class TestGetInstance(test.NoDBTestCase):
     @mock.patch('nova.context.get_admin_context')
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance')
     def test_get_instance(self, mock_get_inst, mock_get_context):
@@ -48,7 +48,7 @@ class TestGetInstance(test.TestCase):
             # Don't reset mock_get_context
 
 
-class TestPowerVMNovaEventHandler(test.TestCase):
+class TestPowerVMNovaEventHandler(test.NoDBTestCase):
     def setUp(self):
         super(TestPowerVMNovaEventHandler, self).setUp()
         lceh_process_p = mock.patch(
@@ -282,7 +282,7 @@ class TestPowerVMNovaEventHandler(test.TestCase):
         mock_get_instance.assert_not_called()
 
 
-class TestPowerVMLifecycleEventHandler(test.TestCase):
+class TestPowerVMLifecycleEventHandler(test.NoDBTestCase):
     def setUp(self):
         super(TestPowerVMLifecycleEventHandler, self).setUp()
         self.mock_driver = mock.MagicMock()

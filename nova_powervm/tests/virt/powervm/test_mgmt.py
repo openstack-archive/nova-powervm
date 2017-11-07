@@ -28,7 +28,7 @@ from nova_powervm.virt.powervm import mgmt
 LPAR_HTTPRESP_FILE = "lpar.txt"
 
 
-class TestMgmt(test.TestCase):
+class TestMgmt(test.NoDBTestCase):
     def setUp(self):
         super(TestMgmt, self).setUp()
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
