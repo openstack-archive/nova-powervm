@@ -26,6 +26,7 @@ from oslo_log import log
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
 from oslo_utils import importutils
+import pypowervm.const as pvm_c
 from pypowervm import exceptions as pvm_ex
 from pypowervm.tasks import cna as pvm_cna
 from pypowervm.tasks import partition as pvm_par
@@ -59,6 +60,13 @@ VIF_MAPPING = {VIF_TYPE_PVM_SEA:
                'nova_powervm.virt.powervm.vif.PvmOvsVifDriver',
                VIF_TYPE_PVM_SRIOV:
                'nova_powervm.virt.powervm.vif.PvmVnicSriovVifDriver'}
+
+# NOTE(svenkat): Manually adjust CNA child ordering to workaround bug 1731657
+# TODO(svenkat) Remove workaround when pypowervm is fixed
+child_order = list(pvm_net.CNA._child_order)
+child_order.remove('VirtualNetworks')
+child_order.append('VirtualNetworks')
+pvm_net.CNA._child_order = tuple(child_order)
 
 CONF = cfg.CONF
 
@@ -612,9 +620,6 @@ class PvmOvsVifDriver(PvmVifDriver):
         :return: The new vif that was created.  Only returned if new_vif is
                  set to True.  Otherwise None is expected.
         """
-        if not new_vif:
-            return None
-
         lpar_uuid = vm.get_pvm_uuid(self.instance)
         mgmt_uuid = pvm_par.get_mgmt_partition(self.adapter).uuid
 
@@ -625,13 +630,43 @@ class PvmOvsVifDriver(PvmVifDriver):
 
         meta_attrs = PvmMetaAttrs(vif, self.instance)
 
-        # Create the trunk and client adapter.
-        return pvm_cna.crt_p2p_cna(
-            self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
-            CONF.powervm.pvm_vswitch_for_novalink_io, crt_vswitch=True,
-            mac_addr=vif['address'], dev_name=dev_name,
-            slot_num=slot_num, ovs_bridge=vif['network']['bridge'],
-            ovs_ext_ids=str(meta_attrs), configured_mtu=mtu)[0]
+        if new_vif:
+            # Create the trunk and client adapter.
+            return pvm_cna.crt_p2p_cna(
+                self.adapter, self.host_uuid, lpar_uuid, [mgmt_uuid],
+                CONF.powervm.pvm_vswitch_for_novalink_io, crt_vswitch=True,
+                mac_addr=vif['address'], dev_name=dev_name,
+                slot_num=slot_num, ovs_bridge=vif['network']['bridge'],
+                ovs_ext_ids=str(meta_attrs), configured_mtu=mtu)[0]
+        else:
+            # Bug : https://bugs.launchpad.net/nova-powervm/+bug/1731548
+            # When a host is rebooted, something is discarding tap devices for
+            # VMs deployed with OVS vif. To prevent VMs losing network
+            # connectivity, this is fixed by recreating the tap devices during
+            # init of the nova compute service, which will call vif plug with
+            # new_vif==False.
+
+            # Find the CNA for this vif.
+            # TODO(svenkat) improve performance by caching VIOS wrapper(s) and
+            # CNA lists (in case >1 vif per VM).
+            cna_w_list = vm.get_cnas(self.adapter, self.instance)
+            cna_w = self._find_cna_for_vif(cna_w_list, vif)
+            # Find the corresponding trunk adapter
+            trunks = pvm_cna.find_trunks(self.adapter, cna_w)
+            for trunk in trunks:
+                # Set MTU, OVS external ids, and OVS bridge metadata
+                # TODO(svenkat) set_parm_value calls should be replaced once
+                # pypowervm supports setting these values directly.
+                trunk.set_parm_value('ConfiguredMTU',
+                                     mtu, attrib=pvm_c.ATTR_KSV160)
+                trunk.set_parm_value('OvsPortExternalIds',
+                                     meta_attrs, attrib=pvm_c.ATTR_KSV160)
+                trunk.set_parm_value('OvsBridge',
+                                     vif['network']['bridge'],
+                                     attrib=pvm_c.ATTR_KSV160)
+                # Updating the trunk adapter will cause NovaLink to reassociate
+                # the tap device.
+                trunk.update()
 
     @staticmethod
     def get_ovs_interfaceid(vif):

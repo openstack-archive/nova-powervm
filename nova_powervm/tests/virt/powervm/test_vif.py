@@ -713,9 +713,33 @@ class TestVifOvsDriver(test.TestCase):
             ovs_bridge='br-int', ovs_ext_ids=ovs_ext_ids, configured_mtu=1450)
 
     @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name')
-    def test_plug_existing_vif(self, mock_trunk_dev_name):
+    @mock.patch('pypowervm.tasks.partition.get_mgmt_partition', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova_powervm.virt.powervm.vif.PvmOvsVifDriver.'
+                '_find_cna_for_vif')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('pypowervm.tasks.cna.find_trunks', autospec=True)
+    def test_plug_existing_vif(self, mock_find_trunks, mock_get_cnas,
+                               mock_find_cna, mock_pvm_uuid, mock_mgmt_lpar,
+                               mock_trunk_dev_name):
         # Mock the data
+        t1, t2 = mock.MagicMock(), mock.MagicMock()
+        mock_find_trunks.return_value = [t1, t2]
+
+        mock_cna = mock.Mock()
+        mock_get_cnas.return_value = [mock_cna, mock.Mock()]
+
+        mock_find_cna.return_value = mock_cna
+
+        mock_pvm_uuid.return_value = 'lpar_uuid'
+
+        mock_mgmt_lpar.return_value = mock.Mock(uuid='mgmt_uuid')
+
         mock_trunk_dev_name.return_value = 'device'
+
+        self.inst = mock.MagicMock(uuid='c2e7ff9f-b9b6-46fa-8716-93bbb795b8b4')
+        self.drv = vif.PvmOvsVifDriver(self.adpt, 'host_uuid', self.inst)
+
         # Run the plug
         network_model = model.Model({'bridge': 'br0', 'meta': {'mtu': 1500}})
         mock_vif = model.VIF(address='aa:bb:cc:dd:ee:ff', id='vif_id',
@@ -724,6 +748,10 @@ class TestVifOvsDriver(test.TestCase):
         resp = self.drv.plug(mock_vif, slot_num, new_vif=False)
 
         self.assertIsNone(resp)
+
+        # Validate if trunk.update got invoked for all trunks of CNA of vif
+        self.assertTrue(t1.update.called)
+        self.assertTrue(t2.update.called)
 
     @mock.patch('pypowervm.tasks.cna.find_trunks', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name')
