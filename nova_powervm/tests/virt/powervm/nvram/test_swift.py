@@ -25,7 +25,7 @@ from nova_powervm.virt.powervm.nvram import api
 from nova_powervm.virt.powervm.nvram import swift
 
 
-class TestSwiftStore(test.TestCase):
+class TestSwiftStore(test.NoDBTestCase):
 
     def setUp(self):
         super(TestSwiftStore, self).setUp()

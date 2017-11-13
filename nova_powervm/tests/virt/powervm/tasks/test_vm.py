@@ -28,7 +28,7 @@ from taskflow.patterns import linear_flow as tf_lf
 from taskflow import task as tf_tsk
 
 
-class TestVMTasks(test.TestCase):
+class TestVMTasks(test.NoDBTestCase):
     def setUp(self):
         super(TestVMTasks, self).setUp()
         self.apt = mock.Mock()

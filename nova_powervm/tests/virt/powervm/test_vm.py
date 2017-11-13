@@ -55,7 +55,7 @@ class FakeAdapterResponse(object):
         self.status = status
 
 
-class TestVMBuilder(test.TestCase):
+class TestVMBuilder(test.NoDBTestCase):
 
     def setUp(self):
         super(TestVMBuilder, self).setUp()
@@ -263,7 +263,7 @@ class TestVMBuilder(test.TestCase):
                               self.lpar_b._flavor_bool, r, 'key')
 
 
-class TestVM(test.TestCase):
+class TestVM(test.NoDBTestCase):
     def setUp(self):
         super(TestVM, self).setUp()
         self.apt = self.useFixture(pvm_fx.AdapterFx(

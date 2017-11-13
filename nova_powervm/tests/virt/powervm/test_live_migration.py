@@ -31,7 +31,7 @@ from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm import live_migration as lpm
 
 
-class TestLPM(test.TestCase):
+class TestLPM(test.NoDBTestCase):
     def setUp(self):
         super(TestLPM, self).setUp()
 

@@ -37,7 +37,7 @@ def cna(mac):
     return nic
 
 
-class TestNetwork(test.TestCase):
+class TestNetwork(test.NoDBTestCase):
     def setUp(self):
         super(TestNetwork, self).setUp()
         self.flags(host='host1')

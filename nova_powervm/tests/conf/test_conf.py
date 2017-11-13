@@ -22,7 +22,7 @@ from nova_powervm import conf as cfg
 CONF = cfg.CONF
 
 
-class TestConf(test.TestCase):
+class TestConf(test.NoDBTestCase):
     def setUp(self):
         super(TestConf, self).setUp()
 
@@ -42,7 +42,7 @@ class TestConf(test.TestCase):
         self.assertEqual(1, CONF.powervm.ports_per_fabric)
 
 
-class TestConfBounds(test.TestCase):
+class TestConfBounds(test.NoDBTestCase):
     def setUp(self):
         super(TestConfBounds, self).setUp()
 
@@ -89,7 +89,7 @@ class TestConfBounds(test.TestCase):
                           ports_per_fabric=2)
 
 
-class TestConfChoices(test.TestCase):
+class TestConfChoices(test.NoDBTestCase):
     def setUp(self):
         super(TestConfChoices, self).setUp()
 
@@ -141,7 +141,7 @@ class TestConfChoices(test.TestCase):
                           cfg.powervm.vol_adapter_opts, 'fc_attach_strategy')
 
 
-class TestConfDynamic(test.TestCase):
+class TestConfDynamic(test.NoDBTestCase):
     def setUp(self):
         super(TestConfDynamic, self).setUp()
         self.conf_fx = self.useFixture(

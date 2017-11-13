@@ -56,7 +56,7 @@ class SSPFixture(fixtures.Fixture):
             'pypowervm.tasks.storage.default_tier_for_ssp')
 
 
-class TestSSPDiskAdapter(test.TestCase):
+class TestSSPDiskAdapter(test.NoDBTestCase):
     """Unit Tests for the LocalDisk storage driver."""
 
     def setUp(self):

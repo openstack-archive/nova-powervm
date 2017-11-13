@@ -21,7 +21,7 @@ from nova import test
 from nova_powervm.virt.powervm.tasks import slot
 
 
-class TestSaveSlotStore(test.TestCase):
+class TestSaveSlotStore(test.NoDBTestCase):
 
     def setUp(self):
         super(TestSaveSlotStore, self).setUp()
@@ -33,7 +33,7 @@ class TestSaveSlotStore(test.TestCase):
         slot_mgr.save.assert_called_once_with()
 
 
-class TestDeleteSlotStore(test.TestCase):
+class TestDeleteSlotStore(test.NoDBTestCase):
 
     def setUp(self):
         super(TestDeleteSlotStore, self).setUp()

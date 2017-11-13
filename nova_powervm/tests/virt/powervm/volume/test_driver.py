@@ -29,7 +29,7 @@ from nova_powervm.virt.powervm.volume import npiv
 from nova_powervm.virt.powervm.volume import vscsi
 
 
-class TestVolumeAdapter(test.TestCase):
+class TestVolumeAdapter(test.NoDBTestCase):
 
     def setUp(self):
         super(TestVolumeAdapter, self).setUp()
@@ -44,7 +44,7 @@ class TestVolumeAdapter(test.TestCase):
         self.mock_get_inst_wrap.return_value = self.mock_inst_wrap
 
 
-class TestInitMethods(test.TestCase):
+class TestInitMethods(test.NoDBTestCase):
 
     # Volume driver types to classes
     volume_drivers = {

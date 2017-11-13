@@ -23,7 +23,7 @@ from nova_powervm.tests.virt.powervm import fixtures as fx
 from nova_powervm.virt.powervm.disk import driver as disk_dvr
 
 
-class TestDiskAdapter(test.TestCase):
+class TestDiskAdapter(test.NoDBTestCase):
     """Unit Tests for the generic storage driver."""
 
     def setUp(self):

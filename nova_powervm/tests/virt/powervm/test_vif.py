@@ -50,7 +50,7 @@ class FakeNetworkAPI(object):
         return physnet
 
 
-class TestVifFunctions(test.TestCase):
+class TestVifFunctions(test.NoDBTestCase):
 
     def setUp(self):
         super(TestVifFunctions, self).setUp()
@@ -358,7 +358,7 @@ class TestVifFunctions(test.TestCase):
                          vif._get_trunk_dev_name(mock_vif))
 
 
-class TestVifSriovDriver(test.TestCase):
+class TestVifSriovDriver(test.NoDBTestCase):
 
     def setUp(self):
         super(TestVifSriovDriver, self).setUp()
@@ -571,7 +571,7 @@ class FakeDirectVif(dict):
         return self._physnet
 
 
-class TestVifSeaDriver(test.TestCase):
+class TestVifSeaDriver(test.NoDBTestCase):
 
     def setUp(self):
         super(TestVifSeaDriver, self).setUp()
@@ -672,7 +672,7 @@ class TestVifSeaDriver(test.TestCase):
         self.assertEqual(1, cnas[2].delete.call_count)
 
 
-class TestVifOvsDriver(test.TestCase):
+class TestVifOvsDriver(test.NoDBTestCase):
 
     def setUp(self):
         super(TestVifOvsDriver, self).setUp()

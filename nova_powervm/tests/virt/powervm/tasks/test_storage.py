@@ -23,7 +23,7 @@ from nova_powervm.virt.powervm import exception as npvmex
 from nova_powervm.virt.powervm.tasks import storage as tf_stg
 
 
-class TestStorage(test.TestCase):
+class TestStorage(test.NoDBTestCase):
 
     def setUp(self):
         super(TestStorage, self).setUp()

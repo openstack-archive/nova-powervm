@@ -27,7 +27,7 @@ from nova_powervm.virt.powervm.nvram import manager
 from nova_powervm.virt.powervm import vm
 
 
-class TestNvramManager(test.TestCase):
+class TestNvramManager(test.NoDBTestCase):
     def setUp(self):
         super(TestNvramManager, self).setUp()
         self.fake_store = fake_api.NoopNvramStore()
