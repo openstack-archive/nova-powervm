@@ -1970,3 +1970,16 @@ class TestPowerVMDriver(test.TestCase):
         mock_find_orphans.return_value = [mock_orphan]
         self.drv._cleanup_orphan_adapters('my_vswitch')
         mock_orphan.delete.assert_called_once_with()
+
+    def test_get_host_cpu_stats(self):
+        hcpu_stats = self.drv.get_host_cpu_stats()
+        expected_stats = {
+            'kernel': self.drv.host_cpu_cache.total_fw_cycles,
+            'user': self.drv.host_cpu_cache.total_user_cycles,
+            'idle': (self.drv.host_cpu_cache.total_cycles -
+                     self.drv.host_cpu_cache.total_user_cycles -
+                     self.drv.host_cpu_cache.total_fw_cycles),
+            'iowait': 0,
+            'frequency': self.drv.host_cpu_cache.cpu_freq}
+        self.assertEqual(expected_stats, hcpu_stats)
+        self.drv.host_cpu_cache.refresh.assert_called_once()
