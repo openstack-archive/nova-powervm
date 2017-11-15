@@ -144,7 +144,16 @@ vol_adapter_opts = [
                default=1, min=1,
                help='Indicates a minimum number of Virtual I/O Servers that '
                     'are required to support a Cinder volume attach with the '
-                    'vSCSI volume connector.')
+                    'vSCSI volume connector.'),
+    cfg.BoolOpt('volume_use_multipath',
+                default=False,
+                help="Use multipath connections when attaching iSCSI or FC"),
+    cfg.StrOpt('iscsi_iface',
+               default='default',
+               help="The iSCSI transport iface to use to connect to target in "
+                    "case offload support is desired. Do not confuse the "
+                    "iscsi_iface parameter to be provided here with the "
+                    "actual transport name.")
 ]
 
 # NPIV Options.  Only applicable if the 'fc_attach_strategy' is set to 'npiv'.
