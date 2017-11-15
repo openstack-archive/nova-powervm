@@ -20,6 +20,7 @@ from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.volume import fileio as v_drv
 from pypowervm import const as pvm_const
+from pypowervm import exceptions as pvm_exc
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.wrappers import base_partition as pvm_bp
 from pypowervm.wrappers import storage as pvm_stg
@@ -129,6 +130,22 @@ class TestFileIOVolumeAdapter(test_vol.TestVolumeAdapter):
             self.adpt, 'fake_path',
             backstore_type=pvm_stg.BackStoreType.FILE_IO)
         self.assertEqual(0, mock_build_map.call_count)
+
+    @mock.patch('pypowervm.tasks.partition.get_mgmt_partition', autospec=True)
+    @mock.patch('pypowervm.tasks.storage.rescan_vstor', autospec=True)
+    def test_extend_volume(self, mock_rescan, mock_get_mgmt_partition):
+        # FileIO driver can only have 1 uuid in vol_drv.vios_uuids
+        mock_vios = mock.Mock(uuid='uuid1')
+        mock_get_mgmt_partition.return_value = mock_vios
+        self.vol_drv.extend_volume()
+        mock_rescan.assert_called_once_with(self.vol_drv.vios_uuids[0],
+                                            "fake_path", adapter=self.adpt)
+        mock_rescan.side_effect = pvm_exc.JobRequestFailed(
+            operation_name='RescanVirtualDisk', error='fake_err')
+        self.assertRaises(p_exc.VolumeExtendFailed, self.vol_drv.extend_volume)
+        mock_rescan.side_effect = pvm_exc.VstorNotFound(
+            stor_udid='stor_udid', vios_uuid='uuid')
+        self.assertRaises(p_exc.VolumeExtendFailed, self.vol_drv.extend_volume)
 
     @mock.patch('pypowervm.entities.Entry.uuid',
                 new_callable=mock.PropertyMock)

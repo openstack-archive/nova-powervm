@@ -101,6 +101,11 @@ class VolumeAttachFailed(nex.NovaException):
                 "machine %(instance_name)s.  %(reason)s")
 
 
+class VolumeExtendFailed(nex.NovaException):
+    msg_fmt = _("Unable to extend volume (id: %(volume_id)s) on virtual "
+                "machine %(instance_name)s.")
+
+
 class VolumeDetachFailed(nex.NovaException):
     msg_fmt = _("Unable to detach volume (id: %(volume_id)s) from virtual "
                 "machine %(instance_name)s.  %(reason)s")
