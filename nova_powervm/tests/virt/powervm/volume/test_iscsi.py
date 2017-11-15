@@ -16,11 +16,15 @@
 
 import mock
 
+from nova import exception as nova_exc
+
 from nova_powervm import conf as cfg
 from nova_powervm.tests.virt.powervm.volume import test_driver as test_vol
+from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm.volume import iscsi
 
 from pypowervm import const as pvm_const
+from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import hdisk
 from pypowervm.tests.tasks.util import load_file
 from pypowervm.tests import test_fixtures as pvm_fx
@@ -125,6 +129,39 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         mock_discover.assert_called_with(
             self.adpt, self.host_ip, self.user, self.password, self.iqn,
             self.feed[0].uuid, transport_type=self.trans_type)
+
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses', autospec=True)
+    @mock.patch('pypowervm.tasks.storage.rescan_vstor', autospec=True)
+    def test_extend_volume(self, mock_rescan, mock_active_vioses):
+        self.vol_drv._set_udid("vstor_uuid")
+        mock_vios = mock.Mock(uuid='fake_uuid')
+        # Test single vios
+        mock_active_vioses.return_value = [mock_vios]
+        self.vol_drv.extend_volume()
+        mock_rescan.assert_called_once_with(self.vol_drv.vios_uuids[0],
+                                            "vstor_uuid", self.adpt)
+        mock_rescan.side_effect = pvm_exc.JobRequestFailed(
+            operation_name='RescanVirtualDisk', error='fake_err')
+        self.assertRaises(p_exc.VolumeExtendFailed, self.vol_drv.extend_volume)
+        mock_rescan.side_effect = pvm_exc.VstorNotFound(
+            stor_udid='stor_udid', vios_uuid='uuid')
+        self.assertRaises(p_exc.VolumeExtendFailed, self.vol_drv.extend_volume)
+
+        # Test multiple vios
+        mock_active_vioses.return_value = [mock_vios, mock_vios]
+        mock_rescan.reset_mock()
+        mock_rescan.side_effect = [pvm_exc.JobRequestFailed(
+            operation_name='RescanVirtualDisk', error='fake_err'), None]
+        self.assertRaises(p_exc.VolumeExtendFailed, self.vol_drv.extend_volume)
+        self.assertEqual(2, mock_rescan.call_count)
+        mock_rescan.reset_mock()
+        mock_rescan.side_effect = [None, pvm_exc.VstorNotFound(
+            stor_udid='stor_udid', vios_uuid='uuid')]
+        self.vol_drv.extend_volume()
+        self.assertEqual(2, mock_rescan.call_count)
+
+        self.vol_drv._set_udid(None)
+        self.assertRaises(nova_exc.InvalidBDM, self.vol_drv.extend_volume)
 
     @mock.patch('pypowervm.tasks.hdisk.remove_iscsi', autospec=True)
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid',
