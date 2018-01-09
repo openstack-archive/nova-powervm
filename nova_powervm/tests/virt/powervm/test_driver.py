@@ -323,7 +323,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # _vol_drv_iter not called from spawn because not recreate; but still
         # called from _add_volume_connection_tasks.
         mock_vdi.assert_has_calls([mock.call(
-            'context', self.inst, bdms=[],
+            'context', self.inst, [],
             stg_ftsk=self.build_tx_feed.return_value)])
         # Assert the correct tasks were called
         self.assertTrue(mock_plug_vifs.called)
@@ -586,7 +586,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # _add_volume_connection_tasks.
         # TODO(IBM): Find a way to make the call just once.  Unless it's cheap.
         mock_vol_drv_iter.assert_has_calls([mock.call(
-            'context', self.inst, bdms=[],
+            'context', self.inst, [],
             stg_ftsk=self.build_tx_feed.return_value)] * 2)
         mock_build_slot_mgr.assert_called_once_with(
             self.inst, self.drv.store_api, adapter=self.drv.adapter,
@@ -889,7 +889,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
                                return_value=vals) as mock_vdi:
             self.drv._add_volume_connection_tasks(
                 'context', 'instance', 'bdms', flow, 'stg_ftsk', 'slot_mgr')
-        mock_vdi.assert_called_once_with('context', 'instance', bdms='bdms',
+        mock_vdi.assert_called_once_with('context', 'instance', 'bdms',
                                          stg_ftsk='stg_ftsk')
         mock_conn_vol.assert_has_calls([mock.call(vol_drv1, 'slot_mgr'),
                                         mock.call(vol_drv2, 'slot_mgr')])
@@ -909,7 +909,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
                                return_value=vals) as mock_vdi:
             self.drv._add_volume_disconnection_tasks(
                 'context', 'instance', 'bdms', flow, 'stg_ftsk', 'slot_mgr')
-        mock_vdi.assert_called_once_with('context', 'instance', bdms='bdms',
+        mock_vdi.assert_called_once_with('context', 'instance', 'bdms',
                                          stg_ftsk='stg_ftsk')
         mock_disconn_vol.assert_has_calls([mock.call(vol_drv1, 'slot_mgr'),
                                            mock.call(vol_drv2, 'slot_mgr')])
@@ -1913,43 +1913,36 @@ class TestPowerVMDriver(test.NoDBTestCase):
 
     def test_vol_drv_iter(self):
         block_device_info = self._fake_bdms()
+        bdms = self.drv._extract_bdm(block_device_info)
         vol_adpt = mock.Mock()
 
-        def _get_results(block_device_info=None, bdms=None):
+        def _get_results(bdms):
             # Patch so we get the same mock back each time.
             with mock.patch('nova_powervm.virt.powervm.volume.'
                             'build_volume_driver', return_value=vol_adpt):
                 return [
                     (bdm, vol_drv) for bdm, vol_drv in self.drv._vol_drv_iter(
-                        'context', self.inst,
-                        block_device_info=block_device_info, bdms=bdms)]
+                        'context', self.inst, bdms)]
 
-        def validate(results):
-            # For each good call, we should get back two bdms / vol_adpt
-            self.assertEqual(
-                'fake_vol1',
-                results[0][0]['connection_info']['data']['volume_id'])
-            self.assertEqual(vol_adpt, results[0][1])
-            self.assertEqual(
-                'fake_vol2',
-                results[1][0]['connection_info']['data']['volume_id'])
-            self.assertEqual(vol_adpt, results[1][1])
+        results = _get_results(bdms)
+        self.assertEqual(
+            'fake_vol1',
+            results[0][0]['connection_info']['data']['volume_id'])
+        self.assertEqual(vol_adpt, results[0][1])
+        self.assertEqual(
+            'fake_vol2',
+            results[1][0]['connection_info']['data']['volume_id'])
+        self.assertEqual(vol_adpt, results[1][1])
 
-        # Send block device info
-        results = _get_results(block_device_info=block_device_info)
-        validate(results)
-        # Same results with bdms
-        results = _get_results(bdms=self.drv._extract_bdm(block_device_info))
-        validate(results)
-        # Empty bdms
-        self.assertEqual([], _get_results(bdms=[]))
+        # Test with empty bdms
+        self.assertEqual([], _get_results([]))
 
     def test_build_vol_drivers(self):
         # This utility just returns a list of drivers from the _vol_drv_iter()
         # iterator so mock it and ensure the drivers are returned.
         vals = [('bdm0', 'drv0'), ('bdm1', 'drv1')]
         with mock.patch.object(self.drv, '_vol_drv_iter', return_value=vals):
-            drivers = self.drv._build_vol_drivers('context', 'instance')
+            drivers = self.drv._build_vol_drivers('context', 'instance', None)
 
         self.assertEqual(['drv0', 'drv1'], drivers)
 
