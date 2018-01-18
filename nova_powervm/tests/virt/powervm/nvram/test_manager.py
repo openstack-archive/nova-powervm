@@ -41,23 +41,25 @@ class TestNvramManager(test.NoDBTestCase):
         self.mock_exp_remove = self.useFixture(
             fixtures.MockPatchObject(self.fake_exp_store, 'delete')).mock
 
-    @mock.patch('nova_powervm.virt.powervm.nvram.manager.LOG.exception')
-    @mock.patch.object(vm, 'get_instance_wrapper')
+    @mock.patch('nova_powervm.virt.powervm.nvram.manager.LOG.exception',
+                autospec=True)
+    @mock.patch.object(vm, 'get_instance_wrapper', autospec=True)
     def test_store_with_exception(self, mock_get_inst, mock_log):
         mock_get_inst.side_effect = pvm_exc.HttpError(mock.Mock())
         mgr = manager.NvramManager(self.fake_store, mock.Mock(), mock.Mock())
         mgr.store(powervm.TEST_INST1.uuid)
         self.assertEqual(1, mock_log.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.nvram.manager.LOG.warning')
-    @mock.patch.object(vm, 'get_instance_wrapper')
+    @mock.patch('nova_powervm.virt.powervm.nvram.manager.LOG.warning',
+                autospec=True)
+    @mock.patch.object(vm, 'get_instance_wrapper', autospec=True)
     def test_store_with_not_found_exc(self, mock_get_inst, mock_log):
         mock_get_inst.side_effect = pvm_exc.HttpNotFound(mock.Mock())
         mgr = manager.NvramManager(self.fake_store, mock.Mock(), mock.Mock())
         mgr.store(powervm.TEST_INST1.uuid)
-        mock_log.assert_not_called()
+        self.assertEqual(0, mock_log.call_count)
 
-    @mock.patch.object(vm, 'get_instance_wrapper')
+    @mock.patch.object(vm, 'get_instance_wrapper', autospec=True)
     def test_manager(self, mock_get_inst):
 
         mgr = manager.NvramManager(self.fake_store, mock.Mock(), mock.Mock())

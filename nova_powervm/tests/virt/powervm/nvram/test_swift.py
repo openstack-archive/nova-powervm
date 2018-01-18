@@ -89,7 +89,7 @@ class TestSwiftStore(test.NoDBTestCase):
                                              options={'long': True})
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
-                '_get_container_names')
+                '_get_container_names', autospec=True)
     def test_get_object_names(self, mock_container_names):
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
             mock_run.return_value = self._build_results(['obj', 'obj2'])
@@ -120,9 +120,9 @@ class TestSwiftStore(test.NoDBTestCase):
             # Second run should not increment the call count here
             self.assertEqual(mock_container_names.call_count, 2)
 
-    @mock.patch('swiftclient.service.SwiftUploadObject')
+    @mock.patch('swiftclient.service.SwiftUploadObject', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
-                '_exists')
+                '_exists', autospec=True)
     def test_underscore_store(self, mock_exists, mock_swiftuploadobj):
         mock_exists.return_value = True
         with mock.patch.object(self.swift_store, '_run_operation') as mock_run:
@@ -154,9 +154,9 @@ class TestSwiftStore(test.NoDBTestCase):
             self.assertEqual(mock_run.call_count, 2)
             self.assertEqual(mock_swiftuploadobj.call_count, 2)
 
-    @mock.patch('swiftclient.service.SwiftUploadObject')
+    @mock.patch('swiftclient.service.SwiftUploadObject', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
-                '_exists')
+                '_exists', autospec=True)
     def test_underscore_store_not_exists(self, mock_exists,
                                          mock_swiftuploadobj):
         mock_exists.return_value = False
@@ -183,7 +183,7 @@ class TestSwiftStore(test.NoDBTestCase):
             self.assertEqual(mock_swiftuploadobj.call_count, 2)
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
-                '_exists')
+                '_exists', autospec=True)
     def test_store(self, mock_exists):
         # Test forcing a update
         with mock.patch.object(self.swift_store, '_store') as mock_store:
@@ -215,10 +215,10 @@ class TestSwiftStore(test.NoDBTestCase):
             mock_store.assert_called_once_with(
                 'test_slot', 'data')
 
-    @mock.patch('os.remove')
-    @mock.patch('tempfile.NamedTemporaryFile')
+    @mock.patch('os.remove', autospec=True)
+    @mock.patch('tempfile.NamedTemporaryFile', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
-                '_exists')
+                '_exists', autospec=True)
     def test_fetch(self, mock_exists, mock_tmpf, mock_rmv):
         mock_exists.return_value = True
         with mock.patch('nova_powervm.virt.powervm.nvram.swift.open',
@@ -237,10 +237,10 @@ class TestSwiftStore(test.NoDBTestCase):
             self.assertRaises(api.NVRAMDownloadException,
                               self.swift_store.fetch, powervm.TEST_INST1)
 
-    @mock.patch('os.remove')
-    @mock.patch('tempfile.NamedTemporaryFile')
+    @mock.patch('os.remove', autospec=True)
+    @mock.patch('tempfile.NamedTemporaryFile', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
-                '_exists')
+                '_exists', autospec=True)
     def test_fetch_slot_map(self, mock_exists, mock_tmpf, mock_rmv):
         mock_exists.return_value = True
         with mock.patch('nova_powervm.virt.powervm.nvram.swift.open',
@@ -254,10 +254,10 @@ class TestSwiftStore(test.NoDBTestCase):
             self.assertEqual('data to read', data)
             mock_rmv.assert_called_once_with(m_open.return_value.name)
 
-    @mock.patch('os.remove')
-    @mock.patch('tempfile.NamedTemporaryFile')
+    @mock.patch('os.remove', autospec=True)
+    @mock.patch('tempfile.NamedTemporaryFile', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
-                '_exists')
+                '_exists', autospec=True)
     def test_fetch_slot_map_no_exist(self, mock_exists, mock_tmpf, mock_rmv):
         mock_exists.return_value = False
         data = self.swift_store.fetch_slot_map("test_slot")
@@ -294,7 +294,7 @@ class TestSwiftStore(test.NoDBTestCase):
                 'test_slot')
 
     @mock.patch('nova_powervm.virt.powervm.nvram.swift.SwiftNvramStore.'
-                '_get_object_names')
+                '_get_object_names', autospec=True)
     def test_exists(self, mock_get_obj_names):
         # Test where there are elements in here
         mock_get_obj_names.return_value = ['obj', 'obj1', 'obj2']
