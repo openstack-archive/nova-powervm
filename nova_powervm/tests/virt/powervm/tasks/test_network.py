@@ -46,8 +46,8 @@ class TestNetwork(test.NoDBTestCase):
         self.mock_lpar_wrap = mock.MagicMock()
         self.mock_lpar_wrap.can_modify_io.return_value = True, None
 
-    @mock.patch('nova_powervm.virt.powervm.vif.unplug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vif.unplug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_unplug_vifs(self, mock_vm_get, mock_unplug):
         """Tests that a delete of the vif can be done."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
@@ -97,9 +97,9 @@ class TestNetwork(test.NoDBTestCase):
         self.assertRaises(exception.VirtualInterfaceUnplugException,
                           p_vifs.execute, self.mock_lpar_wrap)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vnics')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vnics', autospec=True)
     def test_plug_vifs_rmc(self, mock_vnic_get, mock_cna_get, mock_plug):
         """Tests that a crt vif can be done with secure RMC."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
@@ -147,8 +147,8 @@ class TestNetwork(test.NoDBTestCase):
         # created.
         self.assertEqual(pre_cnas + [mock_new_cna], all_cnas)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_plug_vifs_rmc_no_create(self, mock_vm_get, mock_plug):
         """Verifies if no creates are needed, none are done."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
@@ -174,8 +174,8 @@ class TestNetwork(test.NoDBTestCase):
             self.apt, 'host_uuid', inst, net_info[1],
             'slot_mgr', new_vif=False)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_plug_vifs_invalid_state(self, mock_vm_get, mock_plug):
         """Tests that a crt_vif fails when the LPAR state is bad."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
@@ -196,8 +196,8 @@ class TestNetwork(test.NoDBTestCase):
         # The create should not have been invoked
         self.assertEqual(0, mock_plug.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_plug_vifs_timeout(self, mock_vm_get, mock_plug):
         """Tests that crt vif failure via loss of neutron callback."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
@@ -220,8 +220,8 @@ class TestNetwork(test.NoDBTestCase):
         # The create should have only been called once.
         self.assertEqual(1, mock_plug.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_plug_vifs_diff_host(self, mock_vm_get, mock_plug):
         """Tests that crt vif handles bad inst.host value."""
         inst = powervm.TEST_INST1
@@ -247,8 +247,8 @@ class TestNetwork(test.NoDBTestCase):
         self.assertEqual(2, mock_inst_save.call_count)
         self.assertEqual('host1', inst.host)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_plug_vifs_diff_host_except(self, mock_vm_get, mock_plug):
         """Tests that crt vif handles bad inst.host value.
 
@@ -282,9 +282,9 @@ class TestNetwork(test.NoDBTestCase):
         self.assertEqual(2, mock_inst_save.call_count)
         self.assertEqual('host1', inst.host)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.unplug')
-    @mock.patch('nova_powervm.virt.powervm.vif.plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vif.unplug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vif.plug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_plug_vifs_revert(self, mock_vm_get, mock_plug, mock_unplug):
         """Tests that the revert flow works properly."""
         inst = objects.Instance(**powervm.TEST_INSTANCE)
@@ -321,10 +321,12 @@ class TestNetwork(test.NoDBTestCase):
                        'slot_mgr', cna_w_list=cna_list)
         mock_unplug.assert_has_calls([c2, c3])
 
-    @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
-    @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch')
-    @mock.patch('nova_powervm.virt.powervm.vif.plug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vif.plug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_plug_mgmt_vif(self, mock_vm_get, mock_plug,
                            mock_get_rmc_vswitch, mock_plug_rmc_vif):
         """Tests that a mgmt vif can be created."""
@@ -341,7 +343,7 @@ class TestNetwork(test.NoDBTestCase):
 
         # With the default get_cnas mock (which returns a Mock()), we think we
         # found an existing management CNA.
-        mock_plug_rmc_vif.assert_not_called()
+        self.assertEqual(0, mock_plug_rmc_vif.call_count)
         mock_vm_get.assert_called_once_with(
             self.apt, inst, vswitch_uri='fake_mgmt_uri')
 
@@ -363,8 +365,8 @@ class TestNetwork(test.NoDBTestCase):
 
         # Get wasn't called, since the CNAs were passed "from PlugVifs"; but
         # since the mgmt vif wasn't included, plug was called.
-        mock_vm_get.assert_not_called()
-        mock_plug_rmc_vif.assert_called()
+        self.assertEqual(0, mock_vm_get.call_count)
+        self.assertEqual(1, mock_plug_rmc_vif.call_count)
 
         # Finally, pass CNAs including the mgmt.
         cnas.append(mock.Mock(vswitch_uri='fake_mgmt_uri'))
@@ -372,8 +374,8 @@ class TestNetwork(test.NoDBTestCase):
         p_vifs.execute(cnas)
 
         # Neither get nor plug was called.
-        mock_vm_get.assert_not_called()
-        mock_plug_rmc_vif.assert_not_called()
+        self.assertEqual(0, mock_vm_get.call_count)
+        self.assertEqual(0, mock_plug_rmc_vif.call_count)
 
     def test_get_vif_events(self):
         # Set up common mocks.

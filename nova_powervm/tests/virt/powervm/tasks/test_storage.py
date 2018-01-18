@@ -80,7 +80,7 @@ class TestStorage(test.NoDBTestCase):
         task.revert(lpar_w, 'mgmt_cna', 'result', 'flow_failures')
         self.mock_mb.assert_not_called()
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     def test_delete_vopt(self, mock_pvm_uuid):
         # Test with no FeedTask
         mock_pvm_uuid.return_value = 'pvm_uuid'
@@ -146,9 +146,11 @@ class TestStorage(test.NoDBTestCase):
         task.revert('result', 'flow failures')
         self.disk_dvr.delete_disks.assert_called_once_with(['result'])
 
-    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
-    @mock.patch('nova_powervm.virt.powervm.mgmt.discover_vscsi_disk')
-    @mock.patch('nova_powervm.virt.powervm.mgmt.remove_block_dev')
+    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.mgmt.discover_vscsi_disk',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.mgmt.remove_block_dev',
+                autospec=True)
     def test_instance_disk_to_mgmt(self, mock_rm, mock_discover, mock_find):
         mock_discover.return_value = '/dev/disk'
         mock_instance = mock.Mock()
@@ -252,7 +254,8 @@ class TestStorage(test.NoDBTestCase):
         self.assertEqual(0, disk_dvr.disconnect_disk_from_mgmt.call_count)
         self.assertEqual(0, mock_rm.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.mgmt.remove_block_dev')
+    @mock.patch('nova_powervm.virt.powervm.mgmt.remove_block_dev',
+                autospec=True)
     def test_remove_instance_disk_from_mgmt(self, mock_rm):
         disk_dvr = mock.MagicMock()
         mock_instance = mock.Mock()

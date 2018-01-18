@@ -34,13 +34,16 @@ class TestVMTasks(test.NoDBTestCase):
         self.apt = mock.Mock()
         self.instance = mock.Mock(uuid='fake-uuid')
 
-    @mock.patch('pypowervm.utils.transaction.FeedTask')
-    @mock.patch('pypowervm.tasks.partition.build_active_vio_feed_task')
-    @mock.patch('pypowervm.tasks.storage.add_lpar_storage_scrub_tasks')
-    @mock.patch('nova_powervm.virt.powervm.vm.create_lpar')
+    @mock.patch('pypowervm.utils.transaction.FeedTask', autospec=True)
+    @mock.patch('pypowervm.tasks.partition.build_active_vio_feed_task',
+                autospec=True)
+    @mock.patch('pypowervm.tasks.storage.add_lpar_storage_scrub_tasks',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.create_lpar', autospec=True)
     def test_create(self, mock_vm_crt, mock_stg, mock_bld, mock_ftsk):
         nvram_mgr = mock.Mock()
         nvram_mgr.fetch.return_value = 'data'
+        mock_ftsk.name = 'vio_feed_task'
         lpar_entry = mock.Mock()
 
         # Test create with normal (non-recreate) ftsk
@@ -69,9 +72,10 @@ class TestVMTasks(test.NoDBTestCase):
         rcrt.execute()
         mock_ftsk.execute.assert_called_once_with()
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Create.execute')
-    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Create.execute',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar', autospec=True)
     def test_create_revert(self, mock_vm_dlt, mock_crt_exc,
                            mock_get_pvm_uuid):
 
@@ -84,23 +88,23 @@ class TestVMTasks(test.NoDBTestCase):
         flow_test = tf_lf.Flow("test_revert")
         flow_test.add(crt)
         self.assertRaises(exception.NovaException, tf_eng.run, flow_test)
-        mock_vm_dlt.assert_not_called()
+        self.assertEqual(0, mock_vm_dlt.call_count)
 
         # Assert that a failure when rebuild results in revert
         crt.instance.task_state = task_states.REBUILD_SPAWNING
         flow_test = tf_lf.Flow("test_revert")
         flow_test.add(crt)
         self.assertRaises(exception.NovaException, tf_eng.run, flow_test)
-        mock_vm_dlt.assert_called()
+        self.assertEqual(1, mock_vm_dlt.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on', autospec=True)
     def test_power_on(self, mock_pwron):
         pwron = tf_vm.PowerOn(self.apt, self.instance, pwr_opts='opt')
         pwron.execute()
         mock_pwron.assert_called_once_with(self.apt, self.instance, opts='opt')
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
-    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off', autospec=True)
     def test_power_on_revert(self, mock_pwroff, mock_pwron):
         flow = tf_lf.Flow('revert_power_on')
         pwron = tf_vm.PowerOn(self.apt, self.instance, pwr_opts='opt')
@@ -124,9 +128,9 @@ class TestVMTasks(test.NoDBTestCase):
         mock_pwron.side_effect = exception.NovaException()
         self.assertRaises(exception.NovaException, tf_eng.run, flow)
         mock_pwron.assert_called_once_with(self.apt, self.instance, opts='opt')
-        mock_pwroff.assert_not_called()
+        self.assertEqual(0, mock_pwroff.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off', autospec=True)
     def test_power_off(self, mock_pwroff):
         # Default force_immediate
         pwroff = tf_vm.PowerOff(self.apt, self.instance)
@@ -142,13 +146,13 @@ class TestVMTasks(test.NoDBTestCase):
         mock_pwroff.assert_called_once_with(self.apt, self.instance,
                                             force_immediate=True)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar')
+    @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar', autospec=True)
     def test_delete(self, mock_dlt):
         delete = tf_vm.Delete(self.apt, self.instance)
         delete.execute()
         mock_dlt.assert_called_once_with(self.apt, self.instance)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.update')
+    @mock.patch('nova_powervm.virt.powervm.vm.update', autospec=True)
     def test_resize(self, mock_vm_update):
 
         resize = tf_vm.Resize(self.apt, 'host_wrapper', self.instance,
@@ -160,7 +164,7 @@ class TestVMTasks(test.NoDBTestCase):
             name='new_name')
         self.assertEqual('resized_entry', resized_entry)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.rename')
+    @mock.patch('nova_powervm.virt.powervm.vm.rename', autospec=True)
     def test_rename(self, mock_vm_rename):
         mock_vm_rename.return_value = 'new_entry'
         rename = tf_vm.Rename(self.apt, self.instance, 'new_name')

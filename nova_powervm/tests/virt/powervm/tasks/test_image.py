@@ -37,8 +37,10 @@ class TestImage(test.NoDBTestCase):
                                      expected_state='expected_state')
         tf.execute()
 
-    @mock.patch('nova_powervm.virt.powervm.image.stream_blockdev_to_glance')
-    @mock.patch('nova_powervm.virt.powervm.image.snapshot_metadata')
+    @mock.patch('nova_powervm.virt.powervm.image.stream_blockdev_to_glance',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.image.snapshot_metadata',
+                autospec=True)
     def test_stream_to_glance(self, mock_metadata, mock_stream):
         mock_metadata.return_value = 'metadata'
         mock_inst = mock.Mock()
