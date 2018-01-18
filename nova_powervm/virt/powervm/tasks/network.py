@@ -17,7 +17,6 @@
 import eventlet
 
 from nova import exception
-from nova import utils
 
 from oslo_log import log as logging
 from pypowervm.wrappers import network as pvm_net
@@ -217,20 +216,15 @@ class PlugVifs(task.Task):
         """Returns the VIF events that need to be received for a VIF plug.
 
         In order for a VIF plug to be successful, certain events should be
-        received from other components within the OpenStack ecosystem.  If
-        using neutron, certain events are needed.  If Nova networking, then no
-        events are required.  This method returns the events needed for a given
-        deploy.
+        received from other components within the OpenStack ecosystem. This
+        method returns the events neutron needs for a given deploy.
         """
         # See libvirt's driver.py -> _get_neutron_events method for
         # more information.
-        if (utils.is_neutron() and CONF.vif_plugging_is_fatal and
-                CONF.vif_plugging_timeout):
+        if CONF.vif_plugging_is_fatal and CONF.vif_plugging_timeout:
             return [('network-vif-plugged', network_info['id'])
                     for network_info in self.crt_network_infos
                     if not network_info.get('active', True)]
-        else:
-            return []
 
     def revert(self, lpar_wrap, result, flow_failures):
         if not self.network_infos:

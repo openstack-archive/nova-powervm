@@ -375,8 +375,7 @@ class TestNetwork(test.NoDBTestCase):
         mock_vm_get.assert_not_called()
         mock_plug_rmc_vif.assert_not_called()
 
-    @mock.patch('nova.utils.is_neutron')
-    def test_get_vif_events(self, mock_is_neutron):
+    def test_get_vif_events(self):
         # Set up common mocks.
         inst = objects.Instance(**powervm.TEST_INSTANCE)
         net_info = [mock.MagicMock(), mock.MagicMock()]
@@ -390,12 +389,6 @@ class TestNetwork(test.NoDBTestCase):
                                  'host_uuid', 'slot_mgr')
         p_vifs.crt_network_infos = net_info
 
-        # Mock that neutron is off.
-        mock_is_neutron.return_value = False
-        self.assertEqual([], p_vifs._get_vif_events())
-
-        # Turn neutron on.
-        mock_is_neutron.return_value = True
         resp = p_vifs._get_vif_events()
 
         # Only one should be returned since only one was active.
