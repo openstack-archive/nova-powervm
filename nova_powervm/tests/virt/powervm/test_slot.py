@@ -100,8 +100,8 @@ class TestSwiftSlotManager(test.NoDBTestCase):
         self.store_api.delete_slot_map.assert_called_once_with(
             self.inst.uuid + '_slot_map')
 
-    @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap')
-    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
+    @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap', autospec=True)
+    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub', autospec=True)
     def test_init_recreate_map(self, mock_ftsk, mock_rebuild_slot):
         vios1, vios2 = mock.Mock(uuid='uuid1'), mock.Mock(uuid='uuid2')
         mock_ftsk.return_value.feed = [vios1, vios2]
@@ -111,8 +111,8 @@ class TestSwiftSlotManager(test.NoDBTestCase):
             self.slot_mgr, mock.ANY, {'udid': ['uuid2'], 'iscsi': ['uuid1']},
             ['a', 'b'])
 
-    @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap')
-    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
+    @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap', autospec=True)
+    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub', autospec=True)
     def test_init_recreate_map_fails(self, mock_ftsk, mock_rebuild_slot):
         vios1, vios2 = mock.Mock(uuid='uuid1'), mock.Mock(uuid='uuid2')
         mock_ftsk.return_value.feed = [vios1, vios2]
@@ -122,8 +122,8 @@ class TestSwiftSlotManager(test.NoDBTestCase):
             p_exc.InvalidRebuild, self.slot_mgr.init_recreate_map, mock.Mock(),
             self._vol_drv_iter())
 
-    @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap')
-    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
+    @mock.patch('pypowervm.tasks.slot_map.RebuildSlotMap', autospec=True)
+    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub', autospec=True)
     def test_init_recreate_map_fileio(self, mock_ftsk, mock_rebuild_slot):
         vios1, vios2 = mock.Mock(uuid='uuid1'), mock.Mock(uuid='uuid2')
         mock_ftsk.return_value.feed = [vios1, vios2]

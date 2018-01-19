@@ -383,8 +383,8 @@ class TestVM(test.NoDBTestCase):
         self.assertEqual(lpar_list[0], 'z3-9-5-126-208-000001f0')
         self.assertEqual(len(lpar_list), 20)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.tasks.vterm.close_vterm')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('pypowervm.tasks.vterm.close_vterm', autospec=True)
     def test_dlt_lpar(self, mock_vterm, mock_pvm_uuid):
         """Performs a delete LPAR test."""
         mock_pvm_uuid.return_value = 'pvm_uuid'
@@ -463,10 +463,14 @@ class TestVM(test.NoDBTestCase):
         mock_vterm.assert_called_once_with(self.apt, 'pvm_uuid')
         self.apt.delete.assert_not_called()
 
-    @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder._add_IBMi_attrs')
-    @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize')
-    @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder.build')
-    @mock.patch('pypowervm.utils.validation.LPARWrapperValidator.validate_all')
+    @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder._add_IBMi_attrs',
+                autospec=True)
+    @mock.patch('pypowervm.utils.lpar_builder.DefaultStandardize',
+                autospec=True)
+    @mock.patch('pypowervm.utils.lpar_builder.LPARBuilder.build',
+                autospec=True)
+    @mock.patch('pypowervm.utils.validation.LPARWrapperValidator.validate_all',
+                autospec=True)
     def test_crt_lpar(self, mock_vld_all, mock_bld, mock_stdz, mock_ibmi):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         flavor = instance.get_flavor()
@@ -532,8 +536,9 @@ class TestVM(test.NoDBTestCase):
         self.assertRaises(exception.InstanceNotFound, vm.get_instance_wrapper,
                           self.apt, instance, 'lpar_uuid')
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
-    @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.VMBuilder', autospec=True)
     def test_update(self, mock_vmb, mock_get_inst):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         entry = mock.Mock()
@@ -550,8 +555,9 @@ class TestVM(test.NoDBTestCase):
         self.assertEqual('NewEntry', new_entry)
         self.san_lpar_name.assert_called_with(name)
 
-    @mock.patch('pypowervm.utils.transaction.entry_transaction')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('pypowervm.utils.transaction.entry_transaction', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
     def test_rename(self, mock_get_inst, mock_entry_transaction):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
 
@@ -595,9 +601,10 @@ class TestVM(test.NoDBTestCase):
         bldr._add_IBMi_attrs(inst, attrs)
         self.assertDictEqual(attrs, {'env': 'OS400'})
 
-    @mock.patch('pypowervm.tasks.power.power_on')
-    @mock.patch('oslo_concurrency.lockutils.lock')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('pypowervm.tasks.power.power_on', autospec=True)
+    @mock.patch('oslo_concurrency.lockutils.lock', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
     def test_power_on(self, mock_wrap, mock_lock, mock_power_on):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         entry = mock.Mock(state=pvm_bp.LPARState.NOT_ACTIVATED)
@@ -619,14 +626,15 @@ class TestVM(test.NoDBTestCase):
         for stop_state in stop_states:
             entry.state = stop_state
             self.assertFalse(vm.power_on(None, instance))
-            mock_power_on.assert_not_called()
+            self.assertEqual(0, mock_power_on.call_count)
             mock_lock.assert_called_once_with('power_%s' % instance.uuid)
             mock_lock.reset_mock()
 
     @mock.patch('pypowervm.tasks.power.PowerOp', autospec=True)
     @mock.patch('pypowervm.tasks.power.power_off_progressive', autospec=True)
-    @mock.patch('oslo_concurrency.lockutils.lock')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('oslo_concurrency.lockutils.lock', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
     def test_power_off(self, mock_wrap, mock_lock, mock_power_off, mock_pop):
         instance = objects.Instance(**powervm.TEST_INSTANCE)
         entry = mock.Mock(state=pvm_bp.LPARState.NOT_ACTIVATED)
@@ -663,7 +671,8 @@ class TestVM(test.NoDBTestCase):
             mock_lock.assert_called_once_with('power_%s' % instance.uuid)
 
     @mock.patch('pypowervm.tasks.power.power_off_progressive', autospec=True)
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
     def test_power_off_negative(self, mock_wrap, mock_power_off):
         """Negative tests."""
         instance = objects.Instance(**powervm.TEST_INSTANCE)
@@ -676,8 +685,9 @@ class TestVM(test.NoDBTestCase):
         self.assertRaises(exception.InstancePowerOffFailure,
                           vm.power_off, None, instance)
 
-    @mock.patch('oslo_concurrency.lockutils.lock')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('oslo_concurrency.lockutils.lock', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
     @mock.patch('pypowervm.tasks.power.power_on', autospec=True)
     @mock.patch('pypowervm.tasks.power.power_off_progressive', autospec=True)
     @mock.patch('pypowervm.tasks.power.PowerOp', autospec=True)
@@ -743,8 +753,8 @@ class TestVM(test.NoDBTestCase):
         self.assertEqual('5BBB48F1-2406-4019-98AF-1C16D3DF0204',
                          vm.get_pvm_uuid(mock_inst))
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp', autospec=True)
     def test_instance_exists(self, mock_getvmqp, mock_getuuid):
         # Try the good case where it exists
         mock_getvmqp.side_effect = 'fake_state'
@@ -836,8 +846,9 @@ class TestVM(test.NoDBTestCase):
         self.assertEqual(EXPECTED, vm.norm_mac("12:34:56:78:90:AB"))
         self.assertEqual(EXPECTED, vm.norm_mac("1234567890AB"))
 
-    @mock.patch('pypowervm.tasks.ibmi.update_ibmi_settings')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('pypowervm.tasks.ibmi.update_ibmi_settings', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
     def test_update_ibmi_settings(self, mock_lparw, mock_ibmi):
         instance = mock.MagicMock()
 

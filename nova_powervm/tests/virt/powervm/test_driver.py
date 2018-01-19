@@ -107,9 +107,10 @@ class TestPowerVMDriverInit(test.NoDBTestCase):
         self.assertFalse(test_driver.capabilities['has_imagecache'])
         self.assertEqual(9, len(test_driver.capabilities))
 
-    @mock.patch('nova_powervm.virt.powervm.event.PowerVMNovaEventHandler')
-    @mock.patch('pypowervm.adapter.Adapter')
-    @mock.patch('pypowervm.adapter.Session')
+    @mock.patch('nova_powervm.virt.powervm.event.PowerVMNovaEventHandler',
+                autospec=True)
+    @mock.patch('pypowervm.adapter.Adapter', autospec=True)
+    @mock.patch('pypowervm.adapter.Session', autospec=True)
     def test_get_adapter(self, mock_session, mock_adapter, mock_evt_handler):
         # Set up the mocks.
         mock_evt_listener = (mock_session.return_value.get_event_listener.
@@ -205,7 +206,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.assertTrue(
             self.drv.session.get_event_listener.return_value.shutdown.called)
 
-    @mock.patch('nova_powervm.virt.powervm.volume.get_iscsi_initiator')
+    @mock.patch('nova_powervm.virt.powervm.volume.get_iscsi_initiator',
+                autospec=True)
     def test_get_volume_connector(self, mock_initiator):
         """Tests that a volume connector can be built."""
         mock_initiator.return_value = 'iscsi_initiator'
@@ -228,9 +230,10 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # The local disk driver has been mocked, so we just compare the name
         self.assertIn('LocalStorage()', str(self.drv.disk_dvr))
 
-    @mock.patch('nova_powervm.virt.powervm.nvram.manager.NvramManager')
-    @mock.patch('oslo_utils.importutils.import_object')
-    @mock.patch('nova.utils.spawn')
+    @mock.patch('nova_powervm.virt.powervm.nvram.manager.NvramManager',
+                autospec=True)
+    @mock.patch('oslo_utils.importutils.import_object', autospec=True)
+    @mock.patch('nova.utils.spawn', autospec=True)
     def test_setup_rebuild_store(self, mock_spawn, mock_import, mock_mgr):
         self.flags(nvram_store='NoNe', group='powervm')
         self.drv._setup_rebuild_store()
@@ -245,8 +248,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.assertTrue(mock_spawn.called)
         self.assertIsNotNone(self.drv.store_api)
 
-    @mock.patch.object(vm, 'get_lpars')
-    @mock.patch.object(vm, 'get_instance')
+    @mock.patch.object(vm, 'get_lpars', autospec=True)
+    @mock.patch.object(vm, 'get_instance', autospec=True)
     def test_nvram_host_startup(self, mock_get_inst, mock_get_lpars):
 
         mock_lpar_wrapper = mock.Mock()
@@ -263,9 +266,10 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.drv.nvram_mgr.store.assert_has_calls(
             [mock.call(powervm.TEST_INST1), mock.call(powervm.TEST_INST2)])
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
-    @mock.patch('nova_powervm.virt.powervm.vm._translate_vm_state')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm._translate_vm_state',
+                autospec=True)
     def test_get_info(self, mock_tx_state, mock_qp, mock_uuid):
         mock_tx_state.return_value = 'fake-state'
         self.assertEqual(hardware.InstanceInfo('fake-state'),
@@ -850,8 +854,9 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # (but maybe failed on another).
         self.assertTrue(self.vol_drv.disconnect_volume.called)
 
-    @mock.patch('nova.block_device.get_root_bdm')
-    @mock.patch('nova.virt.driver.block_device_info_get_mapping')
+    @mock.patch('nova.block_device.get_root_bdm', autospec=True)
+    @mock.patch('nova.virt.driver.block_device_info_get_mapping',
+                autospec=True)
     def test_is_booted_from_volume(self, mock_get_mapping, mock_get_root_bdm):
         block_device_info = self._fake_bdms()
         ret = self.drv._is_booted_from_volume(block_device_info)
@@ -908,8 +913,10 @@ class TestPowerVMDriver(test.NoDBTestCase):
                           pvm_const.XAG.VIO_SMAP,
                           pvm_const.XAG.VIO_FMAP}, set(xag))
 
-    @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume')
-    @mock.patch('nova_powervm.virt.powervm.tasks.storage.SaveBDM')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.SaveBDM',
+                autospec=True)
     def test_add_vol_conn_task(self, mock_save_bdm, mock_conn_vol):
         bdm1, bdm2, vol_drv1, vol_drv2 = [mock.Mock()] * 4
         flow = mock.Mock()
@@ -930,7 +937,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
             mock.call('conn_vol1'), mock.call('save_bdm1'),
             mock.call('conn_vol2'), mock.call('save_bdm2')])
 
-    @mock.patch('nova_powervm.virt.powervm.tasks.storage.DisconnectVolume')
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.DisconnectVolume',
+                autospec=True)
     def test_add_vol_disconn_task(self, mock_disconn_vol):
         vol_drv1, vol_drv2 = [mock.Mock()] * 2
         flow = mock.Mock()
@@ -1151,8 +1159,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.assertFalse(self.drv.nvram_mgr.remove.called)
         self.assertFalse(mock_bld_slot_mgr.return_value.delete.called)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp', autospec=True)
     def test_destroy(self, mock_getqp, mock_getuuid):
         """Validates the basic PowerVM destroy."""
         # BDMs
@@ -1190,7 +1198,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
             'context', self.inst, block_device_info=mock_bdms,
             destroy_disks=True, shutdown=True, network_info=[])
 
-    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr', autospec=True)
     def test_attach_volume(self, mock_bld_slot_mgr):
         """Validates the basic PowerVM attach volume."""
         # BDMs
@@ -1209,8 +1217,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         mock_bld_slot_mgr.return_value.save.assert_called_once_with()
         self.assertTrue(mock_save.called)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.instance_exists')
-    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    @mock.patch('nova_powervm.virt.powervm.vm.instance_exists', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr', autospec=True)
     def test_detach_volume(self, mock_bld_slot_mgr, mock_inst_exists):
         """Validates the basic PowerVM detach volume."""
         # Mock that the instance exists for the first test, then not.
@@ -1291,7 +1299,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # Validate the rollbacks were called.
         self.assertEqual(2, self.vol_drv.connect_volume.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr', autospec=True)
     def test_migrate_disk_and_power_off(self, mock_bld_slot_mgr):
         """Validates the PowerVM driver migrate / resize operation."""
         # Set up the mocks to the migrate / resize operation.
@@ -1342,7 +1350,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
                              taskflow_fix.tasks_added[4].slot_mgr)
         self.san_lpar_name.assert_called_with('migrate_' + self.inst.name)
 
-    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr', autospec=True)
     def test_finish_migration(self, mock_bld_slot_mgr):
         mock_bdms = self._fake_bdms()
         mig = objects.Migration(**powervm.TEST_MIGRATION)
@@ -1430,9 +1438,9 @@ class TestPowerVMDriver(test.NoDBTestCase):
         mock_bld_slot_mgr.assert_not_called()
         self.san_lpar_name.assert_called_with('resize_' + self.inst.name)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
-    @mock.patch('nova_powervm.virt.powervm.vm.update')
-    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.update', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off', autospec=True)
     def test_finish_revert_migration(self, mock_off, mock_update, mock_on):
         """Validates that the finish revert migration works."""
         mock_instance = mock.Mock()
@@ -1446,9 +1454,9 @@ class TestPowerVMDriver(test.NoDBTestCase):
             self.apt, self.drv.host_wrapper, mock_instance)
         mock_on.assert_called_once_with(self.apt, mock_instance)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
-    @mock.patch('nova_powervm.virt.powervm.vm.update')
-    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.update', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off', autospec=True)
     def test_finish_revert_migration_no_power_on(self, mock_off, mock_update,
                                                  mock_on):
         """Validates that the finish revert migration works, no power_on."""
@@ -1462,10 +1470,10 @@ class TestPowerVMDriver(test.NoDBTestCase):
         mock_off.assert_called_once_with(self.apt, mock_instance)
         mock_update.assert_called_once_with(
             self.apt, self.drv.host_wrapper, mock_instance)
-        mock_on.assert_not_called()
+        self.assertEqual(0, mock_on.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
-    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on', autospec=True)
     def test_rescue(self, mock_pwron, mock_pwroff):
         """Validates the PowerVM driver rescue operation."""
         with mock.patch.object(self.drv, 'disk_dvr') as mock_disk_dvr:
@@ -1481,8 +1489,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.assertEqual('PowerOn(bootmode=sms)',
                          str(mock_pwron.call_args[1]['opts']))
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
-    @mock.patch('nova_powervm.virt.powervm.vm.power_on')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.power_on', autospec=True)
     def test_unrescue(self, mock_pwron, mock_pwroff):
         """Validates the PowerVM driver rescue operation."""
         with mock.patch.object(self.drv, 'disk_dvr') as mock_disk_dvr:
@@ -1495,7 +1503,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.assertTrue(mock_disk_dvr.delete_disks.called)
         mock_pwron.assert_called_once_with(self.apt, self.inst, opts=None)
 
-    @mock.patch('nova_powervm.virt.powervm.driver.LOG')
+    @mock.patch('nova_powervm.virt.powervm.driver.LOG', autospec=True)
     def test_log_op(self, mock_log):
         """Validates the log_operations."""
         self.drv._log_operation('fake_op', self.inst)
@@ -1567,7 +1575,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         mock_bld_slot_mgr.return_value.save.assert_called_once_with()
         self.assertEqual(0, mock_plug_rmc_vif.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get', autospec=True)
     def test_plug_vif_failures(self, mock_vm):
         # Test instance not found handling
         mock_vm.execute.side_effect = exc.InstanceNotFound(
@@ -1584,10 +1592,11 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.assertRaises(exc.VirtualInterfacePlugException,
                           self.drv.plug_vifs, self.inst, {})
 
-    @mock.patch('nova_powervm.virt.powervm.vif.unplug')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
-    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr')
+    @mock.patch('nova_powervm.virt.powervm.vif.unplug', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr', autospec=True)
     def test_unplug_vifs(self, mock_bld_slot_mgr, mock_wrap, mock_vm_get,
                          mock_unplug_vif):
         # Mock up the CNA response
@@ -1623,7 +1632,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
                        cna_w_list=cnas) for net_inf in net_info])
         mock_bld_slot_mgr.return_value.save.assert_called_once_with()
 
-    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get.execute')
+    @mock.patch('nova_powervm.virt.powervm.tasks.vm.Get.execute',
+                autospec=True)
     def test_unplug_vif_failures(self, mock_vm):
         # Test instance not found handling
         mock_vm.side_effect = exc.InstanceNotFound(
@@ -1633,7 +1643,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.drv.unplug_vifs(self.inst, {})
         self.assertEqual(1, mock_vm.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
     def test_unplug_vif_failures_httperror(self, mock_wrap):
         # Test instance not found handling
         mock_wrap.side_effect = exc.InstanceNotFound(
@@ -1655,8 +1666,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
     def test_get_host_ip_addr(self):
         self.assertEqual(self.drv.get_host_ip_addr(), '127.0.0.1')
 
-    @mock.patch('nova.virt.powervm_ext.driver.LOG.warning')
-    @mock.patch('nova.compute.utils.get_machine_ips')
+    @mock.patch('nova.virt.powervm_ext.driver.LOG.warning', autospec=True)
+    @mock.patch('nova.compute.utils.get_machine_ips', autospec=True)
     def test_get_host_ip_addr_failure(self, mock_ips, mock_log):
         mock_ips.return_value = ['1.1.1.1']
         self.drv.get_host_ip_addr()
@@ -1679,7 +1690,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.assertTrue(
             self.drv.disk_dvr.check_instance_shared_storage_cleanup.called)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.reboot')
+    @mock.patch('nova_powervm.virt.powervm.vm.reboot', autospec=True)
     def test_reboot(self, mock_reboot):
         inst = mock.Mock()
         self.drv.reboot('context', inst, 'network_info', 'SOFT')
@@ -1758,7 +1769,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
                           self.drv.snapshot, 'context', self.inst, 'image_id',
                           'update_task_state')
 
-    @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationDest')
+    @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationDest',
+                autospec=True)
     def test_can_migrate_dest(self, mock_lpm):
         mock_lpm.return_value.check_destination.return_value = 'dest_data'
         dest_data = self.drv.check_can_live_migrate_destination(
@@ -1769,7 +1781,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.drv.cleanup_live_migration_destination_check(
             'context', 'dest_data')
 
-    @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationSrc')
+    @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationSrc',
+                autospec=True)
     def test_can_live_mig_src(self, mock_lpm):
         mock_lpm.return_value.check_source.return_value = (
             'src_data')
@@ -1863,7 +1876,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.lpm.post_live_migration_at_source.assert_called_once_with(
             'network_info')
 
-    @mock.patch('nova_powervm.virt.powervm.vm.power_off')
+    @mock.patch('nova_powervm.virt.powervm.vm.power_off', autospec=True)
     def test_power_off(self, mock_power_off):
         self.drv.power_off(self.inst)
         mock_power_off.assert_called_once_with(
@@ -1884,7 +1897,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
             'context', self.lpm_inst, block_device_info=None,
             destroy_disks=False, shutdown=False)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.rename')
+    @mock.patch('nova_powervm.virt.powervm.vm.rename', autospec=True)
     def test_confirm_migration_same_host(self, mock_rename):
         mock_mig = mock.Mock(source_compute='host1', dest_compute='host1')
         self.drv.confirm_migration('context', mock_mig, self.lpm_inst,
@@ -1898,7 +1911,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.lpm.post_live_migration_at_destination.assert_called_once_with(
             'network_info', [])
 
-    @mock.patch('pypowervm.tasks.memory.calculate_memory_overhead_on_host')
+    @mock.patch('pypowervm.tasks.memory.calculate_memory_overhead_on_host',
+                autospec=True)
     def test_estimate_instance_overhead(self, mock_calc_over):
         mock_calc_over.return_value = ('2048', '96')
 
@@ -1911,7 +1925,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         mock_calc_over.reset_mock()
         overhead = self.drv.estimate_instance_overhead(inst_info)
         self.assertEqual({'memory_mb': '2048'}, overhead)
-        mock_calc_over.assert_not_called()
+        self.assertEqual(0, mock_calc_over.call_count)
 
         # Reset the cache every time from now on
         self.drv._inst_overhead_cache = {}
@@ -1988,7 +2002,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         candeallocate = self.drv.deallocate_networks_on_reschedule(mock.Mock())
         self.assertTrue(candeallocate)
 
-    @mock.patch('pypowervm.tasks.cna.find_orphaned_trunks')
+    @mock.patch('pypowervm.tasks.cna.find_orphaned_trunks', autospec=True)
     def test_cleanup_orphan_adapters(self, mock_find_orphans):
         mock_orphan = mock.MagicMock()
         mock_find_orphans.return_value = [mock_orphan]

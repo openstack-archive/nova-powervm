@@ -68,10 +68,13 @@ class TestLPM(test.NoDBTestCase):
         # Short path to the host's migration_data
         self.host_mig_data = self.drv.host_wrapper.migration_data
 
-    @mock.patch('pypowervm.tasks.storage.ScrubOrphanStorageForLpar')
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
-    @mock.patch('pypowervm.tasks.vterm.close_vterm')
+    @mock.patch('pypowervm.tasks.storage.ScrubOrphanStorageForLpar',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
+    @mock.patch('pypowervm.tasks.vterm.close_vterm', autospec=True)
     def test_lpm_source(self, mock_vterm_close, mock_get_wrap,
                         mock_cd, mock_scrub):
         self.host_mig_data['active_migrations_supported'] = 4
@@ -152,9 +155,9 @@ class TestLPM(test.NoDBTestCase):
                               self.lpmdst.check_destination, 'context',
                               src_compute_info, dst_compute_info)
 
-    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub')
+    @mock.patch('pypowervm.tasks.storage.ComprehensiveScrub', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vif.'
-                'pre_live_migrate_at_destination')
+                'pre_live_migrate_at_destination', autospec=True)
     def test_pre_live_mig(self, mock_vif_pre, mock_scrub):
         vol_drv = mock.MagicMock()
         network_infos = [{'type': 'pvm_sea'}]
@@ -210,10 +213,11 @@ class TestLPM(test.NoDBTestCase):
         # Ensure the volume driver was called to clean up the volume.
         vol_drv.cleanup_volume_at_destination.assert_called_once()
 
-    @mock.patch('pypowervm.tasks.migration.migrate_lpar')
+    @mock.patch('pypowervm.tasks.migration.migrate_lpar', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.live_migration.LiveMigrationSrc.'
-                '_convert_nl_io_mappings')
-    @mock.patch('nova_powervm.virt.powervm.vif.pre_live_migrate_at_source')
+                '_convert_nl_io_mappings', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vif.pre_live_migrate_at_source',
+                autospec=True)
     def test_live_migration(self, mock_vif_pre_lpm, mock_convert_mappings,
                             mock_migr):
         mock_trunk = mock.MagicMock()
@@ -254,7 +258,7 @@ class TestLPM(test.NoDBTestCase):
             set(expected),
             set(self.lpmsrc._convert_nl_io_mappings(test_mappings)))
 
-    @mock.patch('pypowervm.tasks.migration.migrate_recover')
+    @mock.patch('pypowervm.tasks.migration.migrate_recover', autospec=True)
     def test_rollback(self, mock_migr):
         self.lpmsrc.lpar_w = mock.Mock()
 
@@ -289,19 +293,21 @@ class TestLPM(test.NoDBTestCase):
         self.assertRaises(exception.MigrationPreCheckError,
                           self.lpmsrc._check_migration_ready, lpar_w, host_w)
 
-    @mock.patch('pypowervm.tasks.migration.migrate_abort')
+    @mock.patch('pypowervm.tasks.migration.migrate_abort', autospec=True)
     def test_migration_abort(self, mock_mig_abort):
         self.lpmsrc.lpar_w = mock.Mock()
         self.lpmsrc.migration_abort()
-        mock_mig_abort.called_once_with(self.lpmsrc.lpar_w)
+        mock_mig_abort.assert_called_once_with(self.lpmsrc.lpar_w)
 
-    @mock.patch('pypowervm.tasks.migration.migrate_recover')
+    @mock.patch('pypowervm.tasks.migration.migrate_recover', autospec=True)
     def test_migration_recover(self, mock_mig_recover):
         self.lpmsrc.lpar_w = mock.Mock()
         self.lpmsrc.migration_recover()
-        mock_mig_recover.called_once_with(self.lpmsrc.lpar_w, force=True)
+        mock_mig_recover.assert_called_once_with(
+            self.lpmsrc.lpar_w, force=True)
 
-    @mock.patch('nova_powervm.virt.powervm.vif.post_live_migrate_at_source')
+    @mock.patch('nova_powervm.virt.powervm.vif.post_live_migrate_at_source',
+                autospec=True)
     def test_post_live_migration_at_source(self, mock_vif_post_lpm_at_source):
         network_infos = [{'devname': 'tap-dev1', 'address': 'mac-addr1',
                           'network': {'bridge': 'br-int'}, 'id': 'vif_id_1'},

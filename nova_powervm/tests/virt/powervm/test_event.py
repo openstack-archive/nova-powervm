@@ -25,16 +25,16 @@ from nova_powervm.virt.powervm import event
 
 
 class TestGetInstance(test.NoDBTestCase):
-    @mock.patch('nova.context.get_admin_context')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_instance')
+    @mock.patch('nova.context.get_admin_context', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance', autospec=True)
     def test_get_instance(self, mock_get_inst, mock_get_context):
         # If instance provided, vm.get_instance not called
         self.assertEqual('inst', event._get_instance('inst', 'uuid'))
-        mock_get_inst.assert_not_called()
+        self.assertEqual(0, mock_get_inst.call_count)
         # Note that we can only guarantee get_admin_context wasn't called
         # because _get_instance is mocked everywhere else in this suite.
         # Otherwise it could run from another test case executing in parallel.
-        mock_get_context.assert_not_called()
+        self.assertEqual(0, mock_get_context.call_count)
 
         # If instance not provided, vm.get_instance is called
         mock_get_inst.return_value = 'inst2'
@@ -59,7 +59,7 @@ class TestPowerVMNovaEventHandler(test.NoDBTestCase):
         self.mock_driver = mock.Mock()
         self.handler = event.PowerVMNovaEventHandler(self.mock_driver)
 
-    @mock.patch('nova_powervm.virt.powervm.event._get_instance')
+    @mock.patch('nova_powervm.virt.powervm.event._get_instance', autospec=True)
     def test_get_inst_uuid(self, mock_get_instance):
         fake_inst1 = mock.Mock(uuid='uuid1')
         fake_inst2 = mock.Mock(uuid='uuid2')
@@ -86,14 +86,14 @@ class TestPowerVMNovaEventHandler(test.NoDBTestCase):
             [mock.call(fake_inst1, 'fake_pvm_uuid1'),
              mock.call(fake_inst2, 'fake_pvm_uuid2')])
 
-    @mock.patch('nova_powervm.virt.powervm.event._get_instance')
+    @mock.patch('nova_powervm.virt.powervm.event._get_instance', autospec=True)
     def test_handle_inst_event(self, mock_get_instance):
         # If no event we care about, or NVRAM but no nvram_mgr, nothing happens
         self.mock_driver.nvram_mgr = None
         for dets in ([], ['foo', 'bar', 'baz'], ['NVRAM']):
             self.assertEqual('inst', self.handler._handle_inst_event(
                 'inst', 'uuid', dets))
-        mock_get_instance.assert_not_called()
+        self.assertEqual(0, mock_get_instance.call_count)
         self.mock_lceh_process.assert_not_called()
 
         self.mock_driver.nvram_mgr = mock.Mock()
@@ -101,7 +101,7 @@ class TestPowerVMNovaEventHandler(test.NoDBTestCase):
         # PartitionState only: no NVRAM handling, and inst is passed through.
         self.assertEqual('inst', self.handler._handle_inst_event(
             'inst', 'uuid', ['foo', 'PartitionState', 'bar']))
-        mock_get_instance.assert_not_called()
+        self.assertEqual(0, mock_get_instance.call_count)
         self.mock_driver.nvram_mgr.store.assert_not_called()
         self.mock_lceh_process.assert_called_once_with('inst', 'uuid')
 
@@ -218,7 +218,7 @@ class TestPowerVMNovaEventHandler(test.NoDBTestCase):
              # inst1 pulled from the cache based on uuid1
              mock.call('inst1', 'uuid1', ['blah', 'PartitionState'])])
 
-    @mock.patch('nova_powervm.virt.powervm.event._get_instance')
+    @mock.patch('nova_powervm.virt.powervm.event._get_instance', autospec=True)
     @mock.patch('pypowervm.util.get_req_path_uuid', autospec=True)
     def test_uuid_cache(self, mock_get_rpu, mock_get_instance):
         deluri = pvm_evt.EventType.DELETE_URI
@@ -268,7 +268,7 @@ class TestPowerVMNovaEventHandler(test.NoDBTestCase):
 
         # Make sure a delete to a non-cached UUID doesn't blow up
         self.handler.process([events[7]])
-        mock_get_instance.assert_not_called()
+        self.assertEqual(0, mock_get_instance.call_count)
 
         mock_get_rpu.reset_mock()
         mock_get_instance.reset_mock()
@@ -279,7 +279,7 @@ class TestPowerVMNovaEventHandler(test.NoDBTestCase):
         self.handler.process(clear_events)
         self.assertEqual(dict(), self.handler._uuid_cache)
         self.assertEqual(0, mock_get_rpu.call_count)
-        mock_get_instance.assert_not_called()
+        self.assertEqual(0, mock_get_instance.call_count)
 
 
 class TestPowerVMLifecycleEventHandler(test.NoDBTestCase):
@@ -288,10 +288,10 @@ class TestPowerVMLifecycleEventHandler(test.NoDBTestCase):
         self.mock_driver = mock.MagicMock()
         self.handler = event.PowerVMLifecycleEventHandler(self.mock_driver)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
-    @mock.patch('nova_powervm.virt.powervm.event._get_instance')
-    @mock.patch('nova_powervm.virt.powervm.vm.translate_event')
-    @mock.patch('nova.virt.event.LifecycleEvent')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.event._get_instance', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.translate_event', autospec=True)
+    @mock.patch('nova.virt.event.LifecycleEvent', autospec=True)
     def test_emit_event(self, mock_lce, mock_tx_evt, mock_get_inst, mock_qp):
         def assert_qp():
             mock_qp.assert_called_once_with(
@@ -306,9 +306,9 @@ class TestPowerVMLifecycleEventHandler(test.NoDBTestCase):
         mock_qp.side_effect = exception.InstanceNotFound(instance_id='uuid')
         self.handler._emit_event('uuid', None)
         assert_qp()
-        mock_get_inst.assert_not_called()
-        mock_tx_evt.assert_not_called()
-        mock_lce.assert_not_called()
+        self.assertEqual(0, mock_get_inst.call_count)
+        self.assertEqual(0, mock_tx_evt.call_count)
+        self.assertEqual(0, mock_lce.call_count)
         self.mock_driver.emit_event.assert_not_called()
 
         # Let get_vm_qp return its usual mock from now on
@@ -319,8 +319,8 @@ class TestPowerVMLifecycleEventHandler(test.NoDBTestCase):
         self.handler._emit_event('uuid', 'inst')
         assert_qp()
         assert_get_inst()
-        mock_tx_evt.assert_not_called()
-        mock_lce.assert_not_called()
+        self.assertEqual(0, mock_tx_evt.call_count)
+        self.assertEqual(0, mock_lce.call_count)
         self.mock_driver.emit_event.assert_not_called()
 
         # Ignore if task_state isn't one we care about
@@ -329,8 +329,8 @@ class TestPowerVMLifecycleEventHandler(test.NoDBTestCase):
             self.handler._emit_event('uuid', 'inst')
             assert_qp()
             assert_get_inst()
-            mock_tx_evt.assert_not_called()
-            mock_lce.assert_not_called()
+            self.assertEqual(0, mock_tx_evt.call_count)
+            self.assertEqual(0, mock_lce.call_count)
             self.mock_driver.emit_event.assert_not_called()
 
         # Task state we care about from now on
@@ -366,7 +366,7 @@ class TestPowerVMLifecycleEventHandler(test.NoDBTestCase):
         self.assertEqual({'uuid2': 'thread2'},
                          self.handler._delayed_event_threads)
 
-    @mock.patch('eventlet.greenthread.spawn_after')
+    @mock.patch('eventlet.greenthread.spawn_after', autospec=True)
     def test_process(self, mock_spawn):
         thread1 = mock.Mock()
         thread2 = mock.Mock()

@@ -39,8 +39,9 @@ class TestConfigDrivePowerVM(test.NoDBTestCase):
             'pypowervm.tasks.vopt.validate_vopt_repo_exists')).mock
         self.validate_vopt.return_value = None, None
 
-    @mock.patch('nova.api.metadata.base.InstanceMetadata')
-    @mock.patch('nova.virt.configdrive.ConfigDriveBuilder.make_drive')
+    @mock.patch('nova.api.metadata.base.InstanceMetadata', autospec=True)
+    @mock.patch('nova.virt.configdrive.ConfigDriveBuilder.make_drive',
+                autospec=True)
     def test_crt_cfg_dr_iso(self, mock_mkdrv, mock_meta):
         """Validates that the image creation method works."""
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
@@ -77,11 +78,11 @@ class TestConfigDrivePowerVM(test.NoDBTestCase):
         self.assertEqual(mock_mkdrv.call_count, 2)
 
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_create_cfg_dr_iso')
-    @mock.patch('os.path.getsize')
-    @mock.patch('os.remove')
+                '_create_cfg_dr_iso', autospec=True)
+    @mock.patch('os.path.getsize', autospec=True)
+    @mock.patch('os.remove', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_upload_vopt')
+                '_upload_vopt', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_attach_vopt')
     def test_crt_cfg_drv_vopt(self, mock_attach, mock_upld, mock_rm, mock_size,
@@ -100,9 +101,10 @@ class TestConfigDrivePowerVM(test.NoDBTestCase):
         mock_attach.assert_called_with(mock.ANY, 'fake_lpar', mock.ANY, None)
         self.assertTrue(self.validate_vopt.called)
 
-    @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
-    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
-    @mock.patch('pypowervm.utils.transaction.WrapperTask')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping',
+                autospec=True)
+    @mock.patch('pypowervm.utils.transaction.WrapperTask', autospec=True)
     def test_attach_vopt(self, mock_class_wrapper_task, mock_build_map,
                          mock_add_map):
         # Create objects to test with
@@ -208,17 +210,18 @@ class TestConfigDrivePowerVM(test.NoDBTestCase):
         mock_add_dlt_vopt_tasks.assert_not_called()
         self.assertTrue(mock_feed_task.execute.called)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id',
-                new=mock.MagicMock(return_value='2'))
-    @mock.patch('pypowervm.tasks.scsi_mapper.gen_match_func')
-    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps')
-    def test_add_dlt_vopt_tasks(self, mock_find_maps, mock_gen_match_func):
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.gen_match_func', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.find_maps', autospec=True)
+    def test_add_dlt_vopt_tasks(self, mock_find_maps, mock_gen_match_func,
+                                mock_vm_id):
         # Init objects to test with
         cfg_dr = m.ConfigDrivePowerVM(self.apt)
         stg_ftsk = mock.MagicMock()
         cfg_dr.vios_uuid = 'vios_uuid'
         lpar_uuid = 'lpar_uuid'
         mock_find_maps.return_value = [mock.Mock(backing_storage='stor')]
+        mock_vm_id.return_value = '2'
 
         # Run
         cfg_dr.add_dlt_vopt_tasks(lpar_uuid, stg_ftsk)

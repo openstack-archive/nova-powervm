@@ -29,9 +29,9 @@ else:
 
 class TestImage(test.NoDBTestCase):
 
-    @mock.patch('nova.utils.temporary_chown')
-    @mock.patch(_BUILTIN + '.open')
-    @mock.patch('nova.image.api.API')
+    @mock.patch('nova.utils.temporary_chown', autospec=True)
+    @mock.patch(_BUILTIN + '.open', autospec=True)
+    @mock.patch('nova.image.api.API', autospec=True)
     def test_stream_blockdev_to_glance(self, mock_api, mock_open, mock_chown):
         mock_open.return_value.__enter__.return_value = 'mock_stream'
         image.stream_blockdev_to_glance('context', mock_api, 'image_id',
@@ -41,7 +41,7 @@ class TestImage(test.NoDBTestCase):
         mock_api.update.assert_called_with('context', 'image_id', 'metadata',
                                            'mock_stream')
 
-    @mock.patch('nova.image.api.API')
+    @mock.patch('nova.image.api.API', autospec=True)
     def test_snapshot_metadata(self, mock_api):
         mock_api.get.return_value = {'name': 'image_name'}
         mock_instance = mock.Mock()

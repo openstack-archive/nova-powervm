@@ -39,7 +39,7 @@ class TestMgmt(test.NoDBTestCase):
 
         self.resp = lpar_http.response
 
-    @mock.patch('pypowervm.tasks.partition.get_this_partition')
+    @mock.patch('pypowervm.tasks.partition.get_this_partition', autospec=True)
     def test_mgmt_uuid(self, mock_get_partition):
         mock_get_partition.return_value = mock.Mock(uuid='mock_mgmt')
         adpt = mock.Mock()
@@ -51,11 +51,11 @@ class TestMgmt(test.NoDBTestCase):
         # But a subsequent call should effectively no-op
         mock_get_partition.reset_mock()
         self.assertEqual('mock_mgmt', mgmt.mgmt_uuid(adpt))
-        mock_get_partition.assert_not_called()
+        self.assertEqual(0, mock_get_partition.call_count)
 
-    @mock.patch('glob.glob')
-    @mock.patch('nova.privsep.path.writefile')
-    @mock.patch('os.path.realpath')
+    @mock.patch('glob.glob', autospec=True)
+    @mock.patch('nova.privsep.path.writefile', autospec=True)
+    @mock.patch('os.path.realpath', autospec=True)
     def test_discover_vscsi_disk(self, mock_realpath, mock_dacw, mock_glob):
         scanpath = '/sys/bus/vio/devices/30000005/host*/scsi_host/host*/scan'
         udid = ('275b5d5f88fa5611e48be9000098be9400'
@@ -73,10 +73,11 @@ class TestMgmt(test.NoDBTestCase):
         mock_dacw.assert_called_with(scanpath, 'a', '- - -')
         mock_realpath.assert_called_with(devlink)
 
-    @mock.patch('retrying.retry')
-    @mock.patch('glob.glob')
-    @mock.patch('nova.privsep.path.writefile', new=mock.Mock())
-    def test_discover_vscsi_disk_not_one_result(self, mock_glob, mock_retry):
+    @mock.patch('retrying.retry', autospec=True)
+    @mock.patch('glob.glob', autospec=True)
+    @mock.patch('nova.privsep.path.writefile', autospec=True)
+    def test_discover_vscsi_disk_not_one_result(self, mock_write, mock_glob,
+                                                mock_retry):
         """Zero or more than one disk is found by discover_vscsi_disk."""
         def validate_retry(kwargs):
             self.assertIn('retry_on_result', kwargs)
@@ -116,10 +117,10 @@ class TestMgmt(test.NoDBTestCase):
         self.assertRaises(npvmex.UniqueDiskDiscoveryException,
                           mgmt.discover_vscsi_disk, mapping)
 
-    @mock.patch('time.sleep')
-    @mock.patch('os.path.realpath')
-    @mock.patch('os.stat')
-    @mock.patch('nova.privsep.path.writefile')
+    @mock.patch('time.sleep', autospec=True)
+    @mock.patch('os.path.realpath', autospec=True)
+    @mock.patch('os.stat', autospec=True)
+    @mock.patch('nova.privsep.path.writefile', autospec=True)
     def test_remove_block_dev(self, mock_dacw, mock_stat, mock_realpath,
                               mock_sleep):
         link = '/dev/link/foo'

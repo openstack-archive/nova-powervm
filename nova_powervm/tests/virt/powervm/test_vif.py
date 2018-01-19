@@ -59,8 +59,8 @@ class TestVifFunctions(test.NoDBTestCase):
             traits=pvm_fx.LocalPVMTraits)).adpt
         self.slot_mgr = mock.Mock()
 
-    @mock.patch('oslo_serialization.jsonutils.dumps')
-    @mock.patch('pypowervm.wrappers.event.Event')
+    @mock.patch('oslo_serialization.jsonutils.dumps', autospec=True)
+    @mock.patch('pypowervm.wrappers.event.Event', autospec=True)
     def test_push_vif_event(self, mock_event, mock_dumps):
         mock_vif = mock.Mock(mac='MAC', href='HREF')
         vif._push_vif_event(self.adpt, 'action', mock_vif, mock.Mock(),
@@ -87,8 +87,9 @@ class TestVifFunctions(test.NoDBTestCase):
                                                mock_dumps.return_value)
         mock_event.bld.return_value.create.assert_called_once_with()
 
-    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
-    @mock.patch('nova_powervm.virt.powervm.vif._push_vif_event')
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vif._push_vif_event', autospec=True)
     def test_plug(self, mock_event, mock_bld_drv):
         """Test the top-level plug method."""
         mock_vif = {'address': 'MAC', 'type': 'pvm_sea'}
@@ -129,11 +130,12 @@ class TestVifFunctions(test.NoDBTestCase):
         mock_bld_drv.return_value.plug.assert_called_once_with(mock_vif, 123,
                                                                new_vif=False)
         slot_mgr.register_vnet.assert_not_called()
-        mock_event.assert_not_called()
+        self.assertEqual(0, mock_event.call_count)
         self.assertIsNone(vnet)
 
-    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
-    @mock.patch('nova_powervm.virt.powervm.vif._push_vif_event')
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vif._push_vif_event', autospec=True)
     def test_unplug(self, mock_event, mock_bld_drv):
         """Test the top-level unplug method."""
         mock_vif = {'address': 'MAC', 'type': 'pvm_sea'}
@@ -166,9 +168,10 @@ class TestVifFunctions(test.NoDBTestCase):
             mock_vif, cna_w_list='cnalist')
         slot_mgr.drop_vnet.assert_not_called()
         # When unplug doesn't find a vif, we don't push an event
-        mock_event.assert_not_called()
+        self.assertEqual(0, mock_event.call_count)
 
-    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver',
+                autospec=True)
     def test_plug_raises(self, mock_vif_drv):
         """HttpError is converted to VirtualInterfacePlugException."""
         vif_drv = mock.Mock(plug=mock.Mock(side_effect=pvm_ex.HttpError(
@@ -205,8 +208,8 @@ class TestVifFunctions(test.NoDBTestCase):
             self.adpt, parent_type=pvm_ms.System.schema_type,
             parent_uuid='host_uuid', name=vif.SECURE_RMC_VSWITCH)
 
-    @mock.patch('pypowervm.tasks.cna.crt_cna')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.cna.crt_cna', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     def test_plug_secure_rmc_vif(self, mock_pvm_uuid, mock_crt):
         # Mock up the data
         mock_pvm_uuid.return_value = 'lpar_uuid'
@@ -226,8 +229,8 @@ class TestVifFunctions(test.NoDBTestCase):
         self.slot_mgr.register_cna.assert_called_once_with(
             mock_crt.return_value)
 
-    @mock.patch('pypowervm.tasks.cna.crt_cna')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.cna.crt_cna', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     def test_plug_secure_rmc_vif_with_slot(self, mock_pvm_uuid, mock_crt):
         # Mock up the data
         mock_pvm_uuid.return_value = 'lpar_uuid'
@@ -246,8 +249,8 @@ class TestVifFunctions(test.NoDBTestCase):
             crt_vswitch=True, slot_num=5, mac_addr='mac_addr')
         self.assertFalse(self.slot_mgr.called)
 
-    @mock.patch('pypowervm.tasks.cna.crt_cna')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.cna.crt_cna', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     def test_plug_secure_rmc_vif_for_rebuild(self, mock_pvm_uuid, mock_crt):
         # Mock up the data
         mock_pvm_uuid.return_value = 'lpar_uuid'
@@ -301,7 +304,8 @@ class TestVifFunctions(test.NoDBTestCase):
                           vif._build_vif_driver, self.adpt, 'host_uuid',
                           mock_inst, {'type': 'bad'})
 
-    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver',
+                autospec=True)
     def test_pre_live_migrate_at_source(self, mock_build_vif_drv):
         mock_drv = mock.MagicMock()
         mock_build_vif_drv.return_value = mock_drv
@@ -312,7 +316,8 @@ class TestVifFunctions(test.NoDBTestCase):
 
         mock_drv.pre_live_migrate_at_source.assert_called_once_with(mock_vif)
 
-    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver',
+                autospec=True)
     def test_rollback_live_migration_at_destination(self, mock_build_vif_drv):
         mock_build_vif_drv.return_value = mock_drv = mock.MagicMock()
         mock_vif, mappings = mock.MagicMock(), {}
@@ -324,7 +329,8 @@ class TestVifFunctions(test.NoDBTestCase):
         rb = mock_drv.rollback_live_migration_at_destination
         rb.assert_called_once_with(mock_vif, mappings)
 
-    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver',
+                autospec=True)
     def test_pre_live_migrate_at_destination(self, mock_build_vif_drv):
         mock_drv = mock.MagicMock()
         mock_build_vif_drv.return_value = mock_drv
@@ -336,7 +342,8 @@ class TestVifFunctions(test.NoDBTestCase):
         mock_drv.pre_live_migrate_at_destination.assert_called_once_with(
             mock_vif, {})
 
-    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver')
+    @mock.patch('nova_powervm.virt.powervm.vif._build_vif_driver',
+                autospec=True)
     def test_post_live_migrate_at_source(self, mock_build_vif_drv):
         mock_drv = mock.MagicMock()
         mock_build_vif_drv.return_value = mock_drv
@@ -383,8 +390,8 @@ class TestVifSriovDriver(test.NoDBTestCase):
                           self.drv.plug, FakeDirectVif('net2'), 1)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs', autospec=True)
     @mock.patch('pypowervm.wrappers.managed_system.System.get')
     def test_plug_no_physnet(self, mock_sysget, mock_back_devs, mock_pvm_uuid,
                              mock_vnic_bld):
@@ -408,8 +415,8 @@ class TestVifSriovDriver(test.NoDBTestCase):
             sys_w=sys)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs', autospec=True)
     @mock.patch('pypowervm.wrappers.managed_system.System.get')
     def test_plug_no_matching_pports(self, mock_sysget, mock_back_devs,
                                      mock_pvm_uuid, mock_vnic_bld):
@@ -431,8 +438,8 @@ class TestVifSriovDriver(test.NoDBTestCase):
                           FakeDirectVif('default'), slot)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs', autospec=True)
     @mock.patch('pypowervm.wrappers.managed_system.System.get')
     def test_plug_bad_pports(self, mock_sysget, mock_back_devs, mock_pvm_uuid,
                              mock_vnic_bld):
@@ -456,10 +463,10 @@ class TestVifSriovDriver(test.NoDBTestCase):
             sys_w=sys)
 
     @mock.patch('pypowervm.wrappers.managed_system.System.get')
-    @mock.patch('pypowervm.util.sanitize_mac_for_api')
+    @mock.patch('pypowervm.util.sanitize_mac_for_api', autospec=True)
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
-    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     def test_plug(self, mock_pvm_uuid, mock_back_devs, mock_vnic_bld,
                   mock_san_mac, mock_sysget):
         slot = 10
@@ -514,10 +521,10 @@ class TestVifSriovDriver(test.NoDBTestCase):
         mock_pvm_uuid.reset_mock()
         self.assertIsNone(self.drv.plug(
             FakeDirectVif('default'), slot, new_vif=False))
-        mock_san_mac.assert_not_called()
-        mock_vnic_bld.assert_not_called()
-        mock_back_devs.assert_not_called()
-        mock_pvm_uuid.assert_not_called()
+        self.assertEqual(0, mock_san_mac.call_count)
+        self.assertEqual(0, mock_vnic_bld.call_count)
+        self.assertEqual(0, mock_back_devs.call_count)
+        self.assertEqual(0, mock_pvm_uuid.call_count)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
@@ -584,8 +591,8 @@ class TestVifSriovDriver(test.NoDBTestCase):
                                                        cap=0.5, maxcap=0.4), 1)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.search')
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.util.sanitize_mac_for_api')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('pypowervm.util.sanitize_mac_for_api', autospec=True)
     def test_unplug(self, mock_san_mac, mock_pvm_uuid, mock_find):
         fvif = FakeDirectVif('default')
         self.assertEqual(mock_find.return_value, self.drv.unplug(fvif))
@@ -650,8 +657,8 @@ class TestVifSeaDriver(test.NoDBTestCase):
         self.inst = mock.MagicMock()
         self.drv = vif.PvmSeaVifDriver(self.adpt, 'host_uuid', self.inst)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.tasks.cna.crt_cna')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('pypowervm.tasks.cna.crt_cna', autospec=True)
     def test_plug(self, mock_crt_cna, mock_pvm_uuid):
         """Tests that a VIF can be created."""
 
@@ -678,8 +685,8 @@ class TestVifSeaDriver(test.NoDBTestCase):
         self.assertIsNotNone(resp)
         self.assertIsInstance(resp, pvm_net.CNA)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('pypowervm.tasks.cna.crt_cna')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
+    @mock.patch('pypowervm.tasks.cna.crt_cna', autospec=True)
     def test_plug_from_neutron(self, mock_crt_cna, mock_pvm_uuid):
         """Tests that a VIF can be created.  Mocks Neutron net"""
 
@@ -719,7 +726,7 @@ class TestVifSeaDriver(test.NoDBTestCase):
 
         self.assertIsNone(resp)
 
-    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_cnas', autospec=True)
     def test_unplug_vifs(self, mock_vm_get):
         """Tests that a delete of the vif can be done."""
         # Mock up the CNA response.  Two should already exist, the other
@@ -751,10 +758,11 @@ class TestVifOvsDriver(test.NoDBTestCase):
         self.inst = mock.MagicMock(uuid='inst_uuid')
         self.drv = vif.PvmOvsVifDriver(self.adpt, 'host_uuid', self.inst)
 
-    @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name')
+    @mock.patch('nova_powervm.virt.powervm.vif._get_trunk_dev_name',
+                autospec=True)
     @mock.patch('pypowervm.tasks.cna.crt_p2p_cna', autospec=True)
     @mock.patch('pypowervm.tasks.partition.get_mgmt_partition', autospec=True)
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     def test_plug(self, mock_pvm_uuid, mock_mgmt_lpar, mock_p2p_cna,
                   mock_trunk_dev_name):
         # Mock the data
@@ -852,7 +860,7 @@ class TestVifOvsDriver(test.NoDBTestCase):
     @mock.patch('pypowervm.tasks.cna.find_trunks', autospec=True)
     @mock.patch('pypowervm.wrappers.network.CNA', autospec=True)
     @mock.patch('pypowervm.util.sanitize_mac_for_api', autospec=True)
-    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     def test_pre_live_migrate_at_source(self, mock_pvm_uuid, mock_sanitize,
                                         mock_cna, mock_trunk_find):
         # Set up the mocks
