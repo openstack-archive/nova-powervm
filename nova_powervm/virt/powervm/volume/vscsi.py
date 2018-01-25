@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -21,7 +21,7 @@ from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm.volume import driver as v_driver
-from nova_powervm.virt.powervm.volume import volume as volume
+from nova_powervm.virt.powervm.volume import volume
 
 from pypowervm import const as pvm_const
 from pypowervm.tasks import hdisk
