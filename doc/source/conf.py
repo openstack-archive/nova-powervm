@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.abspath('../'))
 extensions = [
     'sphinx.ext.autodoc',
     'openstackdocstheme',
-    'ext.support_matrix'
+    'sphinx_feature_classification.support_matrix'
 ]
 
 # The suffix of source filenames.
