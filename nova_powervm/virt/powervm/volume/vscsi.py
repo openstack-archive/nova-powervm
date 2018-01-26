@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -162,6 +162,11 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
         status, device_name, udid = self._discover_volume_on_vios(
             vios_w, self.volume_id)
         return hdisk.good_discovery(status, device_name), udid
+
+    def extend_volume(self):
+        # The compute node does not need to take any additional steps for the
+        # client to see the extended volume.
+        pass
 
     def _discover_volume_on_vios(self, vios_w, volume_id):
         """Discovers an hdisk on a single vios for the volume.

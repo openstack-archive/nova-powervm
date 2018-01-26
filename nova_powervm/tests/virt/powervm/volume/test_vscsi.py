@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -289,6 +289,10 @@ class TestVSCSIAdapter(BaseVSCSITest):
         # Raise if multiple VIOSes required
         self.assertRaises(p_exc.VolumeAttachFailed,
                           self.vol_drv._validate_vios_on_connection, 1)
+
+    def test_extend_volume(self):
+        # Ensure the method is implemented
+        self.vol_drv.extend_volume()
 
     @mock.patch('pypowervm.tasks.hdisk.remove_hdisk')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid')
