@@ -1053,9 +1053,8 @@ class PowerVMDriver(driver.ComputeDriver):
         try:
             tf_base.run(flow, instance=instance)
         except exception.InstanceNotFound:
-            LOG.exception('VM was not found during unplug operation '
-                          'as it is already possibly deleted.',
-                          instance=instance)
+            LOG.warning('VM was not found during unplug operation as it is '
+                        'already possibly deleted.', instance=instance)
         except Exception:
             LOG.exception("PowerVM error trying to unplug vifs.",
                           instance=instance)
