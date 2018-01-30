@@ -102,10 +102,12 @@ class TestLocalDisk(test.NoDBTestCase):
         mock_get_image.reset_mock()
         exception = Exception
         mock_get_image.side_effect = exception
-        self.assertRaises(exception,
-                          self.get_ls(self.apt).create_disk_from_image,
-                          None, inst, powervm.TEST_IMAGE1)
+        with mock.patch('time.sleep', autospec=True) as mock_sleep:
+            self.assertRaises(exception,
+                              self.get_ls(self.apt).create_disk_from_image,
+                              None, inst, powervm.TEST_IMAGE1)
         self.assertEqual(mock_get_image.call_count, 4)
+        self.assertEqual(3, mock_sleep.call_count)
 
     @mock.patch('pypowervm.tasks.storage.upload_new_vdisk', autospec=True)
     @mock.patch('nova.image.api.API.download')
