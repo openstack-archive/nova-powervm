@@ -47,13 +47,22 @@ How to use the NovaLink DevStack plugins:
        Example config files for all-in-one, compute, and control nodes
        `can be found here. <https://github.com/openstack/nova-powervm/tree/master/devstack>`_
 
-       The nova-powervm project provides three different sample local.conf files as a
+       The nova-powervm project provides different sample local.conf files as a
        starting point for devstack.
 
-       * local.conf.aio
+       * local.conf.aio-sea-localdisk
 
           * Runs on the NovaLink VM of the PowerVM system
           * Provides a full 'all in one' devstack VM
+          * Uses Shared Ethernet Adapter networking (networking-powervm)
+          * Uses localdisk disk driver
+
+       * local.conf.aio-ovs-ssp
+
+          * Runs on the NovaLink VM of the PowerVM system
+          * Provides a full 'all in one' devstack VM
+          * Uses Open vSwitch networking (neutron)
+          * Uses Shared Storage Pool disk driver
 
        * local.conf.control
 

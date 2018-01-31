@@ -1,0 +1,63 @@
+[[local|localrc]]
+LOGFILE=/opt/stack/logs/stack.sh.log
+SCREEN_LOGDIR=~/screen_log/
+LOGDAYS=1
+LOG_COLOR=True
+DATA_DIR=/var/stack
+ADMIN_PASSWORD=admin
+MYSQL_PASSWORD=mysql
+RABBIT_PASSWORD=rabbit
+SERVICE_PASSWORD=admin
+SERVICE_TOKEN=service
+
+MULTI_HOST=0
+HOST_NAME=$(hostname)
+
+# Networking Configuration
+Q_PLUGIN=ml2
+Q_ML2_TENANT_NETWORK_TYPE=vlan
+Q_ML2_PLUGIN_TYPE_DRIVERS=vlan
+Q_USE_PROVIDERNET_FOR_PUBLIC=False
+ENABLE_TENANT_VLANS=True
+PHYSICAL_NETWORK=default
+TENANT_VLAN_RANGE=1000:2000
+Q_AGENT=pvm_sea
+NEUTRON_AGENT=pvm_sea
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=pvm_sea
+ML2_L3_PLUGIN=
+Q_USE_PROVIDER_NETWORKING=False
+NEUTRON_CREATE_INITIAL_NETWORKS=False
+NEUTRON_CORE_PLUGIN=ml2
+Q_PLUGIN_CONF_FILE=etc/neutron/plugins/ml2/ml2_conf.ini
+
+# Forces nova to use config drive
+FORCE_CONFIG_DRIVE=True
+
+# localdisk or ssp. localdisk requires VOL_GRP_NAME. Set to the
+# volume group that will host the volume groups. Must not be rootvg.
+DISK_DRIVER=localdisk
+VOL_GRP_NAME=devstackvg
+
+# TODO: The default version for etcd3 is 3.1.7. Power is not supported for this version.
+# Using a 3.2.0 RC until 3.2.0 is released at which point this can be removed.
+ETCD_VERSION=v3.2.0-rc.1
+ETCD_SHA256="c2d846326586afe169e6ca81266815196d6c14bc023f9c7d0c9d622f3c14505c"
+
+# Enable plugins
+enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git
+enable_plugin ceilometer-powervm https://git.openstack.org/openstack/ceilometer-powervm.git
+enable_plugin nova-powervm https://git.openstack.org/openstack/nova-powervm.git
+enable_plugin networking-powervm https://git.openstack.org/openstack/networking-powervm.git
+enable_plugin neutron git://git.openstack.org/openstack/neutron
+
+# Enable services
+enable_service n-novnc neutron neutron-api pvm-q-sea-agt
+disable_service cinder n-net neutron-metering neutron-l3 neutron-dhcp neutron-agent
+
+[[post-config|/$Q_PLUGIN_CONF_FILE]]
+[ml2_type_vlan]
+network_vlan_ranges=default:1:4094
+
+[ml2]
+tenant_network_types=vlan
+extension_drivers=port_security
