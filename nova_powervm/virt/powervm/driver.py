@@ -96,7 +96,10 @@ class PowerVMDriver(driver.ComputeDriver):
         "supports_migrate_to_same_host": False,
         "supports_attach_interface": True,
         "supports_device_tagging": False,
-        "supports_extend_volume": True
+        "supports_tagged_attach_interface": False,
+        "supports_tagged_attach_volume": False,
+        "supports_extend_volume": True,
+        "supports_multiattach": False,
     }
 
     def __init__(self, virtapi):
