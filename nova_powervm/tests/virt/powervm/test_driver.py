@@ -28,10 +28,10 @@ from nova import objects
 from nova.objects import base as obj_base
 from nova.objects import block_device as bdmobj
 from nova import test
-from nova.tests.unit import fake_instance
 from nova.virt import block_device as nova_virt_bdm
 from nova.virt import driver as virt_driver
 from nova.virt import fake
+from nova.virt import hardware
 from pypowervm import adapter as pvm_adp
 from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
@@ -232,29 +232,28 @@ class TestPowerVMDriver(test.NoDBTestCase):
             [mock.call(powervm.TEST_INST1), mock.call(powervm.TEST_INST2)])
 
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
-    @mock.patch('nova.context.get_admin_context')
-    def test_driver_ops(self, mock_get_ctx, mock_getuuid):
-        """Validates the PowerVM driver operations."""
-        # get_info()
-        inst = fake_instance.fake_instance_obj(mock.sentinel.ctx)
-        mock_getuuid.return_value = '1234'
-        info = self.drv.get_info(inst)
-        self.assertEqual(info.id, '1234')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_qp')
+    @mock.patch('nova_powervm.virt.powervm.vm._translate_vm_state')
+    def test_get_info(self, mock_tx_state, mock_qp, mock_uuid):
+        mock_tx_state.return_value = 'fake-state'
+        self.assertEqual(hardware.InstanceInfo('fake-state'),
+                         self.drv.get_info('inst'))
+        mock_uuid.assert_called_once_with('inst')
+        mock_qp.assert_called_once_with(
+            self.drv.adapter, mock_uuid.return_value, 'PartitionState')
+        mock_tx_state.assert_called_once_with(mock_qp.return_value)
 
-        # list_instances()
-        tgt_mock = 'nova_powervm.virt.powervm.vm.get_lpar_names'
-        with mock.patch(tgt_mock) as mock_get_list:
-            fake_lpar_list = ['1', '2']
-            mock_get_list.return_value = fake_lpar_list
-            inst_list = self.drv.list_instances()
-            self.assertEqual(fake_lpar_list, inst_list)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_lpar_names')
+    def test_list_instances(self, mock_names):
+        mock_names.return_value = ['one', 'two', 'three']
+        self.assertEqual(['one', 'two', 'three'], self.drv.list_instances())
+        mock_names.assert_called_once_with(self.drv.adapter)
 
-        # instance_exists()
-        tgt_mock = 'nova_powervm.virt.powervm.vm.instance_exists'
-        with mock.patch(tgt_mock) as mock_inst_exists:
-            mock_inst_exists.side_effect = [True, False]
-            self.assertTrue(self.drv.instance_exists(mock.Mock()))
-            self.assertFalse(self.drv.instance_exists(mock.Mock()))
+    @mock.patch('nova_powervm.virt.powervm.vm.instance_exists')
+    def test_instance_exists(self, mock_inst_exists):
+        mock_inst_exists.side_effect = [True, False]
+        self.assertTrue(self.drv.instance_exists(mock.Mock()))
+        self.assertFalse(self.drv.instance_exists(mock.Mock()))
 
     def test_instance_on_disk(self):
         """Validates the instance_on_disk method."""

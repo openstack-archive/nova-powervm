@@ -343,36 +343,6 @@ class TestVM(test.NoDBTestCase):
         self.assertEqual(power_state.CRASHED,
                          vm._translate_vm_state('error'))
 
-    def test_instance_info(self):
-        inst_info = vm.InstanceInfo(self.apt, 'inst_name', '1234')
-        # Test the static properties
-        self.assertEqual(inst_info.id, '1234')
-        self.assertEqual(inst_info.cpu_time_ns, 0)
-
-        # Check that we raise an exception if the instance is gone.
-        self.apt.read.side_effect = pvm_exc.HttpNotFound(
-            mock.MagicMock(status=404))
-        self.assertRaises(exception.InstanceNotFound,
-                          inst_info.__getattribute__, 'state')
-
-        # Reset the test inst_info
-        inst_info = vm.InstanceInfo(self.apt, 'inst_name', '1234')
-
-        class FakeResp2(object):
-            def __init__(self, body):
-                self.body = '"%s"' % body
-
-        self.apt.read.side_effect = None
-        self.apt.read.return_value = FakeResp2('running')
-        self.assertEqual(inst_info.state, power_state.RUNNING)
-
-        # Check the __eq__ method
-        inst_info1 = vm.InstanceInfo(self.apt, 'inst_name', '1234')
-        inst_info2 = vm.InstanceInfo(self.apt, 'inst_name', '1234')
-        self.assertEqual(inst_info1, inst_info2)
-        inst_info2 = vm.InstanceInfo(self.apt, 'name', '4321')
-        self.assertNotEqual(inst_info1, inst_info2)
-
     def test_get_lpars(self):
         self.apt.read.return_value = self.resp
         lpars = vm.get_lpars(self.apt)

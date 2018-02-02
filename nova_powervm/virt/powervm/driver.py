@@ -227,19 +227,12 @@ class PowerVMDriver(driver.ComputeDriver):
                   'name': instance.name}, instance=instance)
 
     def get_info(self, instance):
-        """Get the current status of an instance, by name (not ID!)
+        """Get the current status of an instance.
 
-        Returns a dict containing:
-
-        :state:           the running state, one of the power_state codes
-        :max_mem:         (int) the maximum memory in KBytes allowed
-        :mem:             (int) the memory in KBytes used by the domain
-        :num_cpu:         (int) the number of virtual CPUs for the domain
-        :cpu_time:        (int) the CPU time used in nanoseconds
+        :param instance: nova.objects.instance.Instance object
+        :returns: An InstanceInfo object
         """
-        info = vm.InstanceInfo(self.adapter, instance.name,
-                               vm.get_pvm_uuid(instance))
-        return info
+        return vm.get_vm_info(self.adapter, instance)
 
     def instance_exists(self, instance):
         """Checks existence of an instance on the host.

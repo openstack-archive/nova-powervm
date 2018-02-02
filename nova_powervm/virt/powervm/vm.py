@@ -563,6 +563,19 @@ def get_vm_qp(adapter, lpar_uuid, qprop=None, log_errors=True):
     return jsonutils.loads(resp.body)
 
 
+def get_vm_info(adapter, instance):
+    """Get the InstanceInfo for an instance.
+
+    :param adapter: The pypowervm.adapter.Adapter for the PowerVM REST API.
+    :param instance: nova.objects.instance.Instance object
+    :returns: An InstanceInfo object.
+    """
+    pvm_uuid = get_pvm_uuid(instance)
+    pvm_state = get_vm_qp(adapter, pvm_uuid, 'PartitionState')
+    nova_state = _translate_vm_state(pvm_state)
+    return hardware.InstanceInfo(nova_state)
+
+
 def create_lpar(adapter, host_wrapper, instance, nvram=None, slot_mgr=None):
     """Create an LPAR based on the host based on the instance
 
