@@ -1,4 +1,4 @@
-# Copyright 2016, 2017 IBM Corp.
+# Copyright 2016, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -380,7 +380,7 @@ class TestVifSriovDriver(test.NoDBTestCase):
         sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
         mock_sysget.return_value = [sys]
         self.assertRaises(exception.VirtualInterfacePlugException,
-                          self.drv.plug, FakeDirectVif('net2', pports=[]), 1)
+                          self.drv.plug, FakeDirectVif('net2'), 1)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
@@ -389,7 +389,6 @@ class TestVifSriovDriver(test.NoDBTestCase):
     def test_plug_no_physnet(self, mock_sysget, mock_back_devs, mock_pvm_uuid,
                              mock_vnic_bld):
         slot = 10
-        pports = ['port1', 'port2']
         sriov_adaps = [
             mock.Mock(phys_ports=[
                 mock.Mock(loc_code='port11', label='default'),
@@ -400,12 +399,12 @@ class TestVifSriovDriver(test.NoDBTestCase):
         sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
         mock_sysget.return_value = [sys]
         netapi.API = mock.Mock(return_value=FakeNetworkAPI('default'))
-        self.drv.plug(FakeDirectVif('', pports=pports), slot)
+        self.drv.plug(FakeDirectVif(''), slot)
         # Ensure back devs are created with pports from sriov_adaps and
         # not with what pports passed into plug method
         mock_back_devs.assert_called_once_with(
             mock_vnic_bld.return_value, ['port11', 'port22'], redundancy=3,
-            capacity=None, check_port_status=True,
+            capacity=None, max_capacity=None, check_port_status=True,
             sys_w=sys)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
@@ -415,7 +414,6 @@ class TestVifSriovDriver(test.NoDBTestCase):
     def test_plug_no_matching_pports(self, mock_sysget, mock_back_devs,
                                      mock_pvm_uuid, mock_vnic_bld):
         slot = 10
-        pports = ['port1', 'port2']
         sriov_adaps = [
             mock.Mock(phys_ports=[
                 mock.Mock(loc_code='port1', label='data1'),
@@ -430,7 +428,7 @@ class TestVifSriovDriver(test.NoDBTestCase):
         # for physical network of corresponding neutron network
         self.assertRaises(exception.VirtualInterfacePlugException,
                           self.drv.plug,
-                          FakeDirectVif('default', pports=pports), slot)
+                          FakeDirectVif('default'), slot)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
@@ -439,7 +437,6 @@ class TestVifSriovDriver(test.NoDBTestCase):
     def test_plug_bad_pports(self, mock_sysget, mock_back_devs, mock_pvm_uuid,
                              mock_vnic_bld):
         slot = 10
-        pports = ['bad1', 'bad2']
         sriov_adaps = [
             mock.Mock(phys_ports=[
                 mock.Mock(loc_code='port1', label='default'),
@@ -450,12 +447,12 @@ class TestVifSriovDriver(test.NoDBTestCase):
         sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
         mock_sysget.return_value = [sys]
         netapi.API = mock.Mock(return_value=FakeNetworkAPI('default'))
-        self.drv.plug(FakeDirectVif('', pports=pports), slot)
+        self.drv.plug(FakeDirectVif(''), slot)
         # Ensure back devs are created with correct pports belonging to same
         # physical network corresonding to neutron network
         mock_back_devs.assert_called_once_with(
             mock_vnic_bld.return_value, ['port1', 'port2'], redundancy=3,
-            capacity=None, check_port_status=True,
+            capacity=None, max_capacity=None, check_port_status=True,
             sys_w=sys)
 
     @mock.patch('pypowervm.wrappers.managed_system.System.get')
@@ -466,7 +463,6 @@ class TestVifSriovDriver(test.NoDBTestCase):
     def test_plug(self, mock_pvm_uuid, mock_back_devs, mock_vnic_bld,
                   mock_san_mac, mock_sysget):
         slot = 10
-        pports = ['port1', 'port2']
         sriov_adaps = [
             mock.Mock(phys_ports=[
                 mock.Mock(loc_code='port1', label='default'),
@@ -476,7 +472,7 @@ class TestVifSriovDriver(test.NoDBTestCase):
                 mock.Mock(loc_code='port2', label='default')])]
         sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
         mock_sysget.return_value = [sys]
-        self.drv.plug(FakeDirectVif('default', pports=pports),
+        self.drv.plug(FakeDirectVif('default'),
                       slot)
         mock_san_mac.assert_called_once_with('ab:ab:ab:ab:ab:ab')
         mock_vnic_bld.assert_called_once_with(
@@ -485,7 +481,7 @@ class TestVifSriovDriver(test.NoDBTestCase):
             allowed_macs='NONE')
         mock_back_devs.assert_called_once_with(
             mock_vnic_bld.return_value, ['port1', 'port2'], redundancy=3,
-            capacity=None, check_port_status=True,
+            capacity=None, max_capacity=None, check_port_status=True,
             sys_w=sys)
         mock_pvm_uuid.assert_called_once_with(self.drv.instance)
         mock_vnic_bld.return_value.create.assert_called_once_with(
@@ -496,7 +492,7 @@ class TestVifSriovDriver(test.NoDBTestCase):
         mock_vnic_bld.reset_mock()
         mock_back_devs.reset_mock()
         mock_pvm_uuid.reset_mock()
-        self.drv.plug(FakeDirectVif('default', pports=pports, cap=0.08),
+        self.drv.plug(FakeDirectVif('default', cap=0.08),
                       slot)
         mock_san_mac.assert_called_once_with('ab:ab:ab:ab:ab:ab')
         mock_vnic_bld.assert_called_once_with(
@@ -506,7 +502,7 @@ class TestVifSriovDriver(test.NoDBTestCase):
         mock_back_devs.assert_called_once_with(
             mock_vnic_bld.return_value, ['port1', 'port2'],
             redundancy=3, capacity=0.08, check_port_status=True,
-            sys_w=sys)
+            sys_w=sys, max_capacity=None)
         mock_pvm_uuid.assert_called_once_with(self.drv.instance)
         mock_vnic_bld.return_value.create.assert_called_once_with(
             parent_type=pvm_lpar.LPAR, parent_uuid=mock_pvm_uuid.return_value)
@@ -517,11 +513,75 @@ class TestVifSriovDriver(test.NoDBTestCase):
         mock_back_devs.reset_mock()
         mock_pvm_uuid.reset_mock()
         self.assertIsNone(self.drv.plug(
-            FakeDirectVif('default', pports=pports), slot, new_vif=False))
+            FakeDirectVif('default'), slot, new_vif=False))
         mock_san_mac.assert_not_called()
         mock_vnic_bld.assert_not_called()
         mock_back_devs.assert_not_called()
         mock_pvm_uuid.assert_not_called()
+
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.tasks.sriov.set_vnic_back_devs')
+    @mock.patch('pypowervm.wrappers.managed_system.System.get')
+    def test_plug_max_capacity(self, mock_sysget, mock_back_devs,
+                               mock_pvm_uuid, mock_vnic_bld):
+        slot = 10
+        sriov_adaps = [
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port1', label='default'),
+                mock.Mock(loc_code='port3', label='data1')]),
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port4', label='data2'),
+                mock.Mock(loc_code='port2', label='default')])]
+        sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
+        mock_sysget.return_value = [sys]
+        netapi.API = mock.Mock(return_value=FakeNetworkAPI('default'))
+        self.drv.plug(FakeDirectVifWithMaxCapacity('default',
+                                                   cap=0.03, maxcap=0.75),
+                      slot)
+        mock_back_devs.assert_called_once_with(
+            mock_vnic_bld.return_value, ['port1', 'port2'], redundancy=3,
+            capacity=0.03, max_capacity=0.75, check_port_status=True,
+            sys_w=sys)
+
+        # Test without max capacity, it is set to None
+        self.drv.plug(FakeDirectVifWithMaxCapacity('data1',
+                                                   cap=0.5), slot)
+
+        mock_back_devs.assert_called_with(
+            mock_vnic_bld.return_value, ['port3'], redundancy=3,
+            capacity=0.5, max_capacity=None, check_port_status=True,
+            sys_w=sys)
+
+    @mock.patch('pypowervm.wrappers.iocard.VNIC.bld')
+    @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
+    @mock.patch('pypowervm.wrappers.managed_system.System.get')
+    def test_plug_max_capacity_error(self, mock_sysget, mock_pvm_uuid,
+                                     mock_vnic_bld):
+        sriov_adaps = [
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port1', label='default'),
+                mock.Mock(loc_code='port3', label='data1')]),
+            mock.Mock(phys_ports=[
+                mock.Mock(loc_code='port4', label='data2'),
+                mock.Mock(loc_code='port2', label='default')])]
+        sys = mock.Mock(asio_config=mock.Mock(sriov_adapters=sriov_adaps))
+        mock_sysget.return_value = [sys]
+        netapi.API = mock.Mock(return_value=FakeNetworkAPI('default'))
+
+        # Ensure VirtualInterfacePlugException is raised if maximum capacity
+        # is greater than 100 percent
+        self.assertRaises(exception.VirtualInterfacePlugException,
+                          self.drv.plug,
+                          FakeDirectVifWithMaxCapacity('data1',
+                                                       cap=0.5, maxcap=1.4), 1)
+
+        # Ensure VirtualInterfacePlugException is raised if maximum capacity
+        # is less than capacity
+        self.assertRaises(exception.VirtualInterfacePlugException,
+                          self.drv.plug,
+                          FakeDirectVifWithMaxCapacity('data1',
+                                                       cap=0.5, maxcap=0.4), 1)
 
     @mock.patch('pypowervm.wrappers.iocard.VNIC.search')
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid')
@@ -569,6 +629,15 @@ class FakeDirectVif(dict):
 
     def get_physical_network(self):
         return self._physnet
+
+
+class FakeDirectVifWithMaxCapacity(FakeDirectVif):
+
+    def __init__(self, physnet, pports=None, cap=None, maxcap=None):
+        super(FakeDirectVifWithMaxCapacity, self).__init__(physnet,
+                                                           pports=pports,
+                                                           cap=cap)
+        self.get('details')['maxcapacity'] = maxcap
 
 
 class TestVifSeaDriver(test.NoDBTestCase):
