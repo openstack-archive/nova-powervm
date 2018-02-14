@@ -1,4 +1,4 @@
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -20,7 +20,7 @@ from nova import test
 from pypowervm.wrappers import storage as pvm_stor
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
-from nova_powervm.virt.powervm.disk import imagecache as imagecache
+from nova_powervm.virt.powervm.disk import imagecache
 
 
 class TestImageCache(test.NoDBTestCase):
