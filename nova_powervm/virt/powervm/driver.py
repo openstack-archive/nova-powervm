@@ -90,19 +90,18 @@ class PowerVMDriver(driver.ComputeDriver):
 
     """PowerVM Implementation of Compute Driver."""
 
-    capabilities = {
-        "has_imagecache": False,
-        "supports_recreate": True,
-        "supports_migrate_to_same_host": False,
-        "supports_attach_interface": True,
-        "supports_device_tagging": False,
-        "supports_tagged_attach_interface": False,
-        "supports_tagged_attach_volume": False,
-        "supports_extend_volume": True,
-        "supports_multiattach": False,
-    }
-
     def __init__(self, virtapi):
+        self.capabilities = {
+            # NOTE(edmondsw): 'has_imagecache' will be set dynamically
+            "supports_recreate": True,
+            "supports_migrate_to_same_host": False,
+            "supports_attach_interface": True,
+            "supports_device_tagging": False,
+            "supports_tagged_attach_interface": False,
+            "supports_tagged_attach_volume": False,
+            "supports_extend_volume": True,
+            "supports_multiattach": False,
+        }
         super(PowerVMDriver, self).__init__(virtapi)
 
     def init_host(self, host):
@@ -177,7 +176,8 @@ class PowerVMDriver(driver.ComputeDriver):
         self.disk_dvr = importutils.import_object_ns(
             DISK_ADPT_NS, DISK_ADPT_MAPPINGS[CONF.powervm.disk_driver.lower()],
             self.adapter, self.host_uuid)
-        self.capabilities.update(self.disk_dvr.capabilities)
+        has_imagecache = self.disk_dvr.capabilities['has_imagecache']
+        self.capabilities['has_imagecache'] = has_imagecache
 
     def manage_image_cache(self, context, all_instances):
         self.disk_dvr.manage_image_cache(context, all_instances)

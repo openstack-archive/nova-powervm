@@ -53,17 +53,59 @@ LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
 
+@mock.patch('nova_powervm.virt.powervm.mgmt.mgmt_uuid', new=mock.Mock())
 class TestPowerVMDriverInit(test.NoDBTestCase):
     """A test class specifically for the driver setup.
 
     Handles testing the configuration of the agent with the backing REST API.
     """
+    def test_driver_capabilities_defaults(self):
+        """Test the default capabilities."""
+        test_driver = driver.PowerVMDriver(fake.FakeVirtAPI())
+        self.assertTrue(test_driver.capabilities['supports_recreate'])
+        self.assertFalse(
+            test_driver.capabilities['supports_migrate_to_same_host'])
+        self.assertTrue(test_driver.capabilities['supports_attach_interface'])
+        self.assertFalse(test_driver.capabilities['supports_device_tagging'])
+        self.assertFalse(
+            test_driver.capabilities['supports_tagged_attach_interface'])
+        self.assertFalse(
+            test_driver.capabilities['supports_tagged_attach_volume'])
+        self.assertTrue(test_driver.capabilities['supports_extend_volume'])
+        self.assertFalse(test_driver.capabilities['supports_multiattach'])
+        self.assertNotIn('has_imagecache', test_driver.capabilities)
+        self.assertEqual(8, len(test_driver.capabilities))
 
-    def setUp(self):
-        super(TestPowerVMDriverInit, self).setUp()
-
+    @mock.patch('pypowervm.tasks.storage.find_vg',
+                new=mock.Mock(return_value=(mock.Mock(), mock.Mock())))
+    def test_driver_capabilities_from_localdisk_adapter(self):
+        """Test dynamic capabilities from localdisk adapter."""
         self.flags(disk_driver='localdisk', group='powervm')
-        self.flags(host='host1', my_ip='127.0.0.1')
+        self.flags(volume_group_name='foovg', group='powervm')
+        test_driver = driver.PowerVMDriver(fake.FakeVirtAPI())
+        test_driver.adapter = mock.Mock()
+        test_driver.host_uuid = mock.Mock()
+        test_driver._setup_disk_adapter()
+        # Localdisk driver has the image cache capability
+        self.assertTrue(test_driver.capabilities['has_imagecache'])
+        self.assertEqual(9, len(test_driver.capabilities))
+
+    @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
+                '_fetch_cluster', new=mock.Mock())
+    @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
+                '_ssp', new=mock.Mock())
+    @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
+                '_tier', new=mock.Mock())
+    def test_driver_capabilities_from_ssp_disk_adapter(self):
+        """Test dynamic capabilities from SSP disk adapter."""
+        self.flags(disk_driver='ssp', group='powervm')
+        test_driver = driver.PowerVMDriver(fake.FakeVirtAPI())
+        test_driver.adapter = mock.Mock()
+        test_driver.host_uuid = mock.Mock()
+        test_driver._setup_disk_adapter()
+        # SSP driver doesn't have image cache capability
+        self.assertFalse(test_driver.capabilities['has_imagecache'])
+        self.assertEqual(9, len(test_driver.capabilities))
 
     @mock.patch('nova_powervm.virt.powervm.event.PowerVMNovaEventHandler')
     @mock.patch('pypowervm.adapter.Adapter')
@@ -141,16 +183,6 @@ class TestPowerVMDriver(test.NoDBTestCase):
     def test_get_available_nodes(self):
         self.flags(host='hostname')
         self.assertEqual(['hostname'], self.drv.get_available_nodes('node'))
-
-    def test_driver_capabilities(self):
-        """Test the default capabilities."""
-        test_driver = driver.PowerVMDriver(fake.FakeVirtAPI())
-        self.assertFalse(test_driver.capabilities['has_imagecache'])
-        self.assertTrue(test_driver.capabilities['supports_recreate'])
-        self.assertFalse(
-            test_driver.capabilities['supports_migrate_to_same_host'])
-        self.assertTrue(test_driver.capabilities['supports_attach_interface'])
-        self.assertFalse(test_driver.capabilities['supports_device_tagging'])
 
     def _setup_lpm(self):
         """Setup the lpm environment.
