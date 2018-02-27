@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -68,7 +68,7 @@ class StreamToGlance(task.Task):
         self.image_api = image_api
         self.image_id = image_id
         self.instance = instance
-        super(StreamToGlance, self).__init__('stream_to_glance',
+        super(StreamToGlance, self).__init__(name='stream_to_glance',
                                              requires='disk_path')
 
     def execute(self, disk_path):

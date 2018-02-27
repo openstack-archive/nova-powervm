@@ -53,7 +53,8 @@ class UnplugVifs(task.Task):
         self.slot_mgr = slot_mgr
         self.instance = instance
 
-        super(UnplugVifs, self).__init__('unplug_vifs', requires=['lpar_wrap'])
+        super(UnplugVifs, self).__init__(
+            name='unplug_vifs', requires=['lpar_wrap'])
 
     def execute(self, lpar_wrap):
         # If the state is not in an OK state for deleting, then throw an
@@ -106,7 +107,7 @@ class PlugVifs(task.Task):
         self.cnas, self.vnics = None, None
         self.instance = instance
 
-        super(PlugVifs, self).__init__('plug_vifs', provides='vm_cnas',
+        super(PlugVifs, self).__init__(name='plug_vifs', provides='vm_cnas',
                                        requires=['lpar_wrap'])
 
     def _vif_exists(self, network_info):
@@ -270,8 +271,8 @@ class PlugMgmtVif(task.Task):
         self.slot_mgr = slot_mgr
         self.instance = instance
 
-        super(PlugMgmtVif, self).__init__('plug_mgmt_vif', provides='mgmt_cna',
-                                          requires=['vm_cnas'])
+        super(PlugMgmtVif, self).__init__(
+            name='plug_mgmt_vif', provides='mgmt_cna', requires=['vm_cnas'])
 
     def execute(self, vm_cnas):
         # If configured to not use RMC mgmt vifs, then return None.  Need to

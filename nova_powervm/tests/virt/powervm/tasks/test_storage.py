@@ -80,6 +80,14 @@ class TestStorage(test.NoDBTestCase):
         task.revert(lpar_w, 'mgmt_cna', 'result', 'flow_failures')
         self.mock_mb.assert_not_called()
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.CreateAndConnectCfgDrive(
+                self.adapter, self.instance, 'injected_files', 'network_info',
+                'admin_pass')
+        tf.assert_called_once_with(name='cfg_drive', requires=['lpar_wrap',
+                                   'mgmt_cna'])
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     def test_delete_vopt(self, mock_pvm_uuid):
         # Test with no FeedTask
@@ -101,12 +109,23 @@ class TestStorage(test.NoDBTestCase):
         self.mock_mb.dlt_vopt.assert_called_once_with(
             'pvm_uuid', stg_ftsk='ftsk')
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.DeleteVOpt(self.adapter, self.instance)
+        tf.assert_called_once_with(name='vopt_delete')
+
     def test_delete_disk(self):
         stor_adpt_mappings = mock.Mock()
 
         task = tf_stg.DeleteDisk(self.disk_dvr, self.instance)
         task.execute(stor_adpt_mappings)
         self.disk_dvr.delete_disks.assert_called_once_with(stor_adpt_mappings)
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.DeleteDisk(self.disk_dvr, self.instance)
+        tf.assert_called_once_with(
+            name='dlt_storage', requires=['stor_adpt_mappings'])
 
     def test_detach_disk(self):
         disk_type = 'disk_type'
@@ -118,6 +137,12 @@ class TestStorage(test.NoDBTestCase):
         task.execute()
         self.disk_dvr.disconnect_disk.assert_called_once_with(
             self.instance, stg_ftsk=stg_ftsk, disk_type=disk_type)
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.DetachDisk(self.disk_dvr, self.instance)
+        tf.assert_called_once_with(
+            name='detach_storage', provides='stor_adpt_mappings')
 
     def test_connect_disk(self):
         stg_ftsk = mock.Mock()
@@ -132,6 +157,12 @@ class TestStorage(test.NoDBTestCase):
         task.revert(disk_dev_info, 'result', 'flow failures')
         self.disk_dvr.disconnect_disk.assert_called_once_with(self.instance)
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.ConnectDisk(self.disk_dvr, self.instance)
+        tf.assert_called_once_with(
+            name='connect_disk', requires=['disk_dev_info'])
+
     def test_create_disk_for_img(self):
         image_meta = mock.Mock()
         image_type = mock.Mock()
@@ -145,6 +176,13 @@ class TestStorage(test.NoDBTestCase):
 
         task.revert('result', 'flow failures')
         self.disk_dvr.delete_disks.assert_called_once_with(['result'])
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.CreateDiskForImg(
+                self.disk_dvr, self.context, self.instance, image_meta)
+        tf.assert_called_once_with(
+            name='crt_disk_from_img', provides='disk_dev_info')
 
     @mock.patch('pypowervm.tasks.scsi_mapper.find_maps', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.mgmt.discover_vscsi_disk',
@@ -254,6 +292,13 @@ class TestStorage(test.NoDBTestCase):
         self.assertEqual(0, disk_dvr.disconnect_disk_from_mgmt.call_count)
         self.assertEqual(0, mock_rm.call_count)
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
+        tf.assert_called_once_with(
+            name='connect_and_discover_instance_disk_to_mgmt',
+            provides=['stg_elem', 'vios_wrap', 'disk_path'])
+
     @mock.patch('nova_powervm.virt.powervm.mgmt.remove_block_dev',
                 autospec=True)
     def test_remove_instance_disk_from_mgmt(self, mock_rm):
@@ -272,6 +317,13 @@ class TestStorage(test.NoDBTestCase):
         disk_dvr.disconnect_disk_from_mgmt.assert_called_with('vios_uuid',
                                                               'stg_name')
         mock_rm.assert_called_with('/dev/disk')
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.RemoveInstanceDiskFromMgmt(disk_dvr, mock_instance)
+        tf.assert_called_once_with(
+            name='remove_inst_disk_from_mgmt',
+            requires=['stg_elem', 'vios_wrap', 'disk_path'])
 
     def test_finddisk(self):
         disk_dvr = mock.Mock()
@@ -292,6 +344,11 @@ class TestStorage(test.NoDBTestCase):
         disk_dvr.get_disk_ref.assert_called_once_with(instance, disk_type)
         self.assertIsNone(ret_disk)
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.FindDisk(disk_dvr, context, instance, disk_type)
+        tf.assert_called_once_with(name='find_disk', provides='disk_dev_info')
+
     def test_extend_disk(self):
         disk_dvr = mock.Mock()
         instance = mock.Mock()
@@ -300,6 +357,11 @@ class TestStorage(test.NoDBTestCase):
         task = tf_stg.ExtendDisk(disk_dvr, instance, disk_info, 1024)
         task.execute()
         disk_dvr.extend_disk.assert_called_once_with(instance, disk_info, 1024)
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.ExtendDisk(disk_dvr, instance, disk_info, 1024)
+        tf.assert_called_once_with(name='extend_disk_disk_type')
 
     def test_connect_volume(self):
         vol_dvr = mock.Mock(connection_info={'data': {'volume_id': '1'}})
@@ -312,6 +374,11 @@ class TestStorage(test.NoDBTestCase):
         vol_dvr.reset_stg_ftsk.assert_called_once_with()
         vol_dvr.disconnect_volume.assert_called_once_with('slot map')
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.ConnectVolume(vol_dvr, 'slot map')
+        tf.assert_called_once_with(name='connect_vol_1')
+
     def test_disconnect_volume(self):
         vol_dvr = mock.Mock(connection_info={'data': {'volume_id': '1'}})
 
@@ -322,3 +389,8 @@ class TestStorage(test.NoDBTestCase):
         task.revert('result', 'flow failures')
         vol_dvr.reset_stg_ftsk.assert_called_once_with()
         vol_dvr.connect_volume.assert_called_once_with('slot map')
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.DisconnectVolume(vol_dvr, 'slot map')
+        tf.assert_called_once_with(name='disconnect_vol_1')

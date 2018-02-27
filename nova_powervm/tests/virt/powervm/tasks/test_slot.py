@@ -1,4 +1,4 @@
-# Copyright 2016, 2017 IBM Corp.
+# Copyright 2016, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -32,6 +32,11 @@ class TestSaveSlotStore(test.NoDBTestCase):
         save.execute()
         slot_mgr.save.assert_called_once_with()
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            slot.SaveSlotStore(mock.MagicMock(), slot_mgr)
+        tf.assert_called_once_with(name='save_slot_store')
+
 
 class TestDeleteSlotStore(test.NoDBTestCase):
 
@@ -43,3 +48,8 @@ class TestDeleteSlotStore(test.NoDBTestCase):
         delete = slot.DeleteSlotStore(mock.MagicMock(), slot_mgr)
         delete.execute()
         slot_mgr.delete.assert_called_once_with()
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            slot.DeleteSlotStore(mock.MagicMock(), slot_mgr)
+        tf.assert_called_once_with(name='delete_slot_store')
