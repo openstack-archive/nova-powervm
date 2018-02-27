@@ -34,6 +34,18 @@ class TestVMTasks(test.NoDBTestCase):
         self.apt = mock.Mock()
         self.instance = mock.Mock(uuid='fake-uuid')
 
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
+    def test_get(self, mock_inst_wrap):
+        get = tf_vm.Get(self.apt, 'host_uuid', self.instance)
+        get.execute()
+        mock_inst_wrap.assert_called_once_with(self.apt, self.instance)
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.Get(self.apt, 'host_uuid', self.instance)
+        tf.assert_called_once_with(name='get_vm', provides='lpar_wrap')
+
     @mock.patch('pypowervm.utils.transaction.FeedTask', autospec=True)
     @mock.patch('pypowervm.tasks.partition.build_active_vio_feed_task',
                 autospec=True)
@@ -240,3 +252,16 @@ class TestVMTasks(test.NoDBTestCase):
         with mock.patch('taskflow.task.Task.__init__') as tf:
             tf_vm.DeleteNvram(nvram_mgr, self.instance)
         tf.assert_called_once_with(name='delete_nvram')
+
+    @mock.patch('nova_powervm.virt.powervm.vm.update_ibmi_settings',
+                autospec=True)
+    def test_update_ibmi_settings(self, mock_update):
+        update = tf_vm.UpdateIBMiSettings(self.apt, self.instance, 'boot_type')
+        update.execute()
+        mock_update.assert_called_once_with(self.apt, self.instance,
+                                            'boot_type')
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.UpdateIBMiSettings(self.apt, self.instance, 'boot_type')
+        tf.assert_called_once_with(name='update_ibmi_settings')
