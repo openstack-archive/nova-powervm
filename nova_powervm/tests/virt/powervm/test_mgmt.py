@@ -155,14 +155,37 @@ class TestMgmt(test.NoDBTestCase):
         self.assertEqual(2, mock_stat.call_count)
         mock_dacw.assert_not_called()
 
+    @mock.patch('retrying.retry')
+    @mock.patch('os.path.realpath')
+    @mock.patch('os.stat')
+    @mock.patch('nova.privsep.path.writefile')
+    def test_remove_block_dev_timeout(self, mock_dacw, mock_stat,
+                                      mock_realpath, mock_retry):
+
+        def validate_retry(kwargs):
+            self.assertIn('retry_on_result', kwargs)
+            self.assertEqual(250, kwargs['wait_fixed'])
+            self.assertEqual(10000, kwargs['stop_max_delay'])
+
+        def raiser(unused):
+            raise retrying.RetryError(mock.Mock(attempt_number=123))
+
+        def retry_timeout(**kwargs):
+            validate_retry(kwargs)
+
+            def wrapped(_poll_for_del):
+                return raiser
+            return wrapped
+
         # Deletion was attempted, but device is still there
-        mock_stat.reset_mock()
-        mock_sleep.reset_mock()
+        link = '/dev/link/foo'
+        delpath = '/sys/block/sde/device/delete'
+        realpath = '/dev/sde'
+        mock_realpath.return_value = realpath
         mock_stat.side_effect = lambda path: 1
+        mock_retry.side_effect = retry_timeout
+
         self.assertRaises(
             npvmex.DeviceDeletionException, mgmt.remove_block_dev, link)
-        # stat was called many times; privsep write was called once
-        self.assertTrue(mock_stat.call_count > 4)
+        mock_realpath.assert_called_once_with(link)
         mock_dacw.assert_called_with(delpath, 'a', '1')
-        # sleep was called many times
-        self.assertTrue(mock_sleep.call_count)
