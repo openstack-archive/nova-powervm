@@ -1,4 +1,4 @@
-# Copyright 2016, 2017 IBM Corp.
+# Copyright 2016, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -554,15 +554,25 @@ class PvmVnicSriovVifDriver(PvmVifDriver):
 
         # Capacity: plugin sets from binding:profile, then conf, then default
         capacity = vif['details']['capacity']
+        maxcapacity = vif['details'].get('maxcapacity')
 
         vnic = pvm_card.VNIC.bld(
             self.adapter, vlan_id, slot_num=slot_num, mac_addr=mac_address,
             allowed_vlans=pvm_util.VLANList.NONE,
             allowed_macs=pvm_util.MACList.NONE)
 
-        sriovtask.set_vnic_back_devs(vnic, pports, sys_w=msys,
-                                     redundancy=redundancy,
-                                     capacity=capacity, check_port_status=True)
+        try:
+            sriovtask.set_vnic_back_devs(vnic, pports, sys_w=msys,
+                                         redundancy=redundancy,
+                                         capacity=capacity,
+                                         max_capacity=maxcapacity,
+                                         check_port_status=True)
+        except ValueError as ve:
+            LOG.exception("Failed to set vNIC backing devices")
+            msg = ''
+            if ve.args:
+                msg = ve.args[0]
+            raise exception.VirtualInterfacePlugException(message=msg)
 
         return vnic.create(parent_type=pvm_lpar.LPAR,
                            parent_uuid=vm.get_pvm_uuid(self.instance))
