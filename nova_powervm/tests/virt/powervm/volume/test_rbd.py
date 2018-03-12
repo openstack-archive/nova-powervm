@@ -45,9 +45,10 @@ class TestRBDVolumeAdapter(test_vol.TestVolumeAdapter):
         self.adpt = self.useFixture(pvm_fx.AdapterFx()).adpt
         mock_inst = mock.MagicMock(uuid='2BC123')
 
-        self.vol_drv = FakeRBDVolAdapter(self.adpt, 'host_uuid', mock_inst,
-                                         {'data': {'name': 'pool/image'},
-                                          'serial': 'volid1'})
+        self.vol_drv = FakeRBDVolAdapter(
+            self.adpt, 'host_uuid', mock_inst,
+            {'data': {'name': 'pool/image', 'volume_id': 'a_vol_id'},
+             'serial': 'volid1'})
 
         self.fake_vios = pvm_vios.VIOS.bld(
             self.adpt, 'vios1',
@@ -95,7 +96,7 @@ class TestRBDVolumeAdapter(test_vol.TestVolumeAdapter):
 
         # Validate
         mock_rbd_bld_ref.assert_called_once_with(
-            self.adpt, 'pool/image')
+            self.adpt, 'pool/image', tag='a_vol_id')
         self.assertEqual(1, mock_build_map.call_count)
         self.assertEqual(1, mock_udid_to_map.call_count)
 
@@ -128,7 +129,7 @@ class TestRBDVolumeAdapter(test_vol.TestVolumeAdapter):
 
         # Validate
         mock_rbd_bld_ref.assert_called_once_with(
-            self.adpt, 'pool/image')
+            self.adpt, 'pool/image', tag='a_vol_id')
         self.assertEqual(0, mock_build_map.call_count)
 
     @mock.patch('pypowervm.entities.Entry.uuid',

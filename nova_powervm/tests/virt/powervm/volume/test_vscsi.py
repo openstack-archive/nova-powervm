@@ -69,7 +69,8 @@ class BaseVSCSITest(test_vol.TestVolumeAdapter):
                         p_wwpn1: ['t1'],
                         p_wwpn2: ['t2', 't3']
                     },
-                    'target_lun': '1'
+                    'target_lun': '1',
+                    'volume_id': 'a_volume_identifier',
                 },
             }
             mock_inst = mock.MagicMock()
@@ -210,6 +211,7 @@ class TestVSCSIAdapter(BaseVSCSITest):
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('1234', lpar_uuid)
             self.assertIsInstance(pv, pvm_stor.PV)
+            self.assertEqual('a_volume_identifier', pv.tag)
             self.assertEqual(62, lpar_slot_num)
             self.assertEqual('the_lua', lua)
             return 'fake_map'

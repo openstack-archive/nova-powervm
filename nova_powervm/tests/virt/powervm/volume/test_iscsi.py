@@ -74,7 +74,8 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
                     'target_lun': self.lun,
                     'target_portal': self.host_ip,
                     'auth_username': self.user,
-                    'auth_password': self.password
+                    'auth_password': self.password,
+                    'volume_id': 'a_volume_id',
                 },
             }
             self.auth_method = 'CHAP'
@@ -94,7 +95,8 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
                     'discovery_auth_password': self.password,
                     'target_iqns': [self.iqn],
                     'target_luns': [self.lun],
-                    'target_portals': [self.host_ip]
+                    'target_portals': [self.host_ip],
+                    'volume_id': 'b_volume_id',
                 },
             }
             mock_inst = mock.MagicMock()
@@ -135,6 +137,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
             self.assertEqual('1234', lpar_uuid)
             self.assertIsInstance(pv, pvm_stor.PV)
+            self.assertEqual('_volume_id', pv.tag[1:])
             self.assertEqual(62, lpar_slot_num)
             self.assertEqual('the_lua', lua)
             self.assertEqual('ISCSI-bar_%s' % self.lun, target_name)

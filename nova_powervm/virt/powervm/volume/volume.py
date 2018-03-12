@@ -129,11 +129,12 @@ class VscsiVolumeAdapter(object):
         raise p_exc.VolumeAttachFailed(**ex_args)
 
     def _add_append_mapping(self, vios_uuid, device_name, lpar_slot_num=None,
-                            lua=None, target_name=None, udid=None):
+                            lua=None, target_name=None, udid=None,
+                            tag=None):
         """Update the stg_ftsk to append the mapping to the VIOS.
 
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
-        :param device_name: The The hdisk device name.
+        :param device_name: The hdisk device name.
         :param lpar_slot_num: (Optional, Default:None) If specified, the client
                               lpar slot number to use on the mapping.  If left
                               as None, it will use the next available slot
@@ -142,11 +143,19 @@ class VscsiVolumeAdapter(object):
                     the TargetDevice.  If None, the LUA will be assigned by the
                     server.  Should be specified for all of the VSCSIMappings
                     for a particular bus, or none of them.
+        :param target_name: (Optional.  Default: None) Name to set on the
+                            TargetDevice.  If None, it will be assigned by the
+                            server.
+        :param udid: (Optional.  Default: None) Universal Disk IDentifier of
+                     the physical volume to attach.  Used to resolve name
+                     conflicts.
+        :param tag: String tag to set on the physical volume.
         """
         def add_func(vios_w):
             LOG.info("Adding vSCSI mapping to Physical Volume %(dev)s",
                      {'dev': device_name}, instance=self.instance)
-            pv = pvm_stor.PV.bld(self.adapter, device_name, udid)
+            pv = pvm_stor.PV.bld(self.adapter, device_name, udid=udid,
+                                 tag=tag)
             v_map = tsk_map.build_vscsi_mapping(
                 self.host_uuid, vios_w, self.vm_uuid, pv,
                 lpar_slot_num=lpar_slot_num, lua=lua, target_name=target_name)

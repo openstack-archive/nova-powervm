@@ -232,11 +232,13 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
             return False
 
         if hdisk.good_discovery(status, device_name):
+            volume_id = self.connection_info["data"]["volume_id"]
             # Found a hdisk on this Virtual I/O Server.  Add the action to
             # map it to the VM when the stg_ftsk is executed.
             with lockutils.lock(hash(self)):
                 self._add_append_mapping(vios_w.uuid, device_name,
-                                         lpar_slot_num=slot, lua=lua)
+                                         lpar_slot_num=slot, lua=lua,
+                                         tag=volume_id)
 
             # Save the UDID for the disk in the connection info.  It is
             # used for the detach.
