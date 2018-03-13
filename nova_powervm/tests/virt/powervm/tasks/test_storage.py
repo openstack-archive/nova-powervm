@@ -349,6 +349,17 @@ class TestStorage(test.NoDBTestCase):
             tf_stg.FindDisk(disk_dvr, context, instance, disk_type)
         tf.assert_called_once_with(name='find_disk', provides='disk_dev_info')
 
+    def test_save_bdm(self):
+        mock_bdm = mock.Mock(volume_id=1)
+        save_bdm = tf_stg.SaveBDM(mock_bdm, 'instance')
+        save_bdm.execute()
+        mock_bdm.save.assert_called_once_with()
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_stg.SaveBDM(mock_bdm, 'instance')
+        tf.assert_called_once_with(name='save_bdm_1')
+
     def test_extend_disk(self):
         disk_dvr = mock.Mock()
         instance = mock.Mock()
