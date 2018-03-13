@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -46,7 +46,8 @@ class ConnectVolume(task.Task):
         self.vol_id = self.vol_drv.connection_info['data']['volume_id']
         self.slot_mgr = slot_mgr
 
-        super(ConnectVolume, self).__init__('connect_vol_%s' % self.vol_id)
+        super(ConnectVolume, self).__init__(
+            name='connect_vol_%s' % self.vol_id)
 
     def execute(self):
         LOG.info('Connecting volume %(vol)s.', {'vol': self.vol_id},
@@ -92,7 +93,7 @@ class DisconnectVolume(task.Task):
         self.slot_mgr = slot_mgr
 
         super(DisconnectVolume, self).__init__(
-            'disconnect_vol_%s' % self.vol_id)
+            name='disconnect_vol_%s' % self.vol_id)
 
     def execute(self):
         LOG.info('Disconnecting volume %(vol)s.',
@@ -141,7 +142,7 @@ class CreateDiskForImg(task.Task):
         :param image_type: The image type. See disk/driver.py
         """
         super(CreateDiskForImg, self).__init__(
-            'crt_disk_from_img', provides='disk_dev_info')
+            name='crt_disk_from_img', provides='disk_dev_info')
         self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
@@ -183,7 +184,7 @@ class ConnectDisk(task.Task):
                          the FeedTask is not provided, the updates will be run
                          immediately when the respective method is executed.
         """
-        super(ConnectDisk, self).__init__('connect_disk',
+        super(ConnectDisk, self).__init__(name='connect_disk',
                                           requires=['disk_dev_info'])
         self.disk_dvr = disk_dvr
         self.instance = instance
@@ -222,7 +223,7 @@ class InstanceDiskToMgmt(task.Task):
         :param instance: The nova instance whose boot disk is to be connected.
         """
         super(InstanceDiskToMgmt, self).__init__(
-            'connect_and_discover_instance_disk_to_mgmt',
+            name='connect_and_discover_instance_disk_to_mgmt',
             provides=['stg_elem', 'vios_wrap', 'disk_path'])
         self.disk_dvr = disk_dvr
         self.instance = instance
@@ -306,7 +307,7 @@ class RemoveInstanceDiskFromMgmt(task.Task):
         self.disk_dvr = disk_dvr
         self.instance = instance
         super(RemoveInstanceDiskFromMgmt, self).__init__(
-            'remove_inst_disk_from_mgmt',
+            name='remove_inst_disk_from_mgmt',
             requires=['stg_elem', 'vios_wrap', 'disk_path'])
 
     def execute(self, stg_elem, vios_wrap, disk_path):
@@ -360,7 +361,7 @@ class CreateAndConnectCfgDrive(task.Task):
                          immediately when the respective method is executed.
         """
         super(CreateAndConnectCfgDrive, self).__init__(
-            'cfg_drive', requires=['lpar_wrap', 'mgmt_cna'])
+            name='cfg_drive', requires=['lpar_wrap', 'mgmt_cna'])
         self.adapter = adapter
         self.instance = instance
         self.injected_files = injected_files
@@ -408,7 +409,7 @@ class DeleteVOpt(task.Task):
                          the FeedTask is not provided, the updates will be run
                          immediately when the respective method is executed.
         """
-        super(DeleteVOpt, self).__init__('vopt_delete')
+        super(DeleteVOpt, self).__init__(name='vopt_delete')
         self.adapter = adapter
         self.instance = instance
         self.stg_ftsk = stg_ftsk
@@ -440,7 +441,7 @@ class DetachDisk(task.Task):
         :param disk_type: List of disk types to detach. None means detach all.
         """
         super(DetachDisk, self).__init__(
-            'detach_storage', provides='stor_adpt_mappings')
+            name='detach_storage', provides='stor_adpt_mappings')
         self.disk_dvr = disk_dvr
         self.instance = instance
         self.stg_ftsk = stg_ftsk
@@ -463,8 +464,8 @@ class DeleteDisk(task.Task):
         :param disk_dvr: The DiskAdapter for the VM.
         :param instance: The nova instance.
         """
-        req = ['stor_adpt_mappings']
-        super(DeleteDisk, self).__init__('dlt_storage', requires=req)
+        super(DeleteDisk, self).__init__(
+            name='dlt_storage', requires=['stor_adpt_mappings'])
         self.disk_dvr = disk_dvr
 
     def execute(self, stor_adpt_mappings):
@@ -483,7 +484,7 @@ class SaveBDM(task.Task):
         """
         self.bdm = bdm
         self.instance = instance
-        super(SaveBDM, self).__init__('save_bdm_%s' % self.bdm.volume_id)
+        super(SaveBDM, self).__init__(name='save_bdm_%s' % self.bdm.volume_id)
 
     def execute(self):
         LOG.info('Saving block device mapping for volume id %(vol_id)s.',
@@ -506,7 +507,8 @@ class FindDisk(task.Task):
         :param instance: The nova instance.
         :param disk_type: One of the DiskType enum values.
         """
-        super(FindDisk, self).__init__('find_disk', provides='disk_dev_info')
+        super(FindDisk, self).__init__(
+            name='find_disk', provides='disk_dev_info')
         self.disk_dvr = disk_dvr
         self.context = context
         self.instance = instance
@@ -539,7 +541,8 @@ class ExtendDisk(task.Task):
         self.instance = instance
         self.disk_info = disk_info
         self.size = size
-        super(ExtendDisk, self).__init__('extend_disk_%s' % disk_info['type'])
+        super(ExtendDisk, self).__init__(
+            name='extend_disk_%s' % disk_info['type'])
 
     def execute(self):
         LOG.info('Extending %(disk_type)s disk to %(size)s GB.',

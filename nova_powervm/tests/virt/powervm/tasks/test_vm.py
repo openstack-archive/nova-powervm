@@ -72,6 +72,11 @@ class TestVMTasks(test.NoDBTestCase):
         rcrt.execute()
         mock_ftsk.execute.assert_called_once_with()
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.Create(self.apt, 'host_wrapper', self.instance)
+        tf.assert_called_once_with(name='crt_vm', provides='lpar_wrap')
+
     @mock.patch('nova_powervm.virt.powervm.vm.get_pvm_uuid', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.tasks.vm.Create.execute',
                 autospec=True)
@@ -102,6 +107,11 @@ class TestVMTasks(test.NoDBTestCase):
         pwron = tf_vm.PowerOn(self.apt, self.instance, pwr_opts='opt')
         pwron.execute()
         mock_pwron.assert_called_once_with(self.apt, self.instance, opts='opt')
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.PowerOn(self.apt, self.instance)
+        tf.assert_called_once_with(name='pwr_vm')
 
     @mock.patch('nova_powervm.virt.powervm.vm.power_on', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vm.power_off', autospec=True)
@@ -146,11 +156,21 @@ class TestVMTasks(test.NoDBTestCase):
         mock_pwroff.assert_called_once_with(self.apt, self.instance,
                                             force_immediate=True)
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.PowerOff(self.apt, self.instance)
+        tf.assert_called_once_with(name='pwr_off_vm')
+
     @mock.patch('nova_powervm.virt.powervm.vm.delete_lpar', autospec=True)
     def test_delete(self, mock_dlt):
         delete = tf_vm.Delete(self.apt, self.instance)
         delete.execute()
         mock_dlt.assert_called_once_with(self.apt, self.instance)
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.Delete(self.apt, self.instance)
+        tf.assert_called_once_with(name='dlt_vm')
 
     @mock.patch('nova_powervm.virt.powervm.vm.update', autospec=True)
     def test_resize(self, mock_vm_update):
@@ -164,6 +184,11 @@ class TestVMTasks(test.NoDBTestCase):
             name='new_name')
         self.assertEqual('resized_entry', resized_entry)
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.Resize(self.apt, 'host_wrapper', self.instance)
+        tf.assert_called_once_with(name='resize_vm', provides='lpar_wrap')
+
     @mock.patch('nova_powervm.virt.powervm.vm.rename', autospec=True)
     def test_rename(self, mock_vm_rename):
         mock_vm_rename.return_value = 'new_entry'
@@ -172,6 +197,12 @@ class TestVMTasks(test.NoDBTestCase):
         mock_vm_rename.assert_called_once_with(
             self.apt, self.instance, 'new_name')
         self.assertEqual('new_entry', new_entry)
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.Rename(self.apt, self.instance, 'new_name')
+        tf.assert_called_once_with(
+            name='rename_vm_new_name', provides='lpar_wrap')
 
     def test_store_nvram(self):
         nvram_mgr = mock.Mock()
@@ -188,6 +219,11 @@ class TestVMTasks(test.NoDBTestCase):
         nvram_mgr.store.assert_called_once_with(self.instance,
                                                 immediate=True)
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.StoreNvram(nvram_mgr, self.instance)
+        tf.assert_called_once_with(name='store_nvram')
+
     def test_delete_nvram(self):
         nvram_mgr = mock.Mock()
         delete_nvram = tf_vm.DeleteNvram(nvram_mgr, self.instance)
@@ -199,3 +235,8 @@ class TestVMTasks(test.NoDBTestCase):
         nvram_mgr.remove.side_effect = ValueError('Not Available')
         delete_nvram.execute()
         nvram_mgr.remove.assert_called_once_with(self.instance)
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tf_vm.DeleteNvram(nvram_mgr, self.instance)
+        tf.assert_called_once_with(name='delete_nvram')

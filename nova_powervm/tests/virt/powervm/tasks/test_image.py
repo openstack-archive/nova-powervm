@@ -37,6 +37,11 @@ class TestImage(test.NoDBTestCase):
                                      expected_state='expected_state')
         tf.execute()
 
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tsk_img.UpdateTaskState(func, 'task_state')
+        tf.assert_called_once_with(name='update_task_state_task_state')
+
     @mock.patch('nova_powervm.virt.powervm.image.stream_blockdev_to_glance',
                 autospec=True)
     @mock.patch('nova_powervm.virt.powervm.image.snapshot_metadata',
@@ -53,3 +58,10 @@ class TestImage(test.NoDBTestCase):
                                          mock_inst)
         mock_stream.assert_called_with('context', 'image_api', 'image_id',
                                        'metadata', 'disk_path')
+
+        # Validate args on taskflow.task.Task instantiation
+        with mock.patch('taskflow.task.Task.__init__') as tf:
+            tsk_img.StreamToGlance('context', 'image_api', 'image_id',
+                                   mock_inst)
+        tf.assert_called_once_with(name='stream_to_glance',
+                                   requires='disk_path')

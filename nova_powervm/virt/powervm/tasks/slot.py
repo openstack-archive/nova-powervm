@@ -1,4 +1,4 @@
-# Copyright 2016, 2017 IBM Corp.
+# Copyright 2016, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -40,7 +40,7 @@ class SaveSlotStore(task.Task):
         """
         self.slot_mgr = slot_mgr
         self.instance = instance
-        super(SaveSlotStore, self).__init__('save_slot_store')
+        super(SaveSlotStore, self).__init__(name='save_slot_store')
 
     def execute(self):
         LOG.debug("Topology: %(topo)s", {'topo': self.slot_mgr.topology},
@@ -65,7 +65,7 @@ class DeleteSlotStore(task.Task):
         """
         self.slot_mgr = slot_mgr
         self.instance = instance
-        super(DeleteSlotStore, self).__init__('delete_slot_store')
+        super(DeleteSlotStore, self).__init__(name='delete_slot_store')
 
     def execute(self):
         self.slot_mgr.delete()

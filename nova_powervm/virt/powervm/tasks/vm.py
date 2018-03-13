@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -41,7 +41,7 @@ class Get(task.Task):
         :param host_uuid: The host UUID
         :param instance: The nova instance.
         """
-        super(Get, self).__init__('get_vm', provides='lpar_wrap')
+        super(Get, self).__init__(name='get_vm', provides='lpar_wrap')
         self.adapter = adapter
         self.host_uuid = host_uuid
         self.instance = instance
@@ -85,7 +85,7 @@ class Create(task.Task):
         :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the
                          maximum number of virtual slots for the VM.
         """
-        super(Create, self).__init__('crt_vm', provides='lpar_wrap')
+        super(Create, self).__init__(name='crt_vm', provides='lpar_wrap')
         self.adapter = adapter
         self.host_wrapper = host_wrapper
         self.instance = instance
@@ -144,7 +144,7 @@ class Resize(task.Task):
         :param name: VM name to use for the update.  Used on resize when we
             want to rename it but not use the instance name.
         """
-        super(Resize, self).__init__('resize_vm', provides='lpar_wrap')
+        super(Resize, self).__init__(name='resize_vm', provides='lpar_wrap')
         self.adapter = adapter
         self.host_wrapper = host_wrapper
         self.instance = instance
@@ -168,7 +168,7 @@ class Rename(task.Task):
         :param instance: The nova instance.
         :param name: The new VM name.
         """
-        super(Rename, self).__init__('rename_vm_%s' % name,
+        super(Rename, self).__init__(name='rename_vm_%s' % name,
                                      provides='lpar_wrap')
         self.adapter = adapter
         self.instance = instance
@@ -191,7 +191,7 @@ class PowerOn(task.Task):
         :param instance: The nova instance.
         :param pwr_opts: Additional parameters for the pypowervm PowerOn Job.
         """
-        super(PowerOn, self).__init__('pwr_vm')
+        super(PowerOn, self).__init__(name='pwr_vm')
         self.adapter = adapter
         self.instance = instance
         self.pwr_opts = pwr_opts
@@ -222,7 +222,7 @@ class PowerOff(task.Task):
         :param instance: The nova instance.
         :param force_immediate: Boolean. Perform a VSP hard power off.
         """
-        super(PowerOff, self).__init__('pwr_off_vm')
+        super(PowerOff, self).__init__(name='pwr_off_vm')
         self.adapter = adapter
         self.instance = instance
         self.force_immediate = force_immediate
@@ -243,7 +243,7 @@ class StoreNvram(task.Task):
         :param instance: The nova instance.
         :param immediate: boolean whether to update the NVRAM immediately
         """
-        super(StoreNvram, self).__init__('store_nvram')
+        super(StoreNvram, self).__init__(name='store_nvram')
         self.nvram_mgr = nvram_mgr
         self.instance = instance
         self.immediate = immediate
@@ -268,7 +268,7 @@ class DeleteNvram(task.Task):
         :param nvram_mgr: The NVRAM manager.
         :param instance: The nova instance.
         """
-        super(DeleteNvram, self).__init__('delete_nvram')
+        super(DeleteNvram, self).__init__(name='delete_nvram')
         self.nvram_mgr = nvram_mgr
         self.instance = instance
 
@@ -294,7 +294,7 @@ class Delete(task.Task):
         :param adapter: The adapter for the pypowervm API.
         :param instance: The nova instance.
         """
-        super(Delete, self).__init__('dlt_vm')
+        super(Delete, self).__init__(name='dlt_vm')
         self.adapter = adapter
         self.instance = instance
 
@@ -313,7 +313,7 @@ class UpdateIBMiSettings(task.Task):
         :param instance: The nova instance.
         :param boot_type: The boot type of the instance.
         """
-        super(UpdateIBMiSettings, self).__init__('update_ibmi_settings')
+        super(UpdateIBMiSettings, self).__init__(name='update_ibmi_settings')
         self.adapter = adapter
         self.instance = instance
         self.boot_type = boot_type
