@@ -179,4 +179,4 @@ References
 
 `Neutron Networking Guide`_
 
-.. _`Neutron Networking Guide`: http://docs.openstack.org/newton/networking-guide/
+.. _`Neutron Networking Guide`: https://docs.openstack.org/newton/networking-guide/
