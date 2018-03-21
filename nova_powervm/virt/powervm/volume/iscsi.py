@@ -149,6 +149,13 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                  not (could be the Virtual I/O Server does not have
                  connectivity to the hdisk).
         """
+        # check if the vios uuid exist in the expected vios list
+        if vios_w.uuid not in self.vios_uuids:
+            LOG.debug("Skipping connect volume %(vol)s from "
+                      "inactive vios uuid %(uuid)s.",
+                      dict(vol=self.volume_id, uuid=vios_w.uuid))
+            return False
+
         device_name, udid = self._discover_volume_on_vios(vios_w)
         if device_name is not None and udid is not None:
             slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, device_name)
@@ -200,9 +207,17 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             :return: True if a remove action was done against this VIOS.  False
                      otherwise.
             """
+            # Check if the vios uuid exist in the list
+            if vios_w.uuid not in self.vios_uuids:
+                LOG.debug("Skipping disconnect of volume %(vol)s from "
+                          "inactive vios uuid %(uuid)s.",
+                          dict(vol=self.volume_id, uuid=vios_w.uuid))
+                return False
+
             LOG.debug("Disconnect volume %(vol)s from vios uuid %(uuid)s",
                       dict(vol=self.volume_id, uuid=vios_w.uuid),
                       instance=self.instance)
+
             device_name = None
             try:
                 device_name = self._get_devname()
