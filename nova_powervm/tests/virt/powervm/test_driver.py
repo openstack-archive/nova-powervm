@@ -1187,8 +1187,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # BDMs
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
         # Invoke the method, good path test.
-        self.drv.detach_volume(mock_bdm.get('connection_info'), self.inst,
-                               mock.Mock())
+        self.drv.detach_volume('context', mock_bdm.get('connection_info'),
+                               self.inst, mock.Mock())
 
         mock_bld_slot_mgr.assert_called_once_with(self.inst,
                                                   self.drv.store_api)
@@ -1199,8 +1199,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
 
         # Invoke the method, instance doesn't exist, no migration
         self.vol_drv.disconnect_volume.reset_mock()
-        self.drv.detach_volume(mock_bdm.get('connection_info'), self.inst,
-                               mock.Mock())
+        self.drv.detach_volume('context', mock_bdm.get('connection_info'),
+                               self.inst, mock.Mock())
         # Verify the disconnect volume was not invoked
         self.assertEqual(0, self.vol_drv.disconnect_volume.call_count)
 
@@ -1209,8 +1209,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         mig = lpm.LiveMigrationDest(self.drv, self.inst)
         self.drv.live_migrations[self.inst.uuid] = mig
         with mock.patch.object(mig, 'cleanup_volume') as mock_clnup:
-            self.drv.detach_volume(mock_bdm.get('connection_info'), self.inst,
-                                   mock.Mock())
+            self.drv.detach_volume('context', mock_bdm.get('connection_info'),
+                                   self.inst, mock.Mock())
         # The cleanup should have been called since there was a migration
         self.assertEqual(1, mock_clnup.call_count)
         # Verify the disconnect volume was not invoked
