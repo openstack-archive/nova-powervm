@@ -760,7 +760,7 @@ class PowerVMDriver(driver.ComputeDriver):
             self.adapter, self.host_uuid, instance, connection_info)
         vol_drv.extend_volume()
 
-    def detach_volume(self, connection_info, instance, mountpoint,
+    def detach_volume(self, context, connection_info, instance, mountpoint,
                       encryption=None):
         """Detach the volume attached to the instance."""
         self._log_operation('detach_volume', instance)
