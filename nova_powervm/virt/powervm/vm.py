@@ -1,4 +1,4 @@
-# Copyright 2014, 2017 IBM Corp.
+# Copyright 2014, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -234,6 +234,7 @@ class VMBuilder(object):
     _PVM_SHAR_PROC_POOL = 'powervm:shared_proc_pool_name'
     _PVM_SRR_CAPABILITY = 'powervm:srr_capability'
     _PVM_PPT_RATIO = 'powervm:ppt_ratio'
+    _PVM_ENFORCE_AFFINITY_CHECK = 'powervm:enforce_affinity_check'
 
     # Map of PowerVM extra specs to the lpar builder attributes.
     # '' is used for attributes that are not implemented yet.
@@ -252,6 +253,7 @@ class VMBuilder(object):
         'powervm:availability_priority': lpar_bldr.AVAIL_PRIORITY,
         'powervm:enable_lpar_metric': lpar_bldr.ENABLE_LPAR_METRIC,
         _PVM_PPT_RATIO: lpar_bldr.PPT_RATIO,
+        _PVM_ENFORCE_AFFINITY_CHECK: lpar_bldr.ENFORCE_AFFINITY_CHECK,
         _PVM_UNCAPPED: None,
         _PVM_DED_SHAR_MODE: None,
         _PVM_PROC_COMPAT: None,
@@ -359,6 +361,18 @@ class VMBuilder(object):
                              "unsupported host.", instance=instance)
                 else:
                     attrs[bldr_key] = instance.flavor.extra_specs[key]
+            elif bldr_key == lpar_bldr.ENFORCE_AFFINITY_CHECK:
+                if (instance.task_state == task_states.REBUILD_SPAWNING and not
+                   self.host_w.get_capability('affinity_check_capable')):
+                    # We still want to be able to rebuild from hosts that
+                    # support affinity score check to hosts that don't support
+                    # affinity score check.
+                    LOG.info("Skipping affinity check attribute processing "
+                             "on rebuild to host which does not support "
+                             "affinity checks.", instance=instance)
+                else:
+                    attrs[bldr_key] = self._flavor_bool(
+                        instance.flavor.extra_specs[key], key)
             else:
                 # We found a direct mapping
                 attrs[bldr_key] = instance.flavor.extra_specs[key]

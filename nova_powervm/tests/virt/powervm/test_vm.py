@@ -1,4 +1,4 @@
-# Copyright 2014, 2017 IBM Corp.
+# Copyright 2014, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -217,6 +217,21 @@ class TestVMBuilder(test.NoDBTestCase):
         test_attrs = dict(lpar_attrs, ppt_ratio='1:64')
         self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
 
+        # Test enforce affinity check set to true
+        flavor.extra_specs = {'powervm:enforce_affinity_check': 'true'}
+        test_attrs = dict(lpar_attrs, enforce_affinity_check=True)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+
+        # Test enforce affinity check set to false
+        flavor.extra_specs = {'powervm:enforce_affinity_check': 'false'}
+        test_attrs = dict(lpar_attrs, enforce_affinity_check=False)
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+
+        # Test enforce affinity check set to invalid value
+        flavor.extra_specs = {'powervm:enforce_affinity_check': 'invalid'}
+        self.assertRaises(exception.ValidationError,
+                          self.lpar_b._format_flavor, instance)
+
         # Test PPT ratio not set when rebuilding to non-supported host
         flavor.extra_specs = {'powervm:ppt_ratio': '1:4096'}
         instance.task_state = task_states.REBUILD_SPAWNING
@@ -225,6 +240,13 @@ class TestVMBuilder(test.NoDBTestCase):
         self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.lpar_b.host_w.get_capability.assert_called_once_with(
             'physical_page_table_ratio_capable')
+
+        # Test affinity check not set when rebuilding to non-supported host
+        self.lpar_b.host_w.get_capability.reset_mock()
+        flavor.extra_specs = {'powervm:enforce_affinity_check': 'true'}
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+        self.lpar_b.host_w.get_capability.assert_called_once_with(
+            'affinity_check_capable')
 
     @mock.patch('pypowervm.wrappers.shared_proc_pool.SharedProcPool.search')
     def test_spp_pool_id(self, mock_search):
