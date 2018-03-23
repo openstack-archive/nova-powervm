@@ -176,6 +176,39 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.multi_vol_drv.connect_volume(self.slot_mgr)
         mock_discover.assert_has_calls(multi_calls, any_order=True)
 
+    @mock.patch('nova_powervm.virt.powervm.volume.volume.VscsiVolumeAdapter'
+                '._validate_vios_on_connection')
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.volume.driver.PowerVMVolumeAdapter.'
+                'vios_uuids', new_callable=mock.PropertyMock)
+    @mock.patch('pypowervm.tasks.hdisk.discover_iscsi', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    def test_connect_volume_active_vios(self, mock_get_vm_id, mock_discover,
+                                        mock_vios_uuids, mock_build_map,
+                                        mock_add_map, mock_validate_vios):
+        # Mockups
+        mock_build_map.return_value = 'fake_map'
+        mock_get_vm_id.return_value = '2'
+        mock_add_map.return_value = None
+        mock_get_vm_id.return_value = 'partition_id'
+        mock_discover.return_value = '/dev/fake', 'fake_udid'
+        vios_ids = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA',
+                    '7DBBE705-E4C4-4458-8223-3EBE07015CA9']
+        mock_vios_uuids.return_value = vios_ids
+
+        self.multi_vol_drv.connect_volume(self.slot_mgr)
+        self.assertEqual(2, mock_discover.call_count)
+
+        # If the vios entries exists in the list
+        mock_discover.reset_mock()
+        mock_discover.return_value = '/dev/fake2', 'fake_udid2'
+        mock_vios_uuids.return_value = [vios_ids[0]]
+        self.multi_vol_drv.connect_volume(self.slot_mgr)
+        # Check if discover iscsi is called
+        self.assertEqual(1, mock_discover.call_count)
+
     @mock.patch('pypowervm.tasks.hdisk.discover_iscsi', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_discover_fail(self, mock_get_vm_id, mock_discover):
@@ -230,6 +263,56 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
 
         self.vol_drv._set_udid(None)
         self.assertRaises(nova_exc.InvalidBDM, self.vol_drv.extend_volume)
+
+    @mock.patch('nova_powervm.virt.powervm.volume.driver.PowerVMVolumeAdapter.'
+                'vios_uuids', new_callable=mock.PropertyMock)
+    @mock.patch('pypowervm.tasks.hdisk.remove_iscsi', autospec=True)
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid',
+                autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    def test_disconnect_on_active_vioses(self, mock_get_vm_id,
+                                         mock_remove_maps,
+                                         mock_hdisk_from_uuid,
+                                         mock_remove_iscsi,
+                                         mock_vios_uuids):
+        # The mock return values
+        mock_hdisk_from_uuid.return_value = 'device_name'
+        mock_get_vm_id.return_value = '2'
+        self.multi_vol_drv._set_devname('/dev/fake')
+        mock_remove_maps.return_value = 'removed'
+        vios_ids = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA',
+                    '7DBBE705-E4C4-4458-8223-3EBE07015CA9']
+        mock_vios_uuids.return_value = vios_ids
+
+        # Run the method
+        self.multi_vol_drv.disconnect_volume(self.slot_mgr)
+        self.assertEqual(2, mock_remove_iscsi.call_count)
+        self.assertEqual(2, mock_remove_maps.call_count)
+
+    @mock.patch('nova_powervm.virt.powervm.volume.driver.PowerVMVolumeAdapter.'
+                'vios_uuids', new_callable=mock.PropertyMock)
+    @mock.patch('pypowervm.tasks.hdisk.remove_iscsi', autospec=True)
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid',
+                autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    def test_disconnect_on_single_vios(self, mock_get_vm_id,
+                                       mock_remove_maps,
+                                       mock_hdisk_from_uuid,
+                                       mock_remove_iscsi,
+                                       mock_vios_uuids):
+        # The mock return values
+        mock_hdisk_from_uuid.return_value = 'device_name'
+        mock_get_vm_id.return_value = '2'
+        self.multi_vol_drv._set_devname('/dev/fake')
+        mock_remove_maps.return_value = 'removed'
+        mock_vios_uuids.return_value = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA']
+
+        # Run the method
+        self.multi_vol_drv.disconnect_volume(self.slot_mgr)
+        self.assertEqual(1, mock_remove_iscsi.call_count)
+        self.assertEqual(1, mock_remove_maps.call_count)
 
     @mock.patch('pypowervm.tasks.hdisk.remove_iscsi', autospec=True)
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid',
