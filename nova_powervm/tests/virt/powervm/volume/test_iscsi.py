@@ -392,3 +392,64 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         retrieved_devname = self.vol_drv._get_devname()
         # Check key not found
         self.assertIsNone(retrieved_devname)
+
+    @mock.patch('pypowervm.tasks.partition.get_active_vioses')
+    @mock.patch('pypowervm.tasks.hdisk.discover_iscsi_initiator')
+    def test_get_iscsi_initiators(self, mock_iscsi_init, mock_active_vioses):
+        # Set up mocks and clear out data that may have been set by other
+        # tests
+        iscsi._ISCSI_INITIATORS = dict()
+        mock_iscsi_init.return_value = 'test_initiator'
+
+        vios_ids = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA',
+                    '7DBBE705-E4C4-4458-8223-3EBE07015CA9']
+
+        mock_active_vioses.return_value = vios_ids
+
+        expected_output = {
+            '1300C76F-9814-4A4D-B1F0-5B69352A7DEA': 'test_initiator',
+            '7DBBE705-E4C4-4458-8223-3EBE07015CA9': 'test_initiator'
+        }
+
+        self.assertEqual(expected_output,
+                         iscsi.get_iscsi_initiators(self.adpt, vios_ids))
+
+        # Make sure it gets set properly in the backend
+        self.assertEqual(expected_output, iscsi._ISCSI_INITIATORS)
+        self.assertEqual(mock_active_vioses.call_count, 0)
+        self.assertEqual(mock_iscsi_init.call_count, 2)
+
+        # Invoke again, make sure it doesn't call down to the mgmt part again
+        mock_iscsi_init.reset_mock()
+        self.assertEqual(expected_output,
+                         iscsi.get_iscsi_initiators(self.adpt, vios_ids))
+        self.assertEqual(mock_active_vioses.call_count, 0)
+        self.assertEqual(mock_iscsi_init.call_count, 0)
+
+        # Invoke iscsi.get_iscsi_initiators with vios_id=None
+        iscsi._ISCSI_INITIATORS = dict()
+        mock_iscsi_init.reset_mock()
+        self.assertEqual(expected_output,
+                         iscsi.get_iscsi_initiators(self.adpt, None))
+        self.assertEqual(expected_output, iscsi._ISCSI_INITIATORS)
+        self.assertEqual(mock_active_vioses.call_count, 1)
+        self.assertEqual(mock_iscsi_init.call_count, 2)
+
+        # Invoke again with vios_id=None to ensure get_active_vioses,
+        # discover_iscsi_initiator is not called
+        mock_iscsi_init.reset_mock()
+        mock_active_vioses.reset_mock()
+        self.assertEqual(expected_output,
+                         iscsi.get_iscsi_initiators(self.adpt, None))
+        self.assertEqual(mock_active_vioses.call_count, 0)
+        self.assertEqual(mock_iscsi_init.call_count, 0)
+
+        # Invoke iscsi.get_iscsi_initiators with discover_iscsi_initiator()
+        # raises ISCSIDiscoveryFailed exception
+        iscsi._ISCSI_INITIATORS = dict()
+        mock_iscsi_init.reset_mock()
+        mock_iscsi_init.side_effect = pvm_exc.ISCSIDiscoveryFailed(
+            vios_uuid='fake_vios_uid', status="fake_status")
+        self.assertEqual(dict(),
+                         iscsi.get_iscsi_initiators(self.adpt, vios_ids))
+        self.assertEqual(dict(), iscsi._ISCSI_INITIATORS)

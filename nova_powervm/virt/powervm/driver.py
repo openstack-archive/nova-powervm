@@ -1,4 +1,4 @@
-# Copyright 2014, 2017 IBM Corp.
+# Copyright 2014, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -66,7 +66,7 @@ from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm.tasks import vm as tf_vm
 from nova_powervm.virt.powervm import vm
 from nova_powervm.virt.powervm import volume as vol_attach
-
+from nova_powervm.virt.powervm.volume import iscsi
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -1103,7 +1103,9 @@ class PowerVMDriver(driver.ComputeDriver):
             connector["wwpns"] = wwpn_list
         connector["multipath"] = CONF.powervm.volume_use_multipath
         connector['host'] = vol_attach.get_hostname_for_volume(instance)
-        connector['initiator'] = vol_attach.get_iscsi_initiator(self.adapter)
+        initiator_dict = iscsi.get_iscsi_initiators(self.adapter)
+        if initiator_dict:
+            connector['initiator'] = list(initiator_dict.values())[0]
         return connector
 
     def migrate_disk_and_power_off(self, context, instance, dest,

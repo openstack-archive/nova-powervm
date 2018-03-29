@@ -13,6 +13,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import collections
 import copy
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
@@ -26,6 +27,7 @@ from nova_powervm.virt.powervm.volume import volume
 from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
 from pypowervm.tasks import hdisk
+from pypowervm.tasks import partition as pvm_partition
 from pypowervm.utils import transaction as tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
@@ -37,6 +39,56 @@ import six
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 DEVNAME_KEY = 'target_devname'
+_ISCSI_INITIATORS = collections.OrderedDict()
+
+
+def get_iscsi_initiators(adapter, vios_ids=None):
+    """Gets the VIOS iSCSI initiators.
+
+     For the first time invocation of this method after process start up,
+     it populates initiators data for VIOSes (if specified, otherwise it
+     gets active VIOSes from the host) and stores in memory for futher
+     lookup.
+
+    :param adapter: The pypowervm adapter
+    :param vios_ids: List of VIOS ids to get the initiators. If not
+                     specified, a list of active VIOSes for the
+                     host is fetched (but only for the first time)
+                     through the pypowervm adapter.
+    :return: A dict of the form
+             {<vios_id>: <list of initiators>}
+    """
+
+    global _ISCSI_INITIATORS
+
+    def discover_initiator(vios_id):
+
+        # Get the VIOS id lock for initiator lookup
+        @lockutils.synchronized('inititator-lookup-' + vios_id)
+        def _discover_initiator():
+            if (vios_id in _ISCSI_INITIATORS and
+                    _ISCSI_INITIATORS[vios_id]):
+                return
+            else:
+                try:
+                    initiator = hdisk.discover_iscsi_initiator(
+                        adapter, vios_id)
+                    _ISCSI_INITIATORS[vios_id] = initiator
+                except pvm_exc.ISCSIDiscoveryFailed as e:
+                    # TODO(chhagarw): handle differently based on
+                    # error codes
+                    LOG.error(e)
+
+        _discover_initiator()
+
+    if vios_ids is None and not _ISCSI_INITIATORS:
+        vios_ids = pvm_partition.get_active_vioses(adapter)
+
+    for vios_id in vios_ids or []:
+        discover_initiator(vios_id)
+
+    LOG.debug("iSCSI initiator info: %s" % _ISCSI_INITIATORS)
+    return _ISCSI_INITIATORS
 
 
 class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,

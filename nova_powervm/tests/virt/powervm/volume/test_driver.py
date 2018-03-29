@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -15,7 +15,6 @@
 #    under the License.
 
 import mock
-from pypowervm.wrappers import virtual_io_server as pvm_vios
 import six
 
 from nova import test
@@ -53,34 +52,6 @@ class TestInitMethods(test.NoDBTestCase):
         'nfs': nfs.NFSVolumeAdapter,
         'gpfs': gpfs.GPFSVolumeAdapter,
     }
-
-    @mock.patch('pypowervm.tasks.hdisk.discover_iscsi_initiator')
-    @mock.patch('pypowervm.tasks.partition.get_mgmt_partition')
-    def test_get_iscsi_initiator(self, mock_mgmt, mock_iscsi_init):
-        # Set up mocks and clear out data that may have been set by other
-        # tests
-        mock_adpt = mock.Mock()
-        mock_mgmt.return_value = mock.Mock(spec=pvm_vios.VIOS)
-        mock_iscsi_init.return_value = 'test_initiator'
-
-        self.assertEqual('test_initiator',
-                         volume.get_iscsi_initiator(mock_adpt))
-
-        # Make sure it gets set properly in the backend
-        self.assertEqual('test_initiator', volume._ISCSI_INITIATOR)
-        self.assertTrue(volume._ISCSI_LOOKUP_COMPLETE)
-        mock_mgmt.assert_called_once_with(mock_adpt)
-        self.assertEqual(1, mock_mgmt.call_count)
-
-        # Invoke again, make sure it doesn't call down to the mgmt part again
-        self.assertEqual('test_initiator',
-                         volume.get_iscsi_initiator(mock_adpt))
-        self.assertEqual(1, mock_mgmt.call_count)
-
-        # Check if initiator returned does not have newline character
-        mock_iscsi_init.return_value = 'test_initiator\n'
-        self.assertEqual('test_initiator',
-                         volume.get_iscsi_initiator(mock_adpt))
 
     def test_get_volume_class(self):
         for vol_type, class_type in six.iteritems(self.volume_drivers):
