@@ -80,7 +80,7 @@ class TestSSPDiskAdapter(test.NoDBTestCase):
         self.clust_wrap = mock.Mock(spec=pvm_clust.Cluster,
                                     nodes=[self.node1, self.node2])
         self.clust_wrap.refresh.return_value = self.clust_wrap
-        self.vio_wrap = mock.Mock(spec=pvm_vios.VIOS)
+        self.vio_wrap = mock.Mock(spec=pvm_vios.VIOS, uuid='uuid')
 
         # For _fetch_cluster() with no name
         self.mock_clust_get = self.sspfx.mock_clust_get

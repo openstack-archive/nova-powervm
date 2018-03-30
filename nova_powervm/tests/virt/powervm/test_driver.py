@@ -157,8 +157,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.build_tx_feed = self.useFixture(fixtures.MockPatch(
             'pypowervm.tasks.partition.build_active_vio_feed_task')).mock
 
-        self.stg_ftsk = pvm_tx.FeedTask('fake',
-                                        [mock.Mock(spec=pvm_vios.VIOS)])
+        self.stg_ftsk = pvm_tx.FeedTask(
+            'fake', [mock.Mock(spec=pvm_vios.VIOS, uuid='uuid')])
         self.build_tx_feed.return_value = self.stg_ftsk
 
         self.scrub_stg = self.useFixture(fixtures.MockPatch(
