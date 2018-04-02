@@ -87,8 +87,8 @@ class RBDVolumeAdapter(v_driver.PowerVMVolumeAdapter):
 
     def _connect_volume(self, slot_mgr):
         name = self.connection_info["data"]["name"]
-        # Get the File Path
-        rbd = pvm_stg.RBD.bld_ref(self.adapter, name)
+        volid = self.connection_info["data"]["volume_id"]
+        rbd = pvm_stg.RBD.bld_ref(self.adapter, name, tag=volid)
 
         def add_func(vios_w):
             # If the vios doesn't match, just return
