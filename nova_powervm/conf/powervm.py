@@ -124,12 +124,6 @@ vol_adapter_opts = [
                     'specified and at least one fabric_X_port_wwpns option '
                     '(where X corresponds to the fabric name) must be '
                     'specified.'),
-    cfg.StrOpt('network_attach_strategy',
-               choices=['iscsi'], ignore_case=True,
-               default='iscsi',
-               help='The iSCSI Volume Strategy defines how iSCSI Cinder '
-                    'volumes should be attached to the Virtual Machine. The '
-                    'option is: iscsi.'),
     cfg.StrOpt('fc_npiv_adapter_api',
                default='nova_powervm.virt.powervm.volume.npiv.'
                'NPIVVolumeAdapter',
