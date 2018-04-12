@@ -152,6 +152,43 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
     def _is_multipath(self):
         return self.connection_info["connector"].get("multipath", False)
 
+    def _get_iscsi_conn_props(self, vios_w, auth=False):
+        """Returns the required iSCSI connection properties."""
+        props = dict()
+        try:
+            data = self.connection_info['data']
+            # For multipath target properties should exist
+            if all([key in data for key in ('target_portals',
+                                            'target_iqns',
+                                            'target_luns')]):
+                props['target_portals'] = data['target_portals']
+                props['target_iqns'] = data['target_iqns']
+                props['target_luns'] = data['target_luns']
+
+            if auth and 'discovery_auth_method' in data:
+                for s in ('method', 'username', 'password'):
+                    k = 'discovery_auth_' + s
+                    props[k] = data[k]
+
+            props['target_portal'] = data['target_portal']
+            props['target_iqn'] = data['target_iqn']
+            props['target_lun'] = data['target_lun']
+
+            # if auth_method is set look for username, password
+            if auth and 'auth_method' in data:
+                props['auth_method'] = data['auth_method']
+                props['auth_username'] = data['auth_username']
+                props['auth_password'] = data['auth_password']
+
+            return props
+
+        except (KeyError, ValueError):
+            # Missing information in the connection info
+            LOG.warning('Failed to retrieve iSCSI connection properties '
+                        'for vios %(vios)s, connection_info=%(cinfo)s',
+                        dict(vios=vios_w.uuid, cinfo=self.connection_info))
+        return None
+
     def _discover_vol(self, vios_w, props):
         portal = props.get("target_portals", props.get("target_portal"))
         iqn = props.get("target_iqns", props.get("target_iqn"))
@@ -184,12 +221,17 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
         :returns: LUN or None
         """
         device_name = udid = None
+        conn_props = self._get_iscsi_conn_props(vios_w, auth=True)
+        if conn_props is None:
+            return None, None
+
+        # Check if multipath, we can directly pass the IQN list to
+        # to the low level driver for volume discovery, else iterate
+        # over the IQN and get the list for discovery.
         if self._is_multipath():
-            device_name, udid = self._discover_vol(
-                vios_w, self.connection_info["data"])
+            device_name, udid = self._discover_vol(vios_w, conn_props)
         else:
-            for props in self._iterate_all_targets(
-                    self.connection_info["data"]):
+            for props in self._iterate_all_targets(conn_props):
                 device_name, udid = self._discover_vol(vios_w, props)
         return device_name, udid
 
@@ -214,21 +256,16 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
         device_name, udid = self._discover_volume_on_vios(vios_w)
         if device_name is not None and udid is not None:
             slot, lua = slot_mgr.build_map.get_vscsi_slot(vios_w, device_name)
-            device_name = '/dev/' + device_name
-            iqn = self.connection_info["data"]["target_iqn"]
-            lun = self.connection_info["data"]["target_lun"]
-            target_name = "ISCSI-%s_%s" % (iqn.split(":")[1], str(lun))
             volume_id = self.connection_info["data"]["volume_id"]
             # Found a hdisk on this Virtual I/O Server.  Add the action to
             # map it to the VM when the stg_ftsk is executed.
             with lockutils.lock(hash(self)):
                 self._add_append_mapping(
                     vios_w.uuid, device_name, lpar_slot_num=slot, lua=lua,
-                    target_name=target_name, udid=udid, tag=volume_id)
+                    udid=udid, tag=volume_id)
 
-            # Save the devname for the disk in the connection info.  It is
+            # Save the udid  for the disk in the connection info.  It is
             # used for the detach.
-            self._set_devname(device_name)
             self._set_udid(udid)
 
             LOG.debug('Device attached: %s', device_name,
@@ -276,8 +313,10 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
 
             device_name = None
             try:
-                device_name = self._get_devname()
-
+                udid = self._get_udid()
+                if udid:
+                    # Get the device name using UniqueDeviceID Identifier.
+                    device_name = vios_w.hdisk_from_uuid(udid)
                 if not device_name:
                     # We lost our bdm data.
 
@@ -315,7 +354,9 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
             with lockutils.lock(hash(self)):
                 self._add_remove_mapping(partition_id, vios_w.uuid,
                                          device_name, slot_mgr)
-                conn_data = self.connection_info["data"]
+                conn_data = self._get_iscsi_conn_props(vios_w)
+                if not conn_data:
+                    return False
                 iqn = conn_data.get("target_iqns", conn_data.get("target_iqn"))
                 portal = conn_data.get("target_portals",
                                        conn_data.get("target_portal"))

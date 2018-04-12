@@ -76,6 +76,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
                     'auth_username': self.user,
                     'auth_password': self.password,
                     'volume_id': 'a_volume_id',
+                    'auth_method': 'CHAP'
                 },
             }
             self.auth_method = 'CHAP'
@@ -117,6 +118,8 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.slot_mgr = mock.Mock()
         self.slot_mgr.build_map.get_vscsi_slot.return_value = 62, 'the_lua'
 
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.PVVscsiFCVolumeAdapter'
+                '._validate_vios_on_connection', new=mock.Mock())
     @mock.patch('pypowervm.tasks.hdisk.discover_iscsi', autospec=True)
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map', autospec=True)
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping',
@@ -140,7 +143,6 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
             self.assertEqual('_volume_id', pv.tag[1:])
             self.assertEqual(62, lpar_slot_num)
             self.assertEqual('the_lua', lua)
-            self.assertEqual('ISCSI-bar_%s' % self.lun, target_name)
             return 'fake_map'
 
         mock_build_map.side_effect = build_map_func
@@ -156,12 +158,12 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
                            self.iqn, self.feed[0].uuid, lunid=self.lun,
                            multipath=False, iface_name='default',
                            discovery_auth=None, discovery_username=None,
-                           auth=None, discovery_password=None),
+                           auth='CHAP', discovery_password=None),
                  mock.call(self.adpt, self.host_ip, self.user, self.password,
                            self.iqn, self.feed[1].uuid, lunid=self.lun,
                            multipath=False, iface_name='default',
                            discovery_auth=None, discovery_username=None,
-                           auth=None, discovery_password=None)]
+                           auth='CHAP', discovery_password=None)]
         multi_calls = [
             mock.call(self.adpt, [self.host_ip], self.user, self.password,
                       [self.iqn], self.feed[0].uuid, lunid=[self.lun],
@@ -178,6 +180,24 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         mock_discover.assert_has_calls(calls, any_order=True)
         self.multi_vol_drv.connect_volume(self.slot_mgr)
         mock_discover.assert_has_calls(multi_calls, any_order=True)
+
+        # connect without using CHAP authentication.
+        self.vol_drv.connection_info['data'].pop('auth_method')
+        mock_discover.return_value = '/dev/fake', 'fake_udid2'
+        mock_add_map.reset_mock()
+        mock_discover.reset_mock()
+        self.vol_drv.connect_volume(self.slot_mgr)
+        calls = [mock.call(self.adpt, self.host_ip, None, None,
+                           self.iqn, self.feed[0].uuid, lunid=self.lun,
+                           multipath=False, iface_name='default',
+                           discovery_auth=None, discovery_username=None,
+                           auth=None, discovery_password=None),
+                 mock.call(self.adpt, self.host_ip, None, None,
+                           self.iqn, self.feed[1].uuid, lunid=self.lun,
+                           multipath=False, iface_name='default',
+                           discovery_auth=None, discovery_username=None,
+                           auth=None, discovery_password=None)]
+        mock_discover.assert_has_calls(calls, any_order=True)
 
     @mock.patch('nova_powervm.virt.powervm.volume.volume.VscsiVolumeAdapter'
                 '._validate_vios_on_connection')
@@ -282,7 +302,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         # The mock return values
         mock_hdisk_from_uuid.return_value = 'device_name'
         mock_get_vm_id.return_value = '2'
-        self.multi_vol_drv._set_devname('/dev/fake')
+        self.multi_vol_drv._set_udid('vstor_uuid')
         mock_remove_maps.return_value = 'removed'
         vios_ids = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA',
                     '7DBBE705-E4C4-4458-8223-3EBE07015CA9']
@@ -308,7 +328,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         # The mock return values
         mock_hdisk_from_uuid.return_value = 'device_name'
         mock_get_vm_id.return_value = '2'
-        self.multi_vol_drv._set_devname('/dev/fake')
+        self.multi_vol_drv._set_udid('vstor_uuid')
         mock_remove_maps.return_value = 'removed'
         mock_vios_uuids.return_value = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA']
 
@@ -327,8 +347,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         # The mock return values
         mock_hdisk_from_uuid.return_value = 'device_name'
         mock_get_vm_id.return_value = '2'
-        self.vol_drv._set_devname('/dev/fake')
-        self.multi_vol_drv._set_devname('/dev/fake')
+        self.vol_drv._set_udid('vstor_uuid')
 
         def validate_remove_maps(vios_w, vm_uuid, match_func):
             self.assertIsInstance(vios_w, pvm_vios.VIOS)
@@ -356,6 +375,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
                                  portal=[self.host_ip], multipath=True)]
         mock_remove_iscsi.assert_has_calls(calls, any_order=True)
         mock_remove_iscsi.reset_mock()
+        self.multi_vol_drv._set_udid('vstor_uuid')
         self.multi_vol_drv.disconnect_volume(self.slot_mgr)
         mock_remove_iscsi.assert_has_calls(multi_calls, any_order=True)
 
@@ -366,32 +386,6 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
 
     def test_vol_type(self):
         self.assertEqual('iscsi', self.vol_drv.vol_type())
-
-    def test_set_devname(self):
-
-        # Mock connection info
-        self.vol_drv.connection_info['data'][iscsi.DEVNAME_KEY] = None
-
-        # Set the Device Name
-        self.vol_drv._set_devname(self.devname)
-
-        # Verify
-        dev_name = self.vol_drv.connection_info['data'][iscsi.DEVNAME_KEY]
-        self.assertEqual(self.devname, dev_name)
-
-    def test_get_devname(self):
-
-        # Set the value to retrieve
-        self.vol_drv.connection_info['data'][iscsi.DEVNAME_KEY] = self.devname
-        retrieved_devname = self.vol_drv._get_devname()
-        # Check key found
-        self.assertEqual(self.devname, retrieved_devname)
-
-        # Check key not found
-        self.vol_drv.connection_info['data'].pop(iscsi.DEVNAME_KEY)
-        retrieved_devname = self.vol_drv._get_devname()
-        # Check key not found
-        self.assertIsNone(retrieved_devname)
 
     @mock.patch('pypowervm.tasks.partition.get_active_vioses')
     @mock.patch('pypowervm.tasks.hdisk.discover_iscsi_initiator')
@@ -453,3 +447,42 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual(dict(),
                          iscsi.get_iscsi_initiators(self.adpt, vios_ids))
         self.assertEqual(dict(), iscsi._ISCSI_INITIATORS)
+
+    def test_get_iscsi_conn_props(self):
+        # Get the conn props with auth enabled
+        vios_w = mock.MagicMock()
+        props = self.vol_drv._get_iscsi_conn_props(vios_w, auth=True)
+        expected_props = {
+            'target_iqn': self.iqn,
+            'target_lun': self.lun,
+            'target_portal': self.host_ip,
+            'auth_username': self.user,
+            'auth_password': self.password,
+            'auth_method': 'CHAP'
+        }
+        self.assertItemsEqual(expected_props, props)
+
+        # Check with multipath enabled
+        mprops = self.multi_vol_drv._get_iscsi_conn_props(vios_w, auth=True)
+        multi_props = {
+            'discovery_auth_method': self.auth_method,
+            'discovery_auth_username': self.user,
+            'discovery_auth_password': self.password,
+            'target_iqns': [self.iqn],
+            'target_luns': [self.lun],
+            'target_portals': [self.host_ip]
+        }
+        multi_props.update(expected_props)
+        self.assertItemsEqual(multi_props, mprops)
+
+        # Call without auth props
+        props = self.vol_drv._get_iscsi_conn_props(vios_w, auth=False)
+        expected_props.pop('auth_username')
+        expected_props.pop('auth_password')
+        expected_props.pop('auth_method')
+        self.assertItemsEqual(expected_props, props)
+
+        # KeyError
+        self.vol_drv.connection_info['data'].pop('target_iqn')
+        props = self.vol_drv._get_iscsi_conn_props(vios_w, auth=False)
+        self.assertIsNone(props)

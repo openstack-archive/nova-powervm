@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -182,28 +182,6 @@ class VscsiVolumeAdapter(object):
         :param udid: The hdisk target_udid to be stored in system_metadata
         """
         self.connection_info['data'][UDID_KEY] = udid
-
-    def _get_devname(self):
-        """This method will return the hdisk devname stored in connection_info.
-
-        :return: The target_devname associated with the hdisk
-        """
-        try:
-            return self.connection_info['data'][DEVNAME_KEY]
-        except (KeyError, ValueError):
-            # It's common to lose our specific data in the BDM.  The connection
-            # information can be 'refreshed' by operations like LPM and resize
-            LOG.info('Failed to retrieve device_id key from BDM for volume id '
-                     '%s', self.volume_id, instance=self.instance)
-            return None
-
-    def _set_devname(self, devname):
-        """This method will set the hdisk devname in the connection_info.
-
-        :param devname: The hdisk target_devname to be stored in
-                        system_metadata
-        """
-        self.connection_info['data'][DEVNAME_KEY] = devname
 
     def _add_remove_mapping(self, vm_uuid, vios_uuid, device_name, slot_mgr):
         """Adds a transaction to remove the storage mapping.
