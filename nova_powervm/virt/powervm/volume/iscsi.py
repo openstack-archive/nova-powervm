@@ -119,7 +119,10 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                 discovery_password=discovery_password,
                 multipath=self._is_multipath())
         except (pvm_exc.ISCSIDiscoveryFailed, pvm_exc.JobRequestFailed) as e:
-            LOG.warning(e)
+            msg_args = {'vios': vios_w.uuid, 'err': six.text_type(e)}
+            LOG.warning("iSCSI discovery on VIOS %(vios)s failed with "
+                        "error: %(err)s", msg_args)
+            return None, None
 
     def _discover_volume_on_vios(self, vios_w):
         """Discovers an hdisk on a single vios for the volume.
