@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -220,7 +220,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
             vios_uuid='fake_vios', status='fake_status')
 
         # Run the method
-        self.assertRaises(pvm_exc.MultipleExceptionsInFeedTask,
+        self.assertRaises(p_exc.VolumeAttachFailed,
                           self.vol_drv.connect_volume, self.slot_mgr)
 
     @mock.patch('pypowervm.tasks.hdisk.discover_iscsi', autospec=True)
@@ -231,8 +231,8 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
             operation_name='ISCSIDiscovery', error='fake_err')
 
         # Run the method
-        self.assertRaises(pvm_exc.MultipleExceptionsInFeedTask,
-                          self.vol_drv.connect_volume, self.slot_mgr)
+        self.assertRaises(p_exc.VolumeAttachFailed,
+                          self.multi_vol_drv.connect_volume, self.slot_mgr)
 
     @mock.patch('pypowervm.tasks.partition.get_active_vioses', autospec=True)
     @mock.patch('pypowervm.tasks.storage.rescan_vstor', autospec=True)
