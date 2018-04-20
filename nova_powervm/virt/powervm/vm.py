@@ -754,7 +754,11 @@ def get_pvm_uuid(instance):
     :param instance: nova.objects.instance.Instance
     :return: pvm_uuid.
     """
-    return pvm_uuid.convert_uuid_to_pvm(instance.uuid).upper()
+    # NOTE(esberglu): To work around bug ##1766692, we explicitly use str()
+    # rather than six.text_type here because of this pypowervm check for
+    # isinstance(..., str) at L50 of
+    # https://github.com/powervm/pypowervm/blob/1.1.6/pypowervm/utils/uuid.py
+    return pvm_uuid.convert_uuid_to_pvm(str(instance.uuid)).upper()
 
 
 def _uuid_set_high_bit(pvm_uuid):
