@@ -454,7 +454,7 @@ class PowerVMDriver(driver.ComputeDriver):
         distro = instance.system_metadata.get('image_os_distro', '')
         if distro.lower() == img.OSDistro.OS400:
             boot_type = self._get_boot_connectivity_type(
-                context, bdms, block_device_info)
+                bdms, block_device_info)
             flow_spawn.add(tf_vm.UpdateIBMiSettings(
                 self.adapter, instance, boot_type))
 
@@ -545,7 +545,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         root_bdm = block_device.get_root_bdm(
             driver.block_device_info_get_mapping(block_device_info))
-        return (root_bdm is not None)
+        return root_bdm is not None
 
     @property
     def need_legacy_block_device_info(self):
@@ -1803,36 +1803,36 @@ class PowerVMDriver(driver.ComputeDriver):
                   instance=instance)
         return list(xags)
 
-    def _get_boot_connectivity_type(self, context, bdms, block_device_info):
+    def _get_boot_connectivity_type(self, bdms, block_device_info):
         """Get connectivity information for the instance.
 
-        :param context: security context
         :param bdms: The BDMs for the operation. If boot volume of
                      the instance is ssp lu or local disk, the bdms is None.
         :param block_device_info: Instance volume block device info.
-        :return: Returns the boot connectivity type,
-                 If boot volume is a npiv volume, returns 'npiv'
-                 Otherwise, return 'vscsi'.
+        :return: The boot connectivity type.
+                 If boot volume is an npiv volume, returns 'fibre_channel'.
+                 Otherwise, returns 'vscsi'.
         """
-        # Set default boot_conn_type as 'vscsi'
-        boot_conn_type = 'vscsi'
         if self._is_booted_from_volume(block_device_info) and bdms is not None:
             for bdm in bdms:
                 if bdm.get('boot_index') == 0:
                     return self._get_connectivity_type(bdm)
-        else:
-            return boot_conn_type
+        # Default connectivity type is 'vscsi'
+        return 'vscsi'
 
     @staticmethod
     def _get_connectivity_type(bdm):
         conn_info = bdm.get('connection_info')
         if 'connection-type' in conn_info['data']:
             connectivity_type = conn_info['data']['connection-type']
-            boot_conn_type = ('vscsi' if connectivity_type == 'pv_vscsi' else
-                              connectivity_type)
-        elif 'driver_volume_type' in conn_info['data']:
-            boot_conn_type = conn_info['data']['driver_volume_type']
-        return boot_conn_type
+            return ('vscsi' if connectivity_type == 'pv_vscsi'
+                    else connectivity_type)
+        # Seemingly bogus path (driver_volume_type shouldn't be in 'data'),
+        # preserved for potential compatibility.
+        if 'driver_volume_type' in conn_info['data']:
+            return conn_info['data']['driver_volume_type']
+        # Actual location for driver_volume_type.  Default to vscsi.
+        return conn_info.get('driver_volume_type', 'vscsi')
 
     def deallocate_networks_on_reschedule(self, instance):
         """Does the driver want networks deallocated on reschedule?
