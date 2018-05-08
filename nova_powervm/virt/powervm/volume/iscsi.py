@@ -82,7 +82,8 @@ def get_iscsi_initiators(adapter, vios_ids=None):
         _discover_initiator()
 
     if vios_ids is None and not _ISCSI_INITIATORS:
-        vios_ids = pvm_partition.get_active_vioses(adapter)
+        vios_list = pvm_partition.get_active_vioses(adapter)
+        vios_ids = [vios.uuid for vios in vios_list]
 
     for vios_id in vios_ids or []:
         discover_initiator(vios_id)

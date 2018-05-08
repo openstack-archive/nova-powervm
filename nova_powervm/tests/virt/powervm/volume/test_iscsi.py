@@ -397,8 +397,9 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
 
         vios_ids = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA',
                     '7DBBE705-E4C4-4458-8223-3EBE07015CA9']
-
-        mock_active_vioses.return_value = vios_ids
+        vios0 = mock.Mock(uuid=vios_ids[0])
+        vios1 = mock.Mock(uuid=vios_ids[1])
+        mock_active_vioses.return_value = [vios0, vios1]
 
         expected_output = {
             '1300C76F-9814-4A4D-B1F0-5B69352A7DEA': 'test_initiator',
