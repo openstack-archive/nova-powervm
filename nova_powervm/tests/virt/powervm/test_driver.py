@@ -955,6 +955,72 @@ class TestPowerVMDriver(test.NoDBTestCase):
         flow.add.assert_has_calls([mock.call('disconn_vol1'),
                                    mock.call('disconn_vol2')])
 
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume', new=mock.Mock(return_value=False))
+    def test_get_boot_connectivity_type_no_bfv(self):
+        # Boot connectivity type defaults to vscsi when not booted from volume.
+        self.assertEqual('vscsi', self.drv._get_boot_connectivity_type(
+            'bdms', 'block_device_info'))
+
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume', new=mock.Mock(return_value=True))
+    def test_get_boot_connectivity_type_no_bdms(self):
+        # Boot connectivity type defaults to vscsi when no BDMs
+        self.assertEqual('vscsi', self.drv._get_boot_connectivity_type(
+            None, 'block_device_info'))
+
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume', new=mock.Mock(return_value=True))
+    def test_get_boot_connectivity_type_no_boot_bdm(self):
+        # Boot connectivity type defaults to vscsi when no BDM has a boot_index
+        # of zero (which should actually never happen IRL).
+        self.assertEqual('vscsi', self.drv._get_boot_connectivity_type(
+            [{'boot_index': 1}], 'block_device_info'))
+
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume', new=mock.Mock(return_value=True))
+    def test_get_boot_connectivity_type_driver_volume_type(self):
+        # Boot connectivity type discovered via BDM driver_volume_type.
+        bdms = self._fake_bdms(set_boot_index=True)['block_device_mapping']
+        self.assertEqual('fibre_channel', self.drv._get_boot_connectivity_type(
+            bdms, 'block_device_info'))
+
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume', new=mock.Mock(return_value=True))
+    def test_get_boot_connectivity_type_data_driver_volume_type(self):
+        # Boot connectivity type discovered via BDM driver_volume_type in
+        # conn_info['data'], which I think is bogus, but preserved for
+        # compatibility.
+        bdms = self._fake_bdms(
+            set_boot_index=True,
+            driver_volume_type_in_data=True)['block_device_mapping']
+        self.assertEqual('fibre_channel', self.drv._get_boot_connectivity_type(
+            bdms, 'block_device_info'))
+
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume', new=mock.Mock(return_value=True))
+    def test_get_boot_connectivity_type_connection_type(self):
+        # Boot connectivity type discovered from BDM's connectivity-type
+        bdms = self._fake_bdms(connection_type='hello',
+                               set_boot_index=True)['block_device_mapping']
+        self.assertEqual('hello', self.drv._get_boot_connectivity_type(
+            bdms, 'block_device_info'))
+        # We convert 'pv_vscsi' to 'vscsi'
+        bdms = self._fake_bdms(connection_type='pv_vscsi',
+                               set_boot_index=True)['block_device_mapping']
+        self.assertEqual('vscsi', self.drv._get_boot_connectivity_type(
+            bdms, 'block_device_info'))
+
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver.'
+                '_is_booted_from_volume', new=mock.Mock(return_value=True))
+    def test_get_boot_connectivity_type_driver_volume_type_unset(self):
+        # Boot connectivity type defaults to vscsi when BDM driver_volume_type
+        # is unset.
+        bdms = self._fake_bdms(driver_volume_type=None,
+                               set_boot_index=True)['block_device_mapping']
+        self.assertEqual('vscsi', self.drv._get_boot_connectivity_type(
+            bdms, 'block_device_info'))
+
     @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps')
     @mock.patch('pypowervm.wrappers.entry_wrapper.EntryWrapper.update',
                 new=mock.Mock())
@@ -1724,18 +1790,26 @@ class TestPowerVMDriver(test.NoDBTestCase):
                           mock.ANY, self.inst)
 
     @staticmethod
-    def _fake_bdms():
+    def _fake_bdms(set_boot_index=False, connection_type=None,
+                   driver_volume_type='fibre_channel',
+                   driver_volume_type_in_data=False):
         def _fake_bdm(volume_id, target_lun):
-            connection_info = {'driver_volume_type': 'fibre_channel',
-                               'data': {'volume_id': volume_id,
-                                        'target_lun': target_lun,
-                                        'initiator_target_map':
-                                        {'21000024F5': ['50050768']}}}
+            conninfo = {'data': {'volume_id': volume_id,
+                                 'target_lun': target_lun,
+                                 'initiator_target_map':
+                                     {'21000024F5': ['50050768']}}}
+            if connection_type is not None:
+                conninfo['data']['connection-type'] = connection_type
+            if driver_volume_type is not None:
+                if driver_volume_type_in_data:
+                    conninfo['data']['driver_volume_type'] = driver_volume_type
+                else:
+                    conninfo['driver_volume_type'] = driver_volume_type
             mapping_dict = {'source_type': 'volume', 'volume_id': volume_id,
                             'destination_type': 'volume',
-                            'connection_info':
-                            jsonutils.dumps(connection_info),
-                            }
+                            'connection_info': jsonutils.dumps(conninfo)}
+            if set_boot_index:
+                mapping_dict['boot_index'] = target_lun
             bdm_dict = nova_block_device.BlockDeviceDict(mapping_dict)
             bdm_obj = bdmobj.BlockDeviceMapping(**bdm_dict)
 
