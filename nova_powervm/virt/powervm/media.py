@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright 2015, 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -108,6 +108,9 @@ class ConfigDrivePowerVM(object):
                                                      content=injected_files,
                                                      extra_md=extra_md,
                                                      network_info=network_info)
+
+        # fix instance uuid to match uuid assigned to VM
+        inst_md.uuid = vm.get_pvm_uuid(instance).lower()
 
         # Make sure the path exists.
         im_path = CONF.powervm.image_meta_local_path
