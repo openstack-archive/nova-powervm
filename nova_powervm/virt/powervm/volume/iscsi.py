@@ -74,7 +74,8 @@ def get_iscsi_initiators(adapter, vios_ids=None):
                     initiator = hdisk.discover_iscsi_initiator(
                         adapter, vios_id)
                     _ISCSI_INITIATORS[vios_id] = initiator
-                except pvm_exc.ISCSIDiscoveryFailed as e:
+                except (pvm_exc.ISCSIDiscoveryFailed,
+                        pvm_exc.JobRequestFailed) as e:
                     # TODO(chhagarw): handle differently based on
                     # error codes
                     LOG.error(e)

@@ -449,6 +449,16 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
                          iscsi.get_iscsi_initiators(self.adpt, vios_ids))
         self.assertEqual(dict(), iscsi._ISCSI_INITIATORS)
 
+        # Invoke iscsi.get_iscsi_initiators with discover_iscsi_initiator()
+        # raises JobRequestFailed exception
+        iscsi._ISCSI_INITIATORS = dict()
+        mock_iscsi_init.reset_mock()
+        mock_iscsi_init.side_effect = pvm_exc.JobRequestFailed(
+            operation_name='fake_operation_name', error="fake_error")
+        self.assertEqual(dict(),
+                         iscsi.get_iscsi_initiators(self.adpt, vios_ids))
+        self.assertEqual(dict(), iscsi._ISCSI_INITIATORS)
+
     def test_get_iscsi_conn_props(self):
         # Get the conn props with auth enabled
         vios_w = mock.MagicMock()
