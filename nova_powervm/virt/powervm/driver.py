@@ -392,8 +392,7 @@ class PowerVMDriver(driver.ComputeDriver):
         # Build the PowerVM Slot lookup map.  Only the recreate action needs
         # the volume driver iterator (to look up volumes and their client
         # mappings).
-        vol_drv_iter = (self._vol_drv_iter(context, instance, bdms,
-                                           stg_ftsk=stg_ftsk)
+        vol_drv_iter = (self._vol_drv_iter(instance, bdms, stg_ftsk=stg_ftsk)
                         if recreate else None)
         slot_mgr = slot.build_slot_mgr(
             instance, self.store_api, adapter=self.adapter,
@@ -493,7 +492,7 @@ class PowerVMDriver(driver.ComputeDriver):
         :param slot_mgr: A NovaSlotManager.  Used to store/retrieve the client
                          slots used when a volume is attached to a VM.
         """
-        for bdm, vol_drv in self._vol_drv_iter(context, instance, bdms,
+        for bdm, vol_drv in self._vol_drv_iter(instance, bdms,
                                                stg_ftsk=stg_ftsk):
             # First connect the volume.  This will update the
             # connection_info.
@@ -519,7 +518,7 @@ class PowerVMDriver(driver.ComputeDriver):
                          slots used when a volume is detached from a VM.
         """
         # TODO(thorst) Do we need to do something on the disconnect for slots?
-        for bdm, vol_drv in self._vol_drv_iter(context, instance, bdms,
+        for bdm, vol_drv in self._vol_drv_iter(instance, bdms,
                                                stg_ftsk=stg_ftsk):
             flow.add(tf_stg.DisconnectVolume(vol_drv, slot_mgr))
 
@@ -1166,8 +1165,8 @@ class PowerVMDriver(driver.ComputeDriver):
             # adapters in the same slots.
             slot_mgr = slot.build_slot_mgr(
                 instance, self.store_api, adapter=self.adapter,
-                vol_drv_iter=self._vol_drv_iter(
-                    context, instance, bdms, stg_ftsk=stg_ftsk))
+                vol_drv_iter=self._vol_drv_iter(instance, bdms,
+                                                stg_ftsk=stg_ftsk))
 
             # Determine if there are volumes to disconnect.  If so, remove each
             # volume (within the transaction manager)
@@ -1263,8 +1262,8 @@ class PowerVMDriver(driver.ComputeDriver):
             # b) If adding/removing block devices, to register the slots.
             slot_mgr = slot.build_slot_mgr(
                 instance, self.store_api, adapter=self.adapter,
-                vol_drv_iter=self._vol_drv_iter(
-                    context, instance, bdms, stg_ftsk=stg_ftsk))
+                vol_drv_iter=self._vol_drv_iter(instance, bdms,
+                                                stg_ftsk=stg_ftsk))
         else:
             stg_ftsk = None
 
@@ -1662,26 +1661,24 @@ class PowerVMDriver(driver.ComputeDriver):
         mig.post_live_migration_at_destination(network_info, vol_drvs)
         del self.live_migrations[instance.uuid]
 
-    def _vol_drv_iter(self, context, instance, bdms, stg_ftsk=None):
+    def _vol_drv_iter(self, instance, bdms, stg_ftsk=None):
         """Yields a bdm and volume driver."""
         # Get a volume driver for each volume
         for bdm in bdms or []:
-            conn_info = bdm.get('connection_info')
-            # if it doesn't have connection_info, it's not a volume
-            if not conn_info:
+            # Ignore if it's not a volume
+            if not bdm.is_volume:
                 continue
 
             vol_drv = vol_attach.build_volume_driver(
-                self.adapter, self.host_uuid, instance, conn_info,
-                stg_ftsk=stg_ftsk)
+                self.adapter, self.host_uuid, instance,
+                bdm.get('connection_info'), stg_ftsk=stg_ftsk)
             yield bdm, vol_drv
 
     def _build_vol_drivers(self, context, instance, block_device_info):
         """Builds the volume connector drivers for a block device info."""
         # Get a volume driver for each volume
         bdms = self._extract_bdm(block_device_info)
-        return [vol_drv for bdm, vol_drv in self._vol_drv_iter(
-            context, instance, bdms)]
+        return [vol_drv for bdm, vol_drv in self._vol_drv_iter(instance, bdms)]
 
     def unfilter_instance(self, instance, network_info):
         """Stop filtering instance."""

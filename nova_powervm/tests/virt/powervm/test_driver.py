@@ -357,9 +357,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
 
         # _vol_drv_iter not called from spawn because not recreate; but still
         # called from _add_volume_connection_tasks.
-        mock_vdi.assert_has_calls([mock.call(
-            'context', self.inst, [],
-            stg_ftsk=self.build_tx_feed.return_value)])
+        mock_vdi.assert_called_once_with(
+            self.inst, [], stg_ftsk=self.build_tx_feed.return_value)
         # Assert the correct tasks were called
         self.assertTrue(mock_plug_vifs.called)
         self.assertTrue(mock_plug_mgmt_vif.called)
@@ -621,8 +620,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # _add_volume_connection_tasks.
         # TODO(IBM): Find a way to make the call just once.  Unless it's cheap.
         mock_vol_drv_iter.assert_has_calls([mock.call(
-            'context', self.inst, [],
-            stg_ftsk=self.build_tx_feed.return_value)] * 2)
+            self.inst, [], stg_ftsk=self.build_tx_feed.return_value)] * 2)
         mock_build_slot_mgr.assert_called_once_with(
             self.inst, self.drv.store_api, adapter=self.drv.adapter,
             vol_drv_iter=mock_vol_drv_iter.return_value)
@@ -927,7 +925,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
                                return_value=vals) as mock_vdi:
             self.drv._add_volume_connection_tasks(
                 'context', 'instance', 'bdms', flow, 'stg_ftsk', 'slot_mgr')
-        mock_vdi.assert_called_once_with('context', 'instance', 'bdms',
+        mock_vdi.assert_called_once_with('instance', 'bdms',
                                          stg_ftsk='stg_ftsk')
         mock_conn_vol.assert_has_calls([mock.call(vol_drv1, 'slot_mgr'),
                                         mock.call(vol_drv2, 'slot_mgr')])
@@ -948,7 +946,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
                                return_value=vals) as mock_vdi:
             self.drv._add_volume_disconnection_tasks(
                 'context', 'instance', 'bdms', flow, 'stg_ftsk', 'slot_mgr')
-        mock_vdi.assert_called_once_with('context', 'instance', 'bdms',
+        mock_vdi.assert_called_once_with('instance', 'bdms',
                                          stg_ftsk='stg_ftsk')
         mock_disconn_vol.assert_has_calls([mock.call(vol_drv1, 'slot_mgr'),
                                            mock.call(vol_drv2, 'slot_mgr')])
@@ -2039,9 +2037,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
             # Patch so we get the same mock back each time.
             with mock.patch('nova_powervm.virt.powervm.volume.'
                             'build_volume_driver', return_value=vol_adpt):
-                return [
-                    (bdm, vol_drv) for bdm, vol_drv in self.drv._vol_drv_iter(
-                        'context', self.inst, bdms)]
+                return [(bdm, vol_drv) for bdm, vol_drv in
+                        self.drv._vol_drv_iter(self.inst, bdms)]
 
         results = _get_results(bdms)
         self.assertEqual(
