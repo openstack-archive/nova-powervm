@@ -55,5 +55,10 @@ fi
 # install will be constrained and we need to unconstrain it.
 edit-constraints $localfile -- $LIB_NAME "-e $LIB_LOCATION"
 
+if [ -z "$*" ]; then
+    echo "No packages to be installed."
+    exit 0
+fi
+
 $install_cmd -U $*
 exit $?
