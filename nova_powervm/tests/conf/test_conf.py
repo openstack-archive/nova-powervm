@@ -133,9 +133,6 @@ class TestConfChoices(test.NoDBTestCase):
                 fx.conf.powervm[option]
 
     def test_choices(self):
-        # Disk driver
-        self._choice_test('bad_driver', ['localdisk', 'ssp'],
-                          cfg.powervm.powervm_opts, 'disk_driver')
         # FC attachment
         self._choice_test('bad_value', ['vscsi', 'npiv'],
                           cfg.powervm.vol_adapter_opts, 'fc_attach_strategy')

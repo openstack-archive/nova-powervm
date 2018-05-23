@@ -46,11 +46,6 @@ powervm_opts = [
                default='/tmp/cfgdrv/',
                help='The location where the config drive ISO files should be '
                     'built.'),
-    cfg.StrOpt('disk_driver',
-               choices=['localdisk', 'ssp'], ignore_case=True,
-               default='localdisk',
-               help='The disk driver to use for PowerVM disks. '
-               'Valid options are: localdisk, ssp'),
     cfg.StrOpt('volume_adapter',
                choices=['fibre_channel', 'iscsi'], ignore_case=True,
                default='fibre_channel',
@@ -89,15 +84,6 @@ powervm_opts = [
                default=300,
                help="Default time in seconds to wait for Virtual I/O Server "
                     "to be up and running.")
-]
-
-localdisk_opts = [
-    cfg.StrOpt('volume_group_name',
-               default='',
-               help='Volume Group to use for block device operations.  If '
-                    'disk_driver is localdisk, then this attribute must be '
-                    'specified.  It is strongly recommended NOT to use '
-                    'rootvg.'),
 ]
 
 ssp_opts = [
@@ -212,8 +198,8 @@ vnc_opts = [
                'to use for verifying VNC X509 Authentication.')
 ]
 
-STATIC_OPTIONS = (powervm_opts + localdisk_opts + ssp_opts + vol_adapter_opts
-                  + npiv_opts + remote_restart_opts + swift_opts + vnc_opts)
+STATIC_OPTIONS = (powervm_opts + ssp_opts + vol_adapter_opts + npiv_opts
+                  + remote_restart_opts + swift_opts + vnc_opts)
 
 # Dictionary where the key is the NPIV Fabric Name, and the value is a list of
 # Physical WWPNs that match the key.
