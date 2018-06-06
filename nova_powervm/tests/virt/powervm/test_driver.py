@@ -216,7 +216,6 @@ class TestPowerVMDriver(test.NoDBTestCase):
 
         mock_initiators.return_value = initiators
 
-        self.flags(volume_adapter='fibre_channel', group='powervm')
         vol_connector = self.drv.get_volume_connector(mock.Mock())
         self.assertIsNotNone(vol_connector['wwpns'])
         self.assertIsNotNone(vol_connector['host'])
@@ -899,7 +898,6 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # Validate the other volume types only return SCSI mappings
         vol_types = ['iscsi', 'gpfs', 'local', 'nfs']
         for vol_type in vol_types:
-            self.flags(volume_adapter='iscsi', group='powervm')
             mock_bdm = {'connection_info':
                         {'driver_volume_type': vol_type}}
             xag = self.drv._get_inst_xag(mock.Mock(), [mock_bdm])

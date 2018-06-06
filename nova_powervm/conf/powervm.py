@@ -46,11 +46,6 @@ powervm_opts = [
                default='/tmp/cfgdrv/',
                help='The location where the config drive ISO files should be '
                     'built.'),
-    cfg.StrOpt('volume_adapter',
-               choices=['fibre_channel', 'iscsi'], ignore_case=True,
-               default='fibre_channel',
-               help='The volume adapter to use for PowerVM volumes. '
-               'Valid options are: fibre_channel, iscsi'),
     cfg.StrOpt('pvm_vswitch_for_novalink_io',
                default='NovaLinkVEABridge',
                help="Name of the PowerVM virtual switch to be used when "
