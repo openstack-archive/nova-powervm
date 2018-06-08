@@ -124,7 +124,11 @@ vol_adapter_opts = [
                help="The iSCSI transport iface to use to connect to target in "
                     "case offload support is desired. Do not confuse the "
                     "iscsi_iface parameter to be provided here with the "
-                    "actual transport name.")
+                    "actual transport name."),
+    cfg.StrOpt('rbd_user',
+               default='',
+               help="Refer to this user when connecting and authenticating "
+                    "with the Ceph RBD server.")
 ]
 
 # NPIV Options.  Only applicable if the 'fc_attach_strategy' is set to 'npiv'.

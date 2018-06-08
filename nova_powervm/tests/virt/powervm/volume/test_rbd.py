@@ -91,12 +91,13 @@ class TestRBDVolumeAdapter(test_vol.TestVolumeAdapter):
         mock_udid_to_map.return_value = mock.Mock()
         mock_add_map.return_value = None
 
+        # Set user
+        v_drv.CONF.powervm.rbd_user = 'tester'
         # Invoke
         self.vol_drv.connect_volume(mock_slot_mgr)
-
         # Validate
         mock_rbd_bld_ref.assert_called_once_with(
-            self.adpt, 'pool/image', tag='a_vol_id')
+            self.adpt, 'pool/image', tag='a_vol_id', user='tester')
         self.assertEqual(1, mock_build_map.call_count)
         self.assertEqual(1, mock_udid_to_map.call_count)
 
@@ -129,7 +130,7 @@ class TestRBDVolumeAdapter(test_vol.TestVolumeAdapter):
 
         # Validate
         mock_rbd_bld_ref.assert_called_once_with(
-            self.adpt, 'pool/image', tag='a_vol_id')
+            self.adpt, 'pool/image', tag='a_vol_id', user='')
         self.assertEqual(0, mock_build_map.call_count)
 
     @mock.patch('pypowervm.entities.Entry.uuid',
