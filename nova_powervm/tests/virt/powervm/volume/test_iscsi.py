@@ -497,3 +497,82 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv.connection_info['data'].pop('target_iqn')
         props = self.vol_drv._get_iscsi_conn_props(vios_w, auth=False)
         self.assertIsNone(props)
+
+    @mock.patch('nova_powervm.virt.powervm.volume.driver.PowerVMVolumeAdapter.'
+                'vios_uuids', new_callable=mock.PropertyMock)
+    @mock.patch('pypowervm.tasks.hdisk.discover_iscsi')
+    @mock.patch('pypowervm.tasks.storage.find_stale_lpars')
+    def test_pre_live_migration(self, mock_fsl, mock_discover,
+                                mock_vios_uuids):
+        # The mock return values
+        vios_ids = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA',
+                    '7DBBE705-E4C4-4458-8223-3EBE07015CA9']
+        mock_vios_uuids.return_value = vios_ids
+
+        mock_fsl.return_value = []
+        mock_discover.return_value = (
+            'devname', 'udid')
+
+        # Run the method
+        migrate_data = {}
+        self.vol_drv.pre_live_migration_on_destination(migrate_data)
+        volume_key = 'vscsi-' + self.serial
+        self.assertEqual(migrate_data, {volume_key: 'udid'})
+
+        # Test exception path
+        mock_discover.return_value = (
+            'devname', None)
+
+        # Run the method
+        self.assertRaises(p_exc.VolumePreMigrationFailed,
+                          self.vol_drv.pre_live_migration_on_destination, {})
+
+        # Test when volume discover on a single vios
+        mock_discover.reset_mock()
+        mock_discover.side_effect = [('devname', 'udid'), ('devname', None)]
+        self.vol_drv.pre_live_migration_on_destination(migrate_data)
+        self.assertEqual(migrate_data, {volume_key: 'udid'})
+        self.assertEqual(2, mock_discover.call_count)
+
+        # Test with bad vios_uuid
+        mock_discover.reset_mock()
+        mock_vios_uuids.return_value = ['fake_vios']
+        self.assertRaises(p_exc.VolumePreMigrationFailed,
+                          self.vol_drv.pre_live_migration_on_destination, {})
+        mock_discover.assert_not_called()
+
+    @mock.patch('nova_powervm.virt.powervm.volume.driver.PowerVMVolumeAdapter.'
+                'vios_uuids', new_callable=mock.PropertyMock)
+    def test_is_volume_on_vios(self, mock_vios_uuids):
+        # The mock return values
+        mock_vios_uuids.return_value = ['fake_vios1', 'fake_vios2']
+
+        with mock.patch.object(self.vol_drv,
+                               '_discover_volume_on_vios') as mock_discover:
+            found, udid = self.vol_drv.is_volume_on_vios(self.feed[0])
+            mock_discover.assert_not_called()
+            self.assertFalse(found)
+            self.assertIsNone(udid)
+
+            mock_discover.reset_mock()
+            mock_discover.return_value = 'device1', 'udid1'
+            vios_ids = ['1300C76F-9814-4A4D-B1F0-5B69352A7DEA',
+                        '7DBBE705-E4C4-4458-8223-3EBE07015CA9']
+            mock_vios_uuids.return_value = vios_ids
+
+            found, udid = self.vol_drv.is_volume_on_vios(self.feed[0])
+            mock_discover.assert_called_once_with(self.feed[0])
+            self.assertTrue(found)
+            self.assertEqual(udid, 'udid1')
+
+            mock_discover.reset_mock()
+            mock_discover.return_value = None, 'udid1'
+            found, udid = self.vol_drv.is_volume_on_vios(self.feed[0])
+            self.assertFalse(found)
+            self.assertEqual(udid, 'udid1')
+
+            mock_discover.reset_mock()
+            mock_discover.return_value = 'device1', None
+            found, udid = self.vol_drv.is_volume_on_vios(self.feed[0])
+            self.assertFalse(found)
+            self.assertIsNone(udid)

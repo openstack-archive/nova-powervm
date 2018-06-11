@@ -138,7 +138,32 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                          information to the live_migration command, it
                          should be added to this dictionary.
         """
-        raise NotImplementedError()
+
+        # See the connect_volume for why this is a direct call instead of
+        # using the tx_mgr.feed
+        vios_wraps = pvm_vios.VIOS.get(self.adapter,
+                                       xag=[pvm_const.XAG.VIO_STOR])
+
+        volume_key = 'vscsi-' + self.volume_id
+        for vios_w in vios_wraps:
+            if vios_w.uuid not in self.vios_uuids:
+                continue
+            # Discover the volume on all VIOS's to trigger the
+            # device configuration, which in turn will discover the
+            # LUN associated with the volume. This needs to be
+            # attempted on all VIOS's to determine the VIOS's that
+            # will be servicing IO for this volume.
+            udid = self._discover_volume_on_vios(vios_w)[1]
+            if udid:
+                LOG.debug("Discovered volume udid %(udid)s on vios %(name)s",
+                          dict(udid=udid, name=vios_w.name))
+                mig_data[volume_key] = udid
+
+        if volume_key not in mig_data:
+            LOG.debug("Failed to discover the volume")
+            ex_args = dict(volume_id=self.volume_id,
+                           instance_name=self.instance.name)
+            raise p_exc.VolumePreMigrationFailed(**ex_args)
 
     def is_volume_on_vios(self, vios_w):
         """Returns whether or not the volume is on a VIOS.
@@ -148,6 +173,8 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                  otherwise.
         :return: The udid of the device.
         """
+        if vios_w.uuid not in self.vios_uuids:
+            return False, None
         device_name, udid = self._discover_volume_on_vios(vios_w)
         return (device_name and udid) is not None, udid
 
