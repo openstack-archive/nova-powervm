@@ -32,6 +32,7 @@ from pypowervm import util
 from nova_powervm import conf as cfg
 from nova_powervm.virt.powervm.i18n import _
 from nova_powervm.virt.powervm import media
+from nova_powervm.virt.powervm.tasks import storage as tf_stg
 from nova_powervm.virt.powervm import vif
 from nova_powervm.virt.powervm import vm
 
@@ -183,26 +184,26 @@ class LiveMigrationDest(LiveMigration):
         self.pre_live_vol_data = migrate_data.vol_data
         return migrate_data
 
-    def post_live_migration_at_destination(self, network_infos, vol_drvs):
+    def post_live_migration_at_destination(self, network_infos, vol_drv_iter):
         """Do post migration cleanup on destination host.
 
         :param network_infos: instance network information
-        :param vol_drvs: volume drivers for the attached volumes
+        :param vol_drv_iter: volume driver iterator for the attached volumes
+                             and BDM information.
         """
         # The LPAR should be on this host now.
         LOG.debug("Post live migration at destination.",
                   instance=self.instance)
 
-        # An unbounded dictionary that each volume adapter can use to persist
-        # data from one call to the next.
-        mig_vol_stor = {}
-
         # For each volume, make sure it completes the migration
-        for vol_drv in vol_drvs:
+        for bdm, vol_drv in vol_drv_iter:
             LOG.info('Performing post migration for volume %(volume)s',
                      dict(volume=vol_drv.volume_id), instance=self.instance)
             try:
-                vol_drv.post_live_migration_at_destination(mig_vol_stor)
+                vol_drv.post_live_migration_at_destination(
+                    self.pre_live_vol_data)
+                # Save the BDM for the updated connection info.
+                tf_stg.SaveBDM(bdm, self.instance).execute()
             except Exception:
                 LOG.exception("PowerVM error cleaning up destination host "
                               "after migration.", instance=self.instance)

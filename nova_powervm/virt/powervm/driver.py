@@ -1647,18 +1647,19 @@ class PowerVMDriver(driver.ComputeDriver):
         :param instance: instance object that is migrated
         :param network_info: instance network information
         :param block_migration: if true, post operation of block_migration.
+        :param block_device_info: instance block device information.
         """
         LOG.info("Post live migration processing on destination host.",
                  instance=instance)
         mig = self.live_migrations[instance.uuid]
         mig.instance = instance
 
-        # Build the volume drivers
-        vol_drvs = self._build_vol_drivers(context, instance,
-                                           block_device_info)
+        bdms = self._extract_bdm(block_device_info)
+        # Get a volume driver iterator for volume and BDM mapping
+        vol_drv_iter = self._vol_drv_iter(instance, bdms)
 
         # Run post live migration
-        mig.post_live_migration_at_destination(network_info, vol_drvs)
+        mig.post_live_migration_at_destination(network_info, vol_drv_iter)
         del self.live_migrations[instance.uuid]
 
     def _vol_drv_iter(self, instance, bdms, stg_ftsk=None):

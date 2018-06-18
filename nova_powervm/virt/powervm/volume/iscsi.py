@@ -165,6 +165,13 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                            instance_name=self.instance.name)
             raise p_exc.VolumePreMigrationFailed(**ex_args)
 
+    def post_live_migration_at_destination(self, mig_data):
+        """This method will update the connection info with the volume udid."""
+
+        volume_key = 'vscsi-' + self.volume_id
+        if volume_key in mig_data:
+            self._set_udid(mig_data[volume_key])
+
     def is_volume_on_vios(self, vios_w):
         """Returns whether or not the volume is on a VIOS.
 
@@ -346,12 +353,11 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
                 if udid:
                     # Get the device name using UniqueDeviceID Identifier.
                     device_name = vios_w.hdisk_from_uuid(udid)
-                if not device_name:
-                    # We lost our bdm data.
 
+                if not udid or not device_name:
                     # If we have no device name, at this point
-                    # we should not continue.  Subsequent scrub code on future
-                    # deploys will clean this up.
+                    # we should not continue.  Subsequent scrub code on
+                    # future deploys will clean this up.
                     LOG.warning(
                         "Disconnect Volume: The backing hdisk for volume "
                         "%(volume_id)s on Virtual I/O Server %(vios)s is "

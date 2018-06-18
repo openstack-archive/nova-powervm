@@ -318,3 +318,18 @@ class TestLPM(test.NoDBTestCase):
         for network_info in network_infos:
             mock_vif_post_lpm_at_source.assert_any_call(mock.ANY, mock.ANY,
                                                         mock.ANY, network_info)
+
+    @mock.patch('nova_powervm.virt.powervm.tasks.storage.SaveBDM.execute',
+                autospec=True)
+    def test_post_live_migration_at_dest(self, mock_save_bdm):
+        bdm1, bdm2, vol_drv1, vol_drv2 = [mock.Mock()] * 4
+        vals = [(bdm1, vol_drv1), (bdm2, vol_drv2)]
+        self.lpmdst.pre_live_vol_data = {'vscsi-vol-id': 'fake_udid',
+                                         'vscsi-vol-id2': 'fake_udid2'}
+        self.lpmdst.post_live_migration_at_destination('network_infos', vals)
+        # Assertions
+
+        for bdm, vol_drv in vals:
+            vol_drv.post_live_migration_at_destination.assert_called_with(
+                mock.ANY)
+        self.assertEqual(len(vals), mock_save_bdm.call_count)
