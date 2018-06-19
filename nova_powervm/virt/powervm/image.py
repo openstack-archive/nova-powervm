@@ -1,4 +1,4 @@
-# Copyright 2015 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -47,14 +47,14 @@ def stream_blockdev_to_glance(context, image_api, image_id, metadata, devpath):
         image_api.update(context, image_id, metadata, stream)
 
 
-def snapshot_metadata(context, image_api, image_id, instance):
+def generate_snapshot_metadata(context, image_api, image_id, instance):
     """Generate a metadata dictionary for an instance snapshot.
 
     :param context: Nova security context
     :param image_api: Handle to the glance image API.
     :param image_id: UUID of the prepared glance image.
     :param instance: The Nova instance whose disk is to be snapshotted.
-    :return: A dict of metadata suitable for image_api.upload.
+    :return: A dict of metadata suitable for image_api.update.
     """
     image = image_api.get(context, image_id)
     metadata = {

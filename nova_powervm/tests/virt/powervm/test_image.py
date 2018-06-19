@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -42,12 +42,12 @@ class TestImage(test.NoDBTestCase):
                                            'mock_stream')
 
     @mock.patch('nova.image.api.API', autospec=True)
-    def test_snapshot_metadata(self, mock_api):
+    def test_generate_snapshot_metadata(self, mock_api):
         mock_api.get.return_value = {'name': 'image_name'}
         mock_instance = mock.Mock()
         mock_instance.project_id = 'project_id'
-        ret = image.snapshot_metadata('context', mock_api, 'image_id',
-                                      mock_instance)
+        ret = image.generate_snapshot_metadata('context', mock_api, 'image_id',
+                                               mock_instance)
         mock_api.get.assert_called_with('context', 'image_id')
         self.assertEqual({
             'name': 'image_name',

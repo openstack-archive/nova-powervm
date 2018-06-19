@@ -1,4 +1,4 @@
-# Copyright 2015, 2018 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -44,7 +44,7 @@ class TestImage(test.NoDBTestCase):
 
     @mock.patch('nova_powervm.virt.powervm.image.stream_blockdev_to_glance',
                 autospec=True)
-    @mock.patch('nova_powervm.virt.powervm.image.snapshot_metadata',
+    @mock.patch('nova_powervm.virt.powervm.image.generate_snapshot_metadata',
                 autospec=True)
     def test_stream_to_glance(self, mock_metadata, mock_stream):
         mock_metadata.return_value = 'metadata'

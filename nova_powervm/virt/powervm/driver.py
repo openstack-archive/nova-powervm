@@ -1,4 +1,4 @@
-# Copyright 2014, 2018 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -800,20 +800,15 @@ class PowerVMDriver(driver.ComputeDriver):
         """Snapshots the specified instance.
 
         :param context: security context
-        :param instance: Instance object as returned by DB layer.
-        :param image_id: Reference to a pre-created image that will
-                         hold the snapshot.
-        :param update_task_state: Callable to update the state of the snapshot
-                                  task with one of the IMAGE_* consts from
-                                  nova.compute.task_states.  Call spec
-                                  (inferred from compute driver source):
-            update_task_state(task_state, expected_task_state=None)
-                param task_state: The nova.compute.task_states.IMAGE_* state to
-                                  set.
-                param expected_state: The nova.compute.task_state.IMAGE_* state
-                                      which should be in place before this
-                                      update.  The driver will raise if this
-                                      doesn't match.
+        :param instance: nova.objects.instance.Instance
+        :param image_id: Reference to a pre-created image that will hold the
+                         snapshot.
+        :param update_task_state: Callback function to update the task_state
+            on the instance while the snapshot operation progresses. The
+            function takes a task_state argument and an optional
+            expected_task_state kwarg which defaults to
+            nova.compute.task_states.IMAGE_SNAPSHOT. See
+            nova.objects.instance.Instance.save for expected_task_state usage.
         """
         if not self.disk_dvr.capabilities.get('snapshot'):
             raise exception.NotSupportedWithOption(

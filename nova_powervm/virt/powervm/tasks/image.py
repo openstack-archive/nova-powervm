@@ -1,4 +1,4 @@
-# Copyright 2015, 2018 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -72,8 +72,8 @@ class StreamToGlance(task.Task):
                                              requires='disk_path')
 
     def execute(self, disk_path):
-        metadata = image.snapshot_metadata(self.context, self.image_api,
-                                           self.image_id, self.instance)
+        metadata = image.generate_snapshot_metadata(
+            self.context, self.image_api, self.image_id, self.instance)
         LOG.info("Starting stream of boot device (local blockdev %(devpath)s) "
                  "to glance image %(img_id)s.",
                  {'devpath': disk_path, 'img_id': self.image_id},

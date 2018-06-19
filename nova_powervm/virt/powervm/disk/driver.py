@@ -1,5 +1,5 @@
 # Copyright 2013 OpenStack Foundation
-# Copyright 2015, 2017 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -129,36 +129,26 @@ class DiskAdapter(object):
         return _('The configured disk driver does not support migration '
                  'or resize.')
 
-    def disk_match_func(self, disk_type, instance):
+    def _disk_match_func(self, disk_type, instance):
         """Return a matching function to locate the disk for an instance.
 
         :param disk_type: One of the DiskType enum values.
         :param instance: The instance whose disk is to be found.
         :return: Callable suitable for the match_func parameter of the
-                 pypowervm.tasks.scsi_mapper.find_maps method, with the
-                 following specification:
-            def match_func(storage_elem)
-                param storage_elem: A backing storage element wrapper (VOpt,
-                                    VDisk, PV, or LU) to be analyzed.
-                return: True if the storage_elem's mapping should be included;
-                        False otherwise.
+                 pypowervm.tasks.scsi_mapper.find_maps method.
         """
         raise NotImplementedError()
 
-    def boot_disk_path_for_instance(self, instance, vios_uuid):
-        """Find scsi mappings on given VIOS for the instance.
-
-        This method finds all scsi mappings on a given vios that are associated
-        with the instance and disk_type.
+    def get_bootdisk_path(self, instance, vios_uuid):
+        """Find the local path for the instance's boot disk.
 
         :param instance: nova.objects.instance.Instance object owning the
                          requested disk.
         :param vios_uuid: PowerVM UUID of the VIOS to search for mappings.
-        :return: Iterator of scsi mappings that are associated with the
-                 instance and disk_type.
+        :return: Local path for instance's boot disk.
         """
         vm_uuid = vm.get_pvm_uuid(instance)
-        match_func = self.disk_match_func(DiskType.BOOT, instance)
+        match_func = self._disk_match_func(DiskType.BOOT, instance)
         vios_wrap = pvm_vios.VIOS.get(self.adapter, uuid=vios_uuid,
                                       xag=[pvm_const.XAG.VIO_SMAP])
         maps = tsk_map.find_maps(vios_wrap.scsi_mappings,
@@ -167,27 +157,20 @@ class DiskAdapter(object):
             return maps[0].server_adapter.backing_dev_name
         return None
 
-    def instance_disk_iter(self, instance, disk_type=DiskType.BOOT,
-                           lpar_wrap=None):
-        """Return the instance's storage element wrapper of the specified type.
+    def _get_bootdisk_iter(self, instance):
+        """Return an iterator of (storage_elem, VIOS) tuples for the instance.
+
+        This method returns an iterator of (storage_elem, VIOS) tuples, where
+        storage_elem is a pypowervm storage element wrapper associated with
+        the instance boot disk and VIOS is the wrapper of the Virtual I/O
+        server owning that storage element.
 
         :param instance: nova.objects.instance.Instance object owning the
                          requested disk.
-        :param disk_type: The type of disk to find, one of the DiskType enum
-                          values.
-        :param lpar_wrap: pypowervm.wrappers.logical_partition.LPAR
-                          corresponding to the instance.  If not specified, it
-                          will be retrieved; i.e. specify this parameter to
-                          save on REST calls.
-        :return: Iterator of tuples of (storage_elem, VIOS), where storage_elem
-                 is a storage element wrapper (pypowervm.wrappers.storage.VOpt,
-                 VDisk, PV, or LU) associated with the instance; and VIOS is
-                 the wrapper of the Virtual I/O Server owning that storage
-                 element.
+        :return: Iterator of tuples of (storage_elem, VIOS).
         """
-        if lpar_wrap is None:
-            lpar_wrap = vm.get_instance_wrapper(self.adapter, instance)
-        match_func = self.disk_match_func(disk_type, instance)
+        lpar_wrap = vm.get_instance_wrapper(self.adapter, instance)
+        match_func = self._disk_match_func(DiskType.BOOT, instance)
         for vios_uuid in self.vios_uuids:
             vios_wrap = pvm_vios.VIOS.get(
                 self.adapter, uuid=vios_uuid, xag=[pvm_const.XAG.VIO_SMAP])
@@ -205,9 +188,7 @@ class DiskAdapter(object):
                       made.
         :raise InstanceDiskMappingFailed: If the mapping could not be done.
         """
-        lpar_wrap = vm.get_instance_wrapper(self.adapter, instance)
-        for stg_elem, vios in self.instance_disk_iter(instance,
-                                                      lpar_wrap=lpar_wrap):
+        for stg_elem, vios in self._get_bootdisk_iter(instance):
             msg_args = {'disk_name': stg_elem.name, 'vios_name': vios.name}
 
             # Create a new mapping.  NOTE: If there's an existing mapping on

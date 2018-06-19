@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -23,9 +23,10 @@ aixlinux, but with the is_mgmt_partition property set to True.
 The PowerVM Nova Compute service runs on the management partition.
 """
 import glob
+import os
+
 from nova import exception
 from nova.privsep import path as priv_path
-import os
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from pypowervm.tasks import partition as pvm_par
@@ -71,8 +72,6 @@ def discover_vscsi_disk(mapping, scan_timeout=300):
     :raise UniqueDiskDiscoveryException: If more than one disk appears with the
                                          expected UDID.
     """
-    # TODO(IBM): Support for other host platforms.
-
     # Calculate the Linux slot number from the client adapter slot number.
     lslot = 0x30000000 | mapping.client_adapter.lpar_slot_num
     # We'll match the device ID based on the UDID, which is actually the last

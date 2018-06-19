@@ -1,4 +1,4 @@
-# Copyright 2015, 2018 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -14,9 +14,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from pypowervm.tasks import scsi_mapper as pvm_smap
-
 from oslo_log import log as logging
+from pypowervm import exceptions as pvm_exc
+from pypowervm.tasks import scsi_mapper as pvm_smap
 from taskflow import task
 from taskflow.types import failure as task_fail
 
@@ -201,10 +201,11 @@ class ConnectDisk(task.Task):
 
 class InstanceDiskToMgmt(task.Task):
 
-    """Connect an instance's disk to the management partition, discover it.
+    """The Task to connect an instance's disk to the management partition.
 
-    We do these two pieces together because their reversion doesn't happen in
-    the opposite order.
+    This task will connect the instance's disk to the management partition and
+    discover it. We do these two pieces together because their reversion
+    happens in the same order.
     """
 
     def __init__(self, disk_dvr, instance):
@@ -223,7 +224,7 @@ class InstanceDiskToMgmt(task.Task):
         :param instance: The nova instance whose boot disk is to be connected.
         """
         super(InstanceDiskToMgmt, self).__init__(
-            name='connect_and_discover_instance_disk_to_mgmt',
+            name='instance_disk_to_mgmt',
             provides=['stg_elem', 'vios_wrap', 'disk_path'])
         self.disk_dvr = disk_dvr
         self.instance = instance
@@ -234,9 +235,9 @@ class InstanceDiskToMgmt(task.Task):
     def execute(self):
         """Map the instance's boot disk and discover it."""
 
-        # Search for boot disk on the Novalink partition
+        # Search for boot disk on the NovaLink partition
         if self.disk_dvr.mp_uuid in self.disk_dvr.vios_uuids:
-            dev_name = self.disk_dvr.boot_disk_path_for_instance(
+            dev_name = self.disk_dvr.get_bootdisk_path(
                 self.instance, self.disk_dvr.mp_uuid)
             if dev_name is not None:
                 return None, None, dev_name
@@ -282,7 +283,12 @@ class InstanceDiskToMgmt(task.Task):
             return
         LOG.warning("Removing disk %(dpath)s from the management partition.",
                     {'dpath': self.disk_path}, instance=self.instance)
-        mgmt.remove_block_dev(self.disk_path)
+        try:
+            mgmt.remove_block_dev(self.disk_path)
+        except pvm_exc.Error:
+            # Don't allow revert exceptions to interrupt the revert flow.
+            LOG.exception("Remove disk failed during revert. Ignoring.",
+                          instance=self.instance)
 
 
 class RemoveInstanceDiskFromMgmt(task.Task):

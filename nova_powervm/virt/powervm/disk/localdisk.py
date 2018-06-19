@@ -1,5 +1,5 @@
 # Copyright 2013 OpenStack Foundation
-# Copyright 2015, 2017 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -83,21 +83,17 @@ class LocalStorage(disk_dvr.DiskAdapter):
         """
         return [self._vios_uuid]
 
-    def disk_match_func(self, disk_type, instance):
+    @staticmethod
+    def _disk_match_func(disk_type, instance):
         """Return a matching function to locate the disk for an instance.
 
         :param disk_type: One of the DiskType enum values.
         :param instance: The instance whose disk is to be found.
         :return: Callable suitable for the match_func parameter of the
-                 pypowervm.tasks.scsi_mapper.find_maps method, with the
-                 following specification:
-            def match_func(storage_elem)
-                param storage_elem: A backing storage element wrapper (VOpt,
-                                    VDisk, PV, or LU) to be analyzed.
-                return: True if the storage_elem's mapping should be included;
-                        False otherwise.
+                 pypowervm.tasks.scsi_mapper.find_maps method.
         """
-        disk_name = self._get_disk_name(disk_type, instance, short=True)
+        disk_name = LocalStorage._get_disk_name(disk_type, instance,
+                                                short=True)
         return tsk_map.gen_match_func(pvm_stg.VDisk, names=[disk_name])
 
     @property

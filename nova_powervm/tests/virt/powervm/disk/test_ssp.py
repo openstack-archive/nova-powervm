@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -519,7 +519,7 @@ class TestSSPDiskAdapter(test.NoDBTestCase):
                 'vios_uuids', new_callable=mock.PropertyMock)
     @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper')
     @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.get')
-    def test_instance_disk_iter(self, mock_vio_get, mock_lw, mock_vio_uuids):
+    def test_get_bootdisk_iter(self, mock_vio_get, mock_lw, mock_vio_uuids):
         inst, lpar_wrap, vio1, vio2, vio3 = self._bld_mocks_for_instance_disk()
         mock_lw.return_value = lpar_wrap
         mock_vio_uuids.return_value = [1, 2]
@@ -528,7 +528,7 @@ class TestSSPDiskAdapter(test.NoDBTestCase):
         # Test with two VIOSes, both of which contain the mapping.  Force the
         # method to get the lpar_wrap.
         mock_vio_get.side_effect = [vio1, vio2]
-        idi = ssp_stor.instance_disk_iter(inst)
+        idi = ssp_stor._get_bootdisk_iter(inst)
         lu, vios = next(idi)
         self.assertEqual('lu_udid', lu.udid)
         self.assertEqual('vios1', vios.name)
@@ -544,12 +544,11 @@ class TestSSPDiskAdapter(test.NoDBTestCase):
         mock_lw.assert_called_once_with(self.apt, inst)
 
         # Same, but prove that breaking out of the loop early avoids the second
-        # get call.  Supply lpar_wrap from here on, and prove no calls to
-        # get_instance_wrapper
+        # get call.
         mock_vio_get.reset_mock()
         mock_lw.reset_mock()
         mock_vio_get.side_effect = [vio1, vio2]
-        for lu, vios in ssp_stor.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+        for lu, vios in ssp_stor._get_bootdisk_iter(inst):
             self.assertEqual('lu_udid', lu.udid)
             self.assertEqual('vios1', vios.name)
             break
@@ -559,7 +558,7 @@ class TestSSPDiskAdapter(test.NoDBTestCase):
         # Now the first VIOS doesn't have the mapping, but the second does
         mock_vio_get.reset_mock()
         mock_vio_get.side_effect = [vio3, vio2]
-        idi = ssp_stor.instance_disk_iter(inst, lpar_wrap=lpar_wrap)
+        idi = ssp_stor._get_bootdisk_iter(inst)
         lu, vios = next(idi)
         self.assertEqual('lu_udid', lu.udid)
         self.assertEqual('vios2', vios.name)
@@ -572,11 +571,8 @@ class TestSSPDiskAdapter(test.NoDBTestCase):
         # No hits
         mock_vio_get.reset_mock()
         mock_vio_get.side_effect = [vio3, vio3]
-        self.assertEqual([], list(ssp_stor.instance_disk_iter(
-            inst, lpar_wrap=lpar_wrap)))
+        self.assertEqual([], list(ssp_stor._get_bootdisk_iter(inst)))
         self.assertEqual(2, mock_vio_get.call_count)
-
-        mock_lw.assert_not_called()
 
     @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
                 'vios_uuids', new_callable=mock.PropertyMock)

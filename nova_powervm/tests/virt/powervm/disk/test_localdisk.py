@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -362,7 +362,7 @@ class TestLocalDisk(test.NoDBTestCase):
         vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__d506'
         return inst, lpar_wrap, vios1
 
-    def test_boot_disk_path_for_instance(self):
+    def test_get_bootdisk_path(self):
         local = self.get_ls(self.apt)
         inst = mock.Mock()
         inst.name = 'Name Of Instance'
@@ -371,17 +371,20 @@ class TestLocalDisk(test.NoDBTestCase):
         vios1.scsi_mappings[0].server_adapter.backing_dev_name = 'boot_7f81628'
         vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__f921'
         self.mock_vios_get.return_value = vios1
-        dev_name = local.boot_disk_path_for_instance(inst, vios1.uuid)
+        dev_name = local.get_bootdisk_path(inst, vios1.uuid)
         self.assertEqual('boot_7f81628', dev_name)
 
+    @mock.patch('nova_powervm.virt.powervm.vm.get_instance_wrapper',
+                autospec=True)
     @mock.patch('pypowervm.wrappers.storage.VG.get', new=mock.Mock())
-    def test_instance_disk_iter(self):
+    def test_get_bootdisk_iter(self, mock_lpar_wrap):
         local = self.get_ls(self.apt)
         inst, lpar_wrap, vios1 = self._bld_mocks_for_instance_disk()
+        mock_lpar_wrap.return_value = lpar_wrap
 
         # Good path
         self.mock_vios_get.return_value = vios1
-        for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+        for vdisk, vios in local._get_bootdisk_iter(inst):
             self.assertEqual(vios1.scsi_mappings[0].backing_storage, vdisk)
             self.assertEqual(vios1.uuid, vios.uuid)
         self.mock_vios_get.assert_called_once_with(
@@ -390,7 +393,7 @@ class TestLocalDisk(test.NoDBTestCase):
         # Not found because no storage of that name
         self.mock_vios_get.reset_mock()
         self.mock_find_maps.return_value = []
-        for vdisk, vios in local.instance_disk_iter(inst, lpar_wrap=lpar_wrap):
+        for vdisk, vios in local._get_bootdisk_iter(inst):
             self.fail()
         self.mock_vios_get.assert_called_once_with(
             self.apt, uuid='vios-uuid', xag=[pvm_const.XAG.VIO_SMAP])

@@ -1,4 +1,4 @@
-# Copyright 2015, 2018 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -214,7 +214,7 @@ class TestStorage(test.NoDBTestCase):
         # Good path - find_maps returns one result
         mock_find.return_value = ['one_mapping']
         tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
-        self.assertEqual('connect_and_discover_instance_disk_to_mgmt', tf.name)
+        self.assertEqual('instance_disk_to_mgmt', tf.name)
         self.assertEqual((mock_stg, mock_vwrap, '/dev/disk'), tf.execute())
         disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
             mock_instance)
@@ -241,18 +241,18 @@ class TestStorage(test.NoDBTestCase):
                                                               'stg_name')
         mock_rm.assert_called_with('/dev/disk')
 
-        # Management Partition is VIOS and Novalink hosted storage
+        # Management Partition is VIOS and NovaLink hosted storage
         reset_mocks()
         disk_dvr.vios_uuids = ['mp_uuid']
         dev_name = '/dev/vg/fake_name'
-        disk_dvr.boot_disk_path_for_instance.return_value = dev_name
+        disk_dvr.get_bootdisk_path.return_value = dev_name
         tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
         self.assertEqual((None, None, dev_name), tf.execute())
 
-        # Management Partition is VIOS and not Novalink hosted storage
+        # Management Partition is VIOS and not NovaLink hosted storage
         reset_mocks()
         disk_dvr.vios_uuids = ['mp_uuid']
-        disk_dvr.boot_disk_path_for_instance.return_value = None
+        disk_dvr.get_bootdisk_path.return_value = None
         tf = tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
         tf.execute()
         disk_dvr.connect_instance_disk_to_mgmt.assert_called_with(
@@ -296,7 +296,7 @@ class TestStorage(test.NoDBTestCase):
         with mock.patch('taskflow.task.Task.__init__') as tf:
             tf_stg.InstanceDiskToMgmt(disk_dvr, mock_instance)
         tf.assert_called_once_with(
-            name='connect_and_discover_instance_disk_to_mgmt',
+            name='instance_disk_to_mgmt',
             provides=['stg_elem', 'vios_wrap', 'disk_path'])
 
     @mock.patch('nova_powervm.virt.powervm.mgmt.remove_block_dev',
