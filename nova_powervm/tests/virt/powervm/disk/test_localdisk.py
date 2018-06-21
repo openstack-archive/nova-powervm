@@ -19,6 +19,7 @@ import mock
 
 from nova import exception as nova_exc
 from nova import test
+from nova.tests import uuidsentinel as uuids
 from pypowervm import const as pvm_const
 from pypowervm.tasks import storage as tsk_stor
 from pypowervm.tests import test_fixtures as pvm_fx
@@ -59,7 +60,7 @@ class TestLocalDisk(test.NoDBTestCase):
         # Set up for the mocks for get_ls
         self.mock_find_vg = self.useFixture(fixtures.MockPatch(
             'pypowervm.tasks.storage.find_vg', autospec=True)).mock
-        self.vg_uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
+        self.vg_uuid = uuids.vg_uuid
         self.vg = mock.Mock(spec=pvm_stor.VG, uuid=self.vg_uuid)
         self.mock_find_vg.return_value = (self.vio_to_vg, self.vg)
 
@@ -68,7 +69,7 @@ class TestLocalDisk(test.NoDBTestCase):
             'nova_powervm.virt.powervm.mgmt.mgmt_uuid')).mock
         self.mgmt_uuid.return_value = 'mp_uuid'
 
-        self.flags(volume_group_name='rootvg', group='powervm')
+        self.flags(volume_group_name='fakevg', group='powervm')
 
     @staticmethod
     def get_ls(adpt):
@@ -76,7 +77,7 @@ class TestLocalDisk(test.NoDBTestCase):
 
     def test_init(self):
         local = self.get_ls(self.apt)
-        self.mock_find_vg.assert_called_once_with(self.apt, 'rootvg')
+        self.mock_find_vg.assert_called_once_with(self.apt, 'fakevg')
         self.assertEqual('vios-uuid', local._vios_uuid)
         self.assertEqual(self.vg_uuid, local.vg_uuid)
         self.assertEqual(self.apt, local.adapter)
@@ -151,19 +152,13 @@ class TestLocalDisk(test.NoDBTestCase):
         mock_img_api.assert_not_called()
         self.assertEqual(0, mock_upload_vdisk.call_count)
 
-    @mock.patch('pypowervm.wrappers.storage.VG', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.disk.localdisk.LocalStorage.'
+                '_get_vg_wrap')
     def test_capacity(self, mock_vg):
         """Tests the capacity methods."""
-
-        # Set up the mock data.  This will simulate our vg wrapper
-        mock_vg_wrap = mock.MagicMock(name='vg_wrapper')
-        type(mock_vg_wrap).capacity = mock.PropertyMock(return_value='5120')
-        type(mock_vg_wrap).available_size = mock.PropertyMock(
-            return_value='2048')
-
-        mock_vg.get.return_value = mock_vg_wrap
         local = self.get_ls(self.apt)
-
+        mock_vg.return_value = mock.Mock(
+            capacity='5120', available_size='2048')
         self.assertEqual(5120.0, local.capacity)
         self.assertEqual(3072.0, local.capacity_used)
 
@@ -355,11 +350,12 @@ class TestLocalDisk(test.NoDBTestCase):
     def _bld_mocks_for_instance_disk(self):
         inst = mock.Mock()
         inst.name = 'Name Of Instance'
-        inst.uuid = 'd5065c2c-ac43-3fa6-af32-ea84a3960291'
+        inst.uuid = uuids.inst_uuid
         lpar_wrap = mock.Mock()
         lpar_wrap.id = 2
         vios1 = self.vio_to_vg
-        vios1.scsi_mappings[0].backing_storage.name = 'b_Name_Of__d506'
+        back_stor_name = 'b_Name_Of__' + inst.uuid[:4]
+        vios1.scsi_mappings[0].backing_storage.name = back_stor_name
         return inst, lpar_wrap, vios1
 
     def test_get_bootdisk_path(self):
@@ -394,7 +390,7 @@ class TestLocalDisk(test.NoDBTestCase):
         self.mock_vios_get.reset_mock()
         self.mock_find_maps.return_value = []
         for vdisk, vios in local._get_bootdisk_iter(inst):
-            self.fail()
+            self.fail('Should not have found any storage elements.')
         self.mock_vios_get.assert_called_once_with(
             self.apt, uuid='vios-uuid', xag=[pvm_const.XAG.VIO_SMAP])
 
