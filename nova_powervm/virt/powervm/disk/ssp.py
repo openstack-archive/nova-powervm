@@ -286,6 +286,15 @@ class SSPDiskAdapter(disk_drv.DiskAdapter):
         if stg_ftsk.name == 'ssp':
             stg_ftsk.execute()
 
+    def extend_disk(self, instance, disk_info, size):
+        """Extends the disk.
+
+        :param instance: instance to extend the disk for.
+        :param disk_info: dictionary with disk info.
+        :param size: the new size in gb.
+        """
+        raise NotImplementedError()
+
     def check_instance_shared_storage_local(self, context, instance):
         """Check if instance files located on shared storage.
 

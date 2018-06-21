@@ -87,7 +87,7 @@ class DiskAdapter(object):
         self.host_uuid = host_uuid
         self.mp_uuid = mgmt.mgmt_uuid(self.adapter)
 
-    @property
+    @abc.abstractproperty
     def vios_uuids(self):
         """List the UUIDs of the Virtual I/O Servers hosting the storage."""
         raise NotImplementedError()
@@ -129,6 +129,7 @@ class DiskAdapter(object):
         return _('The configured disk driver does not support migration '
                  'or resize.')
 
+    @abc.abstractmethod
     def _disk_match_func(self, disk_type, instance):
         """Return a matching function to locate the disk for an instance.
 
@@ -214,6 +215,7 @@ class DiskAdapter(object):
         # We either didn't find the boot dev, or failed all attempts to map it.
         raise npvmex.InstanceDiskMappingFailed(instance_name=instance.name)
 
+    @abc.abstractmethod
     def disconnect_disk_from_mgmt(self, vios_uuid, disk_name):
         """Disconnect a disk from the management partition.
 
@@ -223,21 +225,15 @@ class DiskAdapter(object):
         """
         raise NotImplementedError()
 
-    @property
+    @abc.abstractproperty
     def capacity(self):
-        """Capacity of the storage in gigabytes
+        """Capacity of the storage in gigabytes."""
+        raise NotImplementedError()
 
-        Default is to make the capacity arbitrarily large
-        """
-        return 1 << 21
-
-    @property
+    @abc.abstractproperty
     def capacity_used(self):
-        """Capacity of the storage in gigabytes that is used
-
-        Default is to say none of it is used.
-        """
-        return 0
+        """Capacity of the storage in gigabytes that is used."""
+        raise NotImplementedError()
 
     @staticmethod
     def _get_disk_name(disk_type, instance, short=False):
@@ -301,6 +297,7 @@ class DiskAdapter(object):
                 disk_bytes = floor
         return disk_bytes
 
+    @abc.abstractmethod
     def disconnect_disk(self, instance, stg_ftsk=None, disk_type=None):
         """Disconnects the storage adapters from the image disk.
 
@@ -316,8 +313,9 @@ class DiskAdapter(object):
         :return: A list of all the backing storage elements that were
                  disconnected from the I/O Server and VM.
         """
-        pass
+        raise NotImplementedError()
 
+    @abc.abstractmethod
     def delete_disks(self, storage_elems):
         """Removes the disks specified by the mappings.
 
@@ -325,7 +323,7 @@ class DiskAdapter(object):
                               deleted.  Derived from the return value from
                               disconnect_disk.
         """
-        pass
+        raise NotImplementedError()
 
     def create_disk_from_image(self, context, instance, image_meta,
                                image_type=DiskType.BOOT):
@@ -370,6 +368,7 @@ class DiskAdapter(object):
         """
         pass
 
+    @abc.abstractmethod
     def connect_disk(self, instance, disk_info, stg_ftsk=None):
         """Connects the disk image to the Virtual Machine.
 
@@ -384,8 +383,9 @@ class DiskAdapter(object):
                          the FeedTask is not provided, the updates will be run
                          immediately when this method is executed.
         """
-        pass
+        raise NotImplementedError()
 
+    @abc.abstractmethod
     def extend_disk(self, instance, disk_info, size):
         """Extends the disk.
 
@@ -395,6 +395,7 @@ class DiskAdapter(object):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def check_instance_shared_storage_local(self, context, instance):
         """Check if instance files located on shared storage.
 
@@ -406,6 +407,7 @@ class DiskAdapter(object):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def check_instance_shared_storage_remote(self, context, data):
         """Check if instance files located on shared storage.
 

@@ -339,6 +339,25 @@ class LocalStorage(disk_dvr.DiskAdapter):
                 LOG.exception("PowerVM Error extending disk.",
                               instance=instance)
 
+    def check_instance_shared_storage_local(self, context, instance):
+        """Check if instance files located on shared storage.
+
+        This runs check on the destination host, and then calls
+        back to the source host to check the results.
+
+        :param context: security context
+        :param instance: nova.objects.instance.Instance object
+        """
+        raise NotImplementedError()
+
+    def check_instance_shared_storage_remote(self, context, data):
+        """Check if instance files located on shared storage.
+
+        :param context: security context
+        :param data: result of check_instance_shared_storage_local
+        """
+        raise NotImplementedError()
+
     def _get_vg_wrap(self):
         return pvm_stg.VG.get(self.adapter, uuid=self.vg_uuid,
                               parent_type=pvm_vios.VIOS,

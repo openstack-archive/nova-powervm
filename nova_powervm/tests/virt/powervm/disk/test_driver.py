@@ -1,4 +1,4 @@
-# Copyright 2015, 2017 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -19,8 +19,8 @@ import mock
 from nova import test
 from pypowervm import const as pvm_const
 
+from nova_powervm.tests.virt.powervm.disk import fake_adapter
 from nova_powervm.tests.virt.powervm import fixtures as fx
-from nova_powervm.virt.powervm.disk import driver as disk_dvr
 
 
 class TestDiskAdapter(test.NoDBTestCase):
@@ -36,13 +36,9 @@ class TestDiskAdapter(test.NoDBTestCase):
         self.mgmt_uuid.return_value = 'mp_uuid'
 
         # The values (adapter and host uuid) are not used in the base.
-        # Default them to None.
-        self.st_adpt = disk_dvr.DiskAdapter(None, None)
-
-    def test_capacity(self):
-        """These are arbitrary capacity numbers."""
-        self.assertEqual(2097152, self.st_adpt.capacity)
-        self.assertEqual(0, self.st_adpt.capacity_used)
+        # Default them to None. We use the fake adapter here because we can't
+        # instantiate DiskAdapter which is an abstract base class.
+        self.st_adpt = fake_adapter.FakeDiskAdapter(None, None)
 
     def test_get_info(self):
         # Ensure the base method returns empty dict
