@@ -754,7 +754,13 @@ class PowerVMDriver(driver.ComputeDriver):
         instance.save()
 
     def extend_volume(self, connection_info, instance):
-        """Resize an attached volume"""
+        """Extend the disk attached to the instance.
+
+        :param dict connection_info: The connection for the extended volume.
+        :param nova.objects.instance.Instance instance:
+            The instance whose volume gets extended.
+        :return: None
+        """
         vol_drv = vol_attach.build_volume_driver(
             self.adapter, self.host_uuid, instance, connection_info)
         vol_drv.extend_volume()
@@ -763,6 +769,9 @@ class PowerVMDriver(driver.ComputeDriver):
                       encryption=None):
         """Detach the volume attached to the instance."""
         self._log_operation('detach_volume', instance)
+
+        # Define the flow
+        flow = tf_lf.Flow("detach_volume")
 
         # Get a volume adapter for this volume
         vol_drv = vol_attach.build_volume_driver(
@@ -782,9 +791,6 @@ class PowerVMDriver(driver.ComputeDriver):
             if mig is not None and isinstance(mig, lpm.LiveMigrationDest):
                 mig.cleanup_volume(vol_drv)
             return
-
-        # Define the flow
-        flow = tf_lf.Flow("detach_volume")
 
         # Add a task to detach the volume
         slot_mgr = slot.build_slot_mgr(instance, self.store_api)
@@ -1660,10 +1666,6 @@ class PowerVMDriver(driver.ComputeDriver):
         """Yields a bdm and volume driver."""
         # Get a volume driver for each volume
         for bdm in bdms or []:
-            # Ignore if it's not a volume
-            if not bdm.is_volume:
-                continue
-
             vol_drv = vol_attach.build_volume_driver(
                 self.adapter, self.host_uuid, instance,
                 bdm.get('connection_info'), stg_ftsk=stg_ftsk)
@@ -1688,7 +1690,7 @@ class PowerVMDriver(driver.ComputeDriver):
         classes from nova.virt.block_device.  Each block device
         represents one volume connection.
 
-        An example string representation of the a DriverVolumeBlockDevice
+        An example string representation of a DriverVolumeBlockDevice
         from the early Liberty time frame is:
         {'guest_format': None,
         'boot_index': 0,

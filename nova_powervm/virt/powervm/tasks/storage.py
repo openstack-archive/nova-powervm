@@ -55,8 +55,6 @@ class ConnectVolume(task.Task):
         self.vol_drv.connect_volume(self.slot_mgr)
 
     def revert(self, result, flow_failures):
-        # The parameters have to match the execute method, plus the response +
-        # failures even if only a subset are used.
         LOG.warning('Rolling back connection for volume %(vol)s.',
                     {'vol': self.vol_id}, instance=self.vol_drv.instance)
 
@@ -101,8 +99,6 @@ class DisconnectVolume(task.Task):
         self.vol_drv.disconnect_volume(self.slot_mgr)
 
     def revert(self, result, flow_failures):
-        # The parameters have to match the execute method, plus the response +
-        # failures even if only a subset are used.
         LOG.warning('Reconnecting volume %(vol)s on disconnect rollback.',
                     {'vol': self.vol_id}, instance=self.vol_drv.instance)
 

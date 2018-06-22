@@ -1,4 +1,4 @@
-# Copyright 2015, 2018 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -152,8 +152,10 @@ class VscsiVolumeAdapter(object):
         :param tag: String tag to set on the physical volume.
         """
         def add_func(vios_w):
-            LOG.info("Adding vSCSI mapping to Physical Volume %(dev)s",
-                     {'dev': device_name}, instance=self.instance)
+            LOG.info("Adding vSCSI mapping to Physical Volume %(dev)s on "
+                     "vios %(vios)s.",
+                     {'dev': device_name, 'vios': vios_w.name},
+                     instance=self.instance)
             pv = pvm_stor.PV.bld(self.adapter, device_name, udid=udid,
                                  tag=tag)
             v_map = tsk_map.build_vscsi_mapping(
@@ -172,8 +174,8 @@ class VscsiVolumeAdapter(object):
         except (KeyError, ValueError):
             # It's common to lose our specific data in the BDM.  The connection
             # information can be 'refreshed' by operations like LPM and resize
-            LOG.info('Failed to retrieve device_id key from BDM for volume id '
-                     '%s', self.volume_id, instance=self.instance)
+            LOG.info('Failed to retrieve target_UDID key from BDM for volume '
+                     'id %s', self.volume_id, instance=self.instance)
             return None
 
     def _set_udid(self, udid):
@@ -184,7 +186,7 @@ class VscsiVolumeAdapter(object):
         self.connection_info['data'][UDID_KEY] = udid
 
     def _add_remove_mapping(self, vm_uuid, vios_uuid, device_name, slot_mgr):
-        """Adds a transaction to remove the storage mapping.
+        """Adds a subtask to remove the storage mapping.
 
         :param vm_uuid: The UUID of the VM instance
         :param vios_uuid: The UUID of the vios for the pypowervm adapter.
@@ -193,8 +195,10 @@ class VscsiVolumeAdapter(object):
                          used when a volume is detached from the VM.
         """
         def rm_func(vios_w):
-            LOG.info("Removing vSCSI mapping from physical volume %(dev)s.",
-                     {'dev': device_name}, instance=self.instance)
+            LOG.info("Removing vSCSI mapping from physical volume %(dev)s "
+                     "on vios %(vios)s",
+                     {'dev': device_name, 'vios': vios_w.name},
+                     instance=self.instance)
             removed_maps = tsk_map.remove_maps(
                 vios_w, vm_uuid,
                 tsk_map.gen_match_func(pvm_stor.PV, names=[device_name]))
@@ -249,7 +253,7 @@ class VscsiVolumeAdapter(object):
                          from.
         :param device_name: The hdisk name to remove.
 
-        :return: True is there are multiple instances using the given hdisk
+        :return: True if there are multiple instances using the given hdisk
         """
         vios_scsi_mappings = next(v.scsi_mappings for v in self.stg_ftsk.feed
                                   if v.uuid == vios_wrap.uuid)
@@ -257,11 +261,10 @@ class VscsiVolumeAdapter(object):
             vios_scsi_mappings, None,
             tsk_map.gen_match_func(pvm_stor.PV, names=[device_name]))
 
-        LOG.info("%(num)d storage mappings found for %(dev)s on VIOS %(vios)s",
-                 {'num': len(mappings), 'dev': device_name,
-                  'vios': vios_wrap.name}, instance=self.instance)
-        # the mapping is still present as the task feed removes
-        # the mapping later
+        LOG.debug("%(num)d storage mapping(s) found for %(dev)s on VIOS "
+                  "%(vios)s", {'num': len(mappings), 'dev': device_name,
+                               'vios': vios_wrap.name}, instance=self.instance)
+        # the mapping is still present as the task feed removes it later
         return len(mappings) > 1
 
     def _cleanup_volume(self, udid=None, devname=None):

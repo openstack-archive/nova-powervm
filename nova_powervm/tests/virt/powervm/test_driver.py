@@ -1,4 +1,4 @@
-# Copyright 2014, 2018 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -23,6 +23,7 @@ from oslo_serialization import jsonutils
 
 from nova import block_device as nova_block_device
 from nova.compute import task_states
+from nova import conf as cfg
 from nova import exception as exc
 from nova import objects
 from nova.objects import base as obj_base
@@ -49,6 +50,7 @@ from nova_powervm.virt.powervm import exception as p_exc
 from nova_powervm.virt.powervm import live_migration as lpm
 from nova_powervm.virt.powervm import vm
 
+CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 logging.basicConfig()
 
@@ -218,7 +220,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
 
         vol_connector = self.drv.get_volume_connector(mock.Mock())
         self.assertIsNotNone(vol_connector['wwpns'])
-        self.assertIsNotNone(vol_connector['host'])
+        self.assertEqual(vol_connector['host'], CONF.host)
         self.assertEqual('fake_iqn1', vol_connector['initiator'])
 
     def test_setup_disk_adapter(self):
@@ -1269,7 +1271,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         with mock.patch.object(self.inst, 'save') as mock_save:
             # Invoke the method.
             self.drv.attach_volume('context', mock_bdm.get('connection_info'),
-                                   self.inst, mock.Mock())
+                                   self.inst, mock.sentinel.stg_ftsk)
 
         mock_bld_slot_mgr.assert_called_once_with(self.inst,
                                                   self.drv.store_api)
@@ -1277,7 +1279,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.vol_drv.connect_volume.assert_called_once_with(
             mock_bld_slot_mgr.return_value)
         mock_bld_slot_mgr.return_value.save.assert_called_once_with()
-        self.assertTrue(mock_save.called)
+        mock_save.assert_called_once_with()
 
     @mock.patch('nova_powervm.virt.powervm.vm.instance_exists', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.slot.build_slot_mgr', autospec=True)
@@ -1290,7 +1292,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         mock_bdm = self._fake_bdms()['block_device_mapping'][0]
         # Invoke the method, good path test.
         self.drv.detach_volume('context', mock_bdm.get('connection_info'),
-                               self.inst, mock.Mock())
+                               self.inst, mock.sentinel.stg_ftsk)
 
         mock_bld_slot_mgr.assert_called_once_with(self.inst,
                                                   self.drv.store_api)
@@ -1302,7 +1304,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # Invoke the method, instance doesn't exist, no migration
         self.vol_drv.disconnect_volume.reset_mock()
         self.drv.detach_volume('context', mock_bdm.get('connection_info'),
-                               self.inst, mock.Mock())
+                               self.inst, mock.sentinel.stg_ftsk)
         # Verify the disconnect volume was not invoked
         self.assertEqual(0, self.vol_drv.disconnect_volume.call_count)
 
@@ -1312,7 +1314,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         self.drv.live_migrations[self.inst.uuid] = mig
         with mock.patch.object(mig, 'cleanup_volume') as mock_clnup:
             self.drv.detach_volume('context', mock_bdm.get('connection_info'),
-                                   self.inst, mock.Mock())
+                                   self.inst, mock.sentinel.stg_ftsk)
         # The cleanup should have been called since there was a migration
         self.assertEqual(1, mock_clnup.call_count)
         # Verify the disconnect volume was not invoked

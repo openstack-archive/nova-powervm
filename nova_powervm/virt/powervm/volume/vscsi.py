@@ -1,4 +1,4 @@
-# Copyright 2015, 2018 IBM Corp.
+# Copyright IBM Corp. and contributors
 #
 # All Rights Reserved.
 #
@@ -175,7 +175,7 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
         :param volume_id: Volume to discover
         :returns: Status of the volume or None
         :returns: Device name or None
-        :returns: LUN or None
+        :returns: UDID or None
         """
         # Get the initiatior WWPNs, targets and Lun for the given VIOS.
         vio_wwpns, t_wwpns, lun = self._get_hdisk_itls(vios_w)
@@ -196,13 +196,13 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
             LOG.info('Discovered %(hdisk)s on vios %(vios)s for volume '
                      '%(volume_id)s. Status code: %(status)s.',
                      {'hdisk': device_name, 'vios': vios_w.name,
-                      'volume_id': volume_id, 'status': str(status)},
+                      'volume_id': volume_id, 'status': status},
                      instance=self.instance)
         elif status == hdisk.LUAStatus.DEVICE_IN_USE:
             LOG.warning('Discovered device %(dev)s for volume %(volume)s '
                         'on %(vios)s is in use. Error code: %(status)s.',
                         {'dev': device_name, 'volume': volume_id,
-                         'vios': vios_w.name, 'status': str(status)},
+                         'vios': vios_w.name, 'status': status},
                         instance=self.instance)
 
         return status, device_name, udid
@@ -243,7 +243,9 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
             # Save the UDID for the disk in the connection info.  It is
             # used for the detach.
             self._set_udid(udid)
-            LOG.debug('Added deferred task to attach device %s', device_name,
+            LOG.debug('Added deferred task to attach device %(device_name)s '
+                      'to vios %(vios_name)s.',
+                      {'device_name': device_name, 'vios_name': vios_w.name},
                       instance=self.instance)
 
             # Valid attachment
@@ -267,10 +269,9 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
             LOG.debug("Disconnect volume %(vol)s from vios uuid %(uuid)s",
                       dict(vol=self.volume_id, uuid=vios_w.uuid),
                       instance=self.instance)
-            udid, device_name = None, None
+            device_name = None
+            udid = self._get_udid()
             try:
-                udid = self._get_udid()
-
                 if udid:
                     # This will only work if vios_w has the Storage XAG.
                     device_name = vios_w.hdisk_from_uuid(udid)
@@ -280,10 +281,8 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
                     status, device_name, udid = self._discover_volume_on_vios(
                         vios_w, self.volume_id)
 
-                    # If we have a device name, but not a udid, at this point
-                    # we should not continue.  The hdisk is in a bad state
-                    # in the I/O Server.  Subsequent scrub code on future
-                    # deploys will clean this up.
+                    # Check if the hdisk is in a bad state in the I/O Server.
+                    # Subsequent scrub code on future deploys will clean it up.
                     if not hdisk.good_discovery(status, device_name):
                         LOG.warning(
                             "Disconnect Volume: The backing hdisk for volume "
@@ -299,8 +298,8 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
                     "Disconnect Volume: Failed to find disk on Virtual I/O "
                     "Server %(vios_name)s for volume %(volume_id)s. Volume "
                     "UDID: %(volume_uid)s.",
-                    {'volume_uid': udid, 'vios_name': vios_w.name,
-                     'volume_id': self.volume_id}, instance=self.instance)
+                    {'vios_name': vios_w.name, 'volume_id': self.volume_id,
+                     'volume_uid': udid}, instance=self.instance)
                 return False
 
             # We have found the device name
