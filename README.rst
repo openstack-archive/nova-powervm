@@ -89,7 +89,7 @@ The intention is that this driver follows the OpenStack Nova model.
 
 The driver is being promoted into the nova core project in stages, the first of
 which is represented by blueprint `powervm-nova-compute-driver`_.  The
-coexistence of these two incarnations of the driver raises some `Dual Driver
+coexistence of these two incarnations of the driver raises some `Upgrade
 Considerations`_.
 
 .. _`powervm-nova-compute-driver`: https://blueprints.launchpad.net/nova/+spec/powervm-nova-compute-driver
