@@ -12,8 +12,6 @@
 import os
 import sys
 
-import nova_powervm.version
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -26,7 +24,7 @@ sys.path.insert(0, os.path.abspath('../'))
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'oslosphinx',
+    'openstackdocstheme',
     'ext.support_matrix'
 ]
 
@@ -40,20 +38,15 @@ master_doc = 'index'
 project = u'nova-powervm'
 copyright = u'2015, IBM'
 
-# The version info for the project you're documenting, acts as replacement for
-# |version| and |release|, also used in various other places throughout the
-# built documents.
-#
-# The short X.Y version.
-version = nova_powervm.version.version_info.version_string()
-# The full version, including alpha/beta/rc tags.
-release = nova_powervm.version.version_info.release_string()
-
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
 
 # -- Options for HTML output ----------------------------------------------
+
+# The theme to use for HTML and HTML Help pages.  Major themes that come with
+# Sphinx are currently 'default' and 'sphinxdoc'.
+html_theme = 'openstackdocs'
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -82,3 +75,10 @@ man_pages = [
      u'%s Documentation' % project,
      u'IBM', 1)
 ]
+
+
+# -- Options for openstackdocstheme ---------------------------------------
+
+repository_name = 'openstack/nova-powervm'
+bug_project = 'nova-powervm'
+bug_tag = ''
