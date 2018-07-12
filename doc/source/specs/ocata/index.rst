@@ -1,0 +1,7 @@
+Ocata Specifications
+====================
+
+.. toctree::
+   :glob:
+
+   *

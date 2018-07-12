@@ -33,7 +33,7 @@ these problems.
 Use Cases
 ---------
 
- - As an end user, subsequent deploys of the same image should go faster
+* As an end user, subsequent deploys of the same image should go faster
 
 
 Proposed change
@@ -41,15 +41,17 @@ Proposed change
 
 Create a subclass of nova.virt.imagecache.ImageManager in the nova-powervm
 project. It should implement the necessary methods of the cache:
- - _scan_base_images
- - _age_and_verify_cached_images
- - _get_base
- - update
+
+* _scan_base_images
+* _age_and_verify_cached_images
+* _get_base
+* update
 
 The nova-powervm driver will need to be updated to utilize the cache.  This
 includes:
- - Implementing the manage_image_cache method
- - Adding the has_imagecache capability
+
+* Implementing the manage_image_cache method
+* Adding the has_imagecache capability
 
 The localdisk driver within nova-powervm will be updated to have the
 following logic.  It will check the volume group backing the instance.  If the
@@ -68,10 +70,10 @@ overwhelming the backing disks.
 Alternatives
 ------------
 
- - Leave as is, all deploys potentially slow
- - Implement support for linked clones.  This is an eventual goal, but
-   the image cache is still needed in this case as it will also manage the
-   root disk image.
+* Leave as is, all deploys potentially slow
+* Implement support for linked clones.  This is an eventual goal, but
+  the image cache is still needed in this case as it will also manage the
+  root disk image.
 
 
 Security impact

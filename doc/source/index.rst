@@ -29,10 +29,8 @@ Documentation on Nova can be found at the `Nova Devref`_.
 .. _`PowerVM`: http://www-03.ibm.com/systems/power/software/virtualization/
 .. _`Nova Devref`: https://docs.openstack.org/nova/latest/
 
-Nova-PowerVM Overview
-=====================
-
-Contents:
+Overview
+--------
 
 .. toctree::
     :maxdepth: 1
@@ -40,22 +38,27 @@ Contents:
     readme
     support-matrix
 
-Nova-PowerVM Policies
-=====================
-
-Contents:
+Policies
+--------
 
 .. toctree::
    :maxdepth: 1
 
    policies/index
 
-Nova-PowerVM Devref
-===================
-
-Contents:
+Devref
+------
 
 .. toctree::
    :maxdepth: 1
 
    devref/index
+
+Specifications
+--------------
+
+.. toctree::
+   :maxdepth: 1
+
+   specs/template
+   specs/index
