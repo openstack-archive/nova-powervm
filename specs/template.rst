@@ -17,15 +17,32 @@ prose that operators can understand. The title and this first paragraph
 should be used as the subject line and body of the commit message
 respectively.
 
-Some notes about using this template:
+Some notes about the nova-powervm spec and blueprint process:
+
+* Not all blueprints need a spec. For more information see
+  https://docs.openstack.org/nova/latest/contributor/blueprints.html#specs
 
 * The aim of this document is first to define the problem we need to solve,
   and second agree the overall approach to solve that problem.
+
+* This is not intended to be extensive documentation for a new feature.
+  For example, there is no need to specify the exact configuration changes,
+  nor the exact details of any DB model changes. But you should still define
+  that such changes are required, and be clear on how that will affect
+  upgrades.
 
 * You should aim to get your spec approved before writing your code.
   While you are free to write prototypes and code before getting your spec
   approved, its possible that the outcome of the spec review process leads
   you towards a fundamentally different solution than you first envisaged.
+
+* But, API changes are held to a much higher level of scrutiny.
+  As soon as an API change merges, we must assume it could be in production
+  somewhere, and as such, we then need to support that API change forever.
+  To avoid getting that wrong, we do want lots of details about API changes
+  upfront.
+
+Some notes about using this template:
 
 * Your spec should be in ReSTructured text, like this template.
 
@@ -50,6 +67,13 @@ Some notes about using this template:
   having to look at additional files which can not be viewed in gerrit.  It
   will also allow inline feedback on the diagram itself.
 
+* If your specification proposes any changes to the Nova REST API such
+  as changing parameters which can be returned or accepted, or even
+  the semantics of what happens when a client calls into the API, then
+  you should add the APIImpact flag to the commit message. Specifications with
+  the APIImpact flag can be found with the following query:
+
+  https://review.openstack.org/#/q/status:open+project:openstack/nova-powervm+message:apiimpact,n,z
 
 Problem description
 ===================
@@ -57,14 +81,12 @@ Problem description
 A detailed description of the problem. What problem is this blueprint
 addressing?
 
-
 Use Cases
 ---------
 
 What use cases does this address? What impact on actors does this change have?
 Ensure you are clear about the actors in each use case: Developer, End User,
 Deployer etc.
-
 
 Proposed change
 ===============
@@ -75,6 +97,10 @@ propose to solve this problem?
 If this is one part of a larger effort make it clear where this piece ends. In
 other words, what's the scope of this effort?
 
+At this point, if you would like to just get feedback on if the problem and
+proposed change fit in nova-powervm, you can stop here and post this for review
+to get preliminary feedback. If so please say:
+Posting to get preliminary feedback on the scope of this spec.
 
 Alternatives
 ------------
@@ -83,7 +109,6 @@ What other ways could we do this thing? Why aren't we using those? This doesn't
 have to be a full literature review, but it should demonstrate that thought has
 been put into why the proposed solution is an appropriate one.
 
-
 Security impact
 ---------------
 
@@ -91,6 +116,9 @@ Describe any potential security impact on the system.  Some of the items to
 consider include:
 
 * Does this change touch sensitive data such as tokens, keys, or user data?
+
+* Does this change alter the API in a way that may impact security, such as
+  a new way to access sensitive information or a new way to login?
 
 * Does this change involve cryptography or hashing?
 
@@ -115,7 +143,7 @@ End user impact
 ---------------
 
 How would the end user be impacted by this change? The "End User" is defined
-as the users of the deployed cloud?
+as the users of the deployed cloud.
 
 
 Performance Impact
@@ -129,6 +157,10 @@ Examples of things to consider here include:
 
 * A small change in a utility function or a commonly used decorator can have a
   large impacts on performance.
+
+* Calls which result in a database queries (whether direct or via conductor)
+  can have a profound impact on performance when called in critical sections of
+  the code.
 
 * Will the change include any locking, and if so what considerations are there
   on holding the lock?
@@ -158,6 +190,24 @@ Developer impact
 
 Discuss things that will affect other developers working on the driver or
 OpenStack in general.
+
+Upgrade impact
+--------------
+
+Describe any potential upgrade impact on the system, such as:
+
+* If this change adds a new feature to the compute host that the controller
+  services rely on, the controller services may need to check the minimum
+  compute service version in the deployment before using the new feature. For
+  example, in Ocata, the FilterScheduler did not use the Placement API until
+  all compute services were upgraded to at least Ocata.
+
+* Nova supports N-1 version *nova-compute* services for rolling upgrades. Does
+  the proposed change need to consider older code running that may impact how
+  the new change functions, for example, by changing or overwriting global
+  state in the database? This is generally most problematic when making changes
+  that involve multiple compute hosts, like move operations such as migrate,
+  resize, unshelve and evacuate.
 
 
 Implementation
@@ -206,21 +256,30 @@ Testing
 Please discuss the important scenarios needed to test here, as well as
 specific edge cases we should be ensuring work correctly. For each
 scenario please specify if this requires specialized hardware, a full
-openstack environment, etc.
+openstack environment, or can be simulated inside the nova-powervm tree.
 
 Please discuss how the change will be tested. We especially want to know what
-functional tests will be added. It is assumed that unit test coverage will be
-added so that doesn't need to be mentioned explicitly.
+tempest tests will be added. It is assumed that unit test coverage will be
+added so that doesn't need to be mentioned explicitly, but discussion of why
+you think unit tests are sufficient and we don't need to add more tempest
+tests would need to be included.
+
+Is this untestable in gate given current limitations (specific hardware /
+software configurations available)? If so, are there mitigation plans (3rd
+party testing, gate enhancements, etc).
 
 
 Documentation Impact
 ====================
 
 Which audiences are affected most by this change, and which documentation
-titles should be updated because of this change? Don't repeat details
-discussed above, but reference them here in the context of documentation
-for multiple audiences.
-
+titles on nova-powervm.readthedocs.io should be updated because of this change?
+Don't repeat details discussed above, but reference them here in the context of
+documentation for multiple audiences. For example, the Operations Guide targets
+cloud operators, and the End User Guide would need to be updated if the change
+offers a new feature available through the CLI or dashboard. If a config option
+changes or is deprecated, note here that the documentation needs to be updated
+to reflect this specification's change.
 
 References
 ==========
@@ -245,12 +304,13 @@ History
 =======
 
 Optional section intended to be used each time the spec is updated to describe
-new design.
+new design, API or any database schema updated. Useful to let reader understand
+what's happened along the time.
 
 .. list-table:: Revisions
    :header-rows: 1
 
    * - Release Name
      - Description
-   * - Mitaka
+   * - Rocky
      - Introduced
