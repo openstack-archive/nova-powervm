@@ -379,6 +379,45 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.multi_vol_drv.disconnect_volume(self.slot_mgr)
         mock_remove_iscsi.assert_has_calls(multi_calls, any_order=True)
 
+    @mock.patch('pypowervm.wrappers.virtual_io_server.VIOS.hdisk_from_uuid',
+                autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id', autospec=True)
+    @mock.patch('pypowervm.tasks.hdisk.remove_iscsi', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.remove_maps', autospec=True)
+    def test_disconnect_volume_no_devname(
+            self, mock_remove_maps, mock_remove_iscsi, mock_get_vm_id,
+            mock_hdisk_from_uuid):
+
+        # Ensures that if device_name not found, then mappings are not
+        # removed and disconnect return False.
+        self.vol_drv._set_udid("vstor_uuid")
+        mock_hdisk_from_uuid.return_value = None
+        mock_get_vm_id.return_value = '2'
+
+        # Run the method
+        status = self.vol_drv.disconnect_volume(self.slot_mgr)
+
+        # In this case no disconnect should happen
+        # mock_remove_maps.assert_not_called()
+        self.assertEqual(0, mock_remove_maps.call_count)
+        self.assertEqual(0, mock_remove_iscsi.call_count)
+        mock_hdisk_from_uuid.assert_called_with(mock.ANY, 'vstor_uuid')
+        self.assertFalse(status)
+
+        # Ensures that if UDID not found, then mappings are not
+        # removed and disconnect return False.
+        self.vol_drv._set_udid(None)
+        mock_hdisk_from_uuid.reset_mock()
+
+        # Run the method
+        status = self.vol_drv.disconnect_volume(self.slot_mgr)
+
+        # In this case no disconnect should happen
+        self.assertEqual(0, mock_remove_maps.call_count)
+        self.assertEqual(0, mock_remove_iscsi.call_count)
+        self.assertEqual(0, mock_hdisk_from_uuid.call_count)
+        self.assertFalse(status)
+
     def test_min_xags(self):
         xags = self.vol_drv.min_xags()
         self.assertEqual(1, len(xags))
@@ -540,6 +579,14 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.assertRaises(p_exc.VolumePreMigrationFailed,
                           self.vol_drv.pre_live_migration_on_destination, {})
         mock_discover.assert_not_called()
+
+    @mock.patch('nova_powervm.virt.powervm.volume.volume.VscsiVolumeAdapter'
+                '._set_udid', autospec=True)
+    def test_post_live_migration_at_destination(self, mock_set_udid):
+        volume_key = 'vscsi-' + self.serial
+        mig_vol_stor = {volume_key: 'udid'}
+        self.vol_drv.post_live_migration_at_destination(mig_vol_stor)
+        mock_set_udid.assert_called_with(mock.ANY, 'udid')
 
     @mock.patch('nova_powervm.virt.powervm.volume.driver.PowerVMVolumeAdapter.'
                 'vios_uuids', new_callable=mock.PropertyMock)

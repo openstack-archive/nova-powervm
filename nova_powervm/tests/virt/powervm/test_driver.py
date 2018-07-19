@@ -1977,11 +1977,27 @@ class TestPowerVMDriver(test.NoDBTestCase):
         mock_rename.assert_called_once_with(
             self.drv.adapter, self.lpm_inst, self.lpm_inst.name)
 
-    def test_post_live_mig_dest(self):
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._vol_drv_iter',
+                autospec=True)
+    def test_post_live_mig_dest(self, mock_vdi):
+        vals = [(None, None)]
+        mock_vdi.return_value = vals
         self.drv.post_live_migration_at_destination(
             'context', self.lpm_inst, 'network_info')
         self.lpm.post_live_migration_at_destination.assert_called_once_with(
-            'network_info', [])
+            'network_info', vals)
+
+    @mock.patch('nova_powervm.virt.powervm.driver.PowerVMDriver._vol_drv_iter',
+                autospec=True)
+    def test_post_live_mig_dest_vol_drv(self, mock_vdi):
+        bdm1 = mock.Mock()
+        fake_bdi = {'block_device_mapping': [bdm1]}
+        vals = [(bdm1, self.iscsi_vol_drv)]
+        mock_vdi.return_value = vals
+        self.drv.post_live_migration_at_destination(
+            'context', self.lpm_inst, 'network_info', fake_bdi)
+        self.lpm.post_live_migration_at_destination.assert_called_once_with(
+            'network_info', vals)
 
     @mock.patch('pypowervm.tasks.memory.calculate_memory_overhead_on_host',
                 autospec=True)
