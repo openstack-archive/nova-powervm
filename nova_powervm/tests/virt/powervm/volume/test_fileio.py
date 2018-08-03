@@ -98,7 +98,7 @@ class TestFileIOVolumeAdapter(test_vol.TestVolumeAdapter):
         # Validate
         mock_file_bld.assert_called_once_with(
             self.adpt, 'fake_path',
-            backstore_type=pvm_stg.BackStoreType.FILE_IO, tag='a_vol_id')
+            backstore_type=pvm_stg.BackStoreType.LOOP, tag='a_vol_id')
         self.assertEqual(1, mock_build_map.call_count)
         self.assertEqual(1, mock_udid_to_map.call_count)
 
@@ -130,7 +130,7 @@ class TestFileIOVolumeAdapter(test_vol.TestVolumeAdapter):
         # Validate
         mock_file_bld.assert_called_once_with(
             self.adpt, 'fake_path',
-            backstore_type=pvm_stg.BackStoreType.FILE_IO, tag='a_vol_id')
+            backstore_type=pvm_stg.BackStoreType.LOOP, tag='a_vol_id')
         self.assertEqual(0, mock_build_map.call_count)
 
     @mock.patch('pypowervm.tasks.partition.get_mgmt_partition', autospec=True)

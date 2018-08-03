@@ -97,7 +97,7 @@ class FileIOVolumeAdapter(v_driver.PowerVMVolumeAdapter):
         volid = self.connection_info['data']['volume_id']
         fio = pvm_stg.FileIO.bld(
             self.adapter, path,
-            backstore_type=pvm_stg.BackStoreType.FILE_IO, tag=volid)
+            backstore_type=pvm_stg.BackStoreType.LOOP, tag=volid)
 
         def add_func(vios_w):
             # If the vios doesn't match, just return
