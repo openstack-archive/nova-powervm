@@ -16,12 +16,13 @@
 
 from __future__ import absolute_import
 import collections
-import fixtures
+import contextlib
 import logging
-import mock
-from oslo_serialization import jsonutils
 
+import fixtures
+import mock
 from nova import block_device as nova_block_device
+from nova.compute import provider_tree
 from nova.compute import task_states
 from nova import conf as cfg
 from nova import exception as exc
@@ -29,10 +30,13 @@ from nova import objects
 from nova.objects import base as obj_base
 from nova.objects import block_device as bdmobj
 from nova import test
+from nova.tests import uuidsentinel as uuids
 from nova.virt import block_device as nova_virt_bdm
 from nova.virt import driver as virt_driver
 from nova.virt import fake
 from nova.virt import hardware
+from nova.virt.powervm_ext import driver
+from oslo_serialization import jsonutils
 from pypowervm import adapter as pvm_adp
 from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
@@ -41,8 +45,6 @@ from pypowervm.helpers import vios_busy as vio_hlp
 from pypowervm.utils import transaction as pvm_tx
 from pypowervm.wrappers import logical_partition as pvm_lpar
 from pypowervm.wrappers import virtual_io_server as pvm_vios
-
-from nova.virt.powervm_ext import driver
 
 from nova_powervm.tests.virt import powervm
 from nova_powervm.tests.virt.powervm import fixtures as fx
@@ -1592,6 +1594,106 @@ class TestPowerVMDriver(test.NoDBTestCase):
         for fld in fields:
             value = stats.get(fld, None)
             self.assertIsNotNone(value)
+
+    @contextlib.contextmanager
+    def _update_provider_tree(self):
+        """Host resource dict gets converted properly to provider tree inv."""
+
+        with mock.patch('nova_powervm.virt.powervm.host.'
+                        'build_host_resource_from_ms') as mock_bhrfm:
+            mock_bhrfm.return_value = {
+                'vcpus': 8,
+                'memory_mb': 2048,
+            }
+            self.drv.host_wrapper = 'host_wrapper'
+            # Validate that this gets converted to int with floor
+            self.drv.disk_dvr = mock.Mock(capacity=2091.8)
+            exp_inv = {
+                'VCPU': {
+                    'total': 8,
+                    'max_unit': 8,
+                    'allocation_ratio': 16.0,
+                    'reserved': 0,
+                },
+                'MEMORY_MB': {
+                    'total': 2048,
+                    'max_unit': 2048,
+                    'allocation_ratio': 1.5,
+                    'reserved': 512,
+                },
+                'DISK_GB': {
+                    'total': 2091,
+                    'max_unit': 2091,
+                    'allocation_ratio': 1.0,
+                    'reserved': 0,
+                },
+            }
+            ptree = provider_tree.ProviderTree()
+            ptree.new_root('compute_host', uuids.cn)
+            # Let the caller muck with these
+            yield ptree, exp_inv
+            self.drv.update_provider_tree(ptree, 'compute_host')
+            self.assertEqual(exp_inv, ptree.data('compute_host').inventory)
+            mock_bhrfm.assert_called_once_with('host_wrapper')
+
+    def test_update_provider_tree(self):
+        # Basic: no inventory already on the provider, no extra providers, no
+        # aggregates or traits.
+        with self._update_provider_tree():
+            pass
+
+    def test_update_provider_tree_conf_overrides(self):
+        # Non-default CONF values for allocation ratios and reserved.
+        self.flags(cpu_allocation_ratio=12.3,
+                   reserved_host_cpus=4,
+                   ram_allocation_ratio=4.5,
+                   reserved_host_memory_mb=32,
+                   disk_allocation_ratio=6.7,
+                   # This gets int(ceil)'d
+                   reserved_host_disk_mb=5432.1)
+        with self._update_provider_tree() as (_, exp_inv):
+            exp_inv['VCPU']['allocation_ratio'] = 12.3
+            exp_inv['VCPU']['reserved'] = 4
+            exp_inv['MEMORY_MB']['allocation_ratio'] = 4.5
+            exp_inv['MEMORY_MB']['reserved'] = 32
+            exp_inv['DISK_GB']['allocation_ratio'] = 6.7
+            exp_inv['DISK_GB']['reserved'] = 6
+
+    def test_update_provider_tree_complex_ptree(self):
+        # Overrides inventory already on the provider; leaves other providers
+        # and aggregates/traits alone.
+        with self._update_provider_tree() as (ptree, _):
+            ptree.update_inventory('compute_host', {
+                # these should get blown away
+                'VCPU': {
+                    'total': 16,
+                    'max_unit': 2,
+                    'allocation_ratio': 1.0,
+                    'reserved': 10,
+                },
+                'CUSTOM_BOGUS': {
+                    'total': 1234,
+                }
+            })
+            ptree.update_aggregates('compute_host',
+                                    [uuids.ss_agg, uuids.other_agg])
+            ptree.update_traits('compute_host', ['CUSTOM_FOO', 'CUSTOM_BAR'])
+            ptree.new_root('ssp', uuids.ssp)
+            ptree.update_inventory('ssp', {'sentinel': 'inventory',
+                                           'for': 'ssp'})
+            ptree.update_aggregates('ssp', [uuids.ss_agg])
+            ptree.new_child('sriov', 'compute_host', uuid=uuids.sriov)
+
+        # Make sure the compute's agg and traits were left alone
+        cndata = ptree.data('compute_host')
+        self.assertEqual(set([uuids.ss_agg, uuids.other_agg]),
+                         cndata.aggregates)
+        self.assertEqual(set(['CUSTOM_FOO', 'CUSTOM_BAR']), cndata.traits)
+        # And the other providers were left alone
+        self.assertEqual(set([uuids.cn, uuids.ssp, uuids.sriov]),
+                         set(ptree.get_provider_uuids()))
+        # ...including the ssp's aggregates
+        self.assertEqual(set([uuids.ss_agg]), ptree.data('ssp').aggregates)
 
     @mock.patch('nova_powervm.virt.powervm.vif.plug_secure_rmc_vif')
     @mock.patch('nova_powervm.virt.powervm.vif.get_secure_rmc_vswitch')
