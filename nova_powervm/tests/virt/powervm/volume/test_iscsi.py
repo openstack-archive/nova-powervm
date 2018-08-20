@@ -588,6 +588,21 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.vol_drv.post_live_migration_at_destination(mig_vol_stor)
         mock_set_udid.assert_called_with(mock.ANY, 'udid')
 
+    def test_post_live_migr_source(self):
+
+        # Bad path.  volume id not found
+        bad_data = {'vscsi-BAD': 'udid1'}
+        # good path.
+        good_data = {'vscsi-' + self.serial: 'udid1'}
+
+        with mock.patch.object(self.vol_drv, '_cleanup_volume') as mock_cln:
+            self.vol_drv.post_live_migration_at_source(bad_data)
+            mock_cln.assert_called_once_with(None)
+
+            mock_cln.reset_mock()
+            self.vol_drv.post_live_migration_at_source(good_data)
+            mock_cln.assert_called_once_with('udid1')
+
     @mock.patch('nova_powervm.virt.powervm.volume.driver.PowerVMVolumeAdapter.'
                 'vios_uuids', new_callable=mock.PropertyMock)
     def test_is_volume_on_vios(self, mock_vios_uuids):
