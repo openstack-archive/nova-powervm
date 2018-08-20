@@ -172,6 +172,21 @@ class IscsiVolumeAdapter(volume.VscsiVolumeAdapter,
         if volume_key in mig_data:
             self._set_udid(mig_data[volume_key])
 
+    def post_live_migration_at_source(self, migrate_data):
+        """Performs post live migration for the volume on the source host.
+
+        This method can be used to handle any steps that need to taken on
+        the source host after the VM is on the destination.
+
+        :param migrate_data: volume migration data
+        """
+        # Get the udid of the volume to remove the hdisk for.  We can't
+        # use the connection information because LPM 'refreshes' it, which
+        # wipes out our data, so we use the data from the destination host
+        # to avoid having to discover the hdisk to get the udid.
+        udid = migrate_data.get('vscsi-' + self.volume_id)
+        self._cleanup_volume(udid)
+
     def is_volume_on_vios(self, vios_w):
         """Returns whether or not the volume is on a VIOS.
 
