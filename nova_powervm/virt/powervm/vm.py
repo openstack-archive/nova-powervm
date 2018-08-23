@@ -161,6 +161,7 @@ class VMBuilder(object):
     _PVM_SRR_CAPABILITY = 'powervm:srr_capability'
     _PVM_PPT_RATIO = 'powervm:ppt_ratio'
     _PVM_ENFORCE_AFFINITY_CHECK = 'powervm:enforce_affinity_check'
+    _PVM_SECURE_BOOT = 'powervm:secure_boot'
 
     # Map of PowerVM extra specs to the lpar builder attributes.
     # '' is used for attributes that are not implemented yet.
@@ -180,6 +181,7 @@ class VMBuilder(object):
         'powervm:enable_lpar_metric': lpar_bldr.ENABLE_LPAR_METRIC,
         _PVM_PPT_RATIO: lpar_bldr.PPT_RATIO,
         _PVM_ENFORCE_AFFINITY_CHECK: lpar_bldr.ENFORCE_AFFINITY_CHECK,
+        _PVM_SECURE_BOOT: lpar_bldr.SECURE_BOOT,
         _PVM_UNCAPPED: None,
         _PVM_DED_SHAR_MODE: None,
         _PVM_PROC_COMPAT: None,

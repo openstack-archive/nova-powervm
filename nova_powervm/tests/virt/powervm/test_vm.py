@@ -232,11 +232,18 @@ class TestVMBuilder(test.NoDBTestCase):
         self.assertRaises(exception.ValidationError,
                           self.lpar_b._format_flavor, instance)
 
+        # Test secure boot set
+        flavor.extra_specs = {'powervm:secure_boot': '2'}
+        test_attrs = dict(lpar_attrs, secure_boot='2')
+        self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
+
+        # Prep for unsupported host tests
+        self.lpar_b.host_w.get_capability.return_value = False
+
         # Test PPT ratio not set when rebuilding to non-supported host
         flavor.extra_specs = {'powervm:ppt_ratio': '1:4096'}
         instance.task_state = task_states.REBUILD_SPAWNING
         test_attrs = dict(lpar_attrs)
-        self.lpar_b.host_w.get_capability.return_value = False
         self.assertEqual(self.lpar_b._format_flavor(instance), test_attrs)
         self.lpar_b.host_w.get_capability.assert_called_once_with(
             'physical_page_table_ratio_capable')
