@@ -19,7 +19,7 @@ import mock
 
 from nova import exception as nova_exc
 from nova import test
-from nova.tests import uuidsentinel as uuids
+from oslo_utils.fixture import uuidsentinel as uuids
 from pypowervm import const as pvm_const
 from pypowervm.tasks import storage as tsk_stor
 from pypowervm.tests import test_fixtures as pvm_fx

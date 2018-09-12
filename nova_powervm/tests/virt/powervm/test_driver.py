@@ -30,13 +30,13 @@ from nova import objects
 from nova.objects import base as obj_base
 from nova.objects import block_device as bdmobj
 from nova import test
-from nova.tests import uuidsentinel as uuids
 from nova.virt import block_device as nova_virt_bdm
 from nova.virt import driver as virt_driver
 from nova.virt import fake
 from nova.virt import hardware
 from nova.virt.powervm_ext import driver
 from oslo_serialization import jsonutils
+from oslo_utils.fixture import uuidsentinel as uuids
 from pypowervm import adapter as pvm_adp
 from pypowervm import const as pvm_const
 from pypowervm import exceptions as pvm_exc
