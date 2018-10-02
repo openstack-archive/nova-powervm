@@ -93,7 +93,7 @@ Performance Impact
 
 Performance of subsequent deploys of the same image should be faster.
 The deploys will have improved image copy times and reduced network
-bandwith requirements.
+bandwidth requirements.
 
 Performance of single deploys using different images will be slower.
 
