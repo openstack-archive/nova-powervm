@@ -152,7 +152,7 @@ def plug(adapter, host_uuid, instance, vif, slot_mgr, new_vif=True):
         # Log the message constructed by HttpError
         LOG.exception("HttpError during vif plug operation.",
                       instance=instance)
-        raise exception.VirtualInterfacePlugException(reason=he.args[0])
+        raise exception.VirtualInterfacePlugException(message=he.args[0])
     # Other exceptions are (hopefully) custom VirtualInterfacePlugException
     # generated lower in the call stack.
 
