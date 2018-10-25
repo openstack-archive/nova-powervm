@@ -18,8 +18,9 @@ from __future__ import absolute_import
 
 import fixtures
 import mock
-
 from nova import test
+from oslo_utils.fixture import uuidsentinel
+from pypowervm import const as pvm_const
 from pypowervm.tests import test_fixtures as pvm_fx
 from pypowervm.wrappers import storage as pvm_stg
 from pypowervm.wrappers import virtual_io_server as pvm_vios
@@ -46,62 +47,71 @@ class TestConfigDrivePowerVM(test.NoDBTestCase):
     def test_crt_cfg_dr_iso(self, mock_pvm_uuid, mock_mkdrv, mock_meta):
         """Validates that the image creation method works."""
         cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
+        self.assertTrue(self.validate_vopt.called)
         mock_instance = mock.MagicMock()
-        mock_instance.name = 'fake-instance'
         mock_instance.uuid = '1e46bbfd-73b6-3c2a-aeab-a1d3f065e92f'
         mock_files = mock.MagicMock()
         mock_net = mock.MagicMock()
-        iso_path, file_name = cfg_dr_builder._create_cfg_dr_iso(mock_instance,
-                                                                mock_files,
-                                                                mock_net)
-        self.assertEqual('cfg_fake_instance.iso', file_name)
-        self.assertEqual('/tmp/cfgdrv/cfg_fake_instance.iso', iso_path)
+        iso_path = '/tmp/cfgdrv.iso'
+        cfg_dr_builder._create_cfg_dr_iso(mock_instance, mock_files, mock_net,
+                                          iso_path)
         self.assertTrue(mock_pvm_uuid.called)
-        # Make sure the length is limited properly
-        mock_instance.name = 'fake-instance-with-name-that-is-too-long'
-        iso_path, file_name = cfg_dr_builder._create_cfg_dr_iso(mock_instance,
-                                                                mock_files,
-                                                                mock_net)
-        self.assertEqual('cfg_fake_instance_with_name_that_.iso', file_name)
-        self.assertEqual('/tmp/cfgdrv/cfg_fake_instance_with_name_that_.iso',
-                         iso_path)
-        self.assertTrue(self.validate_vopt.called)
-        # Test retry vopt create
+        self.assertEqual(mock_mkdrv.call_count, 1)
+
+        # Test retry iso create
         mock_mkdrv.reset_mock()
         mock_mkdrv.side_effect = [OSError, mock_mkdrv]
-        mock_instance.name = 'fake-instance-2'
-        iso_path, file_name = cfg_dr_builder._create_cfg_dr_iso(mock_instance,
-                                                                mock_files,
-                                                                mock_net)
-        self.assertEqual('cfg_fake_instance_2.iso', file_name)
-        self.assertEqual('/tmp/cfgdrv/cfg_fake_instance_2.iso',
-                         iso_path)
-        self.assertTrue(self.validate_vopt.called)
+        cfg_dr_builder._create_cfg_dr_iso(mock_instance, mock_files, mock_net,
+                                          iso_path)
         self.assertEqual(mock_mkdrv.call_count, 2)
 
+    def test_get_cfg_drv_name(self):
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
+        mock_instance = mock.MagicMock()
+        mock_instance.uuid = uuidsentinel.inst_id
+
+        # calculate expected file name
+        expected_file_name = 'cfg_' + mock_instance.uuid.replace('-', '')
+        allowed_len = pvm_const.MaxLen.VOPT_NAME - 4  # '.iso' is 4 chars
+        expected_file_name = expected_file_name[:allowed_len] + '.iso'
+
+        name = cfg_dr_builder.get_cfg_drv_name(mock_instance)
+        self.assertEqual(name, expected_file_name)
+
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_create_cfg_dr_iso', autospec=True)
-    @mock.patch('os.path.getsize', autospec=True)
-    @mock.patch('os.remove', autospec=True)
-    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
-                '_upload_vopt', autospec=True)
+                'get_cfg_drv_name')
+    @mock.patch('tempfile.NamedTemporaryFile', autospec=True)
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 '_attach_vopt')
-    def test_crt_cfg_drv_vopt(self, mock_attach, mock_upld, mock_rm, mock_size,
-                              mock_cfg_iso):
+    @mock.patch('os.path.getsize', autospec=True)
+    @mock.patch('pypowervm.tasks.storage.upload_vopt', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                '_create_cfg_dr_iso', autospec=True)
+    def test_crt_cfg_drv_vopt(self, mock_ccdi, mock_upl, mock_getsize,
+                              mock_attach, mock_ntf, mock_name):
         # Mock Returns
-        mock_cfg_iso.return_value = '/tmp/cfgdrv/fake.iso', 'fake.iso'
-        mock_size.return_value = 10000
-        mock_upld.return_value = (mock.Mock(), None)
+        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
+        cfg_dr_builder.vios_uuid = 'vios_uuid'
+        mock_instance = mock.MagicMock()
+        mock_instance.uuid = uuidsentinel.inst_id
+        mock_upl.return_value = 'vopt', 'f_uuid'
+        fh = mock_ntf.return_value.__enter__.return_value
+        fh.name = 'iso_path'
+        mock_name.return_value = 'fake-name'
 
         # Run
-        cfg_dr_builder = m.ConfigDrivePowerVM(self.apt)
-        cfg_dr_builder.create_cfg_drv_vopt(mock.MagicMock(), mock.MagicMock(),
-                                           mock.MagicMock(), 'fake_lpar')
-        self.assertTrue(mock_upld.called)
-        self.assertTrue(mock_attach.called)
-        mock_attach.assert_called_with(mock.ANY, 'fake_lpar', mock.ANY, None)
-        self.assertTrue(self.validate_vopt.called)
+        cfg_dr_builder.create_cfg_drv_vopt(mock_instance, 'files', 'netinfo',
+                                           'fake_lpar', admin_pass='pass')
+        mock_ntf.assert_called_once_with(mode='rb')
+        mock_ccdi.assert_called_once_with(cfg_dr_builder, mock_instance,
+                                          'files', 'netinfo', 'iso_path',
+                                          admin_pass='pass')
+        mock_getsize.assert_called_once_with('iso_path')
+        mock_upl.assert_called_once_with(self.apt, 'vios_uuid', fh,
+                                         'fake-name',
+                                         mock_getsize.return_value)
+        mock_attach.assert_called_once_with(mock_instance, 'fake_lpar',
+                                            'vopt', None)
 
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map', autospec=True)
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping',

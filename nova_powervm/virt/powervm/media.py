@@ -21,6 +21,7 @@ from nova.virt import configdrive
 import os
 import retrying
 from taskflow import task
+import tempfile
 
 from oslo_log import log as logging
 from oslo_utils import excutils
@@ -43,9 +44,6 @@ LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 _LLA_SUBNET = "fe80::/64"
-
-CFG_DRV_PREFIX = "cfg_"
-CFG_DRV_SUFFIX = ".iso"
 
 
 class ConfigDrivePowerVM(object):
@@ -83,7 +81,7 @@ class ConfigDrivePowerVM(object):
         return network_info
 
     def _create_cfg_dr_iso(self, instance, injected_files, network_info,
-                           admin_pass=None):
+                           iso_path, admin_pass=None):
         """Creates an ISO file that contains the injected files.
 
         Used for config drive.
@@ -92,9 +90,8 @@ class ConfigDrivePowerVM(object):
         :param injected_files: A list of file paths that will be injected into
                                the ISO.
         :param network_info: The network_info from the nova spawn method.
+        :param iso_path: The absolute file path for the new ISO
         :param admin_pass: Optional password to inject for the VM.
-        :return iso_path: The path to the ISO
-        :return file_name: The file name for the ISO
         """
         LOG.info("Creating config drive.", instance=instance)
         extra_md = {}
@@ -112,15 +109,6 @@ class ConfigDrivePowerVM(object):
         # fix instance uuid to match uuid assigned to VM
         inst_md.uuid = vm.get_pvm_uuid(instance).lower()
 
-        # Make sure the path exists.
-        im_path = CONF.powervm.image_meta_local_path
-        if not os.path.exists(im_path):
-            os.mkdir(im_path)
-
-        file_name = pvm_util.sanitize_file_name_for_api(
-            instance.name, prefix=CFG_DRV_PREFIX, suffix=CFG_DRV_SUFFIX,
-            max_len=pvm_const.MaxLen.VOPT_NAME)
-        iso_path = os.path.join(im_path, file_name)
         with configdrive.ConfigDriveBuilder(instance_md=inst_md) as cdb:
             LOG.info("Config drive ISO building to path %(iso_path)s.",
                      {'iso_path': iso_path}, instance=instance)
@@ -134,9 +122,9 @@ class ConfigDrivePowerVM(object):
                             stop_max_attempt_number=2)
             def _make_cfg_drive(iso_path):
                 cdb.make_drive(iso_path)
+
             try:
                 _make_cfg_drive(iso_path)
-                return iso_path, file_name
             except OSError:
                 with excutils.save_and_reraise_exception(logger=LOG):
                     # If we get here, that means there's an exception during
@@ -144,6 +132,12 @@ class ConfigDrivePowerVM(object):
                     # operation.
                     LOG.exception("Config drive ISO could not be built.",
                                   instance=instance)
+
+    @staticmethod
+    def get_cfg_drv_name(instance):
+        return pvm_util.sanitize_file_name_for_api(
+            instance.uuid.replace('-', ''), prefix='cfg_', suffix='.iso',
+            max_len=pvm_const.MaxLen.VOPT_NAME)
 
     def create_cfg_drv_vopt(self, instance, injected_files, network_info,
                             lpar_uuid, admin_pass=None, mgmt_cna=None,
@@ -169,15 +163,16 @@ class ConfigDrivePowerVM(object):
             network_info = copy.deepcopy(network_info)
             network_info.append(self._mgmt_cna_to_vif(mgmt_cna))
 
-        iso_path, file_name = self._create_cfg_dr_iso(instance, injected_files,
-                                                      network_info, admin_pass)
+        # Pick a file name for when we upload the media to VIOS
+        file_name = self.get_cfg_drv_name(instance)
 
-        # Upload the media
-        file_size = os.path.getsize(iso_path)
-        vopt, f_uuid = self._upload_vopt(iso_path, file_name, file_size)
-
-        # Delete the media
-        os.remove(iso_path)
+        # Create and upload the media
+        with tempfile.NamedTemporaryFile(mode='rb') as fh:
+            self._create_cfg_dr_iso(instance, injected_files, network_info,
+                                    fh.name, admin_pass=admin_pass)
+            vopt, f_uuid = tsk_stg.upload_vopt(
+                self.adapter, self.vios_uuid, fh, file_name,
+                os.path.getsize(fh.name))
 
         # Run the attach of the virtual optical
         self._attach_vopt(instance, lpar_uuid, vopt, stg_ftsk)
@@ -254,11 +249,6 @@ class ConfigDrivePowerVM(object):
         ll.extend([splits[x] + splits[x + 1]
                    for x in range(0, len(splits), 2)])
         return ':'.join(ll)
-
-    def _upload_vopt(self, iso_path, file_name, file_size):
-        with open(iso_path, 'rb') as d_stream:
-            return tsk_stg.upload_vopt(self.adapter, self.vios_uuid, d_stream,
-                                       file_name, file_size)
 
     def dlt_vopt(self, lpar_uuid, stg_ftsk=None, remove_mappings=True):
         """Deletes the virtual optical and scsi mappings for a VM.
