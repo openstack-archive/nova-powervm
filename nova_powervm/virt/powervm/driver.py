@@ -463,11 +463,7 @@ class PowerVMDriver(driver.ComputeDriver):
 
         pwr_opts = pvm_popts.PowerOnOpts()
         if CONF.powervm.remove_vopt_media_on_boot:
-            # Get the cfgdrive media name for the vopt removal task in PowerOn.
-            media_name = pvm_util.sanitize_file_name_for_api(
-                instance.name, prefix=media.CFG_DRV_PREFIX,
-                suffix=media.CFG_DRV_SUFFIX,
-                max_len=pvm_const.MaxLen.VOPT_NAME)
+            media_name = media.ConfigDrivePowerVM.get_cfg_drv_name(instance)
             pwr_opts.remove_optical(
                 media_name, time=CONF.powervm.remove_vopt_media_time)
 

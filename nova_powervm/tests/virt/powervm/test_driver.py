@@ -328,7 +328,8 @@ class TestPowerVMDriver(test.NoDBTestCase):
         inst_on_disk()
 
     @mock.patch('pypowervm.tasks.power_opts.PowerOnOpts')
-    @mock.patch('pypowervm.util.sanitize_file_name_for_api')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                'get_cfg_drv_name')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.'
                 'CreateAndConnectCfgDrive.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.storage.ConnectVolume'
@@ -345,7 +346,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
     def test_spawn_ops(self, mock_vdi, mock_pwron, mock_cfg_drv,
                        mock_plug_vifs, mock_plug_mgmt_vif, mock_boot_from_vol,
                        mock_crt_disk_img, mock_conn_vol, mock_crt_cfg_drv,
-                       mock_sanitize, mock_pwron_opts):
+                       mock_cfg_name, mock_pwron_opts):
         """Validates the 'typical' spawn flow of the spawn of an instance.
 
         Uses a basic disk image, attaching networks and powering on.
@@ -371,7 +372,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
             slot_mgr=self.slot_mgr)
         mock_pwron.assert_called_once_with(self.apt, self.inst,
                                            opts='fake-opts')
-        mock_sanitize.assert_not_called()
+        mock_cfg_name.assert_not_called()
         # Assert that tasks that are not supposed to be called are not called
         self.assertFalse(mock_conn_vol.called)
         self.assertFalse(mock_crt_cfg_drv.called)
@@ -379,20 +380,21 @@ class TestPowerVMDriver(test.NoDBTestCase):
                                           lpars_exist=True)
 
     @mock.patch('pypowervm.tasks.power_opts.PowerOnOpts')
-    @mock.patch('pypowervm.util.sanitize_file_name_for_api')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugMgmtVif.execute')
     @mock.patch('nova_powervm.virt.powervm.tasks.network.PlugVifs.execute')
+    @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
+                'get_cfg_drv_name')
     @mock.patch('nova_powervm.virt.powervm.media.ConfigDrivePowerVM.'
                 'create_cfg_drv_vopt')
     @mock.patch('nova.virt.configdrive.required_by')
     @mock.patch('nova_powervm.virt.powervm.vm.power_on')
     def test_spawn_with_cfg(self, mock_pwron, mock_cfg_drv, mock_cfg_vopt,
-                            mock_plug_vifs, mock_plug_mgmt_vif, mock_sanitize,
-                            mock_pwron_opts):
+                            mock_cfg_name, mock_plug_vifs,
+                            mock_plug_mgmt_vif, mock_pwron_opts):
         """Validates the PowerVM spawn w/ config drive operations."""
         # Set up the mocks to the tasks.
         mock_cfg_drv.return_value = True
-        mock_sanitize.return_value = 'fake-name'
+        mock_cfg_name.return_value = 'fake-name'
         self.flags(remove_vopt_media_on_boot=True, group='powervm')
         mock_opts = mock.MagicMock()
         mock_pwron_opts.return_value = mock_opts
@@ -412,8 +414,7 @@ class TestPowerVMDriver(test.NoDBTestCase):
         # Power on was called
         mock_pwron.assert_called_once_with(self.apt, self.inst, opts=mock_opts)
         mock_opts.remove_optical.assert_called_with('fake-name', time=60)
-        mock_sanitize.assert_called_with(
-            self.inst.name, prefix='cfg_', suffix='.iso', max_len=37)
+        mock_cfg_name.assert_called_with(self.inst)
         self.scrub_stg.assert_called_with(mock.ANY, self.stg_ftsk,
                                           lpars_exist=True)
 
