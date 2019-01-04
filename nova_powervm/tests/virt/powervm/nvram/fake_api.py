@@ -62,6 +62,6 @@ class ExpNvramStore(NoopNvramStore):
 
         :param instance: The nova instance object OR instance UUID.
         """
-        # Raise excpetion. This is to ensure delete does not fail
+        # Raise exception. This is to ensure delete does not fail
         # despite an exception being raised
         raise Exception('Error')
