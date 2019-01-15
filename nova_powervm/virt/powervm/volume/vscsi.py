@@ -29,8 +29,8 @@ from pypowervm.tasks import partition as pvm_tpar
 from pypowervm.utils import transaction as tx
 from pypowervm.wrappers import virtual_io_server as pvm_vios
 
+import base64
 import six
-
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
@@ -189,8 +189,13 @@ class PVVscsiFCVolumeAdapter(volume.VscsiVolumeAdapter,
                       instance=self.instance)
             return None, None, None
 
+        device_id = self.connection_info.get('data', {}).get('pg83NAA')
+        if device_id:
+            device_id = base64.b64encode(device_id.encode())
+
         status, device_name, udid = hdisk.discover_hdisk(self.adapter,
-                                                         vios_w.uuid, itls)
+                                                         vios_w.uuid, itls,
+                                                         device_id=device_id)
 
         if hdisk.good_discovery(status, device_name):
             LOG.info('Discovered %(hdisk)s on vios %(vios)s for volume '

@@ -71,6 +71,7 @@ class BaseVSCSITest(test_vol.TestVolumeAdapter):
                     },
                     'target_lun': '1',
                     'volume_id': 'a_volume_identifier',
+                    'pg83NAA': '4567'
                 },
             }
             mock_inst = mock.MagicMock()
@@ -542,16 +543,18 @@ class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):
         self.slot_mgr = mock.Mock()
         self.slot_mgr.build_map.get_vscsi_slot.return_value = 62, 'the_lua'
 
+    @mock.patch('pypowervm.tasks.hdisk.build_itls')
     @mock.patch('pypowervm.tasks.scsi_mapper.add_map')
     @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping')
     @mock.patch('pypowervm.tasks.hdisk.discover_hdisk')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_multi_vio(self, mock_vm_id, mock_discover_hdisk,
-                                      mock_build_map, mock_add_map):
+                                      mock_build_map, mock_add_map, mock_itls):
         # The mock return values
         mock_discover_hdisk.return_value = (
             hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
         mock_vm_id.return_value = 'partition_id'
+        mock_itls.return_value = 'fake_itls'
 
         def build_map_func(host_uuid, vios_w, lpar_uuid, pv,
                            lpar_slot_num=None, lua=None, target_name=None):
@@ -567,6 +570,13 @@ class TestVSCSIAdapterMultiVIOS(BaseVSCSITest):
 
         # Run the method
         self.vol_drv.connect_volume(self.slot_mgr)
+
+        # Assert the discover_hdisk call parameters
+        mock_discover_hdisk.assert_has_calls([
+            mock.call(
+                self.adpt, vio.uuid, 'fake_itls',
+                device_id='NDU2Nw=='.encode())
+            for vio in self.feed], any_order=True)
 
         # As initialized above, remove_maps returns True to trigger update.
         self.assertEqual(2, mock_add_map.call_count)
