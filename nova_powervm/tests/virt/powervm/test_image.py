@@ -51,7 +51,6 @@ class TestImage(test.NoDBTestCase):
         mock_api.get.assert_called_with('context', 'image_id')
         self.assertEqual({
             'name': 'image_name',
-            'is_public': False,
             'status': 'active',
             'disk_format': 'raw',
             'container_format': 'bare',
