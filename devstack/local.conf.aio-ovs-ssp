@@ -42,7 +42,7 @@ DISK_DRIVER=ssp
 
 # Enable plugins
 enable_plugin nova-powervm https://git.openstack.org/openstack/nova-powervm.git
-enable_plugin neutron git://git.openstack.org/openstack/neutron
+enable_plugin neutron https://git.openstack.org/openstack/neutron
 
 # Enable services
 enable_service n-novnc neutron neutron-api neutron-agent neutron-l3 neutron-dhcp neutron-metadata-agent
