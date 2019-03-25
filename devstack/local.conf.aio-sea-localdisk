@@ -48,7 +48,7 @@ enable_plugin ceilometer https://git.openstack.org/openstack/ceilometer.git
 enable_plugin ceilometer-powervm https://git.openstack.org/openstack/ceilometer-powervm.git
 enable_plugin nova-powervm https://git.openstack.org/openstack/nova-powervm.git
 enable_plugin networking-powervm https://git.openstack.org/openstack/networking-powervm.git
-enable_plugin neutron git://git.openstack.org/openstack/neutron
+enable_plugin neutron https://git.openstack.org/openstack/neutron
 
 # Enable services
 enable_service n-novnc neutron neutron-api pvm-q-sea-agt
