@@ -102,6 +102,7 @@ class PowerVMDriver(driver.ComputeDriver):
             "supports_tagged_attach_volume": False,
             "supports_extend_volume": True,
             "supports_multiattach": False,
+            "supports_evacuate": True,
         }
         super(PowerVMDriver, self).__init__(virtapi)
 
