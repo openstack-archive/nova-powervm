@@ -94,7 +94,6 @@ class PowerVMDriver(driver.ComputeDriver):
     def __init__(self, virtapi):
         self.capabilities = {
             # NOTE(edmondsw): 'has_imagecache' will be set dynamically
-            "supports_recreate": True,
             "supports_migrate_to_same_host": False,
             "supports_attach_interface": True,
             "supports_device_tagging": False,
