@@ -66,7 +66,6 @@ class TestPowerVMDriverInit(test.NoDBTestCase):
     def test_driver_capabilities_defaults(self):
         """Test the default capabilities."""
         test_driver = driver.PowerVMDriver(fake.FakeVirtAPI())
-        self.assertTrue(test_driver.capabilities['supports_recreate'])
         self.assertFalse(
             test_driver.capabilities['supports_migrate_to_same_host'])
         self.assertTrue(test_driver.capabilities['supports_attach_interface'])
@@ -79,7 +78,7 @@ class TestPowerVMDriverInit(test.NoDBTestCase):
         self.assertFalse(test_driver.capabilities['supports_multiattach'])
         self.assertTrue(test_driver.capabilities['supports_evacuate'])
         self.assertNotIn('has_imagecache', test_driver.capabilities)
-        self.assertEqual(9, len(test_driver.capabilities))
+        self.assertEqual(8, len(test_driver.capabilities))
 
     @mock.patch('pypowervm.tasks.storage.find_vg',
                 new=mock.Mock(return_value=(mock.Mock(), mock.Mock())))
@@ -93,7 +92,7 @@ class TestPowerVMDriverInit(test.NoDBTestCase):
         test_driver._setup_disk_adapter()
         # Localdisk driver has the image cache capability
         self.assertTrue(test_driver.capabilities['has_imagecache'])
-        self.assertEqual(10, len(test_driver.capabilities))
+        self.assertEqual(9, len(test_driver.capabilities))
 
     @mock.patch('nova_powervm.virt.powervm.disk.ssp.SSPDiskAdapter.'
                 '_fetch_cluster', new=mock.Mock())
@@ -110,7 +109,7 @@ class TestPowerVMDriverInit(test.NoDBTestCase):
         test_driver._setup_disk_adapter()
         # SSP driver doesn't have image cache capability
         self.assertFalse(test_driver.capabilities['has_imagecache'])
-        self.assertEqual(10, len(test_driver.capabilities))
+        self.assertEqual(9, len(test_driver.capabilities))
 
     @mock.patch('nova_powervm.virt.powervm.event.PowerVMNovaEventHandler',
                 autospec=True)
