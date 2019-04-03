@@ -56,10 +56,10 @@ def generate_snapshot_metadata(context, image_api, image_id, instance):
     :param instance: The Nova instance whose disk is to be snapshotted.
     :return: A dict of metadata suitable for image_api.update.
     """
+    # TODO(esberglu): Update this to v2 metadata
     image = image_api.get(context, image_id)
     metadata = {
         'name': image['name'],
-        'is_public': False,
         'status': 'active',
         'disk_format': 'raw',
         'container_format': 'bare',
