@@ -81,7 +81,7 @@ class TestLPM(test.NoDBTestCase):
         self.host_mig_data['active_migrations_in_progress'] = 2
 
         with mock.patch.object(
-            self.lpmsrc, '_check_migration_ready', return_value=None):
+                self.lpmsrc, '_check_migration_ready', return_value=None):
 
             # Test the bad path first, then patch in values to make succeed
             mock_wrap = mock.Mock(id=123)

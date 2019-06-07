@@ -2206,12 +2206,13 @@ class TestPowerVMDriver(test.NoDBTestCase):
 
     def test_get_host_cpu_stats(self):
         hcpu_stats = self.drv.get_host_cpu_stats()
+        total_cycles = self.drv.host_cpu_cache.total_cycles
+        total_user_cycles = self.drv.host_cpu_cache.total_user_cycles
+        total_fw_cycles = self.drv.host_cpu_cache.total_fw_cycles
         expected_stats = {
             'kernel': self.drv.host_cpu_cache.total_fw_cycles,
             'user': self.drv.host_cpu_cache.total_user_cycles,
-            'idle': (self.drv.host_cpu_cache.total_cycles -
-                     self.drv.host_cpu_cache.total_user_cycles -
-                     self.drv.host_cpu_cache.total_fw_cycles),
+            'idle': (total_cycles - total_user_cycles - total_fw_cycles),
             'iowait': 0,
             'frequency': self.drv.host_cpu_cache.cpu_freq}
         self.assertEqual(expected_stats, hcpu_stats)

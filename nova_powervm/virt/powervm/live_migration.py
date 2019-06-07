@@ -54,8 +54,9 @@ class LiveMigrationVolume(exception.NovaException):
 def _verify_migration_capacity(host_w, instance):
     """Check that the counts are valid for in progress and supported."""
     mig_stats = host_w.migration_data
-    if (mig_stats['active_migrations_in_progress'] >=
-            mig_stats['active_migrations_supported']):
+    active_migrations_in_progress = mig_stats['active_migrations_in_progress']
+    active_migrations_supported = mig_stats['active_migrations_supported']
+    if (active_migrations_in_progress >= active_migrations_supported):
 
         msg = (_("Cannot migrate %(name)s because the host %(host)s only "
                  "allows %(allowed)s concurrent migrations and "
@@ -105,8 +106,9 @@ class LiveMigrationDest(LiveMigration):
         src_stats = src_compute_info['stats']
         dst_stats = dst_compute_info['stats']
         # Check the lmb sizes for compatibility
-        if (src_stats['memory_region_size'] !=
-                dst_stats['memory_region_size']):
+        src_memory_region_size = src_stats['memory_region_size']
+        dst_memory_region_size = dst_stats['memory_region_size']
+        if (src_memory_region_size != dst_memory_region_size):
             msg = (_("Cannot migrate instance '%(name)s' because the "
                      "memory region size of the source (%(source_mrs)d MB) "
                      "does not match the memory region size of the target "

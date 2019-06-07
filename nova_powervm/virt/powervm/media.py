@@ -76,7 +76,7 @@ class ConfigDrivePowerVM(object):
         """
         network_info = copy.deepcopy(network_info)
         for vif in network_info:
-            if vif.get('type') is not 'ovs':
+            if vif.get('type') != 'ovs':
                 vif['type'] = 'vif'
         return network_info
 

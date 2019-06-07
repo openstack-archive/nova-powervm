@@ -95,10 +95,11 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         # of the spawn. We also want to check that the instance is on this
         # host. If it isn't then we can remove the mappings because this is
         # being called as the result of an evacuation clean up.
-        if (self.instance.task_state not in TASK_STATES_FOR_DISCONNECT and
-           self.instance.host in [None, CONF.host]):
-            # NPIV should only remove the VFC mapping upon a destroy of the VM
-            return
+        if (self.instance.task_state not in TASK_STATES_FOR_DISCONNECT):
+            if (self.instance.host in [None, CONF.host]):
+                # NPIV should only remove the VFC mapping upon a destroy of
+                # the VM
+                return
 
         # Run the disconnect for each fabric
         for fabric in self._fabric_names():
@@ -336,8 +337,7 @@ class NPIVVolumeAdapter(v_driver.FibreChannelVolumeAdapter):
         :return: True if the instance appears to be migrating to this host.
                  False otherwise.
         """
-        return (fc_state == FS_INST_MAPPED and
-                self.instance.host != CONF.host)
+        return fc_state == FS_INST_MAPPED and self.instance.host != CONF.host
 
     def _configure_wwpns_for_migration(self, fabric):
         """Configures the WWPNs for a migration.

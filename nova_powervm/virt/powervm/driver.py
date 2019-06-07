@@ -23,10 +23,10 @@ from nova import context as ctx
 from nova import exception
 from nova import image
 from nova import objects
-from nova import rc_fields
 from nova import utils as n_utils
 from nova.virt import configdrive
 from nova.virt import driver
+import os_resource_classes as orc
 from oslo_log import log as logging
 from oslo_utils import importutils
 import six
@@ -299,12 +299,13 @@ class PowerVMDriver(driver.ComputeDriver):
     def get_host_cpu_stats(self):
         """Return the current CPU state of the host."""
         self.host_cpu_cache.refresh()
+        total_cycles = self.host_cpu_cache.total_cycles
+        total_user_cycles = self.host_cpu_cache.total_user_cycles
+        total_fw_cycles = self.host_cpu_cache.total_fw_cycles
         return {
             'kernel': self.host_cpu_cache.total_fw_cycles,
             'user': self.host_cpu_cache.total_user_cycles,
-            'idle': (self.host_cpu_cache.total_cycles -
-                     self.host_cpu_cache.total_user_cycles -
-                     self.host_cpu_cache.total_fw_cycles),
+            'idle': (total_cycles - total_user_cycles - total_fw_cycles),
             # Not reported by PowerVM
             'iowait': 0,
             'frequency': self.host_cpu_cache.cpu_freq}
@@ -384,8 +385,9 @@ class PowerVMDriver(driver.ComputeDriver):
         flow_spawn = tf_lf.Flow("spawn")
 
         # Determine if this is a VM recreate
-        recreate = (instance.task_state == task_states.REBUILD_SPAWNING and
-                    'id' not in image_meta)
+        task_state = instance.task_state
+        rebuild_spawning = task_states.REBUILD_SPAWNING
+        recreate = (task_state == rebuild_spawning and 'id' not in image_meta)
 
         # Create the transaction manager (FeedTask) for Storage I/O.
         xag = self._get_inst_xag(instance, bdms, recreate=recreate)
@@ -401,9 +403,11 @@ class PowerVMDriver(driver.ComputeDriver):
             vol_drv_iter=vol_drv_iter)
 
         # Create the LPAR, check if NVRAM restore is needed.
-        nvram_mgr = (self.nvram_mgr if self.nvram_mgr and
-                     (recreate or instance.vm_state in FETCH_NVRAM_STATES)
-                     else None)
+        vm_state = instance.vm_state
+        if self.nvram_mgr and (recreate or vm_state in FETCH_NVRAM_STATES):
+            nvram_mgr = self.nvram_mgr
+        else:
+            nvram_mgr = None
 
         # If we're recreating pass None in for the FeedTask. This will make the
         # Create task produce a FeedTask that will be used to scrub stale
@@ -550,7 +554,6 @@ class PowerVMDriver(driver.ComputeDriver):
 
     def _destroy(self, context, instance, block_device_info=None,
                  network_info=None, destroy_disks=True, shutdown=True):
-
         """Internal destroy method used by multiple operations.
 
         :param context: security context
@@ -652,14 +655,13 @@ class PowerVMDriver(driver.ComputeDriver):
             # the prior step.
             flow.add(tf_vm.Delete(self.adapter, instance))
 
-            if (destroy_disks and
-                    instance.vm_state not in KEEP_NVRAM_STATES and
-                    instance.host in [None, CONF.host]):
-                # If the disks are being destroyed and not one of the
-                # operations that we should keep the NVRAM around for, then
-                # it's probably safe to delete the NVRAM from the store.
-                flow.add(tf_vm.DeleteNvram(self.nvram_mgr, instance))
-                flow.add(tf_slot.DeleteSlotStore(instance, slot_mgr))
+            if (destroy_disks and instance.vm_state not in KEEP_NVRAM_STATES):
+                if instance.host in [None, CONF.host]:
+                    # If the disks are being destroyed and not one of the
+                    # operations that we should keep the NVRAM around for, then
+                    # it's probably safe to delete the NVRAM from the store.
+                    flow.add(tf_vm.DeleteNvram(self.nvram_mgr, instance))
+                    flow.add(tf_slot.DeleteSlotStore(instance, slot_mgr))
 
             # Run the flow
             tf_base.run(flow, instance=instance)
@@ -672,11 +674,11 @@ class PowerVMDriver(driver.ComputeDriver):
                         instance=instance)
             return
         except Exception as e:
-                LOG.exception("PowerVM error destroying instance.",
-                              instance=instance)
-                # Convert to a Nova exception
-                raise exception.InstanceTerminationFailure(
-                    reason=six.text_type(e))
+            LOG.exception("PowerVM error destroying instance.",
+                          instance=instance)
+            # Convert to a Nova exception
+            raise exception.InstanceTerminationFailure(
+                reason=six.text_type(e))
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True, migrate_data=None):
@@ -1020,19 +1022,19 @@ class PowerVMDriver(driver.ComputeDriver):
         disk_reserved = self._get_reserved_host_disk_gb_from_config()
 
         inventory = {
-            rc_fields.ResourceClass.VCPU: {
+            orc.VCPU: {
                 'total': data['vcpus'],
                 'max_unit': data['vcpus'],
                 'allocation_ratio': cpu_alloc_ratio,
                 'reserved': cpu_reserved,
             },
-            rc_fields.ResourceClass.MEMORY_MB: {
+            orc.MEMORY_MB: {
                 'total': data['memory_mb'],
                 'max_unit': data['memory_mb'],
                 'allocation_ratio': mem_alloc_ratio,
                 'reserved': mem_reserved,
             },
-            rc_fields.ResourceClass.DISK_GB: {
+            orc.DISK_GB: {
                 # TODO(efried): Proper DISK_GB sharing when SSP driver in play
                 'total': int(data['local_gb']),
                 'max_unit': int(data['local_gb']),
@@ -1205,7 +1207,7 @@ class PowerVMDriver(driver.ComputeDriver):
             # If VM is moving to a new host make sure the NVRAM is at the very
             # latest.
             flow.add(tf_vm.StoreNvram(self.nvram_mgr, instance,
-                     immediate=True))
+                                      immediate=True))
         if flavor.root_gb > instance.root_gb:
             # Resize the root disk
             flow.add(tf_stg.ExtendDisk(
@@ -1292,8 +1294,8 @@ class PowerVMDriver(driver.ComputeDriver):
             self._log_operation('finish migration', instance)
 
         # Ensure the disk drivers are compatible.
-        if (not same_host and
-                not self._is_booted_from_volume(block_device_info)):
+        booted_from_vol = self._is_booted_from_volume(block_device_info)
+        if (not same_host and not booted_from_vol):
             # Can't migrate the disks if they are not on shared storage
             if not self.disk_dvr.capabilities['shared_storage']:
                 raise exception.InstanceFaultRollback(

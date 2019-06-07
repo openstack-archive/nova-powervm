@@ -200,6 +200,7 @@ vnc_opts = [
 STATIC_OPTIONS = (powervm_opts + ssp_opts + vol_adapter_opts + npiv_opts
                   + remote_restart_opts + swift_opts + vnc_opts)
 
+
 # Dictionary where the key is the NPIV Fabric Name, and the value is a list of
 # Physical WWPNs that match the key.
 NPIV_FABRIC_WWPNS = {}

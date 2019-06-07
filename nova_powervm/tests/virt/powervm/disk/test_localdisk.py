@@ -42,15 +42,15 @@ class TestLocalDisk(test.NoDBTestCase):
 
         self.apt = self.useFixture(pvm_fx.AdapterFx()).adpt
 
-        # Set up mock for internal VIOS.get()s
-        self.mock_vios_get = self.useFixture(fixtures.MockPatch(
-            'pypowervm.wrappers.virtual_io_server.VIOS',
-            autospec=True)).mock.get
         # The mock VIOS needs to have scsi_mappings as a list.  Internals are
         # set by individual test cases as needed.
         smaps = [mock.Mock()]
         self.vio_to_vg = mock.Mock(spec=pvm_vios.VIOS, scsi_mappings=smaps,
                                    uuid='vios-uuid')
+        # Set up mock for internal VIOS.get()s
+        self.mock_vios_get = self.useFixture(fixtures.MockPatch(
+            'pypowervm.wrappers.virtual_io_server.VIOS',
+            autospec=True)).mock.get
         # For our tests, we want find_maps to return the mocked list of scsi
         # mappings in our mocked VIOS.
         self.mock_find_maps = self.useFixture(fixtures.MockPatch(

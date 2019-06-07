@@ -64,9 +64,8 @@ def build_host_resource_from_ms(ms_wrapper):
     data['vcpus_used'] = int(math.ceil(pu_used))
 
     data['memory_mb'] = ms_wrapper.memory_configurable
-    data['memory_mb_used'] = (ms_wrapper.memory_configurable -
-                              ms_wrapper.memory_free)
-
+    used_memory = ms_wrapper.memory_configurable - ms_wrapper.memory_free
+    data['memory_mb_used'] = used_memory
     data["hypervisor_type"] = fields.HVType.PHYP
     data["hypervisor_version"] = IBM_POWERVM_HYPERVISOR_VERSION
     data["hypervisor_hostname"] = CONF.host

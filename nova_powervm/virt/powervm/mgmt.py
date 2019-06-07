@@ -26,7 +26,7 @@ import glob
 import os
 
 from nova import exception
-from nova.privsep import path as priv_path
+import nova.privsep.path
 from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from pypowervm.tasks import partition as pvm_par
@@ -86,7 +86,7 @@ def discover_vscsi_disk(mapping, scan_timeout=300):
     for scanpath in glob.glob(
             '/sys/bus/vio/devices/%x/host*/scsi_host/host*/scan' % lslot):
         # Writing '- - -' to this sysfs file triggers bus rescan
-        priv_path.writefile(scanpath, 'a', '- - -')
+        nova.privsep.path.writefile(scanpath, 'a', '- - -')
 
     # Now see if our device showed up.  If so, we can reliably match it based
     # on its Linux ID, which ends with the disk's UDID.
@@ -151,7 +151,7 @@ def remove_block_dev(devpath, scan_timeout=10):
               "partition via special file %(delpath)s.",
               {'devpath': devpath, 'delpath': delpath})
     # Writing '1' to this sysfs file deletes the block device and rescans.
-    priv_path.writefile(delpath, 'a', '1')
+    nova.privsep.path.writefile(delpath, 'a', '1')
 
     # The bus scan is asynchronous.  Need to poll, waiting for the device to
     # disappear.  Stop when stat raises OSError (dev file not found) - which is

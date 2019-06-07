@@ -81,14 +81,13 @@ EMPTY_IMAGE = image_meta.ImageMeta.from_dict({})
 # environment then eventlet monkeypatches socket.getaddrinfo() with an
 # implementation which doesn't work for IPv6. What we're checking here is
 # that the magic environment variable was set when the import happened.
-if ('eventlet' in sys.modules and
-        os.environ.get('EVENTLET_NO_GREENDNS', '').lower() != 'yes'):
-    raise ImportError('eventlet imported before nova/cmd/__init__ '
-                      '(env var set to %s)'
-                      % os.environ.get('EVENTLET_NO_GREENDNS'))
+if ('eventlet' in sys.modules):
+    if (os.environ.get('EVENTLET_NO_GREENDNS', '').lower() != 'yes'):
+        raise ImportError('eventlet imported before nova/cmd/__init__ '
+                          '(env var set to %s)'
+                          % os.environ.get('EVENTLET_NO_GREENDNS'))
 
 os.environ['EVENTLET_NO_GREENDNS'] = 'yes'
-
 import eventlet
 
 eventlet.monkey_patch(os=False)

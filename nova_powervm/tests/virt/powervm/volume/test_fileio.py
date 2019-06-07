@@ -111,8 +111,9 @@ class TestFileIOVolumeAdapter(test_vol.TestVolumeAdapter):
     @mock.patch('pypowervm.tasks.partition.get_mgmt_partition')
     @mock.patch('pypowervm.wrappers.storage.FileIO.bld')
     def test_connect_volume_rebuild_no_slot(
-        self, mock_file_bld, mock_get_mgmt_partition, mock_get_vm_id,
-        mock_udid_to_map, mock_reg_map, mock_get_vios_uuid, mock_build_map):
+            self, mock_file_bld, mock_get_mgmt_partition, mock_get_vm_id,
+            mock_udid_to_map, mock_reg_map, mock_get_vios_uuid,
+            mock_build_map):
         # Mockups
         mock_file = mock.Mock()
         mock_file_bld.return_value = mock_file

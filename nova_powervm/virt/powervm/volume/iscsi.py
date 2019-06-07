@@ -66,8 +66,7 @@ def get_iscsi_initiators(adapter, vios_ids=None):
         # Get the VIOS id lock for initiator lookup
         @lockutils.synchronized('inititator-lookup-' + vios_id)
         def _discover_initiator():
-            if (vios_id in _ISCSI_INITIATORS and
-                    _ISCSI_INITIATORS[vios_id]):
+            if vios_id in _ISCSI_INITIATORS and _ISCSI_INITIATORS[vios_id]:
                 return
             else:
                 try:

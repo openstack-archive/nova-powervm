@@ -113,8 +113,9 @@ class TestRBDVolumeAdapter(test_vol.TestVolumeAdapter):
     @mock.patch('pypowervm.tasks.partition.get_mgmt_partition', autospec=True)
     @mock.patch('pypowervm.wrappers.storage.RBD.bld_ref')
     def test_connect_volume_rebuild_no_slot(
-        self, mock_rbd_bld_ref, mock_get_mgmt_partition, mock_get_vm_id,
-        mock_udid_to_map, mock_reg_map, mock_get_vios_uuid, mock_build_map):
+            self, mock_rbd_bld_ref, mock_get_mgmt_partition, mock_get_vm_id,
+            mock_udid_to_map, mock_reg_map, mock_get_vios_uuid,
+            mock_build_map):
         # Mockups
         mock_rbd = mock.Mock()
         mock_rbd_bld_ref.return_value = mock_rbd

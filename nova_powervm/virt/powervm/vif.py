@@ -793,10 +793,10 @@ class PvmOvsVifDriver(PvmVifDriver):
         for adpt in child_adpts:
             # We need a trunk adapter (so check trunk_pri).  Then the trunk
             # is unique by PVID and PowerVM vSwitch ID.
-            if (adpt.pvid == vlan and adpt.vswitch_id == vswitch_id and
-                    adpt.trunk_pri):
-                trunk = adpt
-                break
+            if (adpt.pvid == vlan and adpt.vswitch_id == vswitch_id):
+                if adpt.trunk_pri:
+                    trunk = adpt
+                    break
 
         if trunk:
             # Delete the peer'd trunk adapter.

@@ -234,8 +234,8 @@ class TestVSCSIAdapter(BaseVSCSITest):
                 '._validate_vios_on_connection')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_no_update(
-        self, mock_get_vm_id, mock_validate_vioses, mock_disc_hdisk,
-        mock_build_map, mock_add_map):
+            self, mock_get_vm_id, mock_validate_vioses, mock_disc_hdisk,
+            mock_build_map, mock_add_map):
         """Make sure we don't do an actual update of the VIOS if not needed."""
         # The mock return values
         mock_build_map.return_value = 'fake_map'
@@ -259,8 +259,8 @@ class TestVSCSIAdapter(BaseVSCSITest):
                 '._validate_vios_on_connection')
     @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
     def test_connect_volume_to_initiators(
-        self, mock_get_vm_id, mock_validate_vioses, mock_add_vscsi_mapping,
-        mock_build_itls):
+            self, mock_get_vm_id, mock_validate_vioses,
+            mock_add_vscsi_mapping, mock_build_itls):
         """Tests that the connect w/out initiators throws errors."""
         mock_get_vm_id.return_value = 'partition_id'
 
@@ -393,8 +393,8 @@ class TestVSCSIAdapter(BaseVSCSITest):
         mock_remove_maps.side_effect = validate_remove_maps
 
         with mock.patch.object(
-            self.vol_drv, '_discover_volume_on_vios',
-            return_value=('status', 'dev_name', 'udidit')):
+                self.vol_drv, '_discover_volume_on_vios',
+                return_value=('status', 'dev_name', 'udidit')):
 
             # Run the method
             self.vol_drv.disconnect_volume(self.slot_mgr)
@@ -413,8 +413,8 @@ class TestVSCSIAdapter(BaseVSCSITest):
         """Ensures that if the UDID can not be found, no disconnect."""
         mock_good_discover.return_value = False
         with mock.patch.object(
-            self.vol_drv, '_discover_volume_on_vios',
-            return_value=('status', 'dev_name', None)):
+                self.vol_drv, '_discover_volume_on_vios',
+                return_value=('status', 'dev_name', None)):
 
             # Run the method
             self.vol_drv.disconnect_volume(self.slot_mgr)

@@ -344,7 +344,7 @@ class DiskAdapter(object):
                     context, instance, image_meta, image_type=image_type)
             except Exception:
                 with excutils.save_and_reraise_exception(
-                    logger=LOG, reraise=False) as sare:
+                        logger=LOG, reraise=False) as sare:
                     if attempt < 4:
                         LOG.exception("Disk Upload attempt #%d failed. "
                                       "Retrying the upload.", attempt,

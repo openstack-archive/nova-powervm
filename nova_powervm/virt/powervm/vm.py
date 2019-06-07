@@ -121,9 +121,9 @@ def translate_event(pvm_state, pwr_state):
         trans = event.EVENT_LIFECYCLE_STARTED
     elif pvm_state in STOPPED_EVENTS and pwr_state != power_state.SHUTDOWN:
         trans = event.EVENT_LIFECYCLE_STOPPED
-    elif (pvm_state in SUSPENDED_EVENTS and
-          pwr_state != power_state.SUSPENDED):
-        trans = event.EVENT_LIFECYCLE_SUSPENDED
+    elif pvm_state in SUSPENDED_EVENTS:
+        if pwr_state != power_state.SUSPENDED:
+            trans = event.EVENT_LIFECYCLE_SUSPENDED
     elif pvm_state in RESUMING_EVENTS and pwr_state != power_state.RUNNING:
         trans = event.EVENT_LIFECYCLE_RESUMED
 
@@ -377,8 +377,8 @@ class VMBuilder(object):
         :param pool_name: The shared proc pool name.
         :return: The internal API id for the shared proc pool.
         """
-        if (pool_name is None or
-                pool_name == pvm_spp.DEFAULT_POOL_DISPLAY_NAME):
+        default_pool_name = pvm_spp.DEFAULT_POOL_DISPLAY_NAME
+        if (pool_name is None or pool_name == default_pool_name):
             # The default pool is 0
             return 0
 
