@@ -1,4 +1,4 @@
-# Copyright 2015, 2018 IBM Corp.
+# Copyright 2015, 2019 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -77,6 +77,9 @@ class ConfigDrivePowerVM(object):
         network_info = copy.deepcopy(network_info)
         for vif in network_info:
             if vif.get('type') != 'ovs':
+                LOG.debug('Changing vif type from %(type)s to vif for vif '
+                          '%(id)s.', {'type': vif.get('type'),
+                                      'id': vif.get('id')})
                 vif['type'] = 'vif'
         return network_info
 
