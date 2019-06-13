@@ -184,3 +184,12 @@ Config Drive Options
 | image_meta_local_path = /tmp/cfgdrv/ | (StrOpt) The location where the config drive ISO files     |
 |                                      | should be built.                                           |
 +--------------------------------------+------------------------------------------------------------+
+
+Remarks For IBM i Users
+~~~~~~~~~~~~~~~~~~~~~~~
+By default all VMs are created as ``AIX/Linux`` type LPARs. In order to create
+IBM i VM (LPAR type ``OS400``) user must add ``os_distro`` property of value
+``ibmi`` to the Glance image being used to create the instance. For example,
+to add the property to sample image ``i5OSR730``, execute::
+
+  openstack image set --property os_distro=ibmi i5OSR730
