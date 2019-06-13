@@ -185,6 +185,23 @@ Config Drive Options
 |                                      | should be built.                                           |
 +--------------------------------------+------------------------------------------------------------+
 
+LPAR Detailed Settings
+~~~~~~~~~~~~~~~~~~~~~~
+Fine grained control over LPAR settings can be achieved by setting PowerVM
+specific properties (``extra-specs``) on the flavors being used to instantiate a VM. For the
+complete list of PowerVM properties see `IBM PowerVC documentation`_.
+
+.. _`IBM PowerVC documentation`: https://www.ibm.com/support/knowledgecenter/en/SSXK2N_1.4.2/com.ibm.powervc.standard.help.doc/powervc_pg_flavorsextraspecs_hmc.html
+
+For example, to create a VM with one VCPU and 0.7 entitlement (0.7 of the physical
+CPU resource), a user could use a flavor created as follows::
+
+  openstack flavor create --vcpus 1 --ram 6144 --property \
+    powervm:proc_units=0.7 pvm-6-1-0.7
+
+In the example above ``powervm:proc_units`` property was used to specify CPU
+entitlement for the VM.
+
 Remarks For IBM i Users
 ~~~~~~~~~~~~~~~~~~~~~~~
 By default all VMs are created as ``AIX/Linux`` type LPARs. In order to create
