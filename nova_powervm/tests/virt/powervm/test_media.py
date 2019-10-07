@@ -103,7 +103,7 @@ class TestConfigDrivePowerVM(test.NoDBTestCase):
         cfg_dr_builder.create_cfg_drv_vopt(mock_instance, 'files', 'netinfo',
                                            'fake_lpar', admin_pass='pass')
         mock_ntf.assert_called_once_with(mode='rb')
-        mock_ccdi.assert_called_once_with(cfg_dr_builder, mock_instance,
+        mock_ccdi.assert_called_once_with(mock_instance,
                                           'files', 'netinfo', 'iso_path',
                                           admin_pass='pass')
         mock_getsize.assert_called_once_with('iso_path')

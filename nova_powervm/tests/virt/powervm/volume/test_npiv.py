@@ -118,7 +118,7 @@ class TestNPIVAdapter(test_vol.TestVolumeAdapter):
         self.assertEqual(1, mock_add_map.call_count)
         mock_add_map.assert_called_once_with(
             mock.ANY, 'host_uuid', '1234', ('21000024FF649104', 'AA BB'),
-            lpar_slot_num='62', provided={})
+            lpar_slot_num='62')
         self.assertEqual(1, self.ft_fx.patchers['update'].mock.call_count)
         self.assertEqual(npiv.FS_INST_MAPPED,
                          self.vol_drv._get_fabric_state('A'))

@@ -114,7 +114,8 @@ pluggy==0.6.0
 ply==3.11
 prettytable==0.7.1
 psutil==3.2.2
-psycopg2==2.7
+libpq-dev==9.0.0
+psycopg2==2.8.3
 py==1.5.2
 pyasn1==0.4.2
 pyasn1-modules==0.2.1
@@ -130,7 +131,7 @@ PyNaCl==1.2.1
 pyOpenSSL==17.5.0
 pyparsing==2.2.0
 pyperclip==1.6.0
-pypowervm==1.1.20
+pypowervm==1.1.23
 pytest==3.4.2
 python-barbicanclient==4.5.2
 python-cinderclient==3.3.0

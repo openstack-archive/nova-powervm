@@ -181,6 +181,35 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         self.multi_vol_drv.connect_volume(self.slot_mgr)
         mock_discover.assert_has_calls(multi_calls, any_order=True)
 
+    @mock.patch('nova_powervm.virt.powervm.volume.vscsi.PVVscsiFCVolumeAdapter'
+                '._validate_vios_on_connection', new=mock.Mock())
+    @mock.patch('pypowervm.tasks.hdisk.discover_iscsi', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.add_map', autospec=True)
+    @mock.patch('pypowervm.tasks.scsi_mapper.build_vscsi_mapping',
+                autospec=True)
+    @mock.patch('pypowervm.tasks.hdisk.lua_recovery', autospec=True)
+    @mock.patch('nova_powervm.virt.powervm.vm.get_vm_id')
+    def test_connect_volume_noauth(self, mock_get_vm_id, mock_lua_recovery,
+                                   mock_build_map,
+                                   mock_add_map, mock_discover):
+        # The mock return values
+        mock_lua_recovery.return_value = (
+            hdisk.LUAStatus.DEVICE_AVAILABLE, 'devname', 'udid')
+        mock_get_vm_id.return_value = '2'
+        mock_discover.return_value = '/dev/fake', 'fake_udid'
+
+        def build_map_func(host_uuid, vios_w, lpar_uuid, pv,
+                           lpar_slot_num=None, lua=None, target_name=None):
+            self.assertEqual('host_uuid', host_uuid)
+            self.assertIsInstance(vios_w, pvm_vios.VIOS)
+            self.assertEqual('1234', lpar_uuid)
+            self.assertIsInstance(pv, pvm_stor.PV)
+            self.assertEqual('_volume_id', pv.tag[1:])
+            self.assertEqual(62, lpar_slot_num)
+            self.assertEqual('the_lua', lua)
+            return 'fake_map'
+
+        mock_build_map.side_effect = build_map_func
         # connect without using CHAP authentication.
         self.vol_drv.connection_info['data'].pop('auth_method')
         mock_discover.return_value = '/dev/fake', 'fake_udid2'
@@ -263,7 +292,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         mock_active_vioses.return_value = [mock_vios]
         self.vol_drv.extend_volume()
         mock_rescan.assert_called_once_with(self.vol_drv.vios_uuids[0],
-                                            "vstor_uuid", self.adpt)
+                                            "vstor_uuid", adapter=self.adpt)
         mock_rescan.side_effect = pvm_exc.JobRequestFailed(
             operation_name='RescanVirtualDisk', error='fake_err')
         self.assertRaises(p_exc.VolumeExtendFailed, self.vol_drv.extend_volume)
@@ -401,7 +430,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         # mock_remove_maps.assert_not_called()
         self.assertEqual(0, mock_remove_maps.call_count)
         self.assertEqual(0, mock_remove_iscsi.call_count)
-        mock_hdisk_from_uuid.assert_called_with(mock.ANY, 'vstor_uuid')
+        mock_hdisk_from_uuid.assert_called_with('vstor_uuid')
         self.assertFalse(status)
 
         # Ensures that if UDID not found, then mappings are not
@@ -586,7 +615,7 @@ class TestISCSIAdapter(test_vol.TestVolumeAdapter):
         volume_key = 'vscsi-' + self.serial
         mig_vol_stor = {volume_key: 'udid'}
         self.vol_drv.post_live_migration_at_destination(mig_vol_stor)
-        mock_set_udid.assert_called_with(mock.ANY, 'udid')
+        mock_set_udid.assert_called_with('udid')
 
     def test_post_live_migr_source(self):
 
