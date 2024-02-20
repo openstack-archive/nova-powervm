@@ -1,7 +1,0 @@
-Rocky Specifications
-====================
-
-.. toctree::
-   :glob:
-
-   *

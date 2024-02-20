@@ -1,7 +1,0 @@
-Pike Specifications
-===================
-
-.. toctree::
-   :glob:
-
-   *

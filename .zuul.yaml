@@ -1,7 +1,0 @@
-- project:
-    templates:
-      - check-requirements
-      - openstack-lower-constraints-jobs
-      - openstack-python-jobs
-      - openstack-python36-jobs
-      - periodic-stable-jobs

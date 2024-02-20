@@ -1,7 +1,0 @@
-Newton Specifications
-=====================
-
-.. toctree::
-   :glob:
-
-   *
